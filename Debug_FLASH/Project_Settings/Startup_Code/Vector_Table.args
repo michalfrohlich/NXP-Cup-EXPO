@@ -1,0 +1,11 @@
+-c
+-I../RTD/include
+-x assembler-with-cpp
+-g3
+-mcpu=cortex-m4
+-mthumb
+-mlittle-endian
+-mfloat-abi=hard
+-specs=nano.specs
+-specs=nosys.specs
+--sysroot="C:/NXP/S32DS.3.6.3/S32DS/build_tools/gcc_b1620/gcc-6.3-arm32-eabi/arm-none-eabi/newlib"

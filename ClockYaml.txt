@@ -1,0 +1,100 @@
+/* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
+!!Configuration
+name: BOARD_BootClockRUN
+called_from_default_init: true
+outputs:
+- {id: ADC0_CLK.outFreq, value: 48 MHz}
+- {id: ADC1_CLK.outFreq, value: 8 MHz}
+- {id: BUS_CLK.outFreq, value: 48 MHz}
+- {id: CLKOUT0_CLK.outFreq, value: 1.6 MHz}
+- {id: CMP0_CLK.outFreq, value: 48 MHz}
+- {id: CORE_CLK.outFreq, value: 48 MHz}
+- {id: CRC0_CLK.outFreq, value: 48 MHz}
+- {id: DMA0_CLK.outFreq, value: 48 MHz}
+- {id: DMAMUX0_CLK.outFreq, value: 48 MHz}
+- {id: EIM0_CLK.outFreq, value: 48 MHz}
+- {id: ERM0_CLK.outFreq, value: 48 MHz}
+- {id: EWM0_CLK.outFreq, value: 48 MHz}
+- {id: FIRCDIV1_CLK.outFreq, value: 48 MHz}
+- {id: FIRCDIV2_CLK.outFreq, value: 48 MHz}
+- {id: FIRCOUT.outFreq, value: 48 MHz}
+- {id: FLASH_CLK.outFreq, value: 12 MHz}
+- {id: FLEXCAN0_CLK.outFreq, value: 48 MHz}
+- {id: FLEXCAN1_CLK.outFreq, value: 48 MHz}
+- {id: FLEXCAN2_CLK.outFreq, value: 48 MHz}
+- {id: FTFC0_CLK.outFreq, value: 12 MHz}
+- {id: FTM0_CLK.outFreq, value: 8 MHz}
+- {id: FTM1_CLK.outFreq, value: 8 MHz}
+- {id: FTM2_CLK.outFreq, value: 8 MHz}
+- {id: FTM3_CLK.outFreq, value: 8 MHz}
+- {id: FlexIO0_CLK.outFreq, value: 8 MHz}
+- {id: FlexIO_CLK.outFreq, value: 8 MHz}
+- {id: LPI2C0_CLK.outFreq, value: 8 MHz, locked: true, accuracy: '0.001'}
+- {id: LPIT0_CLK.outFreq, value: 8 MHz}
+- {id: LPO_128K_CLK.outFreq, value: 128 kHz}
+- {id: LPO_1K_CLK.outFreq, value: 1 kHz}
+- {id: LPO_32K_CLK.outFreq, value: 32 kHz}
+- {id: LPO_CLK.outFreq, value: 128 kHz}
+- {id: LPSPI0_CLK.outFreq, value: 8 MHz}
+- {id: LPSPI1_CLK.outFreq, value: 8 MHz}
+- {id: LPSPI2_CLK.outFreq, value: 8 MHz}
+- {id: LPTMR0_CLK.outFreq, value: 48 MHz}
+- {id: LPUART0_CLK.outFreq, value: 8 MHz}
+- {id: LPUART1_CLK.outFreq, value: 8 MHz}
+- {id: LPUART2_CLK.outFreq, value: 8 MHz}
+- {id: MPU0_CLK.outFreq, value: 48 MHz}
+- {id: MSCM0_CLK.outFreq, value: 48 MHz}
+- {id: PDB0_CLK.outFreq, value: 48 MHz}
+- {id: PDB1_CLK.outFreq, value: 48 MHz}
+- {id: PORTA_CLK.outFreq, value: 48 MHz}
+- {id: PORTB_CLK.outFreq, value: 48 MHz}
+- {id: PORTC_CLK.outFreq, value: 48 MHz}
+- {id: PORTD_CLK.outFreq, value: 48 MHz}
+- {id: PORTE_CLK.outFreq, value: 48 MHz}
+- {id: RTC0_CLK.outFreq, value: 8 MHz}
+- {id: RTC_CLK.outFreq, value: 8 MHz}
+- {id: RTC_CLKIN.outFreq, value: 32.768 kHz}
+- {id: SCGCLKOUT_CLK.outFreq, value: 48 MHz}
+- {id: SIRCDIV1_CLK.outFreq, value: 8 MHz}
+- {id: SIRCDIV2_CLK.outFreq, value: 8 MHz}
+- {id: SIRCOUT.outFreq, value: 8 MHz}
+- {id: SOSCDIV1_CLK.outFreq, value: 8 MHz}
+- {id: SOSCDIV2_CLK.outFreq, value: 8 MHz}
+- {id: SOSCOUT.outFreq, value: 8 MHz}
+- {id: SPLLDIV1_CLK.outFreq, value: 48 MHz}
+- {id: SPLLDIV2_CLK.outFreq, value: 24 MHz}
+- {id: SYS_CLK.outFreq, value: 48 MHz}
+- {id: TRACE_CLK.outFreq, value: 48 MHz}
+settings:
+- {id: ClockDevErrorDetect, value: Enabled}
+- {id: DIVBUS.scale, value: '1', locked: true}
+- {id: DIVCORE.scale, value: '1', locked: true}
+- {id: DIVSLOW.scale, value: '4', locked: true}
+- {id: 'HSRUN:DIVBUS.scale', value: '1', locked: true}
+- {id: 'HSRUN:DIVCORE.scale', value: '1', locked: true}
+- {id: 'HSRUN:DIVSLOW.scale', value: '4', locked: true}
+- {id: MODULE_CLOCKS.PCC_ADC0_MUX.sel, value: FIRCDIV2}
+- {id: MODULE_CLOCKS.PCC_LPTMR0_MUX.sel, value: FIRCDIV2}
+- {id: MODULE_CLOCKS.SIM_CLKOUT_DIV.scale, value: '5'}
+- {id: MODULE_CLOCKS.SIM_CLKOUT_MUX.sel, value: MODULE_CLOCKS.PCC_RTC_CLK_DIV}
+- {id: PREDIV.scale, value: '1', locked: true}
+- {id: 'RUN:DIVBUS.scale', value: '1', locked: true}
+- {id: 'RUN:DIVCORE.scale', value: '1', locked: true}
+- {id: 'RUN:DIVSLOW.scale', value: '4', locked: true}
+- {id: SCG_SOSCCSR_SOSCEN_CFG, value: Enabled}
+- {id: SCG_SPLLCSR_SPLLEN_CFG, value: Enabled}
+- {id: SIRCDIV1.scale, value: '1', locked: true}
+- {id: SIRCDIV2.scale, value: '1', locked: true}
+- {id: SPLLDIV1.scale, value: '2', locked: true}
+- {id: SPLLDIV2.scale, value: '4', locked: true}
+- {id: SPLL_mul.scale, value: '24', locked: true}
+- {id: SPLLunderMcuControl, value: Disabled}
+- {id: 'VLPR:DIVBUS.scale', value: '1', locked: true}
+- {id: 'VLPR:DIVCORE.scale', value: '8', locked: true}
+- {id: 'VLPR:DIVSLOW.scale', value: '4', locked: true}
+- {id: 'VLPR:SCSSEL.sel', value: SIRC}
+sources:
+- {id: RTC.RTC_CLK_EXT_IN.outFreq, value: 32.768 kHz, enabled: true}
+- {id: SOSC.SOSC.outFreq, value: 8 MHz, enabled: true}
+ * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
+   
