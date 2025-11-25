@@ -130,7 +130,9 @@
          <generated_project_files>
             <file path="generate/include/Clock_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/Clock_Ip_Cfg_Defines.h" update_enabled="true"/>
+            <file path="generate/include/Clock_Ip_VS_0_PBcfg.h" update_enabled="true"/>
             <file path="generate/src/Clock_Ip_Cfg.c" update_enabled="true"/>
+            <file path="generate/src/Clock_Ip_VS_0_PBcfg.c" update_enabled="true"/>
          </generated_project_files>
          <clocks_profile>
             <processor_version>0.0.0</processor_version>
@@ -412,11 +414,6 @@
             <dependency resourceType="SWComponent" resourceId="platform.driver.Platform" description="An unsupported version of the Platform in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. The project might not compile correctly." problem_level="1" source="Peripherals">
                <feature name="version" evaluation="equivalent">
                   <data type="Version">1.0.0</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data>true</data>
                </feature>
             </dependency>
          </dependencies>
@@ -2115,8 +2112,57 @@
                                  <array name="GptChannelEcucPartitionRef"/>
                                  <array name="GptWakeupConfiguration"/>
                               </struct>
+                              <struct name="2">
+                                 <setting name="Name" value="EmuTimer_Notification"/>
+                                 <setting name="GptChannelId" value="2"/>
+                                 <setting name="GptHwIp" value="FTM"/>
+                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Ftm1/FtmChannel_1"/>
+                                 <setting name="GptChannelMode" value="GPT_CH_MODE_CONTINUOUS"/>
+                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_1"/>
+                                 <setting name="GptChannelTickValueMax" value="65535"/>
+                                 <setting name="GptEnableWakeup" value="false"/>
+                                 <array name="GptNotification">
+                                    <setting name="0" value="EmuTimer_Notification"/>
+                                 </array>
+                                 <array name="GptChannelEcucPartitionRef"/>
+                                 <array name="GptWakeupConfiguration"/>
+                              </struct>
+                              <struct name="3">
+                                 <setting name="Name" value="GptChannelConfiguration_3"/>
+                                 <setting name="GptChannelId" value="3"/>
+                                 <setting name="GptHwIp" value="LPIT"/>
+                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/LpitChannel_0"/>
+                                 <setting name="GptChannelMode" value="GPT_CH_MODE_CONTINUOUS"/>
+                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_1"/>
+                                 <setting name="GptChannelTickValueMax" value="4294967295"/>
+                                 <setting name="GptEnableWakeup" value="false"/>
+                                 <array name="GptNotification">
+                                    <setting name="0" value="GptChannel3_notification"/>
+                                 </array>
+                                 <array name="GptChannelEcucPartitionRef"/>
+                                 <array name="GptWakeupConfiguration"/>
+                              </struct>
                            </array>
-                           <array name="GptLpit"/>
+                           <array name="GptLpit">
+                              <struct name="0">
+                                 <setting name="Name" value="Lpit_0"/>
+                                 <setting name="GptLpitModule" value="LPIT_0"/>
+                                 <setting name="LpitFreezeEnable" value="false"/>
+                                 <setting name="LpitDozeEnable" value="false"/>
+                                 <array name="GptLpitChannels">
+                                    <struct name="0">
+                                       <setting name="Name" value="LpitChannel_0"/>
+                                       <setting name="GptLpitChannel" value="CH_0"/>
+                                       <setting name="ChainMode" value="false"/>
+                                       <setting name="LPitExternalTrigger" value="false"/>
+                                       <setting name="LPitReloadOnTrigger" value="false"/>
+                                       <setting name="LPitStopOnInterrupt" value="false"/>
+                                       <setting name="LPitStartOnTrigger" value="false"/>
+                                       <array name="LPitTriggerChannels"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                           </array>
                            <array name="GptLptmr">
                               <struct name="0">
                                  <setting name="Name" value="Lptmr0"/>
@@ -2142,6 +2188,11 @@
                                        <setting name="GptFtmChannel" value="CH_0"/>
                                        <setting name="FtmAbsoluteCounting" value="false"/>
                                     </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="FtmChannel_1"/>
+                                       <setting name="GptFtmChannel" value="CH_1"/>
+                                       <setting name="FtmAbsoluteCounting" value="false"/>
+                                    </struct>
                                  </array>
                               </struct>
                            </array>
@@ -2151,8 +2202,8 @@
                            <struct name="0">
                               <setting name="Name" value="GptHwConfiguration_0"/>
                               <setting name="GptIsrHwId" value="LPIT_0_CH_0"/>
-                              <setting name="GptIsrEnable" value="false"/>
-                              <setting name="GptChannelIsUsed" value="false"/>
+                              <setting name="GptIsrEnable" value="true"/>
+                              <setting name="GptChannelIsUsed" value="true"/>
                            </struct>
                            <struct name="1">
                               <setting name="Name" value="GptHwConfiguration_1"/>
@@ -2229,8 +2280,8 @@
                            <struct name="13">
                               <setting name="Name" value="GptHwConfiguration_13"/>
                               <setting name="GptIsrHwId" value="FTM_1_CH_1"/>
-                              <setting name="GptIsrEnable" value="false"/>
-                              <setting name="GptChannelIsUsed" value="false"/>
+                              <setting name="GptIsrEnable" value="true"/>
+                              <setting name="GptChannelIsUsed" value="true"/>
                            </struct>
                            <struct name="14">
                               <setting name="Name" value="GptHwConfiguration_14"/>

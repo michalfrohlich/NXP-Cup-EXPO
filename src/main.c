@@ -1,15 +1,4 @@
 /*Nxp_Cup_Linear_Camera_S32K144 - main file */
-/*==================================================================================================
-*    Copyright 2021-2024 NXP
-*
-*    NXP Confidential and Proprietary. This software is owned or controlled by NXP and may only be
-*    used strictly in accordance with the applicable license terms. By expressly
-*    accepting such terms or by downloading, installing, activating and/or otherwise
-*    using the software, you are agreeing that you have read, and that you agree to
-*    comply with and are bound by, such license terms. If you do not agree to be
-*    bound by the applicable license terms, then you may not retain, install,
-*    activate or otherwise use the software.
-==================================================================================================*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,7 +31,10 @@ extern "C" {
 /*==================================================================================================
  *                                       LOCAL MACROS
 ==================================================================================================*/
-
+/* Display test flag */
+#define DISPLAY_TEST  1   /* set to 0 later to restore normal behaviour */
+/* Display test flag */
+#define CAR_TEST  1  //used for testing the servo and motors
 /*==================================================================================================
  *                                      LOCAL CONSTANTS
 ==================================================================================================*/
@@ -50,7 +42,7 @@ extern "C" {
 /*==================================================================================================
  *                                      LOCAL VARIABLES
 ==================================================================================================*/
-
+static uint32 EmuFrameCount = 0U; //number of times the graph was updated
 /*==================================================================================================
  *                                      GLOBAL CONSTANTS
 ==================================================================================================*/
@@ -58,7 +50,9 @@ extern "C" {
 /*==================================================================================================
  *                                      GLOBAL VARIABLES
 ==================================================================================================*/
-
+volatile boolean g_EmuNewFrameFlag = FALSE; //used for the GPT Channel 2 (EmuTimer)
+volatile boolean g_GptChannel3Flag = FALSE;
+static uint16 EmuTicks = 0U;
 /*==================================================================================================
  *                                   LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/
@@ -66,20 +60,24 @@ extern "C" {
 /*==================================================================================================
  *                                       LOCAL FUNCTIONS
 ==================================================================================================*/
+void EmuTimer_Notification(void)
+{
+	EmuTicks++;
+	if(EmuTicks >= 1000U){
+		g_EmuNewFrameFlag = TRUE;
+		EmuTicks = 0U;
+	}
 
+}
+void GptChannel3_notification(void)
+{
+	g_GptChannel3Flag = TRUE;
+}
 /*==================================================================================================
  *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
-/**
- * @brief        Main function of the example
- * @details      Initializes the used drivers, servo, Hbridge, display and linear camera. The code
- *               tries to keep the car between the two black lines using a linear camera.
- */
 
-/* Display test flag */
-#define DISPLAY_HELLO_TEST  1   /* set to 0 later to restore normal behaviour */
-
-/* Linera camera code */
+/* ========== Linera camera code ==========*/
 #define THRESHOLD 40
 #define BUFFER_SIZE 128
 #define MID_POINT BUFFER_SIZE/2
@@ -131,7 +129,9 @@ float calculateCenterOfRegions(BlackRegion Regions[], uint8 RegionCount) {
     return (float)TotalCenter / RegionCount;
 }
 
-static uint32 EmuFrameCount = 0U; //number of times the graph was updated
+/*==================================================================================================
+ *                                       MAIN
+==================================================================================================*/
 
 int main(void)
 {
@@ -184,60 +184,70 @@ int main(void)
     /*Pixy2Init(0x54, 0U);*/
     /*Pixy2Test();*/
 
-    CameraEmulator_Init();
+/*==================================================================================================
+ *                                       DISPLAY TEST
+==================================================================================================*/
 
-	#if DISPLAY_HELLO_TEST
+	#if DISPLAY_TEST
 		uint8 SimPixels[CAMERA_EMU_NUM_PIXELS];
 		uint8 GraphValues[CAMERA_EMU_NUM_PIXELS];
 
 		CameraEmulator_Init();
 
+		/*Set up the timer used for determining the frequency of receiving emulated data*/
+
+		Gpt_StartTimer(2U, 8000U); //ticks = 8e6 * seconds -> 1ms = 8000
+		Gpt_EnableNotification(2U); //enable channel's 2 notification
+
+		//Gpt_StartTimer(3U, 8000U); //ticks = 8e6 * seconds -> 1ms = 8000
+		//Gpt_EnableNotification(3U); //enable channel's 3 notification
+
 		for (;;)
 		{
-			/* 1) Get emulated camera frame */
-			CameraEmulator_GetFrame(SimPixels);
-			EmuFrameCount++;
-
-			/* 2) Scale 0..255 -> 0..100 for bar height */
-			for (uint16 i = 0U; i < CAMERA_EMU_NUM_PIXELS; i++)
+			if (g_EmuNewFrameFlag)
 			{
-				GraphValues[i] = (uint8)(((uint16)SimPixels[i] * 100U) / 255U);
-			}
+				g_EmuNewFrameFlag = FALSE; //reset timer flag
 
-			/* 3) Clear entire display buffer */
-			DisplayClear();
+				/* 1) Get emulated camera frame */
+				CameraEmulator_GetFrame(SimPixels);
+				EmuFrameCount++;
 
-			/* 4) Draw bar graph in lower 3 pages (rows 8–31):
-			 *    - DisplayLine = 1   → start at second page (row 8)
-			 *    - LinesSpan   = 3   → use 3 pages (24 px high)
-			 *      Bars will internally use only 2/3 of that height, with a ref line at the top.
-			 */
-			DisplayBarGraph(1U, GraphValues, CAMERA_EMU_NUM_PIXELS, 3U);
+				/* 2) Scale 0..255 -> 0..100 for bar height */
+				for (uint16 i = 0U; i < CAMERA_EMU_NUM_PIXELS; i++)
+				{
+					GraphValues[i] = (uint8)(((uint16)SimPixels[i] * 100U) / 255U);
+				}
 
-			/* 5) Prepare debug text in the top-left corner (page 0, row 0–7).
-			 *    We keep the number reasonably small: modulo 100000 → max 5 digits.
-			 */
-			char debugLine[16];
-			uint32 displayCount = EmuFrameCount % 100000UL;
+				/* 3) Clear entire display buffer */
+				DisplayClear();
 
-			/* Format: "R:12345" (R = reads) */
-			(void)snprintf(debugLine, sizeof(debugLine), "R:%5lu", (unsigned long)displayCount);
+				/* 4) Draw bar graph in lower 3 pages (rows 8–31):
+				 *    - DisplayLine = 1   → start at second page (row 8)
+				 *    - LinesSpan   = 3   → use 3 pages (24 px high)
+				 *      Bars will internally use only 2/3 of that height, with a ref line at the top.
+				 */
+				DisplayBarGraph(1U, GraphValues, CAMERA_EMU_NUM_PIXELS, 3U);
 
-			/* Draw text on the top line (page 0) */
-			DisplayText(0U, debugLine, 7U, 0U);
+				/* 5) Prepare debug text in the top-left corner (page 0, row 0–7).
+				 *    We keep the number reasonably small: modulo 100000 → max 5 digits. */
+				char debugLine[16];
+				uint32 displayCount = EmuFrameCount % 100000UL;
 
-			/* 6) Send everything to the OLED */
-			DisplayRefresh();
+				(void)snprintf(debugLine, sizeof(debugLine), "R:%5lu", (unsigned long)displayCount); /* Format: "R:12345" (R = reads) */
 
-			/* 7) Crude delay (for now) so updates are visible.
-			 *    Later you’ll replace this with a real GPT-based timer.
-			 */
-			for (volatile uint32 d = 0U; d < 2000000U; d++)
-			{
-				/* busy wait */
+				DisplayText(0U, debugLine, 7U, 0U); /* Draw text on the top line (page 0) */
+
+				/* 6) Send everything to the OLED */
+				DisplayRefresh();
 			}
 		}
 	#endif
+
+/*==================================================================================================
+ *                                       CAR TEST
+==================================================================================================*/
+
+	#if CAR_TEST
 
     HbridgeSetSpeed(50);
     while(1){
@@ -267,7 +277,9 @@ int main(void)
         DisplayGraph(1U, FrameBuffer.Values, 128U, 3U);
         DisplayRefresh();
     }
+	#endif
 }
+
 
 
 #ifdef __cplusplus

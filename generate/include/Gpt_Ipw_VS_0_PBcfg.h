@@ -99,11 +99,11 @@ extern "C"
 /**
  * @brief   Gpt HwInstanceConfig configuration array
  */
-extern Gpt_Ipw_HwInstanceConfigType Gpt_Ipw_HwInstanceConfig_PB_VS_0[2U];
+extern Gpt_Ipw_HwInstanceConfigType Gpt_Ipw_HwInstanceConfig_PB_VS_0[3U];
 /**
  * @brief   Gpt channels IP related configuration array
  */
-extern Gpt_Ipw_HwChannelConfigType Gpt_Ipw_ChannelConfig_PB_VS_0[2U];
+extern Gpt_Ipw_HwChannelConfigType Gpt_Ipw_ChannelConfig_PB_VS_0[4U];
 /*==================================================================================================
 *                                    FUNCTION PROTOTYPES
 ==================================================================================================*/

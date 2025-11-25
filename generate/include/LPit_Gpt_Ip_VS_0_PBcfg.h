@@ -98,6 +98,8 @@ extern "C"
 
 #define GPT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
+extern const Lpit_Gpt_Ip_InstanceConfigType LPIT_0_InitConfig_PB_VS_0;
+extern const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[1U];
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 

@@ -100,7 +100,7 @@ extern "C"
 #define GPT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 extern const Ftm_Gpt_Ip_InstanceConfigType FTM_1_InitConfig_PB_VS_0;
-extern const Ftm_Gpt_Ip_ChannelConfigType FTM_1_ChannelConfig_PB_VS_0[1U];
+extern const Ftm_Gpt_Ip_ChannelConfigType FTM_1_ChannelConfig_PB_VS_0[2U];
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 

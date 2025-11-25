@@ -128,7 +128,7 @@ const Ftm_Gpt_Ip_InstanceConfigType FTM_1_InitConfig_PB_VS_0 =
 };
 
 
-const Ftm_Gpt_Ip_ChannelConfigType FTM_1_ChannelConfig_PB_VS_0[1U] =
+const Ftm_Gpt_Ip_ChannelConfigType FTM_1_ChannelConfig_PB_VS_0[2U] =
 {
     {
         /** @brief Ftm Channel Id */
@@ -139,6 +139,17 @@ const Ftm_Gpt_Ip_ChannelConfigType FTM_1_ChannelConfig_PB_VS_0[1U] =
         (uint8)1U,
         /** @brief Ftm channel mode  */
         FTM_GPT_IP_CH_MODE_ONESHOT,
+    }
+,
+    {
+        /** @brief Ftm Channel Id */
+        1U,
+        /** @brief Ftm callback name */
+        &Gpt_ProcessCommonInterrupt,
+        /** @brief Ftm callbackparam */
+        (uint8)2U,
+        /** @brief Ftm channel mode  */
+        FTM_GPT_IP_CH_MODE_CONTINUOUS,
     }
 };
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED

@@ -207,12 +207,14 @@ extern "C"{
 */
 #define GptConf_GptChannelConfiguration_Receiver_Timeout (0U)
 #define GptConf_GptChannelConfiguration_LinearCameraShutter (1U)
+#define GptConf_GptChannelConfiguration_EmuTimer_Notification (2U)
+#define GptConf_GptChannelConfiguration_GptChannelConfiguration_3 (3U)
 /*================================================================================================*/
 /**
 * @brief       GPT_HW_CHANNEL_NUM
 * @details     The maximum number of HW channels. This is used to allocate memory space for channel runtime info.
 */
-#define GPT_HW_CHANNEL_NUM      (2U)
+#define GPT_HW_CHANNEL_NUM      (4U)
 /*================================================================================================*/
 /**
 * @brief        GPT_MAX_PARTITIONS_CFG.
@@ -230,7 +232,7 @@ extern "C"{
 * @brief        GPT_NUM_CONFIG.
 * @details      Number of ChannelConfiguration
 */
-#define GPT_NUM_CONFIG       (2U)
+#define GPT_NUM_CONFIG       (4U)
 /*================================================================================================*/
 /**
 *   @brief      GPT_HW_PREDEFTIMER_NUM
