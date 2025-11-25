@@ -79,7 +79,6 @@ extern "C" {
 /* Display test flag */
 #define DISPLAY_HELLO_TEST  1   /* set to 0 later to restore normal behaviour */
 
-
 /* Linera camera code */
 #define THRESHOLD 40
 #define BUFFER_SIZE 128
