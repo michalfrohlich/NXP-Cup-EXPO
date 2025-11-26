@@ -25,6 +25,9 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 #include "onboard_pot.h"
+
+#include "S32K144.h" //bare-metal pot test
+
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -130,7 +133,6 @@ float calculateCenterOfRegions(BlackRegion Regions[], uint8 RegionCount) {
     return (float)TotalCenter / RegionCount;
 }
 
-
 /*==================================================================================================
  *                                       MAIN
 ==================================================================================================*/
@@ -210,8 +212,19 @@ int main(void)
 		{
 			if (g_EmuNewFrameFlag)
 			{
-				g_EmuNewFrameFlag = FALSE; //reset timer flag
+			    g_EmuNewFrameFlag = FALSE;
 
+			    /* Read raw ADC value via MCAL/OnboardPot */
+			    uint16 raw = OnboardPot_ReadRaw();
+
+			    char dbg[16];
+			    (void)snprintf(dbg, sizeof(dbg), "A:%4u", raw);
+			    DisplayClear();
+			    DisplayText(0U, dbg, 7U, 0U);
+			    DisplayRefresh();
+
+
+				#if 0 //temporarily disabled so pot can be tested
 				/* 0) Read potentiometer -> 0..255 "brightness" */
 				uint8 baseLevel = OnboardPot_ReadLevelFiltered();
 
@@ -246,6 +259,7 @@ int main(void)
 
 				/* 6) Send everything to the OLED */
 				DisplayRefresh();
+				#endif
 			}
 		}
 	#endif
@@ -292,5 +306,4 @@ int main(void)
 #ifdef __cplusplus
 }
 #endif
-
 /** @} */

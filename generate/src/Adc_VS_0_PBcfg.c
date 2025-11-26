@@ -141,7 +141,7 @@ static const Adc_ChannelType Adc_Group0_Assignment_0_VS_0[ADC_CFGSET_VS_0_GROUP_
 */
 static const Adc_ChannelType Adc_Group1_Assignment_0_VS_0[ADC_CFGSET_VS_0_GROUP_1_CHANNELS] =
 {
-    0U
+    1U
 };
 
 /**
@@ -272,9 +272,9 @@ static const Adc_GroupConfigurationType Adc_GroupsCfg_VS_0[] =
         /**< @brief Number of channels in the group*/
         (Adc_ChannelIndexType)ADC_CFGSET_VS_0_GROUP_1_CHANNELS, /* AssignedChannelCount */
         /**< @brief Last Channel configured */
-        (Adc_ChannelType)(ADC_ID_CHANNEL_U8(14)), /* LastCh */
+        (Adc_ChannelType)(ADC_ID_CHANNEL_U8(12)), /* LastCh */
         /**< @brief First Channel configured */
-        (Adc_ChannelType)(ADC_ID_CHANNEL_U8(14)), /* FirstCh */
+        (Adc_ChannelType)(ADC_ID_CHANNEL_U8(12)), /* FirstCh */
         /**< @brief Enables or Disables the ADC and DMA interrupts */
         (uint8)(STD_OFF), /* AdcWithoutInterrupt */
         /**< @brief Enables or Disables configuring external DMA channel in the group */

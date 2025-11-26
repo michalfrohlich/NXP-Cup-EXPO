@@ -263,7 +263,7 @@ const Adc_Ipw_GroupConfig AdcIpwGroupConfig_1_VS_0 =
     STD_OFF, /* GroupAvgEnable */
     /**< @brief Main Average selection of group */
     ADC_IP_AVG_4_CONV, /* GroupAvgSelect */
-    1U, /* ConvTime */
+    20U, /* ConvTime */
 #if (ADC_DUAL_CLOCK_MODE == STD_ON)
     /**< @brief Alternate Average enable status of group */
     STD_OFF, /* GroupAvgEnableAlternate */

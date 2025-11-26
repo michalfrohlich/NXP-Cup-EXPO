@@ -123,6 +123,11 @@
                         <pin_feature name="direction" value="OUTPUT"/>
                      </pin_features>
                   </pin>
+                  <pin peripheral="ADC0" signal="adc0_se12" pin_num="46" pin_signal="PTC14">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
                </pins>
             </function>
          </functions_list>
@@ -1736,7 +1741,7 @@
                                           <setting name="Name" value="AdcGroupConversionConfiguration"/>
                                           <setting name="AdcGroupHardwareAverageEnable" value="false"/>
                                           <setting name="AdcGroupHardwareAverageSelect" value="SAMPLES_4"/>
-                                          <setting name="AdcGroupSampleTimeDuration" value="1"/>
+                                          <setting name="AdcGroupSampleTimeDuration" value="20"/>
                                        </struct>
                                        <struct name="AdcAlternateGroupConvTimings">
                                           <setting name="Name" value="AdcAlternateGroupConvTimings"/>
@@ -1745,7 +1750,7 @@
                                           <setting name="AdcGroupAltSampleTimeDuration" value="1"/>
                                        </struct>
                                        <array name="AdcGroupDefinition">
-                                          <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_0"/>
+                                          <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_pot"/>
                                        </array>
                                        <array name="AdcGroupEcucPartitionRef"/>
                                     </struct>

@@ -22,7 +22,7 @@ void OnboardPot_Init(void)
 /* Internal helper: perform one blocking conversion and fill s_PotResultBuffer[0]. */
 static void OnboardPot_DoConversion(void)
 {
-    Adc_GroupType group = ONBOARD_POT_ADC_GROUP;
+    Adc_GroupType group = 1U; // group 1 is the pot (EXT12)
 
     /* Start conversion of the group (single channel for the pot) */
     Adc_StartGroupConversion(group);
