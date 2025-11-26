@@ -268,7 +268,7 @@ extern "C"{
 /**
 * @brief           max number of groups configured across all configset.
 */
-#define ADC_MAX_GROUPS                      (1U)
+#define ADC_MAX_GROUPS                      (2U)
 
 /**
 * @brief           Invalid Hardware group ID to determine there is no ongoing hardware group
@@ -279,7 +279,7 @@ extern "C"{
 /**
 * @brief           Maximum number of channels across all hardware units.
 */
-#define ADC_MAX_CHANNEL_PER_HW_UNIT         (1U)
+#define ADC_MAX_CHANNEL_PER_HW_UNIT         (2U)
 
 #endif /* ADC_DMA_SUPPORTED */
 
@@ -377,6 +377,7 @@ extern "C"{
 *                  Bit fields [0-11]:   Logical id of channel in HW unit (used in Adc_EnableChannel()/Adc_DisableChannel())
 */
 #define AdcChannel_0                       (0x0U)
+#define AdcChannel_pot                       (0x1U)
 
 /**
 * @brief          Definitions used for extracting the ADC Logical Unit Id and logical id of channels in each unit from equivalent channel symbolic name
@@ -392,12 +393,14 @@ extern "C"{
 */
 
 #define AdcGroup_0                                (0U)
+#define AdcGroup_pot                                (1U)
 
 /**
 * @brief           Symbolic names of groups - ecuc 2108 compliant.
 */
 
 #define AdcConf_AdcGroup_AdcGroup_0               (0U)
+#define AdcConf_AdcGroup_AdcGroup_pot               (1U)
 
 /**
 * @brief          ADC Global Validation.

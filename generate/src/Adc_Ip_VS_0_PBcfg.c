@@ -93,11 +93,18 @@ extern "C"{
 /**
 * @brief          ADC Ip List of Channels Configuration for Logical ID 0 corresponding to the ADC0 configuration variant VS_0.
 */
-static const Adc_Ip_ChanConfigType AdcIpChansConfig_0_VS_0[1U] =
+static const Adc_Ip_ChanConfigType AdcIpChansConfig_0_VS_0[2U] =
 {
     {
         0U, /* ChnIdx */
         ADC_IP_INPUTCHAN_EXT14, /* Channel */
+    #if (ADC_IP_AIEN_INTERRUPT_ENABLE == STD_ON)
+        (boolean)FALSE /* InterruptEnable */
+    #endif /* (ADC_IP_AIEN_INTERRUPT_ENABLE == STD_ON) */
+    },
+    {
+        1U, /* ChnIdx */
+        ADC_IP_INPUTCHAN_EXT12, /* Channel */
     #if (ADC_IP_AIEN_INTERRUPT_ENABLE == STD_ON)
         (boolean)FALSE /* InterruptEnable */
     #endif /* (ADC_IP_AIEN_INTERRUPT_ENABLE == STD_ON) */
@@ -120,7 +127,7 @@ const Adc_Ip_ConfigType AdcIpConfig_0_VS_0 =
     ADC_IP_DEFAULT_SAMPLE_TIME, /* SampleTime */
     (boolean)FALSE, /* AvgEn */
     ADC_IP_AVG_4_CONV, /* AvgSel */
-    ADC_IP_RESOLUTION_8BIT, /* Resolution */
+    ADC_IP_RESOLUTION_12BIT, /* Resolution */
     ADC_IP_TRIGGER_HARDWARE, /* TriggerMode */
 #if (ADC_IP_ENABLE_SIM_SOURCE_SELECTION == STD_ON)
     ADC_IP_PRETRIGGER_SEL_PDB, /* PretriggerSel */

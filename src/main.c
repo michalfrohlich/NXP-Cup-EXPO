@@ -24,6 +24,7 @@ extern "C" {
 #include "pixy2.h"
 #include <stdio.h>
 #include <string.h>
+#include "onboard_pot.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -129,6 +130,7 @@ float calculateCenterOfRegions(BlackRegion Regions[], uint8 RegionCount) {
     return (float)TotalCenter / RegionCount;
 }
 
+
 /*==================================================================================================
  *                                       MAIN
 ==================================================================================================*/
@@ -138,6 +140,8 @@ int main(void)
     LinearCameraFrame FrameBuffer;
     /*Initialize RTD drivers with the compiled configurations*/
      DriversInit();
+
+     OnboardPot_Init();
 
     /*Initialize Esc driver*/
     /*First parameter: The Pwm Channel that was configured in Peripherals tool for the Esc*/
@@ -208,8 +212,11 @@ int main(void)
 			{
 				g_EmuNewFrameFlag = FALSE; //reset timer flag
 
+				/* 0) Read potentiometer -> 0..255 "brightness" */
+				uint8 baseLevel = OnboardPot_ReadLevelFiltered();
+
 				/* 1) Get emulated camera frame */
-				CameraEmulator_GetFrame(SimPixels);
+				CameraEmulator_GetFrame(SimPixels, baseLevel);
 				EmuFrameCount++;
 
 				/* 2) Scale 0..255 -> 0..100 for bar height */

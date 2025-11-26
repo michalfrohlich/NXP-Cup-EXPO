@@ -11,6 +11,7 @@ C_SRCS += \
 ../src/linear_camera.c \
 ../src/main.c \
 ../src/main_functions.c \
+../src/onboard_pot.c \
 ../src/pixy2.c \
 ../src/receiver.c \
 ../src/servo.c 
@@ -23,6 +24,7 @@ OBJS += \
 ./src/linear_camera.o \
 ./src/main.o \
 ./src/main_functions.o \
+./src/onboard_pot.o \
 ./src/pixy2.o \
 ./src/receiver.o \
 ./src/servo.o 
@@ -35,6 +37,7 @@ C_DEPS += \
 ./src/linear_camera.d \
 ./src/main.d \
 ./src/main_functions.d \
+./src/onboard_pot.d \
 ./src/pixy2.d \
 ./src/receiver.d \
 ./src/servo.d 

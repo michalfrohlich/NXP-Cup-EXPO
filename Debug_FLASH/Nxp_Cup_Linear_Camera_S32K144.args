@@ -187,6 +187,7 @@
 "./src/linear_camera.o"
 "./src/main.o"
 "./src/main_functions.o"
+"./src/onboard_pot.o"
 "./src/pixy2.o"
 "./src/receiver.o"
 "./src/servo.o"

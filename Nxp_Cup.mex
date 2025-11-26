@@ -96,6 +96,7 @@
                   <pin peripheral="FTM2" signal="ftm2_ch0" pin_num="4" pin_signal="PTD0">
                      <pin_features>
                         <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="initValue" value="state_0"/>
                      </pin_features>
                   </pin>
                   <pin peripheral="PORTD" signal="port, 1" pin_num="3" pin_signal="PTD1">
@@ -1601,7 +1602,7 @@
                                  <setting name="AdcCalibrationPrescale" value="8"/>
                                  <setting name="AdcHwUnitUsrOffset" value="0"/>
                                  <setting name="AdcHwUnitUsrGain" value="4"/>
-                                 <setting name="AdcHwUnitResolution" value="RESOLUTION_8"/>
+                                 <setting name="AdcHwUnitResolution" value="RESOLUTION_12"/>
                                  <array name="AdcNormalConvTimings"/>
                                  <array name="AdcAlternateConvTimings"/>
                                  <struct name="PdbHwUnit">
@@ -1625,7 +1626,28 @@
                                        <array name="AdcChannelRefVoltsrcHigh"/>
                                        <array name="AdcChannelRefVoltsrcLow"/>
                                        <array name="AdcChannelResolution">
-                                          <setting name="0" value="8"/>
+                                          <setting name="0" value="12"/>
+                                       </array>
+                                       <array name="AdcChannelSampTime"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="AdcChannel_pot"/>
+                                       <setting name="AdcLogicalChannelId" value="1"/>
+                                       <setting name="AdcChannelName" value="SE12_ADCH12"/>
+                                       <setting name="AdcChannelId" value="12"/>
+                                       <array name="AdcChannelConvTime"/>
+                                       <array name="AdcChannelLimitCheck"/>
+                                       <array name="AdcChannelHighLimit">
+                                          <setting name="0" value="4095"/>
+                                       </array>
+                                       <array name="AdcChannelLowLimit">
+                                          <setting name="0" value="0"/>
+                                       </array>
+                                       <array name="AdcChannelRangeSelect"/>
+                                       <array name="AdcChannelRefVoltsrcHigh"/>
+                                       <array name="AdcChannelRefVoltsrcLow"/>
+                                       <array name="AdcChannelResolution">
+                                          <setting name="0" value="12"/>
                                        </array>
                                        <array name="AdcChannelSampTime"/>
                                     </struct>
@@ -1668,6 +1690,53 @@
                                           <setting name="AdcGroupHardwareAverageEnable" value="false"/>
                                           <setting name="AdcGroupHardwareAverageSelect" value="SAMPLES_4"/>
                                           <setting name="AdcGroupSampleTimeDuration" value="20"/>
+                                       </struct>
+                                       <struct name="AdcAlternateGroupConvTimings">
+                                          <setting name="Name" value="AdcAlternateGroupConvTimings"/>
+                                          <setting name="AdcGroupAltHardwareAverageEnable" value="false"/>
+                                          <setting name="AdcGroupAltHardwareAverageSelect" value="SAMPLES_4"/>
+                                          <setting name="AdcGroupAltSampleTimeDuration" value="1"/>
+                                       </struct>
+                                       <array name="AdcGroupDefinition">
+                                          <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_0"/>
+                                       </array>
+                                       <array name="AdcGroupEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="AdcGroup_pot"/>
+                                       <setting name="AdcGroupAccessMode" value="ADC_ACCESS_MODE_SINGLE"/>
+                                       <setting name="AdcGroupConversionMode" value="ADC_CONV_MODE_ONESHOT"/>
+                                       <setting name="AdcGroupConversionType" value="ADC_CONV_TYPE_NORMAL"/>
+                                       <setting name="AdcGroupId" value="1"/>
+                                       <array name="AdcGroupPriority"/>
+                                       <array name="AdcGroupReplacement"/>
+                                       <setting name="AdcGroupTriggSrc" value="ADC_TRIGG_SRC_SW"/>
+                                       <setting name="AdcGroupHwTriggerSource" value="/Adc/Adc/AdcConfigSet/AdcHwTrigger_0"/>
+                                       <array name="AdcHwTrigSignal"/>
+                                       <array name="AdcHwTrigTimer"/>
+                                       <array name="AdcNotification">
+                                          <setting name="0" value="NULL_PTR"/>
+                                       </array>
+                                       <setting name="AdcExtraNotification" value="NULL_PTR"/>
+                                       <setting name="AdcStreamingBufferMode" value="ADC_STREAM_BUFFER_LINEAR"/>
+                                       <setting name="AdcEnableOptimizeDmaStreamingGroups" value="false"/>
+                                       <setting name="AdcEnableHalfInterrupt" value="false"/>
+                                       <setting name="AdcStreamingNumSamples" value="1"/>
+                                       <setting name="AdcStreamResultGroup" value="false"/>
+                                       <setting name="AdcEnableChDisableChGroup" value="false"/>
+                                       <setting name="AdcWithoutInterrupts" value="false"/>
+                                       <setting name="AdcWithoutDma" value="false"/>
+                                       <setting name="AdcExtDMAChanEnable" value="false"/>
+                                       <setting name="AdcGroupInBacktoBackMode" value="true"/>
+                                       <setting name="AdcGroupUsesChannelDelays" value="false"/>
+                                       <setting name="AdcDelayNextPdb" value="0"/>
+                                       <setting name="AdcPdbPeriodContinuousMode" value="1000"/>
+                                       <array name="AdcChannelDelay"/>
+                                       <struct name="AdcGroupConversionConfiguration">
+                                          <setting name="Name" value="AdcGroupConversionConfiguration"/>
+                                          <setting name="AdcGroupHardwareAverageEnable" value="false"/>
+                                          <setting name="AdcGroupHardwareAverageSelect" value="SAMPLES_4"/>
+                                          <setting name="AdcGroupSampleTimeDuration" value="1"/>
                                        </struct>
                                        <struct name="AdcAlternateGroupConvTimings">
                                           <setting name="Name" value="AdcAlternateGroupConvTimings"/>
