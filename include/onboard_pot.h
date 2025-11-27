@@ -4,10 +4,11 @@
 #include "Std_Types.h"   /* for uint8, uint16 */
 
 /* Initialize anything needed for the onboard potentiometer ADC reading.
- * For our simple use-case this is mostly just for symmetry. */
+ * Must be called AFTER Adc_Init(&Adc_Config) and before any Read* call.
+ */
 void OnboardPot_Init(void);
 
-/* Return raw ADC sample (0..4095 for 12-bit). */
+/* Return raw ADC sample (0..4095 for 12-bit ADC). */
 uint16 OnboardPot_ReadRaw(void);
 
 /* Map raw ADC sample to 0..255 range. */
