@@ -190,6 +190,12 @@ int main(void)
     /*Pixy2Init(0x54, 0U);*/
     /*Pixy2Test();*/
 
+    /* Temporarily force PTD0 as GPIO high → LED off */
+    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
+        IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
+        IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
+        IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
+
 /*==================================================================================================
  *                                       DISPLAY TEST
 ==================================================================================================*/
@@ -252,12 +258,25 @@ int main(void)
 
 				/* 5) Prepare debug text in the top-left corner (page 0, row 0–7).
 				 *    We keep the number reasonably small: modulo 100000 → max 5 digits. */
-				char debugLine[16];
+				/* Left side: read counter "R:xxxxx" */
+				char debugLineLeft[16];
 				uint32 displayCount = EmuFrameCount % 100000UL;
+				(void)snprintf(debugLineLeft, sizeof(debugLineLeft), "R:%5lu", (unsigned long)displayCount);
 
-				(void)snprintf(debugLine, sizeof(debugLine), "R:%5lu", (unsigned long)displayCount); /* Format: "R:12345" (R = reads) */
+				/* Right side: baseLevel "B:xxx" */
+				/* The display is 128 px wide. Each character is 6 px (5 px glyph + 1 px spacing).
+				 * "B:255" is 5 characters → 5 * 6 = 30 px.
+				 * 128 - 30 ≈ 98 px → as column index ~98 / 6 ≈ 16 characters from left.
+				 */
+				char debugLineRight[16];
+				(void)snprintf(debugLineRight, sizeof(debugLineRight), "B:%3u", baseLevel);
 
-				DisplayText(0U, debugLine, 7U, 0U); /* Draw text on the top line (page 0) */
+				/* Draw both texts on page 0.
+				 * left text at column = 0 chars
+				 * right text at column = 16 chars  (→ top-right area)
+				 */
+				DisplayText(0U, debugLineLeft, 7U, 0U);   /* top-left  */
+				DisplayText(16U, debugLineRight, 7U, 0U); /* top-right */
 
 				/* 6) Send everything to the OLED */
 				DisplayRefresh();
