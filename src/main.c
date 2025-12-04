@@ -25,6 +25,7 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 #include "onboard_pot.h"
+#include "buttons.h"
 
 #include "S32K144.h" //bare-metal pot test
 
@@ -218,8 +219,13 @@ int main(void)
 		//Gpt_StartTimer(3U, 8000U); //ticks = 8e6 * seconds -> 1ms = 8000
 		//Gpt_EnableNotification(3U); //enable channel's 3 notification
 
-		for (;;)
+		for (;;) //loop forever
 		{
+
+			/* Update debounced button  */
+			Buttons_Update();
+
+			/* ----- Capture new frame and process it ----- (for now it is simulated */
 			if (g_EmuNewFrameFlag)
 			{
 			    g_EmuNewFrameFlag = FALSE;
@@ -278,7 +284,7 @@ int main(void)
 	#endif
 
 /*==================================================================================================
- *                                       CAR TEST
+ *                                       CAR TEST = RUN STATE
 ==================================================================================================*/
 
 	#if CAR_TEST

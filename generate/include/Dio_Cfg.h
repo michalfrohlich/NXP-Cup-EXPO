@@ -258,6 +258,11 @@ extern "C" {
 *
 */
 #define DioConf_DioChannel_PTC12_sw2  ((uint16)0x004cU)
+/**
+* @brief          Symbolic name for the channel PTC13_sw3.
+*
+*/
+#define DioConf_DioChannel_PTC13_sw3  ((uint16)0x004dU)
 /* ---------- DioPort_A ---------- */
 
 /**

@@ -41,6 +41,7 @@ extern "C" {
 #include "Hbridge.h"
 #include "esc.h"
 #include "linear_camera.h"
+#include "buttons.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -315,16 +316,18 @@ void EscTest(){
 
 uint8 ReadBaselineWithButton(uint8 potValue)
 {
-    Dio_LevelType sw2 = Dio_ReadChannel(DioConf_DioChannel_PTC12_sw2);
-
-    if (sw2 == STD_HIGH)
+    /* If SW2 is pressed then, force baseline = 0,
+     * after it is not pressed anymore it will read the pot value again.
+     *
+     * If SW3 was pressed then, on the next refresh the baseline is forced to 0
+     * on next refresh it will read the pot value again.
+     */
+    if (Buttons_IsPressed(BUTTON_ID_SW2) || Buttons_WasPressed(BUTTON_ID_SW3))
     {
-        /* Button IS pressed */
         return 0U;
     }
     else
     {
-        /* Button NOT pressed */
         return potValue;
     }
 }

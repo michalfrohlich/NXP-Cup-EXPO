@@ -715,6 +715,7 @@ PORT_CONFIG_VS_0_PB \
 #define PortConf_PortPin_LinearCamera_Shutter 12
 #define PortConf_PortPin_LinearCamera_Analog 13
 #define PortConf_PortPin_PortPin_PTC12_sw2 14
+#define PortConf_PortPin_PortPin_PTC13_sw3 15
 
 /**
 * @brief Number of available pad modes options
@@ -734,12 +735,12 @@ PORT_CONFIG_VS_0_PB \
 /**
 * @brief The maximum number of configured pins
 */
-#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)15)
+#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)16)
 
 /**
  * @brief Number of UnUsed pin array
 */
-#define PORT_MAX_UNUSED_PADS_U16    (69U)
+#define PORT_MAX_UNUSED_PADS_U16    (68U)
 
 /**
 * @brief Port driver Pre-Compile configuration switch

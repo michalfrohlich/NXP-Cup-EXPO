@@ -180,6 +180,7 @@
 "./generate/src/SRtc_Ip_VS_0_PBcfg.o"
 "./generate/src/Trgmux_Ip_Cfg.o"
 "./generate/src/Trgmux_Ip_VS_0_PBcfg.o"
+"./src/buttons.o"
 "./src/camera_emulator.o"
 "./src/display.o"
 "./src/esc.o"

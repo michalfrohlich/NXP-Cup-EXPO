@@ -4,6 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../src/buttons.c \
 ../src/camera_emulator.c \
 ../src/display.c \
 ../src/esc.c \
@@ -17,6 +18,7 @@ C_SRCS += \
 ../src/servo.c 
 
 OBJS += \
+./src/buttons.o \
 ./src/camera_emulator.o \
 ./src/display.o \
 ./src/esc.o \
@@ -30,6 +32,7 @@ OBJS += \
 ./src/servo.o 
 
 C_DEPS += \
+./src/buttons.d \
 ./src/camera_emulator.d \
 ./src/display.d \
 ./src/esc.d \
@@ -47,7 +50,7 @@ C_DEPS += \
 src/%.o: ../src/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: Standard S32DS C Compiler'
-	arm-none-eabi-gcc "@src/camera_emulator.args" -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	arm-none-eabi-gcc "@src/buttons.args" -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

@@ -135,6 +135,13 @@
                         <pin_feature name="PS" value="state_1"/>
                      </pin_features>
                   </pin>
+                  <pin peripheral="PORTC" signal="port, 13" pin_num="49" pin_signal="PTC13">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="PE" value="state_1"/>
+                        <pin_feature name="PS" value="state_1"/>
+                     </pin_features>
+                  </pin>
                </pins>
             </function>
          </functions_list>
@@ -666,6 +673,11 @@
                                        <setting name="DioChannelId" value="12"/>
                                        <array name="DioChannelEcucPartitionRef"/>
                                     </struct>
+                                    <struct name="2">
+                                       <setting name="Name" value="PTC13_sw3"/>
+                                       <setting name="DioChannelId" value="13"/>
+                                       <array name="DioChannelEcucPartitionRef"/>
+                                    </struct>
                                  </array>
                                  <array name="DioChannelGroup"/>
                                  <array name="DioPortEcucPartitionRef"/>
@@ -963,6 +975,18 @@
                                        <setting name="PortPinModeChangeable" value="true"/>
                                        <setting name="PortPinId" value="15"/>
                                        <setting name="PortPinPcr" value="76"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="PortPin_PTC13_sw3"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="16"/>
+                                       <setting name="PortPinPcr" value="77"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>

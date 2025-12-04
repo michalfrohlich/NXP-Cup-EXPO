@@ -296,6 +296,19 @@ const Port_Ci_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr_VS_0[NUM_OF_CONF
         .lockRegister          = PORT_LOCK_REGISTER_DISABLED,
         .digitalFilter         = (boolean)FALSE,
         .initValue             = 0
+    },
+    {
+        .portBase              = IP_PORTC,
+        .gpioBase              = IP_PTC,
+        .pinPortIdx            = 13,
+        .mux                   = PORT_MUX_AS_GPIO,
+        .direction             = PORT_CI_PORT_PIN_IN,
+        .pullConfig            = PORT_INTERNAL_PULL_UP_ENABLED,
+        .driveStrength         = PORT_DRIVE_STRENGTH_LOW,
+        .passiveFilter         = (boolean)FALSE,
+        .lockRegister          = PORT_LOCK_REGISTER_DISABLED,
+        .digitalFilter         = (boolean)FALSE,
+        .initValue             = 0
     }
 };
 
