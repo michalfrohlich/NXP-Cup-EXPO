@@ -220,19 +220,6 @@ int main(void)
 			{
 			    g_EmuNewFrameFlag = FALSE;
 
-#if 0
-			    //disabled because pot is working now
-			    /* Read raw ADC value via MCAL/OnboardPot */
-			    uint16 raw = OnboardPot_ReadRaw();
-
-			    char dbg[16];
-			    (void)snprintf(dbg, sizeof(dbg), "A:%4u", raw);
-			    DisplayClear();
-			    DisplayText(0U, dbg, 7U, 0U);
-			    DisplayRefresh();
-#endif
-
-
 				/* 0) Read potentiometer -> 0..255 "brightness" */
 				uint8 baseLevel = OnboardPot_ReadLevelFiltered();
 
@@ -276,7 +263,7 @@ int main(void)
 				 * right text at column = 16 chars  (→ top-right area)
 				 */
 				DisplayText(0U, debugLineLeft, 7U, 0U);   /* top-left  */
-				DisplayText(16U, debugLineRight, 7U, 0U); /* top-right */
+				DisplayText(0U, debugLineRight, 5U, 11U); /* top-right */
 
 				/* 6) Send everything to the OLED */
 				DisplayRefresh();

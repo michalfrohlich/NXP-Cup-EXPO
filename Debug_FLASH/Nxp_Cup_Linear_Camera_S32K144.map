@@ -19811,7 +19811,7 @@ LOAD linker stubs
  .comment       0x00000088       0x89 c:/nxp/s32ds.3.6.3/s32ds/build_tools/gcc_v10.2/gcc-10.2-arm32-eabi/bin/../lib/gcc/arm-none-eabi/10.2.0/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libc_nano.a(lib_a-reent.o)
  .comment       0x00000088       0x89 c:/nxp/s32ds.3.6.3/s32ds/build_tools/gcc_v10.2/gcc-10.2-arm32-eabi/bin/../lib/gcc/arm-none-eabi/10.2.0/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libnosys.a(sbrk.o)
 
-.debug_info     0x00000000    0x61fe1
+.debug_info     0x00000000    0x61fdf
  .debug_info    0x00000000      0x139 ./Project_Settings/Startup_Code/exceptions.o
  .debug_info    0x00000139      0x47c ./Project_Settings/Startup_Code/nvic.o
  .debug_info    0x000005b5      0x25e ./Project_Settings/Startup_Code/startup.o
@@ -19984,14 +19984,14 @@ LOAD linker stubs
  .debug_info    0x0005f42a      0x31e ./src/esc.o
  .debug_info    0x0005f748      0x3ff ./src/hbridge.o
  .debug_info    0x0005fb47      0x417 ./src/linear_camera.o
- .debug_info    0x0005ff5e      0x7e6 ./src/main.o
- .debug_info    0x00060744      0xa1a ./src/main_functions.o
- .debug_info    0x0006115e      0x2d8 ./src/onboard_pot.o
- .debug_info    0x00061436      0x516 ./src/pixy2.o
- .debug_info    0x0006194c      0x43a ./src/receiver.o
- .debug_info    0x00061d86      0x25b ./src/servo.o
+ .debug_info    0x0005ff5e      0x7e4 ./src/main.o
+ .debug_info    0x00060742      0xa1a ./src/main_functions.o
+ .debug_info    0x0006115c      0x2d8 ./src/onboard_pot.o
+ .debug_info    0x00061434      0x516 ./src/pixy2.o
+ .debug_info    0x0006194a      0x43a ./src/receiver.o
+ .debug_info    0x00061d84      0x25b ./src/servo.o
 
-.debug_abbrev   0x00000000     0xe17a
+.debug_abbrev   0x00000000     0xe166
  .debug_abbrev  0x00000000       0x47 ./Project_Settings/Startup_Code/exceptions.o
  .debug_abbrev  0x00000047      0x102 ./Project_Settings/Startup_Code/nvic.o
  .debug_abbrev  0x00000149      0x119 ./Project_Settings/Startup_Code/startup.o
@@ -20164,12 +20164,12 @@ LOAD linker stubs
  .debug_abbrev  0x0000d309      0x1c2 ./src/esc.o
  .debug_abbrev  0x0000d4cb      0x191 ./src/hbridge.o
  .debug_abbrev  0x0000d65c      0x151 ./src/linear_camera.o
- .debug_abbrev  0x0000d7ad      0x1e3 ./src/main.o
- .debug_abbrev  0x0000d990      0x1d4 ./src/main_functions.o
- .debug_abbrev  0x0000db64      0x18d ./src/onboard_pot.o
- .debug_abbrev  0x0000dcf1      0x1c4 ./src/pixy2.o
- .debug_abbrev  0x0000deb5      0x1e4 ./src/receiver.o
- .debug_abbrev  0x0000e099       0xe1 ./src/servo.o
+ .debug_abbrev  0x0000d7ad      0x1cf ./src/main.o
+ .debug_abbrev  0x0000d97c      0x1d4 ./src/main_functions.o
+ .debug_abbrev  0x0000db50      0x18d ./src/onboard_pot.o
+ .debug_abbrev  0x0000dcdd      0x1c4 ./src/pixy2.o
+ .debug_abbrev  0x0000dea1      0x1e4 ./src/receiver.o
+ .debug_abbrev  0x0000e085       0xe1 ./src/servo.o
 
 .debug_aranges  0x00000000     0x3a00
  .debug_aranges
@@ -21372,7 +21372,7 @@ LOAD linker stubs
  .debug_macro   0x00043ef0      0x5f7 ./src/receiver.o
  .debug_macro   0x000444e7      0x2c1 ./src/servo.o
 
-.debug_line     0x00000000    0x60c98
+.debug_line     0x00000000    0x60c99
  .debug_line    0x00000000      0x5bf ./Project_Settings/Startup_Code/exceptions.o
  .debug_line    0x000005bf      0x738 ./Project_Settings/Startup_Code/nvic.o
  .debug_line    0x00000cf7      0x434 ./Project_Settings/Startup_Code/startup.o
@@ -21545,12 +21545,12 @@ LOAD linker stubs
  .debug_line    0x0005a100      0x7d8 ./src/esc.o
  .debug_line    0x0005a8d8      0x74a ./src/hbridge.o
  .debug_line    0x0005b022      0xc1d ./src/linear_camera.o
- .debug_line    0x0005bc3f     0x10f5 ./src/main.o
- .debug_line    0x0005cd34     0x1c33 ./src/main_functions.o
- .debug_line    0x0005e967      0x70d ./src/onboard_pot.o
- .debug_line    0x0005f074      0xa28 ./src/pixy2.o
- .debug_line    0x0005fa9c      0xb66 ./src/receiver.o
- .debug_line    0x00060602      0x696 ./src/servo.o
+ .debug_line    0x0005bc3f     0x10f6 ./src/main.o
+ .debug_line    0x0005cd35     0x1c33 ./src/main_functions.o
+ .debug_line    0x0005e968      0x70d ./src/onboard_pot.o
+ .debug_line    0x0005f075      0xa28 ./src/pixy2.o
+ .debug_line    0x0005fa9d      0xb66 ./src/receiver.o
+ .debug_line    0x00060603      0x696 ./src/servo.o
 
 .debug_str      0x00000000    0xc39b3
  .debug_str     0x00000000     0x7b75 ./Project_Settings/Startup_Code/exceptions.o
