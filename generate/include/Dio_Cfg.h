@@ -253,6 +253,11 @@ extern "C" {
 *
 */
 #define DioConf_DioChannel_Motor2_Backward  ((uint16)0x0043U)
+/**
+* @brief          Symbolic name for the channel PTC12_sw2.
+*
+*/
+#define DioConf_DioChannel_PTC12_sw2  ((uint16)0x004cU)
 /* ---------- DioPort_A ---------- */
 
 /**

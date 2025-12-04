@@ -28,6 +28,7 @@ extern "C" {
 
 #include "S32K144.h" //bare-metal pot test
 
+
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -77,6 +78,9 @@ void GptChannel3_notification(void)
 {
 	g_GptChannel3Flag = TRUE;
 }
+
+
+
 /*==================================================================================================
  *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
@@ -221,7 +225,9 @@ int main(void)
 			    g_EmuNewFrameFlag = FALSE;
 
 				/* 0) Read potentiometer -> 0..255 "brightness" */
-				uint8 baseLevel = OnboardPot_ReadLevelFiltered();
+
+			    uint8 baseLevelPot = OnboardPot_ReadLevelFiltered(); //Read pot normally
+			    uint8 baseLevel = ReadBaselineWithButton(baseLevelPot); //Override with button test (read with a different function
 
 				/* 1) Get emulated camera frame */
 				CameraEmulator_GetFrame(SimPixels, baseLevel);

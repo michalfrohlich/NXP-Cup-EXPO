@@ -67,6 +67,7 @@ void LinearCameraTest(void);
 void Pixy2Test(void);
 void HbridgeTest(void);
 void EscTest(void);
+uint8 ReadBaselineWithButton(uint8 potValue);
 
 #ifdef __cplusplus
 }

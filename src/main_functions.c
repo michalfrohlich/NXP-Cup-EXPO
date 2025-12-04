@@ -31,6 +31,8 @@ extern "C" {
 #include "Gpt.h"
 #include "Adc.h"
 #include "Mcal.h"
+#include "Dio.h" //temporary for the switch
+#include "Dio_Cfg.h" //temporary for the switch
 
 #include "display.h"
 #include "receiver.h"
@@ -308,6 +310,22 @@ void EscTest(){
             Delay--;
         }
         EscSetBrake(0U);
+    }
+}
+
+uint8 ReadBaselineWithButton(uint8 potValue)
+{
+    Dio_LevelType sw2 = Dio_ReadChannel(DioConf_DioChannel_PTC12_sw2);
+
+    if (sw2 == STD_HIGH)
+    {
+        /* Button IS pressed */
+        return 0U;
+    }
+    else
+    {
+        /* Button NOT pressed */
+        return potValue;
     }
 }
 
