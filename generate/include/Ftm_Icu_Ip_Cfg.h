@@ -85,6 +85,9 @@ extern "C"{
 *                                       DEFINES AND MACROS
 ==================================================================================================*/
 
+/* Macro used to export generated configuration. */
+#define FTM_ICU_CONFIG_EXT \
+        FTM_ICU_CONFIG_VS_0_PB \
 
 
 #ifdef __cplusplus

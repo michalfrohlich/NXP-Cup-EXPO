@@ -285,6 +285,17 @@ extern "C" {
 *
 */
 #define DioConf_DioChannel_LinearCameraShutter  ((uint16)0x0064U)
+/* ---------- DioPort_E ---------- */
+
+/**
+* @brief          Symbolic name for the port DioPort_E.
+*/
+#define DioConf_DioPort_DioPort_E  ((uint8)0x04U)
+/**
+* @brief          Symbolic name for the channel PTE15_UltraTrig.
+*
+*/
+#define DioConf_DioChannel_PTE15_UltraTrig  ((uint16)0x008fU)
 
 /*=================================================================================================
 *                                             ENUMS

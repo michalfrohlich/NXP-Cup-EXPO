@@ -116,7 +116,7 @@ extern "C"{
 #define ICU_PRECOMPILE_SUPPORT
 
 /** @brief Maximum number of ICU channels configured. */
-#define ICU_MAX_CHANNEL                 ((Icu_ChannelType)1U)
+#define ICU_MAX_CHANNEL                 ((Icu_ChannelType)2U)
 
 /**
 *   @brief  Switches the Development Error Detection and Notification on or off.
@@ -345,6 +345,8 @@ extern "C"{
 
 #define Receiver_Input                     (IcuConf_IcuChannel_Receiver_Input)
 #define IcuConf_IcuChannel_Receiver_Input  ((Icu_ChannelType)0U)
+#define Ultrasonic_Echo                     (IcuConf_IcuChannel_Ultrasonic_Echo)
+#define IcuConf_IcuChannel_Ultrasonic_Echo  ((Icu_ChannelType)1U)
 
 /**
 * @brief          Number of configured partitions.

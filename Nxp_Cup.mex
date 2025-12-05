@@ -142,6 +142,11 @@
                         <pin_feature name="PS" value="state_1"/>
                      </pin_features>
                   </pin>
+                  <pin peripheral="FTM1" signal="ftm1_ch2" pin_num="83" pin_signal="PTA15">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
                </pins>
             </function>
          </functions_list>
@@ -702,6 +707,19 @@
                                     <struct name="0">
                                        <setting name="Name" value="LinearCameraShutter"/>
                                        <setting name="DioChannelId" value="4"/>
+                                       <array name="DioChannelEcucPartitionRef"/>
+                                    </struct>
+                                 </array>
+                                 <array name="DioChannelGroup"/>
+                                 <array name="DioPortEcucPartitionRef"/>
+                              </struct>
+                              <struct name="4">
+                                 <setting name="Name" value="DioPort_E"/>
+                                 <setting name="DioPortId" value="4"/>
+                                 <array name="DioChannel">
+                                    <struct name="0">
+                                       <setting name="Name" value="PTE15_UltraTrig"/>
+                                       <setting name="DioChannelId" value="15"/>
                                        <array name="DioChannelEcucPartitionRef"/>
                                     </struct>
                                  </array>
@@ -1899,7 +1917,7 @@
                         </struct>
                         <struct name="IcuConfigSet">
                            <setting name="Name" value="IcuConfigSet"/>
-                           <setting name="IcuMaxChannel" value="1"/>
+                           <setting name="IcuMaxChannel" value="2"/>
                            <array name="IcuChannel">
                               <struct name="0">
                                  <setting name="Name" value="Receiver_Input"/>
@@ -1924,8 +1942,48 @@
                                  <array name="IcuTimestampMeasurement"/>
                                  <array name="IcuWakeup"/>
                               </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="Ultrasonic_Echo"/>
+                                 <setting name="IcuChannelId" value="1"/>
+                                 <array name="IcuChannelEcucPartitionRef"/>
+                                 <setting name="IcuChannelRef" value="/Icu/Icu/IcuConfigSet/IcuFtm_0/IcuFtmChannel_UltraEcho"/>
+                                 <setting name="IcuDMAChannelEnable" value="false"/>
+                                 <array name="IcuDMAChannelRef"/>
+                                 <setting name="IcuDefaultStartEdge" value="ICU_RISING_EDGE"/>
+                                 <setting name="IcuMeasurementMode" value="ICU_MODE_SIGNAL_EDGE_DETECT"/>
+                                 <setting name="IcuOverflowNotification" value="NULL_PTR"/>
+                                 <setting name="IcuWakeupCapability" value="false"/>
+                                 <array name="IcuSignalEdgeDetection">
+                                    <struct name="0">
+                                       <setting name="Name" value="IcuSignalEdgeDetection"/>
+                                       <array name="IcuSignalNotification">
+                                          <setting name="0" value="Ultrasonic_IcuNotification"/>
+                                       </array>
+                                    </struct>
+                                 </array>
+                                 <array name="IcuSignalMeasurement"/>
+                                 <array name="IcuTimestampMeasurement"/>
+                                 <array name="IcuWakeup"/>
+                              </struct>
                            </array>
-                           <array name="IcuFtm"/>
+                           <array name="IcuFtm">
+                              <struct name="0">
+                                 <setting name="Name" value="IcuFtm_0"/>
+                                 <setting name="IcuFtmModule" value="1"/>
+                                 <setting name="IcuFtmClockSource" value="SYSTEM_CLOCK"/>
+                                 <setting name="IcuFtmPrescaler" value="0"/>
+                                 <setting name="IcuFtmPrescalerAlternate" value="0"/>
+                                 <setting name="IcuFtmDebugMode" value="MODE_0"/>
+                                 <setting name="IcuFtmModValue" value="0"/>
+                                 <array name="IcuFtmChannels">
+                                    <struct name="0">
+                                       <setting name="Name" value="IcuFtmChannel_UltraEcho"/>
+                                       <setting name="IcuFtmChannel" value="2"/>
+                                       <setting name="IcuFtmFilter" value="0"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                           </array>
                            <array name="IcuLpCmp"/>
                            <array name="IcuLptmr"/>
                            <array name="IcuPort">
@@ -1945,6 +2003,11 @@
                               <struct name="0">
                                  <setting name="Name" value="IcuHwInterruptConfigList_0"/>
                                  <setting name="IcuIsrHwId" value="PORT_4"/>
+                                 <setting name="IcuIsrEnable" value="true"/>
+                              </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="IcuHwInterruptConfigList_1"/>
+                                 <setting name="IcuIsrHwId" value="FTM_1_CH_2"/>
                                  <setting name="IcuIsrEnable" value="true"/>
                               </struct>
                            </array>

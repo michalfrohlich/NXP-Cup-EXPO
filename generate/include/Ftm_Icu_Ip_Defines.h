@@ -75,6 +75,15 @@ extern "C"{
 *                                       DEFINES AND MACROS
 ==================================================================================================*/
 /* Macros that indicate FTM instances used by ICU. */
+#ifndef FTM_1_USED
+    #define FTM_1_USED
+#else
+    #error "FTM_1 instance cannot be used by ICU. Instance locked by another driver!"
+#endif
+/** @brief FTM 1 CH2 CH3 ISR enable/disable */
+#define FTM_ICU_1_CH_2_CH_3_ISR_USED        (STD_ON)
+/** @brief FTM 1 OVF interrupt service enable/disable */
+#define FTM_ICU_1_OVF_ISR_USED             (STD_ON)
 
 /** @brief Switches the Development Error Detection and Notification on or off.  */
 #define FTM_ICU_IP_DEV_ERROR_DETECT        (STD_ON)
