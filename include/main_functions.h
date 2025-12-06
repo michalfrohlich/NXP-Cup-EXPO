@@ -68,6 +68,8 @@ void Pixy2Test(void);
 void HbridgeTest(void);
 void EscTest(void);
 uint8 ReadBaselineWithButton(uint8 potValue);
+void Ultrasonic_Test(void);
+
 
 #ifdef __cplusplus
 }

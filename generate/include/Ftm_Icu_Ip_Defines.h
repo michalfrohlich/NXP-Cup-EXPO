@@ -101,7 +101,7 @@ extern "C"{
 #define FTM_ICU_EDGE_DETECT_API            (STD_ON)
 
 /** @brief Adds or removes all services related to the signal mesurement functionality. */
-#define FTM_ICU_SIGNAL_MEASUREMENT_API     (STD_OFF)
+#define FTM_ICU_SIGNAL_MEASUREMENT_API     (STD_ON)
 
 /** @brief Adds or removes all services related to the input level. */
 #define FTM_ICU_GET_INPUT_LEVEL_API        (STD_OFF)
@@ -116,7 +116,7 @@ extern "C"{
 #define FTM_ICU_EDGE_COUNT_API             (STD_OFF)
 
 /** @brief  Adds or removes the service Icu_GetTimeElapsed() from the code. */
-#define FTM_ICU_GET_TIME_ELAPSED_API       (STD_OFF)
+#define FTM_ICU_GET_TIME_ELAPSED_API       (STD_ON)
 
 /** @brief  Adds or removes the service Icu_GetDutyCycleValues() from the code. */
 #define FTM_ICU_GET_DUTY_CYCLE_VALUES_API   (STD_OFF)

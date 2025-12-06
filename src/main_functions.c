@@ -33,6 +33,7 @@ extern "C" {
 #include "Mcal.h"
 #include "Dio.h" //temporary for the switch
 #include "Dio_Cfg.h" //temporary for the switch
+#include "OsIf.h"
 
 #include "display.h"
 #include "receiver.h"
@@ -42,6 +43,7 @@ extern "C" {
 #include "esc.h"
 #include "linear_camera.h"
 #include "buttons.h"
+#include "ultrasonic.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -331,6 +333,33 @@ uint8 ReadBaselineWithButton(uint8 potValue)
         return potValue;
     }
 }
+
+void Ultrasonic_Test(void)
+{
+    uint16 distanceCm;
+    Std_ReturnType status;
+
+    status = Ultrasonic_MeasureBlocking(&distanceCm, 100U); /* 100 ms timeout */
+
+    if (status == E_OK)
+    {
+        static volatile uint16 s_lastUltrasonicDistance = 0U;
+        s_lastUltrasonicDistance = distanceCm;
+    }
+    else
+    {
+        static volatile uint8 s_ultraTimeoutCount = 0U;
+        s_ultraTimeoutCount++;
+    }
+
+    /* Rough ~50 ms pause between readings */
+    volatile uint32 Delay = 5000000U;
+    while (Delay > 0U)
+    {
+        Delay--;
+    }
+}
+
 
 #ifdef __cplusplus
 }

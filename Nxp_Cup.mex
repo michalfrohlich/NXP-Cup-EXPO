@@ -441,6 +441,11 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
+            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data>true</data>
+               </feature>
+            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -1950,18 +1955,16 @@
                                  <setting name="IcuDMAChannelEnable" value="false"/>
                                  <array name="IcuDMAChannelRef"/>
                                  <setting name="IcuDefaultStartEdge" value="ICU_RISING_EDGE"/>
-                                 <setting name="IcuMeasurementMode" value="ICU_MODE_SIGNAL_EDGE_DETECT"/>
+                                 <setting name="IcuMeasurementMode" value="ICU_MODE_SIGNAL_MEASUREMENT"/>
                                  <setting name="IcuOverflowNotification" value="NULL_PTR"/>
                                  <setting name="IcuWakeupCapability" value="false"/>
-                                 <array name="IcuSignalEdgeDetection">
+                                 <array name="IcuSignalEdgeDetection"/>
+                                 <array name="IcuSignalMeasurement">
                                     <struct name="0">
-                                       <setting name="Name" value="IcuSignalEdgeDetection"/>
-                                       <array name="IcuSignalNotification">
-                                          <setting name="0" value="Ultrasonic_IcuNotification"/>
-                                       </array>
+                                       <setting name="Name" value="IcuSignalMeasurement"/>
+                                       <setting name="IcuSignalMeasurementProperty" value="ICU_HIGH_TIME"/>
                                     </struct>
                                  </array>
-                                 <array name="IcuSignalMeasurement"/>
                                  <array name="IcuTimestampMeasurement"/>
                                  <array name="IcuWakeup"/>
                               </struct>
@@ -2005,11 +2008,6 @@
                                  <setting name="IcuIsrHwId" value="PORT_4"/>
                                  <setting name="IcuIsrEnable" value="true"/>
                               </struct>
-                              <struct name="1">
-                                 <setting name="Name" value="IcuHwInterruptConfigList_1"/>
-                                 <setting name="IcuIsrHwId" value="FTM_1_CH_2"/>
-                                 <setting name="IcuIsrEnable" value="true"/>
-                              </struct>
                            </array>
                         </struct>
                         <struct name="IcuGeneral">
@@ -2037,10 +2035,10 @@
                            <setting name="IcuEnableWakeupApi" value="false"/>
                            <setting name="IcuGetDutyCycleValuesApi" value="false"/>
                            <setting name="IcuGetInputStateApi" value="false"/>
-                           <setting name="IcuGetTimeElapsedApi" value="false"/>
+                           <setting name="IcuGetTimeElapsedApi" value="true"/>
                            <setting name="IcuGetVersionInfoApi" value="false"/>
                            <setting name="IcuSetModeApi" value="false"/>
-                           <setting name="IcuSignalMeasurementApi" value="false"/>
+                           <setting name="IcuSignalMeasurementApi" value="true"/>
                            <setting name="IcuTimestampApi" value="false"/>
                            <setting name="IcuWakeupFunctionalityApi" value="false"/>
                            <setting name="IcuEdgeDetectApi" value="true"/>

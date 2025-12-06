@@ -213,7 +213,7 @@ extern "C"{
 *        STD_OFF: Icu_GetTimeElapsed() can not be used.
 *   @implements ICU_GET_TIME_ELAPSED_API_define
 */
-#define ICU_GET_TIME_ELAPSED_API          (STD_OFF)
+#define ICU_GET_TIME_ELAPSED_API          (STD_ON)
 
 /**
 *   @brief  Adds or removes the service Icu_GetDutyCycleValues() from the code.
@@ -238,7 +238,7 @@ extern "C"{
 *        STD_OFF: Icu_StartSignalMeasurement() and Icu_StopSignalMeasurement() can not be used.
 *   @implements ICU_SIGNAL_MEASUREMENT_API_define
 */
-#define ICU_SIGNAL_MEASUREMENT_API        (STD_OFF)
+#define ICU_SIGNAL_MEASUREMENT_API        (STD_ON)
 
 /**
 *   @brief  Adds or removes the service Icu_CheckWakeup() from the code.

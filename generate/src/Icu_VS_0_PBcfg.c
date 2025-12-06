@@ -159,7 +159,6 @@ extern "C"{
 *
 */
 extern void Icu_SignalNotification(void);
-extern void Ultrasonic_IcuNotification(void);
 
 #define ICU_STOP_SEC_CODE
 #include "Icu_MemMap.h"
@@ -203,9 +202,9 @@ static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[2U]=
     {
         (boolean)FALSE,    /* Wakeup capability */
         ICU_RISING_EDGE,    /* Edge used */
-        ICU_MODE_SIGNAL_EDGE_DETECT,    /* Measurement mode */
-        (Icu_MeasurementSubModeType)0U,    /* Icu_MeasurementSubModeType */
-        &Ultrasonic_IcuNotification,    /* Icu_Channel_Notification */
+        ICU_MODE_SIGNAL_MEASUREMENT,    /* Measurement mode */
+        (Icu_MeasurementSubModeType)ICU_HIGH_TIME,    /* Icu_MeasurementSubModeType */
+        NULL_PTR,    /* Icu_Channel_Notification */
 #if ((ICU_SIGNALMEASUREMENT_USES_DMA == STD_ON) || (ICU_TIMESTAMP_USES_DMA == STD_ON))
         (Mcl_ChannelType)NoMclDmaChannel,    /* Mcl_DmaChannel */
 #endif

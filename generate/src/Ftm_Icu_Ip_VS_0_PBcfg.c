@@ -125,11 +125,11 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
         /** @brief ID of FTM hardware channel used. */
         (uint8)2,
         /** @brief FTM IP layer mode of operation. */
-        FTM_ICU_MODE_SIGNAL_EDGE_DETECT,
+        FTM_ICU_MODE_SIGNAL_MEASUREMENT,
         /** @brief DMA support for timestamp measurement. */
         FTM_ICU_MODE_WITHOUT_DMA,
         /** @brief Measurement mode for signal measurement. */
-        FTM_ICU_NO_MEASUREMENT,
+        FTM_ICU_HIGH_TIME,
         /** @brief Edge alignment for signal measurement. */
         FTM_ICU_RISING_EDGE,
         /** @brief Continuos measurement enable/disable. */
@@ -137,7 +137,7 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
         /** @brief FTM Channel Input Filter value */
         (uint8)0,
         /** @brief Callback function for channels. */
-        &Icu_ReportEvents,
+        NULL_PTR,
         /** @brief Parameters used by callback function. */
         (uint8)1,
 #if (STD_ON == FTM_ICU_TIMESTAMP_API)

@@ -26,6 +26,9 @@ extern "C" {
 #include <string.h>
 #include "onboard_pot.h"
 #include "buttons.h"
+#include "ultrasonic.h"
+
+#include "Icu.h"
 
 #include "S32K144.h" //bare-metal pot test
 
@@ -37,10 +40,11 @@ extern "C" {
 /*==================================================================================================
  *                                       LOCAL MACROS
 ==================================================================================================*/
-/* Display test flag */
-#define DISPLAY_TEST  1   /* set to 0 later to restore normal behaviour */
-/* Display test flag */
-#define CAR_TEST  1  //used for testing the servo and motors
+/* Test mode flags – enable only one at a time */
+#define DISPLAY_TEST      0   /* Camera + display demo */
+#define CAR_TEST          0   /* Line-following car demo */
+#define ULTRASONIC_TEST   1		   /* Ultrasonic distance test */
+
 /*==================================================================================================
  *                                      LOCAL CONSTANTS
 ==================================================================================================*/
@@ -195,11 +199,97 @@ int main(void)
     /*Pixy2Init(0x54, 0U);*/
     /*Pixy2Test();*/
 
+    /* Initialize ultrasonic driver (HC-SR04 on PTA15/PTE15) */
+    Ultrasonic_Init(&Ultrasonic_Config);
+
     /* Temporarily force PTD0 as GPIO high → LED off */
     /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
         IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
         IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
         IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
+
+
+/*==================================================================================================
+ *                                  ULTRASONIC DISPLAY TEST
+==================================================================================================*/
+
+#if ULTRASONIC_TEST
+
+    for (;;)
+    {
+        /* 1) Trigger a measurement (TRIG pulse + start ICU) */
+        Ultrasonic_TriggerMeasurement();
+
+        /* 2) Poll ICU for up to 100 ms */
+        uint32 waitedUs = 0U;
+        uint32 rawTicks = 0U;
+        const uint32 timeoutUs = 100000U;  /* 100 ms */
+
+        while (waitedUs < timeoutUs)
+        {
+            rawTicks = Icu_GetTimeElapsed(Ultrasonic_Config.EchoChannel);
+
+            if (rawTicks != 0U)
+            {
+                break; /* got something */
+            }
+
+            /* cheap ~1 ms delay */
+            volatile uint32 d = 50000U;
+            while (d-- > 0U) { __asm("NOP"); }
+
+            waitedUs += 1000U;
+        }
+
+        /* 3) Convert ticks -> distance (same formula as driver) */
+        uint16 distanceCm;
+        if (rawTicks == 0U)
+        {
+            distanceCm = ULTRASONIC_DISTANCE_INVALID_CM;
+        }
+        else
+        {
+            uint32 timeUs = (rawTicks * 1000000UL) / Ultrasonic_Config.TimerFreqHz;
+            uint32 dist = (timeUs * 343UL + 20000UL / 2UL) / 20000UL;
+            if (dist > 500UL) { dist = 500UL; }
+            distanceCm = (uint16)dist;
+        }
+
+        /* 4) Show everything on the display */
+        DisplayClear();
+
+        /* Line 0: raw ticks */
+        DisplayText(0U, "Ticks:", 6U, 0U);
+        DisplayValue(0U, (uint16)(rawTicks & 0xFFFFU), 5U, 7U);
+
+        /* Line 1: upper bits of ticks (if any) */
+        DisplayText(1U, "TicksH:", 7U, 0U);
+        DisplayValue(1U, (uint16)(rawTicks >> 16), 5U, 8U);
+
+        /* Line 2: distance / timeout */
+        if (distanceCm != ULTRASONIC_DISTANCE_INVALID_CM)
+        {
+            DisplayText(2U, "Dist:", 5U, 0U);
+            DisplayValue(2U, distanceCm, 4U, 6U);
+            DisplayText(2U, "cm", 2U, 11U);
+        }
+        else
+        {
+            DisplayText(2U, "TIMEOUT", 7U, 0U);
+        }
+
+        /* Line 3: debug info */
+        DisplayText(3U, "wait[ms]:", 9U, 0U);
+        DisplayValue(3U, (uint16)(waitedUs / 1000U), 3U, 10U);
+
+        DisplayRefresh();
+
+        /* 5) Small pause between measurements (~100 ms) */
+        volatile uint32 pause = 10000000U;
+        while (pause-- > 0U) { __asm("NOP"); }
+    }
+
+#endif /* ULTRASONIC_TEST */
 
 /*==================================================================================================
  *                                       DISPLAY TEST

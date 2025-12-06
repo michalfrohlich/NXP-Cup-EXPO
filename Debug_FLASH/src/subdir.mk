@@ -15,7 +15,8 @@ C_SRCS += \
 ../src/onboard_pot.c \
 ../src/pixy2.c \
 ../src/receiver.c \
-../src/servo.c 
+../src/servo.c \
+../src/ultrasonic.c 
 
 OBJS += \
 ./src/buttons.o \
@@ -29,7 +30,8 @@ OBJS += \
 ./src/onboard_pot.o \
 ./src/pixy2.o \
 ./src/receiver.o \
-./src/servo.o 
+./src/servo.o \
+./src/ultrasonic.o 
 
 C_DEPS += \
 ./src/buttons.d \
@@ -43,7 +45,8 @@ C_DEPS += \
 ./src/onboard_pot.d \
 ./src/pixy2.d \
 ./src/receiver.d \
-./src/servo.d 
+./src/servo.d \
+./src/ultrasonic.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
