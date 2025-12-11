@@ -7,7 +7,7 @@ src/ultrasonic.o: ../src/ultrasonic.c \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Compiler.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Compiler_Cfg.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/CompilerDefinition.h \
- ../RTD/include/Icu.h \
+ ../RTD/include/Dio.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Mcal.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Soc_Ips.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h \
@@ -20,6 +20,11 @@ src/ultrasonic.o: ../src/ultrasonic.c \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_COMMON.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BasicTypes.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Dio_Cfg.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Gpio_Dio_Ip_Cfg.h \
+ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_GPIO.h \
+ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Dio_MemMap.h \
+ ../RTD/include/Icu.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Icu_Cfg.h \
  ../RTD/include/Icu_EnvCfg.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Icu_VS_0_PBcfg.h \
@@ -40,11 +45,9 @@ src/ultrasonic.o: ../src/ultrasonic.c \
  ../RTD/include/Cmp_Ip_Types.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Cmp_Ip_Defines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h \
- ../RTD/include/Dio.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Dio_Cfg.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Gpio_Dio_Ip_Cfg.h \
- C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_GPIO.h \
- C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Dio_MemMap.h
+ ../RTD/include/OsIf.h ../RTD/include/OsIf_Internal.h \
+ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BaseNXP_MemMap.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/include/timebase.h
 C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/include/ultrasonic.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Std_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h:
@@ -53,7 +56,7 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Compiler.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Compiler_Cfg.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/CompilerDefinition.h:
-../RTD/include/Icu.h:
+../RTD/include/Dio.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Mcal.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Soc_Ips.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h:
@@ -66,6 +69,11 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_COMMON.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BasicTypes.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Dio_Cfg.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Gpio_Dio_Ip_Cfg.h:
+C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_GPIO.h:
+C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Dio_MemMap.h:
+../RTD/include/Icu.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Icu_Cfg.h:
 ../RTD/include/Icu_EnvCfg.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Icu_VS_0_PBcfg.h:
@@ -88,8 +96,7 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 ../RTD/include/Cmp_Ip_Types.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Cmp_Ip_Defines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h:
-../RTD/include/Dio.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Dio_Cfg.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Gpio_Dio_Ip_Cfg.h:
-C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_GPIO.h:
-C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Dio_MemMap.h:
+../RTD/include/OsIf.h:
+../RTD/include/OsIf_Internal.h:
+C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BaseNXP_MemMap.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/include/timebase.h:

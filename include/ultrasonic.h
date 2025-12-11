@@ -1,104 +1,83 @@
 #ifndef ULTRASONIC_H
 #define ULTRASONIC_H
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-/*==================================================================================================
- *                                        INCLUDE FILES
- *===============================================================================================*/
-
 #include "Std_Types.h"
-#include "Icu.h"
 #include "Dio.h"
+#include "Icu.h"
+#include "OsIf.h"
 
-/*==================================================================================================
- *                                      DEFINES & MACROS
- *===============================================================================================*/
-
-/** Special value used when no valid distance is available. */
-#define ULTRASONIC_DISTANCE_INVALID_CM   ((uint16)0xFFFFU)
-
-/*==================================================================================================
- *                                      TYPEDEFS
- *===============================================================================================*/
-
-/**
- * @brief Configuration for one HC-SR04 ultrasonic sensor.
- *
- * EchoChannel : ICU logical channel for ECHO (PTA15 / FTM1_CH2)
- * TrigChannel : Dio channel for TRIG (PTE15)
- * TimerFreqHz : FTM clock frequency used by ICU (ticks per second)
+/* =========================================================================
+ * Pin / channel mappings (from your ConfigTools setup)
+ * =========================================================================
+ * If your generated symbols are named differently (e.g. DioConf_DioChannel_…),
+ * just change these two defines.
  */
-typedef struct
+#define ULTRA_DIO_TRIG_CHANNEL    (DioConf_DioChannel_PTE15_UltraTrig)         /* TRIG: PTE15 */
+#define ULTRA_ICU_ECHO_CHANNEL    (IcuConf_IcuChannel_Ultrasonic_Echo) /* ECHO: PTA15 → FTM1_CH2 */
+
+/* =========================================================================
+ * Timer frequency and conversion
+ *
+ * ULTRA_FTM_TICK_HZ = FTM timer clock (Hz) used by ICU for this channel.
+ * You said it's 8 MHz.
+ *
+ * distance_cm = ticks * (speed_of_sound_cm_per_s / (2 * FTM_tick_Hz))
+ *             = ticks * (34300 / (2 * ULTRA_FTM_TICK_HZ))
+ * ========================================================================= */
+#define ULTRA_FTM_TICK_HZ         (8000000u)
+#define ULTRA_CM_PER_TICK         (34300.0f / (2.0f * (float)ULTRA_FTM_TICK_HZ))
+
+/* =========================================================================
+ * Distance range and timeout
+ * ========================================================================= */
+#define ULTRA_MIN_DISTANCE_CM     (5.0f)
+#define ULTRA_MAX_DISTANCE_CM     (200.0f)
+
+/* HC-SR04-ish: ~58 µs/cm → 200 cm ≈ 11.6 ms. Use 12 ms timeout. */
+#define ULTRA_TIMEOUT_MS          (12u)
+
+typedef enum
 {
-    Icu_ChannelType  EchoChannel;
-    Dio_ChannelType  TrigChannel;
-    uint32           TimerFreqHz;
-} Ultrasonic_ConfigType;
+    ULTRA_STATUS_IDLE = 0,   /* No measurement in progress, no new data */
+    ULTRA_STATUS_BUSY,       /* Waiting for echo / ICU measurement */
+    ULTRA_STATUS_NEW_DATA,   /* New valid distance available */
+    ULTRA_STATUS_ERROR       /* Timeout or out-of-range (>200 cm or <5 cm) */
+} Ultrasonic_StatusType;
 
-/* Global config instance (defined in ultrasonic.c) */
-extern const Ultrasonic_ConfigType Ultrasonic_Config;
+void Ultra_BusyDelayUs(uint32 microseconds);
+#define ULTRA_DELAY_US(_us_)   Ultra_BusyDelayUs((_us_))
 
-/*==================================================================================================
- *                                  GLOBAL FUNCTION PROTOTYPES
- *===============================================================================================*/
-
-/**
- * @brief Initialize the ultrasonic driver.
- *
- * Must be called after the MCAL drivers (Icu, Dio) are initialized.
- * Typically from main(), after DriversInit().
+/* Initialize internal state + enable ICU notification for echo channel.
+ * Assumes Dio_Init() and Icu_Init() were already called.
  */
-void Ultrasonic_Init(const Ultrasonic_ConfigType * ConfigPtr);
+void Ultrasonic_Init(void);
 
-/**
- * @brief Start a new distance measurement (non-blocking).
- *
- * Generates a >=10 µs pulse on TRIG and starts the ICU signal
- * measurement on the ECHO channel.
- *
- * The result will be available later and can be queried using:
- *  - Ultrasonic_HasNewMeasurement()
- *  - Ultrasonic_GetLastDistanceCm()
+/* Start a new measurement:
+ * - Arms ICU on ULTRA_ICU_ECHO_CHANNEL (Signal Measurement, HIGH_TIME)
+ * - Sends 10 µs TRIG pulse on ULTRA_DIO_TRIG_CHANNEL
+ * Non-blocking: returns immediately.
  */
-void Ultrasonic_TriggerMeasurement(void);
+void Ultrasonic_StartMeasurement(void);
 
-/**
- * @brief Returns TRUE if a new measurement has completed.
- *
- * This function internally polls the ICU measurement register and
- * updates the internal state if a high-time measurement has finished.
+/* Must be called regularly from your main loop.
+ * - Implements timeout: if BUSY for more than ULTRA_TIMEOUT_MS, it stops
+ *   the ICU measurement and sets status = ULTRA_STATUS_ERROR.
  */
-boolean Ultrasonic_HasNewMeasurement(void);
+void Ultrasonic_Task(void);
 
-/**
- * @brief Get the last measured distance in centimeters.
- *
- * Reading clears the internal "new measurement" flag.
- *
- * @return Distance in cm, or ULTRASONIC_DISTANCE_INVALID_CM if
- *         the last measurement was invalid or none is available.
+/* Get current status (IDLE/BUSY/NEW_DATA/ERROR). */
+Ultrasonic_StatusType Ultrasonic_GetStatus(void);
+
+/* If status == NEW_DATA, returns TRUE and writes distance into *distanceCm.
+ * On ERROR or if not ready, returns FALSE.
+ * Calling this will clear NEW_DATA/ERROR back to IDLE.
  */
-uint16 Ultrasonic_GetLastDistanceCm(void);
+boolean Ultrasonic_GetDistanceCm(float *distanceCm);
 
-/**
- * @brief Perform a blocking measurement with timeout.
- *
- * Starts a measurement and polls until it finishes or timeoutMs expires.
- * Intended mainly for test modes (e.g. ULTRASONIC_TEST), not for normal
- * real-time driving logic.
- *
- * @param[out] distanceCm  Pointer where the distance (cm) is stored.
- * @param[in]  timeoutMs   Maximum time to wait in milliseconds.
- *
- * @return E_OK if a measurement completed before timeout, E_NOT_OK otherwise.
+/* ICU notification callback.
+ * Configure this function name as the Notification for ULTRA_ICU_ECHO_CHANNEL
+ * in S32 Design Studio ConfigTools (IcuIsrEnable: Icu_UltrasonicNotification).
  */
-Std_ReturnType Ultrasonic_MeasureBlocking(uint16 * distanceCm, uint16 timeoutMs);
-
-#ifdef __cplusplus
-}
-#endif
+void Icu_UltrasonicNotification(void);
 
 #endif /* ULTRASONIC_H */

@@ -141,6 +141,8 @@ static const uint32 au32Port_PinToPartitionMap_VS_0[PORT_MAX_CONFIGURED_PADS_U16
     (uint32)0x00000001,
     (uint32)0x00000001,
     (uint32)0x00000001,
+    (uint32)0x00000001,
+    (uint32)0x00000001,
     (uint32)0x00000001
 };
 
@@ -165,7 +167,6 @@ static const uint16 Port_au16NoUnUsedPadsArrayDefault_VS_0[PORT_MAX_UNUSED_PADS_
     (uint16)12,
     (uint16)13,
     (uint16)14,
-    (uint16)15,
     (uint16)16,
     (uint16)17,
     (uint16)34,
@@ -222,7 +223,6 @@ static const uint16 Port_au16NoUnUsedPadsArrayDefault_VS_0[PORT_MAX_UNUSED_PADS_
     (uint16)139,
     (uint16)140,
     (uint16)141,
-    (uint16)143,
     (uint16)144
 };
 #endif
@@ -277,7 +277,11 @@ static const Port_PinConfigType Port_aPinConfigDefault_VS_0[PORT_MAX_CONFIGURED_
     /* PCR Id, PCR Value, Output Level, Direction, IsGpio, Direction Configurable, Mode Changeable */
     { (uint16)76, (uint32)0x00000103, (uint8)0, (Port_PinDirectionType)1, (boolean)TRUE, (boolean)TRUE, (boolean)TRUE },
     /* PCR Id, PCR Value, Output Level, Direction, IsGpio, Direction Configurable, Mode Changeable */
-    { (uint16)77, (uint32)0x00000103, (uint8)0, (Port_PinDirectionType)1, (boolean)TRUE, (boolean)TRUE, (boolean)TRUE }
+    { (uint16)77, (uint32)0x00000103, (uint8)0, (Port_PinDirectionType)1, (boolean)TRUE, (boolean)TRUE, (boolean)TRUE },
+    /* PCR Id, PCR Value, Output Level, Direction, IsGpio, Direction Configurable, Mode Changeable */
+    { (uint16)143, (uint32)0x00000000, (uint8)0, (Port_PinDirectionType)2, (boolean)FALSE, (boolean)FALSE, (boolean)TRUE },
+    /* PCR Id, PCR Value, Output Level, Direction, IsGpio, Direction Configurable, Mode Changeable */
+    { (uint16)15, (uint32)0x00000200, (uint8)0, (Port_PinDirectionType)1, (boolean)FALSE, (boolean)FALSE, (boolean)TRUE }
 };
 
 #if (0UL != PORT_MAX_CONFIGURED_DIGITAL_FILTER_PORTS_VS_0_U8)

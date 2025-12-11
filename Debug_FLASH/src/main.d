@@ -131,6 +131,7 @@ src/main.o: ../src/main.c \
  ../RTD/include/Cmp_Ip_Types.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Cmp_Ip_Defines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/include/timebase.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_ADC.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_AIPS.h \
@@ -318,6 +319,7 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 ../RTD/include/Cmp_Ip_Types.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Cmp_Ip_Defines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/include/timebase.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_ADC.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_AIPS.h:

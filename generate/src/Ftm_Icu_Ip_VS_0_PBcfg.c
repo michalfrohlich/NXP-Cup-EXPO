@@ -161,7 +161,7 @@ const Ftm_Icu_Ip_InstanceConfigType Ftm_Icu_Ip_1_InstanceConfig_PB_VS_0 =
     /** @brief FTM clock source */
     FTM_SYSTEM_CLOCK,
     /** @brief FTM instance prescaler  */
-    (uint8)0,
+    (uint8)1,
 #if (FTM_ICU_DUAL_CLOCK_MODE_API == STD_ON)
     /** @brief FTM instance alternate prescaler  */
     (uint8)0,

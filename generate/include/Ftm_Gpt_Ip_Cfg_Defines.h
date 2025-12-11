@@ -76,7 +76,7 @@ extern "C"{
 /**
 * @brief These defines indicate that at least one channel from each module is used in all configurations.
 */
-#define FTM_GPT_IP_USED (STD_ON) 
+#define FTM_GPT_IP_USED (STD_OFF) 
 /**
 * @brief    FTN_GPT_IP_SET_CLOCK_MODE switch
 * @details  Enable/disable API for Dual Mode support.
@@ -87,30 +87,6 @@ extern "C"{
 * @details  Enable/disable MODULE_SINGLE_INTERRUPT.
 */
 #define FTM_GPT_IP_MODULE_SINGLE_INTERRUPT 	(STD_OFF)  
-#define FTM_1_CH_0_CH_1_ISR_USED
-
-#ifndef FTM_1_CH_0_USED
-    #define FTM_1_CH_0_USED
-#else
-    #error "FTM_1_CH_0 cannot be used by GPT. Instance locked by another driver!"
-#endif
-#ifndef FTM_1_CH_1_USED
-    #define FTM_1_CH_1_USED
-#else
-    #error "FTM_1_CH_1 cannot be used by GPT. Instance locked by another driver!"
-#endif
-#define FTM_1_CH_2_CH_3_ISR_USED
-
-#ifndef FTM_1_CH_2_USED
-    #define FTM_1_CH_2_USED
-#else
-    #error "FTM_1_CH_2 cannot be used by GPT. Instance locked by another driver!"
-#endif
-#ifndef FTM_1_CH_3_USED
-    #define FTM_1_CH_3_USED
-#else
-    #error "FTM_1_CH_3 cannot be used by GPT. Instance locked by another driver!"
-#endif
 
 /*==================================================================================================
 *                                             ENUMS

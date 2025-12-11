@@ -99,7 +99,7 @@ extern "C"
 /**
  * @brief   Gpt HwInstanceConfig configuration array
  */
-extern Gpt_Ipw_HwInstanceConfigType Gpt_Ipw_HwInstanceConfig_PB_VS_0[3U];
+extern Gpt_Ipw_HwInstanceConfigType Gpt_Ipw_HwInstanceConfig_PB_VS_0[2U];
 /**
  * @brief   Gpt channels IP related configuration array
  */

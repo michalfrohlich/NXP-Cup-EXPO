@@ -208,7 +208,7 @@ extern "C"{
 #define GptConf_GptChannelConfiguration_Receiver_Timeout (0U)
 #define GptConf_GptChannelConfiguration_LinearCameraShutter (1U)
 #define GptConf_GptChannelConfiguration_EmuTimer_Notification (2U)
-#define GptConf_GptChannelConfiguration_GptChannelConfiguration_3 (3U)
+#define GptConf_GptChannelConfiguration_UsTimer (3U)
 /*================================================================================================*/
 /**
 * @brief       GPT_HW_CHANNEL_NUM

@@ -116,7 +116,7 @@ extern "C"{
 extern void Gpt_Notification(void);
 extern void NewCameraFrame(void);
 extern void EmuTimer_Notification(void);
-extern void GptChannel3_notification(void);
+extern void UsTimer_Notification(void);
 
 /*==================================================================================================
 *                                       GLOBAL CONSTANTS
@@ -139,7 +139,7 @@ static const uint8 u8GptChannelIdToIndexMap_VS_0[GPT_NUM_CONFIG] =
     0        /*Logical Channel Receiver_Timeout*/,
     1        /*Logical Channel LinearCameraShutter*/,
     2        /*Logical Channel EmuTimer_Notification*/,
-    3        /*Logical Channel GptChannelConfiguration_3*/
+    3        /*Logical Channel UsTimer*/
 };
 #define GPT_STOP_SEC_CONST_UNSPECIFIED
 #include "Gpt_MemMap.h"
@@ -169,7 +169,7 @@ static const Gpt_ChannelConfigType Gpt_InitChannelPB_VS_0[GPT_CONF_CHANNELS_PB_V
 #if ((GPT_WAKEUP_FUNCTIONALITY_API == STD_ON) && (GPT_REPORT_WAKEUP_SOURCE == STD_ON))
         (EcuM_WakeupSourceType)0U,/* Wakeup information */
 #endif
-        (Gpt_ValueType)(65535U),/* Maximum ticks value*/
+        (Gpt_ValueType)(4294967295U),/* Maximum ticks value*/
         (GPT_CH_MODE_ONESHOT),/* Timer mode:continous/one-shot */
         &Gpt_Ipw_ChannelConfig_PB_VS_0[1U]
     }
@@ -180,19 +180,19 @@ static const Gpt_ChannelConfigType Gpt_InitChannelPB_VS_0[GPT_CONF_CHANNELS_PB_V
 #if ((GPT_WAKEUP_FUNCTIONALITY_API == STD_ON) && (GPT_REPORT_WAKEUP_SOURCE == STD_ON))
         (EcuM_WakeupSourceType)0U,/* Wakeup information */
 #endif
-        (Gpt_ValueType)(65535U),/* Maximum ticks value*/
+        (Gpt_ValueType)(4294967295U),/* Maximum ticks value*/
         (GPT_CH_MODE_CONTINUOUS),/* Timer mode:continous/one-shot */
         &Gpt_Ipw_ChannelConfig_PB_VS_0[2U]
     }
 ,
-    {    /*GptChannelConfiguration_3 configuration data*/
+    {    /*UsTimer configuration data*/
         (boolean)FALSE,/* Wakeup capability */
-        &GptChannel3_notification, /* Channel notification */
+        &UsTimer_Notification, /* Channel notification */
 #if ((GPT_WAKEUP_FUNCTIONALITY_API == STD_ON) && (GPT_REPORT_WAKEUP_SOURCE == STD_ON))
         (EcuM_WakeupSourceType)0U,/* Wakeup information */
 #endif
         (Gpt_ValueType)(4294967295U),/* Maximum ticks value*/
-        (GPT_CH_MODE_CONTINUOUS),/* Timer mode:continous/one-shot */
+        (GPT_CH_MODE_ONESHOT),/* Timer mode:continous/one-shot */
         &Gpt_Ipw_ChannelConfig_PB_VS_0[3U]
     }
 };
@@ -204,7 +204,7 @@ const Gpt_ConfigType Gpt_Config =
     /**@brief Pointer to the GPT channel configuration */
     &Gpt_InitChannelPB_VS_0,
     /** @brief Number of GPT instances (configured in tresos plugin builder)*/
-    3U,
+    2U,
     /** @brief Pointer to the GPT instance configuration */
     &Gpt_Ipw_HwInstanceConfig_PB_VS_0,
 #if(GPT_PREDEFTIMER_FUNCTIONALITY_API == STD_ON)

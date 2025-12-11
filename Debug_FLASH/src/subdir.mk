@@ -16,6 +16,7 @@ C_SRCS += \
 ../src/pixy2.c \
 ../src/receiver.c \
 ../src/servo.c \
+../src/timebase.c \
 ../src/ultrasonic.c 
 
 OBJS += \
@@ -31,6 +32,7 @@ OBJS += \
 ./src/pixy2.o \
 ./src/receiver.o \
 ./src/servo.o \
+./src/timebase.o \
 ./src/ultrasonic.o 
 
 C_DEPS += \
@@ -46,6 +48,7 @@ C_DEPS += \
 ./src/pixy2.d \
 ./src/receiver.d \
 ./src/servo.d \
+./src/timebase.d \
 ./src/ultrasonic.d 
 
 
