@@ -95,7 +95,7 @@ extern "C"{
 #define FTM_FILTER_MAX_NO_CH               (4U)
 
 /** @brief Adds or removes all services related to the timestamp functionality. */
-#define FTM_ICU_TIMESTAMP_API              (STD_OFF)
+#define FTM_ICU_TIMESTAMP_API              (STD_ON)
 
 /** @brief Adds or removes all services related to the edge detect functionality. */
 #define FTM_ICU_EDGE_DETECT_API            (STD_ON)

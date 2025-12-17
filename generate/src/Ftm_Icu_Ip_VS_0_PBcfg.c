@@ -106,6 +106,8 @@ extern void Icu_ReportWakeupAndOverflow(uint16 Channel, boolean bOverflow);
 /** @brief Signature of change logic channel state function. */
 extern void Icu_LogicChStateCallback(uint16 logicChannel, uint8 mask, boolean set);
 
+/** @brief External Notifications for Timestamp function. */
+extern void Icu_TimestampUltrasonicNotification(void);
 
 #define ICU_STOP_SEC_CODE
 #include "Icu_MemMap.h"
@@ -125,11 +127,11 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
         /** @brief ID of FTM hardware channel used. */
         (uint8)2,
         /** @brief FTM IP layer mode of operation. */
-        FTM_ICU_MODE_SIGNAL_MEASUREMENT,
+        FTM_ICU_MODE_TIMESTAMP,
         /** @brief DMA support for timestamp measurement. */
         FTM_ICU_MODE_WITHOUT_DMA,
         /** @brief Measurement mode for signal measurement. */
-        FTM_ICU_HIGH_TIME,
+        FTM_ICU_NO_MEASUREMENT,
         /** @brief Edge alignment for signal measurement. */
         FTM_ICU_RISING_EDGE,
         /** @brief Continuos measurement enable/disable. */
@@ -142,12 +144,12 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
         (uint8)1,
 #if (STD_ON == FTM_ICU_TIMESTAMP_API)
         /** @brief Timestamp buffer used. */
-        FTM_ICU_NO_TIMESTAMP,
+        FTM_ICU_LINEAR_BUFFER,
 #endif
         /** @brief Address of function used to change logic channel state in HLD. */
         &Icu_LogicChStateCallback,
         /** @brief Channel specific notification(e.g timestamp). */
-        NULL_PTR,
+        &Icu_TimestampUltrasonicNotification,
         /** @brief Logic channel overflow notification. */
         NULL_PTR
     }

@@ -272,7 +272,8 @@ src/main_functions.o: ../src/main_functions.c \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/esc.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/linear_camera.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/buttons.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/ultrasonic.h
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/ultrasonic.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/main_functions.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/main_types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h:
@@ -574,3 +575,4 @@ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/esc.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/linear_camera.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/buttons.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/ultrasonic.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h:

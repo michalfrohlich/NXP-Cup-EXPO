@@ -30,14 +30,14 @@ extern "C" {
 ==================================================================================================*/
 #define MAIN_ENABLE     1 /* All macros are here */
 #define CAR_CAMERA_TEST          0   /* Line-following car demo from linear camera example project*/
+#define ULTRASONIC_TEST_LOW_LEVEL 0 /* Used for separate low level control off the ultrasonic pins*/
 
 /* Test mode flags – enable only one at a time */
-#define DISPLAY_TEST      1   /* Camera + display demo */
-#define ULTRASONIC_TEST   0		   /* Ultrasonic distance test */
+#define DISPLAY_TEST      0   /* Camera signal simulation + display + buttons + potentiometer demo */
 #define ICU_RAW_TEST  0
-#define PTA16_GPIO_TEST   0
-#define ULTRASONIC_DRIVER_TEST 0
 #define ULTRASONIC_100MS_TEST     0
+#define ULTRA_TRIG_SLOW_TEST 0
+#define ULTRA_LOOPBACK_ICU_TEST 1
 /*==================================================================================================
  *                                       MAIN
 ==================================================================================================*/
@@ -113,82 +113,231 @@ int main(void)
 /*==================================================================================================
 *                                  NEW DRIVER TEST
 ==================================================================================================*/
-	/*==================================================================================================
-	 *                            ULTRASONIC 100 ms MAIN-LOOP TEST
-	 *  - Uses EmuTimer ms tick (Timebase_GetMs)
-	 *  - Starts a measurement every 100 ms
-	 *  - Lets the ICU interrupt complete the measurement
-	 *  - Shows status + last valid distance on the OLED
-	 ==================================================================================================*/
-	#if ULTRASONIC_100MS_TEST
+/*This version:
 
-	    DisplayClear();
-	    DisplayText(0U, "ULTRA 100ms", 11U, 0U);
-	    DisplayRefresh();
+	triggers every 100 ms, but only if not BUSY
 
-	    uint32 lastTrigMs     = Timebase_GetMs();
-	    float  lastDistanceCm = 0.0f;
+	shows status, cm, ticks, IRQ count
 
-	    for (;;)
-	    {
-	        uint32 nowMs = Timebase_GetMs();
+	shows “NEW” reliably via a justGot flag (without changing your driver semantics) */
+#if ULTRA_LOOPBACK_ICU_TEST
 
-	        /* Trigger a new ultrasonic measurement every 100 ms */
-	        if ((uint32)(nowMs - lastTrigMs) >= 100u)
-	        {
-	            lastTrigMs = nowMs;
-	            Ultrasonic_StartMeasurement();
-	        }
+    /* 16-char fixed lines (padded) */
+    const char L0[] = "ULTRA LOOPBACK  ";  /* 16 */
+    const char L1[] = "I:     x:      ";   /* 16 */
+    const char L2[] = "t:              ";  /* 16 */
+    const char L3[] = "Hms:   Lms:    ";   /* 16 */
 
-	        /* Let the driver handle timeout logic while BUSY */
-	        Ultrasonic_Task();
+    /* Use a big pulse so timing is obvious even without scope */
+    const uint32 HIGH_MS = 500u;
+    const uint32 LOW_MS  = 2000u;
 
-	        /* Try to fetch a new distance (non-blocking) */
-	        float   distanceCm  = 0.0f;
-	        boolean gotDistance = Ultrasonic_GetDistanceCm(&distanceCm);
-	        if (gotDistance == TRUE)
-	        {
-	            lastDistanceCm = distanceCm;   /* remember last valid */
-	        }
+    /* Local timestamp buffer for raw capture */
+    static Icu_ValueType tsBuf[8];
 
-	        /* Read current status for debug */
-	        Ultrasonic_StatusType st = Ultrasonic_GetStatus();
+    /* Debug values */
+    uint32 lastTicks = 0u;
+    uint16 lastIdx   = 0u;
 
-	        /* ------- Update OLED ------- */
-	        DisplayClear();
+    for (;;)
+    {
+        /* Clear buffer */
+        for (uint32 i = 0u; i < 8u; i++)
+        {
+            tsBuf[i] = 0u;
+        }
 
-	        /* Line 0: title already set, but draw again for robustness */
-	        DisplayText(0U, "ULTRA 100ms", 11U, 0U);
+        /* Arm timestamp capture BEFORE generating the pulse */
+        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, tsBuf, 8u, 1u);
 
-	        /* Line 1: status */
-	        if (st == ULTRA_STATUS_BUSY)
-	        {
-	            DisplayText(1U, "BUSY", 4U, 0U);
-	        }
-	        else if (st == ULTRA_STATUS_NEW_DATA)
-	        {
-	            DisplayText(1U, "NEW", 3U, 0U);
-	        }
-	        else if (st == ULTRA_STATUS_ERROR)
-	        {
-	            DisplayText(1U, "ERROR", 5U, 0U);
-	        }
-	        else /* ULTRA_STATUS_IDLE or anything else */
-	        {
-	            DisplayText(1U, "IDLE", 4U, 0U);
-	        }
+        /* Generate a clean loopback pulse on TRIG */
+        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_LOW);
+        uint32 t0 = Timebase_GetMs();
+        while ((Timebase_GetMs() - t0) < 1u) {}
 
-	        /* Line 2: distance (integer cm) from last valid measurement */
-	        DisplayText(2U, "cm:", 3U, 0U);
-	        {
-	            int distInt = (int)(lastDistanceCm + 0.5f);  /* round to nearest int */
-	            DisplayValue(2U, distInt, 5U, 4U);
-	        }
+        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_HIGH);
+        uint32 th = Timebase_GetMs();
+        while ((Timebase_GetMs() - th) < HIGH_MS) {}
 
-	        DisplayRefresh();
-	    }
+        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_LOW);
+        uint32 tl = Timebase_GetMs();
+        while ((Timebase_GetMs() - tl) < LOW_MS) {}
 
-	#endif /* ULTRASONIC_100MS_TEST */
+        /* Read how many edges were captured */
+        Icu_IndexType idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
+        lastIdx = (uint16)idx;
+
+        /* Compute high time in ticks if we got at least 2 edges */
+        if (idx >= 2u)
+        {
+            uint32 rise = (uint32)tsBuf[0];
+            uint32 fall = (uint32)tsBuf[1];
+            lastTicks = (uint32)(fall - rise); /* unsigned wrap-safe */
+        }
+        else
+        {
+            lastTicks = 0u;
+        }
+
+        /* Stop capture until next cycle */
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
+
+        /* Optional: if you have your ultrasonic driver debug getters, show IRQ count.
+           If not, just show idx/ticks and ignore irq. */
+        uint32 irqCnt = Ultrasonic_GetIrqCount();
+
+        /* ----- OLED ----- */
+        DisplayClear();
+
+        DisplayText(0U, L0, 16U, 0U);
+
+        DisplayText(1U, L1, 16U, 0U);
+        DisplayValue(1U, (int)irqCnt, 5U, 2U);      /* I: at col 2..6 */
+        DisplayValue(1U, (int)lastIdx, 6U, 10U);     /* x: at col 10..15 */
+
+        DisplayText(2U, L2, 16U, 0U);
+        DisplayValue(2U, (int)lastTicks, 14U, 2U);   /* t: at col 2..15 */
+
+        DisplayText(3U, L3, 16U, 0U);
+        DisplayValue(3U, (int)HIGH_MS, 3U, 4U);      /* Hms: at col 4..6 */
+        DisplayValue(3U, (int)LOW_MS,  4U, 11U);     /* Lms: at col 11..14 */
+
+        DisplayRefresh();
+    }
+
+#endif /* ULTRA_LOOPBACK_ICU_TEST */
+
+
+#if ULTRA_TRIG_SLOW_TEST
+
+    const char L0[] = "TRIG SLOW TEST  ";
+    const char L1[] = "TRIG:           ";
+
+    for (;;)
+    {
+        /* Force TRIG high long enough to observe */
+        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_HIGH);
+        uint32 t0 = Timebase_GetMs();
+        while ((Timebase_GetMs() - t0) < 200u) {}
+
+        /* Display HIGH */
+        DisplayClear();
+        DisplayText(0U, L0, 16U, 0U);
+        DisplayText(1U, L1, 16U, 0U);
+        DisplayText(1U, "TRIG: HIGH      ", 16U, 0U);
+        DisplayRefresh();
+
+        /* Force TRIG low long enough to observe */
+        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_LOW);
+        t0 = Timebase_GetMs();
+        while ((Timebase_GetMs() - t0) < 200u) {}
+
+        /* Display LOW */
+        DisplayClear();
+        DisplayText(0U, L0, 16U, 0U);
+        DisplayText(1U, L1, 16U, 0U);
+        DisplayText(1U, "TRIG: LOW       ", 16U, 0U);
+        DisplayRefresh();
+    }
+
+#endif
+
+#if ULTRASONIC_100MS_TEST
+
+    /* 16-char fixed lines (padded) — safe for your DisplayText() */
+    const char L0[] = "ULTRA 100ms     ";  /* 16 */
+    const char L1[] = "S:     I:       ";  /* 16 */
+    const char L2[] = "cm:    x:       ";  /* 16 */
+    const char L3[] = "t:              ";  /* 16 */
+
+    uint32 lastTrigMs     = Timebase_GetMs();
+    float  lastDistanceCm = 0.0f;
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+
+        /* Trigger every 100ms, but never interrupt BUSY */
+        if ((uint32)(nowMs - lastTrigMs) >= 1000u)
+        {
+            if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+            {
+                lastTrigMs = nowMs;
+                Ultrasonic_StartMeasurement();
+            }
+        }
+
+        Ultrasonic_Task();
+
+        /* Latch new value if available */
+        float distanceCm = 0.0f;
+        boolean gotDistance = Ultrasonic_GetDistanceCm(&distanceCm);
+        if (gotDistance == TRUE)
+        {
+            lastDistanceCm = distanceCm;
+        }
+
+        Ultrasonic_StatusType st = Ultrasonic_GetStatus();
+
+        uint32 irqCnt = Ultrasonic_GetIrqCount();
+        uint32 ticks  = Ultrasonic_GetLastHighTicks();
+        uint16 idx    = Ultrasonic_GetTsIndex();
+
+        /* ----- OLED ----- */
+        DisplayClear();
+
+        /* Line 0 */
+        DisplayText(0U, L0, 16U, 0U);
+
+        /* Line 1 template */
+        DisplayText(1U, L1, 16U, 0U);
+
+        /* Status field (Line 1, col 2..6) */
+        if (gotDistance == TRUE)
+        {
+            DisplayText(1U, "NEW  ", 5U, 2U);     /* 5 chars */
+        }
+        else if (st == ULTRA_STATUS_BUSY)
+        {
+            DisplayText(1U, "BUSY ", 5U, 2U);
+        }
+        else if (st == ULTRA_STATUS_ERROR)
+        {
+            DisplayText(1U, "ERROR", 5U, 2U);
+        }
+        else
+        {
+            DisplayText(1U, "IDLE ", 5U, 2U);
+        }
+
+        /* IRQ count (Line 1, col 11..15 => len=5) */
+        DisplayValue(1U, (int)irqCnt, 5U, 11U);
+
+        /* Line 2 template */
+        DisplayText(2U, L2, 16U, 0U);
+
+        /* Distance (Line 2, col 3..6 => len=4) */
+        {
+            int distInt = (int)(lastDistanceCm + 0.5f);
+            DisplayValue(2U, distInt, 4U, 3U);
+        }
+
+        /* Timestamp index (Line 2, col 10..15 => len=6) */
+        DisplayValue(2U, (int)idx, 6U, 10U);
+
+        /* Line 3 template */
+        DisplayText(3U, L3, 16U, 0U);
+
+        /* Ticks (Line 3, col 2..15 => len=14) */
+        DisplayValue(3U, (int)ticks, 14U, 2U);
+
+        DisplayRefresh();
+    }
+
+#endif /* ULTRASONIC_100MS_TEST */
+
+
+
 
 #if ICU_RAW_TEST
 /* ===============================================================
@@ -249,8 +398,8 @@ int main(void)
          * ------------------------------------- */
         Icu_ValueType ticks = Icu_GetTimeElapsed(ULTRA_ICU_ECHO_CHANNEL);
 
-        /* Convert to microseconds: 48 MHz → 48 ticks per µs */
-        uint32 us_times100 = (ticks * 100u) / 48u;
+        /* Convert to microseconds: 8 MHz → 8 ticks per µs */
+        uint32 us_times100 = (ticks * 100u) / 8u;
         uint32 us_int = us_times100 / 100u;
         uint32 us_dec = us_times100 % 100u;
 
@@ -274,99 +423,6 @@ int main(void)
     }
 
 #endif /* ICU_RAW_TEST */
-
-
-#if ULTRASONIC_DRIVER_TEST
-
-    DisplayClear();
-    DisplayText(0U, "ULTRA ASYNC", 11U, 0U);
-    DisplayRefresh();
-
-    uint32 loopCounter     = 0U;
-    float  lastDistanceCm  = 0.0f;
-
-    for (;;)
-    {
-        loopCounter++;
-
-        /* 1) Start a new measurement (non-blocking) */
-        Ultrasonic_StartMeasurement();
-
-        /* 2) For ~50 ms, let the driver run its timeout logic
-         *    and try to grab a new result if it appears.
-         */
-        uint32  startMs     = Timebase_GetMs();
-        boolean gotDistance = FALSE;
-        float   distanceCm  = 0.0f;
-
-        while ((Timebase_GetMs() - startMs) < 50u)
-        {
-            /* Handles timeout while BUSY */
-            Ultrasonic_Task();
-
-            /* Try to latch a new result once */
-            if (!gotDistance)
-            {
-                if (Ultrasonic_GetDistanceCm(&distanceCm))
-                {
-                    gotDistance   = TRUE;
-                    lastDistanceCm = distanceCm;   /* remember last valid */
-                }
-            }
-
-            /* Optional tiny delay so this loop isn’t insanely tight */
-            volatile uint32 spin = 1000U;
-            while (spin-- > 0U)
-            {
-                __asm("NOP");
-            }
-        }
-
-        Ultrasonic_StatusType st = Ultrasonic_GetStatus();
-
-        /* 3) Show debug info on OLED */
-        DisplayClear();
-
-        /* Line 0: loop counter (proves loop is alive) */
-        DisplayText(0U, "n:", 2U, 0U);
-        DisplayValue(0U, (int)loopCounter, 6U, 3U);
-
-        /* Line 1: status */
-        if (gotDistance)
-        {
-            DisplayText(1U, "OK", 2U, 0U);
-        }
-        else if (st == ULTRA_STATUS_ERROR)
-        {
-            DisplayText(1U, "ERROR", 5U, 0U);
-        }
-        else if (st == ULTRA_STATUS_BUSY)
-        {
-            DisplayText(1U, "BUSY", 4U, 0U);
-        }
-        else
-        {
-            DisplayText(1U, "IDLE", 4U, 0U);
-        }
-
-        /* Line 2: distance in cm (integer, from last valid measurement) */
-        DisplayText(2U, "cm:", 3U, 0U);
-        {
-            int distInt = (int)(lastDistanceCm + 0.5f);  /* round to nearest int */
-            DisplayValue(2U, distInt, 5U, 4U);
-        }
-
-        DisplayRefresh();
-
-        /* Small pause between measurement cycles so it’s readable */
-        volatile uint32 pause = 200000U;
-        while (pause-- > 0U)
-        {
-            __asm("NOP");
-        }
-    }
-
-#endif /* ULTRASONIC_ASYNC_TEST */
 
 /*==================================================================================================
  *                                       DISPLAY TEST
@@ -445,12 +501,17 @@ int main(void)
 				DisplayRefresh();
 			}
 		}
-	#endif
+	#endif /* DISPLAY_TEST */
 
-} //main function end
-#endif
+} /*main function end */
 
-#if 0
+#endif /* MAIN_ENABLE */
+
+/*==================================================================================================
+ *                                  ULTRASONIC_TEST_LOW_LEVEL (OWN MAIN)
+==================================================================================================*/
+
+#if ULTRASONIC_TEST_LOW_LEVEL
 #include "timebase.h"
 #include "Mcal.h"        /* for DriversInit() and MCAL drivers */
 
@@ -520,7 +581,7 @@ int main(void)
 #endif
 
 /*==================================================================================================
- *                                  CAR TEST (LINEAR CAMERA EXAMPLE CODE)
+ *                                  CAR TEST (LINEAR CAMERA EXAMPLE CODE) (OWN MAIN)
 ==================================================================================================*/
 
 #if CAR_CAMERA_TEST

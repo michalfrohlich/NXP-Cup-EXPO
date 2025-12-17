@@ -45,8 +45,6 @@ src/ultrasonic.o: ../src/ultrasonic.c \
  ../RTD/include/Cmp_Ip_Types.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Cmp_Ip_Defines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h \
- ../RTD/include/OsIf.h ../RTD/include/OsIf_Internal.h \
- C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BaseNXP_MemMap.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/ultrasonic.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Std_Types.h:
@@ -96,7 +94,4 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 ../RTD/include/Cmp_Ip_Types.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Cmp_Ip_Defines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h:
-../RTD/include/OsIf.h:
-../RTD/include/OsIf_Internal.h:
-C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BaseNXP_MemMap.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h:

@@ -195,7 +195,7 @@ extern "C"{
 *        STD_OFF: The services listed above can not be used.
 *   @implements ICU_TIMESTAMP_API_define
 */
-#define ICU_TIMESTAMP_API                 (STD_OFF)
+#define ICU_TIMESTAMP_API                 (STD_ON)
 
 /**
 *   @brief  Adds or removes all services related to the edge counting functionality as listed below,

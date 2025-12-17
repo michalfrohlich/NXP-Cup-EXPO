@@ -132,6 +132,7 @@ src/main.o: ../src/main.c \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Cmp_Ip_Defines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_ADC.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_AIPS.h \
@@ -319,6 +320,7 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 ../RTD/include/Cmp_Ip_Types.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Cmp_Ip_Defines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_CMP.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/timebase.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_ADC.h:

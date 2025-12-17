@@ -159,6 +159,11 @@ extern "C"{
 *
 */
 extern void Icu_SignalNotification(void);
+/**
+* @brief External Notifications for Timestamp
+*
+*/
+extern void Icu_TimestampUltrasonicNotification(void);
 
 #define ICU_STOP_SEC_CODE
 #include "Icu_MemMap.h"
@@ -202,9 +207,9 @@ static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[2U]=
     {
         (boolean)FALSE,    /* Wakeup capability */
         ICU_RISING_EDGE,    /* Edge used */
-        ICU_MODE_SIGNAL_MEASUREMENT,    /* Measurement mode */
-        (Icu_MeasurementSubModeType)ICU_HIGH_TIME,    /* Icu_MeasurementSubModeType */
-        NULL_PTR,    /* Icu_Channel_Notification */
+        ICU_MODE_TIMESTAMP,    /* Measurement mode */
+        (Icu_MeasurementSubModeType)ICU_LINEAR_BUFFER,    /* Icu_MeasurementSubModeType */
+        &Icu_TimestampUltrasonicNotification,    /* Icu_Channel_Notification */
 #if ((ICU_SIGNALMEASUREMENT_USES_DMA == STD_ON) || (ICU_TIMESTAMP_USES_DMA == STD_ON))
         (Mcl_ChannelType)NoMclDmaChannel,    /* Mcl_DmaChannel */
 #endif

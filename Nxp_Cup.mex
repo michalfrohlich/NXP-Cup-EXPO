@@ -1037,7 +1037,7 @@
                                        <setting name="PortPinODE" value="false"/>
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
-                                       <setting name="PortPinModeChangeable" value="false"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
                                        <setting name="PortPinId" value="18"/>
                                        <setting name="PortPinPcr" value="15"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
@@ -1981,27 +1981,30 @@
                                  <setting name="Name" value="Ultrasonic_Echo"/>
                                  <setting name="IcuChannelId" value="1"/>
                                  <array name="IcuChannelEcucPartitionRef"/>
-                                 <setting name="IcuChannelRef" value="/Icu/Icu/IcuConfigSet/IcuFtm_0/IcuFtmChannel_UltraEcho"/>
+                                 <setting name="IcuChannelRef" value="/Icu/Icu/IcuConfigSet/IcuFtm_echo/IcuFtmChannel_UltraEcho"/>
                                  <setting name="IcuDMAChannelEnable" value="false"/>
                                  <array name="IcuDMAChannelRef"/>
                                  <setting name="IcuDefaultStartEdge" value="ICU_RISING_EDGE"/>
-                                 <setting name="IcuMeasurementMode" value="ICU_MODE_SIGNAL_MEASUREMENT"/>
+                                 <setting name="IcuMeasurementMode" value="ICU_MODE_TIMESTAMP"/>
                                  <setting name="IcuOverflowNotification" value="NULL_PTR"/>
                                  <setting name="IcuWakeupCapability" value="false"/>
                                  <array name="IcuSignalEdgeDetection"/>
-                                 <array name="IcuSignalMeasurement">
+                                 <array name="IcuSignalMeasurement"/>
+                                 <array name="IcuTimestampMeasurement">
                                     <struct name="0">
-                                       <setting name="Name" value="IcuSignalMeasurement"/>
-                                       <setting name="IcuSignalMeasurementProperty" value="ICU_HIGH_TIME"/>
+                                       <setting name="Name" value="IcuTimestampMeasurement"/>
+                                       <setting name="IcuTimestampMeasurementProperty" value="ICU_LINEAR_BUFFER"/>
+                                       <array name="IcuTimestampNotification">
+                                          <setting name="0" value="Icu_TimestampUltrasonicNotification"/>
+                                       </array>
                                     </struct>
                                  </array>
-                                 <array name="IcuTimestampMeasurement"/>
                                  <array name="IcuWakeup"/>
                               </struct>
                            </array>
                            <array name="IcuFtm">
                               <struct name="0">
-                                 <setting name="Name" value="IcuFtm_0"/>
+                                 <setting name="Name" value="IcuFtm_echo"/>
                                  <setting name="IcuFtmModule" value="1"/>
                                  <setting name="IcuFtmClockSource" value="SYSTEM_CLOCK"/>
                                  <setting name="IcuFtmPrescaler" value="1"/>
@@ -2039,7 +2042,7 @@
                                  <setting name="IcuIsrEnable" value="true"/>
                               </struct>
                               <struct name="1">
-                                 <setting name="Name" value="Icu_UltrasonicNotification"/>
+                                 <setting name="Name" value="IcuHwInt_UltraEcho_FTM1CH2"/>
                                  <setting name="IcuIsrHwId" value="FTM_1_CH_2"/>
                                  <setting name="IcuIsrEnable" value="true"/>
                               </struct>
@@ -2074,7 +2077,7 @@
                            <setting name="IcuGetVersionInfoApi" value="false"/>
                            <setting name="IcuSetModeApi" value="false"/>
                            <setting name="IcuSignalMeasurementApi" value="true"/>
-                           <setting name="IcuTimestampApi" value="false"/>
+                           <setting name="IcuTimestampApi" value="true"/>
                            <setting name="IcuWakeupFunctionalityApi" value="false"/>
                            <setting name="IcuEdgeDetectApi" value="true"/>
                         </struct>
