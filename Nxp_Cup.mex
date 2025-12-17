@@ -1037,7 +1037,7 @@
                                        <setting name="PortPinODE" value="false"/>
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
-                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="false"/>
                                        <setting name="PortPinId" value="18"/>
                                        <setting name="PortPinPcr" value="15"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>

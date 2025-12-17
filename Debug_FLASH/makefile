@@ -26,23 +26,23 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 SECONDARY_SIZE += \
-Nxp_Cup_Linear_Camera_S32K144.siz \
+EXPO_03_Nxp_Cup_project.siz \
 
 
 # All Target
-all: Nxp_Cup_Linear_Camera_S32K144.elf secondary-outputs
+all: EXPO_03_Nxp_Cup_project.elf secondary-outputs
 
 # Tool invocations
-Nxp_Cup_Linear_Camera_S32K144.elf: $(OBJS) C:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/Project_Settings/Linker_Files/linker_flash_s32k144.ld $(USER_OBJS)
+EXPO_03_Nxp_Cup_project.elf: $(OBJS) C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/Project_Settings/Linker_Files/linker_flash_s32k144.ld $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Standard S32DS C Linker'
-	arm-none-eabi-gcc -o "Nxp_Cup_Linear_Camera_S32K144.elf" "@Nxp_Cup_Linear_Camera_S32K144.args"  $(USER_OBJS)
+	arm-none-eabi-gcc -o "EXPO_03_Nxp_Cup_project.elf" "@EXPO_03_Nxp_Cup_project.args"  $(USER_OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-Nxp_Cup_Linear_Camera_S32K144.siz: Nxp_Cup_Linear_Camera_S32K144.elf
+EXPO_03_Nxp_Cup_project.siz: EXPO_03_Nxp_Cup_project.elf
 	@echo 'Invoking: Standard S32DS Print Size'
-	arm-none-eabi-size --format=berkeley Nxp_Cup_Linear_Camera_S32K144.elf
+	arm-none-eabi-size --format=berkeley EXPO_03_Nxp_Cup_project.elf
 	@echo 'Finished building: $@'
 	@echo ' '
 

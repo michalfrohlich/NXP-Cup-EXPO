@@ -1,7 +1,7 @@
 generate/src/Platform_Ipw_Cfg.o: ../generate/src/Platform_Ipw_Cfg.c \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Platform_Ipw_Cfg.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Platform_Ipw_Cfg.h \
  ../RTD/include/Platform_Ipw_TypesDef.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Platform_CfgDefines.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Platform_CfgDefines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h \
@@ -13,7 +13,7 @@ generate/src/Platform_Ipw_Cfg.o: ../generate/src/Platform_Ipw_Cfg.c \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Det_MemMap.h \
  ../RTD/include/IntCtrl_Ip_TypesDef.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/IntCtrl_Ip_CfgDefines.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_CfgDefines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_ADC.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_COMMON.h \
@@ -54,34 +54,34 @@ generate/src/Platform_Ipw_Cfg.o: ../generate/src/Platform_Ipw_Cfg.c \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_TRGMUX.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_WDOG.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/System_Ip_CfgDefines.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/System_Ip_CfgDefines.h \
  ../RTD/include/System_Ip_DeviceRegisters.h ../RTD/include/Mpu_Ip.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Mcal.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Soc_Ips.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Soc_Ips.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/IpVersionMacros.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Reg_eSys.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/OsIf_Internal.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/OsIf_Cfg.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/OsIf_ArchCfg.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_Cfg.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_ArchCfg.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Devassert.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Mcal.h \
  ../RTD/include/SchM_Platform.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Rte_MemMap.h \
  ../RTD/include/Mpu_Ip_TypesDef.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Mpu_Ip_Cfg_Defines.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Mpu_Ip_Cfg_Defines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_MPU.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Mpu_Ip_Cfg.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Mpu_Ip_Cfg.h \
  ../RTD/include/Mpu_Ip_TypesDef.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Mpu_Ip_Cfg_Defines.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Mpu_Ip_Cfg_Defines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_MemMap.h \
  ../RTD/include/IntCtrl_Ip.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/IntCtrl_Ip_Cfg.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_Cfg.h \
  ../RTD/include/IntCtrl_Ip_TypesDef.h
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Platform_Ipw_Cfg.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Platform_Ipw_Cfg.h:
 ../RTD/include/Platform_Ipw_TypesDef.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Platform_CfgDefines.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Platform_CfgDefines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h:
@@ -93,7 +93,7 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Det_MemMap.h:
 ../RTD/include/IntCtrl_Ip_TypesDef.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/IntCtrl_Ip_CfgDefines.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_CfgDefines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_ADC.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_COMMON.h:
@@ -134,29 +134,29 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_TRGMUX.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_WDOG.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/System_Ip_CfgDefines.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/System_Ip_CfgDefines.h:
 ../RTD/include/System_Ip_DeviceRegisters.h:
 ../RTD/include/Mpu_Ip.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Mcal.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Soc_Ips.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Soc_Ips.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/IpVersionMacros.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Reg_eSys.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/OsIf_Internal.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/OsIf_Cfg.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/OsIf_ArchCfg.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_Cfg.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_ArchCfg.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Devassert.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Mcal.h:
 ../RTD/include/SchM_Platform.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Rte_MemMap.h:
 ../RTD/include/Mpu_Ip_TypesDef.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Mpu_Ip_Cfg_Defines.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Mpu_Ip_Cfg_Defines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_MPU.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Mpu_Ip_Cfg.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Mpu_Ip_Cfg.h:
 ../RTD/include/Mpu_Ip_TypesDef.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/Mpu_Ip_Cfg_Defines.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Mpu_Ip_Cfg_Defines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_MemMap.h:
 ../RTD/include/IntCtrl_Ip.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/Nxp_Cup_Linear_Camera_S32K144/generate/include/IntCtrl_Ip_Cfg.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_Cfg.h:
 ../RTD/include/IntCtrl_Ip_TypesDef.h:
