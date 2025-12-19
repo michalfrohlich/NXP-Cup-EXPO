@@ -75,6 +75,15 @@ extern "C"{
 *                                       DEFINES AND MACROS
 ==================================================================================================*/
 /* Macros that indicate FTM instances used by ICU. */
+#ifndef FTM_1_USED
+    #define FTM_1_USED
+#else
+    #error "FTM_1 instance cannot be used by ICU. Instance locked by another driver!"
+#endif
+/** @brief FTM 1 CH2 CH3 ISR enable/disable */
+#define FTM_ICU_1_CH_2_CH_3_ISR_USED        (STD_ON)
+/** @brief FTM 1 OVF interrupt service enable/disable */
+#define FTM_ICU_1_OVF_ISR_USED             (STD_ON)
 
 /** @brief Switches the Development Error Detection and Notification on or off.  */
 #define FTM_ICU_IP_DEV_ERROR_DETECT        (STD_ON)
@@ -86,13 +95,13 @@ extern "C"{
 #define FTM_FILTER_MAX_NO_CH               (4U)
 
 /** @brief Adds or removes all services related to the timestamp functionality. */
-#define FTM_ICU_TIMESTAMP_API              (STD_OFF)
+#define FTM_ICU_TIMESTAMP_API              (STD_ON)
 
 /** @brief Adds or removes all services related to the edge detect functionality. */
 #define FTM_ICU_EDGE_DETECT_API            (STD_ON)
 
 /** @brief Adds or removes all services related to the signal mesurement functionality. */
-#define FTM_ICU_SIGNAL_MEASUREMENT_API     (STD_OFF)
+#define FTM_ICU_SIGNAL_MEASUREMENT_API     (STD_ON)
 
 /** @brief Adds or removes all services related to the input level. */
 #define FTM_ICU_GET_INPUT_LEVEL_API        (STD_OFF)
@@ -107,7 +116,7 @@ extern "C"{
 #define FTM_ICU_EDGE_COUNT_API             (STD_OFF)
 
 /** @brief  Adds or removes the service Icu_GetTimeElapsed() from the code. */
-#define FTM_ICU_GET_TIME_ELAPSED_API       (STD_OFF)
+#define FTM_ICU_GET_TIME_ELAPSED_API       (STD_ON)
 
 /** @brief  Adds or removes the service Icu_GetDutyCycleValues() from the code. */
 #define FTM_ICU_GET_DUTY_CYCLE_VALUES_API   (STD_OFF)

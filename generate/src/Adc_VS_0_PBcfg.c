@@ -136,6 +136,15 @@ static const Adc_ChannelType Adc_Group0_Assignment_0_VS_0[ADC_CFGSET_VS_0_GROUP_
 };
 
 /**
+* @brief          Group Assignments on ADC0 _VS_0.
+*
+*/
+static const Adc_ChannelType Adc_Group1_Assignment_0_VS_0[ADC_CFGSET_VS_0_GROUP_1_CHANNELS] =
+{
+    1U
+};
+
+/**
 * @brief          Definition of all ADC groups for configuration variant VS_0.
 */
 static const Adc_GroupConfigurationType Adc_GroupsCfg_VS_0[] =
@@ -211,6 +220,78 @@ static const Adc_GroupConfigurationType Adc_GroupsCfg_VS_0[] =
         (boolean)FALSE, /* AdcGroupLimitcheck */
 #endif /* (STD_ON == ADC_ENABLE_LIMIT_CHECK) */
         &AdcIpwGroupConfig_0_VS_0 /* AdcIpwGroupConfigPtr */
+    },
+    /**< @brief Group1 -- Logical Unit Id 0 -- Hardware Unit ADC0 */
+    {
+        /**< @brief Index of group */
+        1U, /* GroupId */
+        /**< @brief ADC Logical Unit Id that the group belongs to */
+        (Adc_HwUnitType)0, /* AdcLogicalUnitId */
+        /**< @brief Access mode */
+        ADC_ACCESS_MODE_SINGLE, /* AccessMode */
+        /**< @brief Conversion mode */
+        ADC_CONV_MODE_ONESHOT, /* Mode */
+        /**< @brief Conversion type */
+        ADC_CONV_TYPE_NORMAL, /* Type */
+#if (ADC_PRIORITY_IMPLEMENTATION != ADC_PRIORITY_NONE)
+        /**< @brief Priority configured */
+        (Adc_GroupPriorityType)ADC_GROUP_PRIORITY, /* Priority */
+#endif /* ADC_PRIORITY_IMPLEMENTATION != ADC_PRIORITY_NONE */
+        /**< @brief Replacement mode */
+        ADC_GROUP_REPL_ABORT_RESTART, /* eReplacementMode */
+        /**< @brief Trigger source configured */
+        ADC_TRIGG_SRC_SW, /* TriggerSource */
+#if (STD_ON == ADC_HW_TRIGGER_API)
+        /**< @brief Hardware trigger source for the group */
+        PDB_ADC_IP_SOFTWARE_TRIGGER, /* HwTriggerSource */
+        /**< @brief Hardware trigger signal */
+        ADC_HW_TRIG_RISING_EDGE, /* eTriggerEdge */
+#endif /* (STD_ON == ADC_HW_TRIGGER_API) */
+#if (STD_ON == ADC_GRP_NOTIF_CAPABILITY)
+        /**< @brief Notification function */
+        NULL_PTR, /* Notification */
+#endif /* (STD_ON == ADC_GRP_NOTIF_CAPABILITY) */
+#if (ADC_ENABLE_INITIAL_NOTIFICATION == STD_ON)
+        /**< @brief Extra notification function */
+        NULL_PTR, /* ExtraNotification */
+#endif /* (ADC_ENABLE_INITIAL_NOTIFICATION == STD_ON) */
+        /**< @brief Group Streaming Buffer Mode */
+        ADC_STREAM_BUFFER_LINEAR, /* BufferMode */
+#if (ADC_ENABLE_CH_DISABLE_CH_NONAUTO_API == STD_ON)
+        /**< @brief Index of the group with AdcEnableChDisableChGroup enabled */
+        (Adc_GroupType)ADC_ENABLE_CH_DISABLE_CH_INVALID_GROUP_INDEX, /* EnableChDisableChGroupIndex */
+#endif /* (ADC_ENABLE_CH_DISABLE_CH_NONAUTO_API == STD_ON) */
+        /**< @brief Number of streaming samples */
+        (Adc_StreamNumSampleType)ADC_STREAMING_NUM_SAMPLES(1), /* NumSamples */
+#if (ADC_ENABLE_GROUP_STREAMING_RESULTS_REORDER == STD_ON)
+        /**< @brief Arrange the adc results as multiple sets of group result buffer */
+        (boolean)FALSE, /* StreamResultGroupMultiSets */
+#endif /* (ADC_ENABLE_GROUP_STREAMING_RESULTS_REORDER == STD_ON) */
+        /**< @brief Channels assigned to the group*/
+        Adc_Group1_Assignment_0_VS_0, /* AssignmentPtr */
+        /**< @brief Number of channels in the group*/
+        (Adc_ChannelIndexType)ADC_CFGSET_VS_0_GROUP_1_CHANNELS, /* AssignedChannelCount */
+        /**< @brief Last Channel configured */
+        (Adc_ChannelType)(ADC_ID_CHANNEL_U8(12)), /* LastCh */
+        /**< @brief First Channel configured */
+        (Adc_ChannelType)(ADC_ID_CHANNEL_U8(12)), /* FirstCh */
+        /**< @brief Enables or Disables the ADC and DMA interrupts */
+        (uint8)(STD_OFF), /* AdcWithoutInterrupt */
+        /**< @brief Enables or Disables configuring external DMA channel in the group */
+        (uint8)(STD_OFF), /* AdcExtDMAChanEnable */
+        /**< @brief When true, disables completely DMA configuration done by ADC driver for the group */
+        (boolean)FALSE, /* AdcWithoutDma */
+#if (STD_ON == ADC_OPTIMIZE_DMA_STREAMING_GROUPS)
+        /**< @brief Enables or Disables the ADC optimize DMA streaming groups feature */
+        (boolean)FALSE, /* AdcOptimizeDmaStream */
+        /**< @brief Enable/disable half interrupt for group with optimize DMA streaming groups */
+        (boolean)FALSE, /* HalfInterrupt */
+#endif /* (STD_ON == ADC_OPTIMIZE_DMA_STREAMING_GROUPS) */
+#if (ADC_ENABLE_LIMIT_CHECK == STD_ON)
+        /**< @brief Enables or disables the usage of limit checking for an ADC group. */
+        (boolean)FALSE, /* AdcGroupLimitcheck */
+#endif /* (STD_ON == ADC_ENABLE_LIMIT_CHECK) */
+        &AdcIpwGroupConfig_1_VS_0 /* AdcIpwGroupConfigPtr */
     }
 };
 
@@ -228,7 +309,8 @@ static const Adc_GroupConfigurationType Adc_GroupsCfg_VS_0[] =
 */
 static const uint16 Adc_au16GroupIdToIndexMap_VS_0[ADC_MAX_GROUPS] =
 {
-    0
+    0,
+    1
 };
 
 

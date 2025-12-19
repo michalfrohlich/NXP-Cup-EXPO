@@ -102,7 +102,7 @@ extern "C"{
 #define LPIT_ICU_EDGE_DETECT_API                (STD_ON)
 
 /** @brief Adds or removes all services related to the timestamp functionality. */
-#define LPIT_ICU_TIMESTAMP_API                  (STD_OFF)
+#define LPIT_ICU_TIMESTAMP_API                  (STD_ON)
 
 /** @brief Adds or removes all services related to input state functionality. */
 #define LPIT_ICU_GET_INPUT_STATE_API            (STD_OFF)

@@ -97,6 +97,11 @@ extern const Adc_Ipw_Config AdcIpwCfg_VS_0;
 */
 extern const Adc_Ipw_GroupConfig AdcIpwGroupConfig_0_VS_0;
 
+/**
+* @brief          ADC Ipw Group 1 Config VS_0.
+*/
+extern const Adc_Ipw_GroupConfig AdcIpwGroupConfig_1_VS_0;
+
 
 #define ADC_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Adc_MemMap.h"

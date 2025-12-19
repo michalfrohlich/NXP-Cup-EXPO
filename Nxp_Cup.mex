@@ -96,6 +96,7 @@
                   <pin peripheral="FTM2" signal="ftm2_ch0" pin_num="4" pin_signal="PTD0">
                      <pin_features>
                         <pin_feature name="direction" value="OUTPUT"/>
+                        <pin_feature name="initValue" value="state_1"/>
                      </pin_features>
                   </pin>
                   <pin peripheral="PORTD" signal="port, 1" pin_num="3" pin_signal="PTD1">
@@ -122,6 +123,35 @@
                         <pin_feature name="direction" value="OUTPUT"/>
                      </pin_features>
                   </pin>
+                  <pin peripheral="ADC0" signal="adc0_se12" pin_num="46" pin_signal="PTC14">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="PORTC" signal="port, 12" pin_num="50" pin_signal="PTC12">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="PE" value="state_1"/>
+                        <pin_feature name="PS" value="state_1"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="PORTC" signal="port, 13" pin_num="49" pin_signal="PTC13">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                        <pin_feature name="PE" value="state_1"/>
+                        <pin_feature name="PS" value="state_1"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="FTM1" signal="ftm1_ch2" pin_num="83" pin_signal="PTA15">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="PORTE" signal="port, 15" pin_num="2" pin_signal="PTE15">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
                </pins>
             </function>
          </functions_list>
@@ -130,7 +160,9 @@
          <generated_project_files>
             <file path="generate/include/Clock_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/Clock_Ip_Cfg_Defines.h" update_enabled="true"/>
+            <file path="generate/include/Clock_Ip_VS_0_PBcfg.h" update_enabled="true"/>
             <file path="generate/src/Clock_Ip_Cfg.c" update_enabled="true"/>
+            <file path="generate/src/Clock_Ip_VS_0_PBcfg.c" update_enabled="true"/>
          </generated_project_files>
          <clocks_profile>
             <processor_version>0.0.0</processor_version>
@@ -651,6 +683,16 @@
                                        <setting name="DioChannelId" value="3"/>
                                        <array name="DioChannelEcucPartitionRef"/>
                                     </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="PTC12_sw2"/>
+                                       <setting name="DioChannelId" value="12"/>
+                                       <array name="DioChannelEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="2">
+                                       <setting name="Name" value="PTC13_sw3"/>
+                                       <setting name="DioChannelId" value="13"/>
+                                       <array name="DioChannelEcucPartitionRef"/>
+                                    </struct>
                                  </array>
                                  <array name="DioChannelGroup"/>
                                  <array name="DioPortEcucPartitionRef"/>
@@ -675,6 +717,19 @@
                                     <struct name="0">
                                        <setting name="Name" value="LinearCameraShutter"/>
                                        <setting name="DioChannelId" value="4"/>
+                                       <array name="DioChannelEcucPartitionRef"/>
+                                    </struct>
+                                 </array>
+                                 <array name="DioChannelGroup"/>
+                                 <array name="DioPortEcucPartitionRef"/>
+                              </struct>
+                              <struct name="4">
+                                 <setting name="Name" value="DioPort_E"/>
+                                 <setting name="DioPortId" value="4"/>
+                                 <array name="DioChannel">
+                                    <struct name="0">
+                                       <setting name="Name" value="PTE15_UltraTrig"/>
+                                       <setting name="DioChannelId" value="15"/>
                                        <array name="DioChannelEcucPartitionRef"/>
                                     </struct>
                                  </array>
@@ -930,6 +985,66 @@
                                        <setting name="PortPinModeChangeable" value="true"/>
                                        <setting name="PortPinId" value="14"/>
                                        <setting name="PortPinPcr" value="80"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                              <struct name="6">
+                                 <setting name="Name" value="onboardPins"/>
+                                 <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
+                                 <array name="PortPin">
+                                    <struct name="0">
+                                       <setting name="Name" value="PortPin_PTC12_sw2"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="15"/>
+                                       <setting name="PortPinPcr" value="76"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="PortPin_PTC13_sw3"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="16"/>
+                                       <setting name="PortPinPcr" value="77"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                              <struct name="7">
+                                 <setting name="Name" value="Ultrasonic"/>
+                                 <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
+                                 <array name="PortPin">
+                                    <struct name="0">
+                                       <setting name="Name" value="TRIG"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="17"/>
+                                       <setting name="PortPinPcr" value="143"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="ECHO"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="18"/>
+                                       <setting name="PortPinPcr" value="15"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
@@ -1604,7 +1719,7 @@
                                  <setting name="AdcCalibrationPrescale" value="8"/>
                                  <setting name="AdcHwUnitUsrOffset" value="0"/>
                                  <setting name="AdcHwUnitUsrGain" value="4"/>
-                                 <setting name="AdcHwUnitResolution" value="RESOLUTION_8"/>
+                                 <setting name="AdcHwUnitResolution" value="RESOLUTION_12"/>
                                  <array name="AdcNormalConvTimings"/>
                                  <array name="AdcAlternateConvTimings"/>
                                  <struct name="PdbHwUnit">
@@ -1628,7 +1743,28 @@
                                        <array name="AdcChannelRefVoltsrcHigh"/>
                                        <array name="AdcChannelRefVoltsrcLow"/>
                                        <array name="AdcChannelResolution">
-                                          <setting name="0" value="8"/>
+                                          <setting name="0" value="12"/>
+                                       </array>
+                                       <array name="AdcChannelSampTime"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="AdcChannel_pot"/>
+                                       <setting name="AdcLogicalChannelId" value="1"/>
+                                       <setting name="AdcChannelName" value="SE12_ADCH12"/>
+                                       <setting name="AdcChannelId" value="12"/>
+                                       <array name="AdcChannelConvTime"/>
+                                       <array name="AdcChannelLimitCheck"/>
+                                       <array name="AdcChannelHighLimit">
+                                          <setting name="0" value="4095"/>
+                                       </array>
+                                       <array name="AdcChannelLowLimit">
+                                          <setting name="0" value="0"/>
+                                       </array>
+                                       <array name="AdcChannelRangeSelect"/>
+                                       <array name="AdcChannelRefVoltsrcHigh"/>
+                                       <array name="AdcChannelRefVoltsrcLow"/>
+                                       <array name="AdcChannelResolution">
+                                          <setting name="0" value="12"/>
                                        </array>
                                        <array name="AdcChannelSampTime"/>
                                     </struct>
@@ -1680,6 +1816,53 @@
                                        </struct>
                                        <array name="AdcGroupDefinition">
                                           <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_0"/>
+                                       </array>
+                                       <array name="AdcGroupEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="AdcGroup_pot"/>
+                                       <setting name="AdcGroupAccessMode" value="ADC_ACCESS_MODE_SINGLE"/>
+                                       <setting name="AdcGroupConversionMode" value="ADC_CONV_MODE_ONESHOT"/>
+                                       <setting name="AdcGroupConversionType" value="ADC_CONV_TYPE_NORMAL"/>
+                                       <setting name="AdcGroupId" value="1"/>
+                                       <array name="AdcGroupPriority"/>
+                                       <array name="AdcGroupReplacement"/>
+                                       <setting name="AdcGroupTriggSrc" value="ADC_TRIGG_SRC_SW"/>
+                                       <setting name="AdcGroupHwTriggerSource" value="/Adc/Adc/AdcConfigSet/AdcHwTrigger_0"/>
+                                       <array name="AdcHwTrigSignal"/>
+                                       <array name="AdcHwTrigTimer"/>
+                                       <array name="AdcNotification">
+                                          <setting name="0" value="NULL_PTR"/>
+                                       </array>
+                                       <setting name="AdcExtraNotification" value="NULL_PTR"/>
+                                       <setting name="AdcStreamingBufferMode" value="ADC_STREAM_BUFFER_LINEAR"/>
+                                       <setting name="AdcEnableOptimizeDmaStreamingGroups" value="false"/>
+                                       <setting name="AdcEnableHalfInterrupt" value="false"/>
+                                       <setting name="AdcStreamingNumSamples" value="1"/>
+                                       <setting name="AdcStreamResultGroup" value="false"/>
+                                       <setting name="AdcEnableChDisableChGroup" value="false"/>
+                                       <setting name="AdcWithoutInterrupts" value="false"/>
+                                       <setting name="AdcWithoutDma" value="false"/>
+                                       <setting name="AdcExtDMAChanEnable" value="false"/>
+                                       <setting name="AdcGroupInBacktoBackMode" value="true"/>
+                                       <setting name="AdcGroupUsesChannelDelays" value="false"/>
+                                       <setting name="AdcDelayNextPdb" value="0"/>
+                                       <setting name="AdcPdbPeriodContinuousMode" value="1000"/>
+                                       <array name="AdcChannelDelay"/>
+                                       <struct name="AdcGroupConversionConfiguration">
+                                          <setting name="Name" value="AdcGroupConversionConfiguration"/>
+                                          <setting name="AdcGroupHardwareAverageEnable" value="false"/>
+                                          <setting name="AdcGroupHardwareAverageSelect" value="SAMPLES_4"/>
+                                          <setting name="AdcGroupSampleTimeDuration" value="20"/>
+                                       </struct>
+                                       <struct name="AdcAlternateGroupConvTimings">
+                                          <setting name="Name" value="AdcAlternateGroupConvTimings"/>
+                                          <setting name="AdcGroupAltHardwareAverageEnable" value="false"/>
+                                          <setting name="AdcGroupAltHardwareAverageSelect" value="SAMPLES_4"/>
+                                          <setting name="AdcGroupAltSampleTimeDuration" value="1"/>
+                                       </struct>
+                                       <array name="AdcGroupDefinition">
+                                          <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_pot"/>
                                        </array>
                                        <array name="AdcGroupEcucPartitionRef"/>
                                     </struct>
@@ -1774,7 +1957,7 @@
                         </struct>
                         <struct name="IcuConfigSet">
                            <setting name="Name" value="IcuConfigSet"/>
-                           <setting name="IcuMaxChannel" value="1"/>
+                           <setting name="IcuMaxChannel" value="2"/>
                            <array name="IcuChannel">
                               <struct name="0">
                                  <setting name="Name" value="Receiver_Input"/>
@@ -1799,8 +1982,49 @@
                                  <array name="IcuTimestampMeasurement"/>
                                  <array name="IcuWakeup"/>
                               </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="Ultrasonic_Echo"/>
+                                 <setting name="IcuChannelId" value="1"/>
+                                 <array name="IcuChannelEcucPartitionRef"/>
+                                 <setting name="IcuChannelRef" value="/Icu/Icu/IcuConfigSet/IcuFtm_echo/IcuFtmChannel_UltraEcho"/>
+                                 <setting name="IcuDMAChannelEnable" value="false"/>
+                                 <array name="IcuDMAChannelRef"/>
+                                 <setting name="IcuDefaultStartEdge" value="ICU_BOTH_EDGES"/>
+                                 <setting name="IcuMeasurementMode" value="ICU_MODE_TIMESTAMP"/>
+                                 <setting name="IcuOverflowNotification" value="NULL_PTR"/>
+                                 <setting name="IcuWakeupCapability" value="false"/>
+                                 <array name="IcuSignalEdgeDetection"/>
+                                 <array name="IcuSignalMeasurement"/>
+                                 <array name="IcuTimestampMeasurement">
+                                    <struct name="0">
+                                       <setting name="Name" value="IcuTimestampMeasurement"/>
+                                       <setting name="IcuTimestampMeasurementProperty" value="ICU_LINEAR_BUFFER"/>
+                                       <array name="IcuTimestampNotification">
+                                          <setting name="0" value="Icu_TimestampUltrasonicNotification"/>
+                                       </array>
+                                    </struct>
+                                 </array>
+                                 <array name="IcuWakeup"/>
+                              </struct>
                            </array>
-                           <array name="IcuFtm"/>
+                           <array name="IcuFtm">
+                              <struct name="0">
+                                 <setting name="Name" value="IcuFtm_echo"/>
+                                 <setting name="IcuFtmModule" value="1"/>
+                                 <setting name="IcuFtmClockSource" value="EXTERNAL_CLOCK"/>
+                                 <setting name="IcuFtmPrescaler" value="4"/>
+                                 <setting name="IcuFtmPrescalerAlternate" value="1"/>
+                                 <setting name="IcuFtmDebugMode" value="MODE_0"/>
+                                 <setting name="IcuFtmModValue" value="65535"/>
+                                 <array name="IcuFtmChannels">
+                                    <struct name="0">
+                                       <setting name="Name" value="IcuFtmChannel_UltraEcho"/>
+                                       <setting name="IcuFtmChannel" value="2"/>
+                                       <setting name="IcuFtmFilter" value="0"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                           </array>
                            <array name="IcuLpCmp"/>
                            <array name="IcuLptmr"/>
                            <array name="IcuPort">
@@ -1820,6 +2044,11 @@
                               <struct name="0">
                                  <setting name="Name" value="IcuHwInterruptConfigList_0"/>
                                  <setting name="IcuIsrHwId" value="PORT_4"/>
+                                 <setting name="IcuIsrEnable" value="true"/>
+                              </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="IcuHwInt_UltraEcho_FTM1CH2"/>
+                                 <setting name="IcuIsrHwId" value="FTM_1_CH_2"/>
                                  <setting name="IcuIsrEnable" value="true"/>
                               </struct>
                            </array>
@@ -1849,11 +2078,11 @@
                            <setting name="IcuEnableWakeupApi" value="false"/>
                            <setting name="IcuGetDutyCycleValuesApi" value="false"/>
                            <setting name="IcuGetInputStateApi" value="false"/>
-                           <setting name="IcuGetTimeElapsedApi" value="false"/>
+                           <setting name="IcuGetTimeElapsedApi" value="true"/>
                            <setting name="IcuGetVersionInfoApi" value="false"/>
                            <setting name="IcuSetModeApi" value="false"/>
-                           <setting name="IcuSignalMeasurementApi" value="false"/>
-                           <setting name="IcuTimestampApi" value="false"/>
+                           <setting name="IcuSignalMeasurementApi" value="true"/>
+                           <setting name="IcuTimestampApi" value="true"/>
                            <setting name="IcuWakeupFunctionalityApi" value="false"/>
                            <setting name="IcuEdgeDetectApi" value="true"/>
                         </struct>
@@ -2103,11 +2332,11 @@
                               <struct name="1">
                                  <setting name="Name" value="LinearCameraShutter"/>
                                  <setting name="GptChannelId" value="1"/>
-                                 <setting name="GptHwIp" value="FTM"/>
-                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Ftm1/FtmChannel_0"/>
+                                 <setting name="GptHwIp" value="LPIT"/>
+                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/CameraTimer"/>
                                  <setting name="GptChannelMode" value="GPT_CH_MODE_ONESHOT"/>
-                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_1"/>
-                                 <setting name="GptChannelTickValueMax" value="65535"/>
+                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_0"/>
+                                 <setting name="GptChannelTickValueMax" value="4294967295"/>
                                  <setting name="GptEnableWakeup" value="false"/>
                                  <array name="GptNotification">
                                     <setting name="0" value="NewCameraFrame"/>
@@ -2115,8 +2344,77 @@
                                  <array name="GptChannelEcucPartitionRef"/>
                                  <array name="GptWakeupConfiguration"/>
                               </struct>
+                              <struct name="2">
+                                 <setting name="Name" value="EmuTimer_Notification"/>
+                                 <setting name="GptChannelId" value="2"/>
+                                 <setting name="GptHwIp" value="LPIT"/>
+                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/EmuTimer"/>
+                                 <setting name="GptChannelMode" value="GPT_CH_MODE_CONTINUOUS"/>
+                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_0"/>
+                                 <setting name="GptChannelTickValueMax" value="4294967295"/>
+                                 <setting name="GptEnableWakeup" value="false"/>
+                                 <array name="GptNotification">
+                                    <setting name="0" value="EmuTimer_Notification"/>
+                                 </array>
+                                 <array name="GptChannelEcucPartitionRef"/>
+                                 <array name="GptWakeupConfiguration"/>
+                              </struct>
+                              <struct name="3">
+                                 <setting name="Name" value="UsTimer"/>
+                                 <setting name="GptChannelId" value="3"/>
+                                 <setting name="GptHwIp" value="LPIT"/>
+                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/UsTimerChannel"/>
+                                 <setting name="GptChannelMode" value="GPT_CH_MODE_ONESHOT"/>
+                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_0"/>
+                                 <setting name="GptChannelTickValueMax" value="4294967295"/>
+                                 <setting name="GptEnableWakeup" value="false"/>
+                                 <array name="GptNotification">
+                                    <setting name="0" value="UsTimer_Notification"/>
+                                 </array>
+                                 <array name="GptChannelEcucPartitionRef"/>
+                                 <array name="GptWakeupConfiguration"/>
+                              </struct>
                            </array>
-                           <array name="GptLpit"/>
+                           <array name="GptLpit">
+                              <struct name="0">
+                                 <setting name="Name" value="Lpit_0"/>
+                                 <setting name="GptLpitModule" value="LPIT_0"/>
+                                 <setting name="LpitFreezeEnable" value="false"/>
+                                 <setting name="LpitDozeEnable" value="false"/>
+                                 <array name="GptLpitChannels">
+                                    <struct name="0">
+                                       <setting name="Name" value="CameraTimer"/>
+                                       <setting name="GptLpitChannel" value="CH_0"/>
+                                       <setting name="ChainMode" value="false"/>
+                                       <setting name="LPitExternalTrigger" value="false"/>
+                                       <setting name="LPitReloadOnTrigger" value="false"/>
+                                       <setting name="LPitStopOnInterrupt" value="false"/>
+                                       <setting name="LPitStartOnTrigger" value="false"/>
+                                       <array name="LPitTriggerChannels"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="EmuTimer"/>
+                                       <setting name="GptLpitChannel" value="CH_1"/>
+                                       <setting name="ChainMode" value="false"/>
+                                       <setting name="LPitExternalTrigger" value="false"/>
+                                       <setting name="LPitReloadOnTrigger" value="false"/>
+                                       <setting name="LPitStopOnInterrupt" value="false"/>
+                                       <setting name="LPitStartOnTrigger" value="false"/>
+                                       <array name="LPitTriggerChannels"/>
+                                    </struct>
+                                    <struct name="2">
+                                       <setting name="Name" value="UsTimerChannel"/>
+                                       <setting name="GptLpitChannel" value="CH_2"/>
+                                       <setting name="ChainMode" value="false"/>
+                                       <setting name="LPitExternalTrigger" value="false"/>
+                                       <setting name="LPitReloadOnTrigger" value="false"/>
+                                       <setting name="LPitStopOnInterrupt" value="false"/>
+                                       <setting name="LPitStartOnTrigger" value="false"/>
+                                       <array name="LPitTriggerChannels"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                           </array>
                            <array name="GptLptmr">
                               <struct name="0">
                                  <setting name="Name" value="Lptmr0"/>
@@ -2127,44 +2425,27 @@
                                  <setting name="GptLptmrPrescalerEnable" value="true"/>
                               </struct>
                            </array>
-                           <array name="GptFtm">
-                              <struct name="0">
-                                 <setting name="Name" value="Ftm1"/>
-                                 <setting name="GptFtmModule" value="FTM_1"/>
-                                 <setting name="GptFtmPrescaler" value="1"/>
-                                 <setting name="GptFtmAlternatePrescaler" value="1"/>
-                                 <setting name="GptFtmChannelClkSrc" value="FTM_GPT_IP_CLOCK_SOURCE_EXTERNALCLK"/>
-                                 <setting name="GptFtmCountingMode" value="FTM_GPT_IP_MODE_UP_TIMER"/>
-                                 <setting name="FtmFreezeEnable" value="false"/>
-                                 <array name="GptFtmChannels">
-                                    <struct name="0">
-                                       <setting name="Name" value="FtmChannel_0"/>
-                                       <setting name="GptFtmChannel" value="CH_0"/>
-                                       <setting name="FtmAbsoluteCounting" value="false"/>
-                                    </struct>
-                                 </array>
-                              </struct>
-                           </array>
+                           <array name="GptFtm"/>
                            <array name="GptSRtc"/>
                         </struct>
                         <array name="GptHwConfiguration">
                            <struct name="0">
                               <setting name="Name" value="GptHwConfiguration_0"/>
                               <setting name="GptIsrHwId" value="LPIT_0_CH_0"/>
-                              <setting name="GptIsrEnable" value="false"/>
-                              <setting name="GptChannelIsUsed" value="false"/>
+                              <setting name="GptIsrEnable" value="true"/>
+                              <setting name="GptChannelIsUsed" value="true"/>
                            </struct>
                            <struct name="1">
                               <setting name="Name" value="GptHwConfiguration_1"/>
                               <setting name="GptIsrHwId" value="LPIT_0_CH_1"/>
-                              <setting name="GptIsrEnable" value="false"/>
-                              <setting name="GptChannelIsUsed" value="false"/>
+                              <setting name="GptIsrEnable" value="true"/>
+                              <setting name="GptChannelIsUsed" value="true"/>
                            </struct>
                            <struct name="2">
                               <setting name="Name" value="GptHwConfiguration_2"/>
                               <setting name="GptIsrHwId" value="LPIT_0_CH_2"/>
-                              <setting name="GptIsrEnable" value="false"/>
-                              <setting name="GptChannelIsUsed" value="false"/>
+                              <setting name="GptIsrEnable" value="true"/>
+                              <setting name="GptChannelIsUsed" value="true"/>
                            </struct>
                            <struct name="3">
                               <setting name="Name" value="GptHwConfiguration_3"/>
@@ -2223,8 +2504,8 @@
                            <struct name="12">
                               <setting name="Name" value="GptHwConfiguration_12"/>
                               <setting name="GptIsrHwId" value="FTM_1_CH_0"/>
-                              <setting name="GptIsrEnable" value="true"/>
-                              <setting name="GptChannelIsUsed" value="true"/>
+                              <setting name="GptIsrEnable" value="false"/>
+                              <setting name="GptChannelIsUsed" value="false"/>
                            </struct>
                            <struct name="13">
                               <setting name="Name" value="GptHwConfiguration_13"/>
@@ -2235,8 +2516,8 @@
                            <struct name="14">
                               <setting name="Name" value="GptHwConfiguration_14"/>
                               <setting name="GptIsrHwId" value="FTM_1_CH_2"/>
-                              <setting name="GptIsrEnable" value="true"/>
-                              <setting name="GptChannelIsUsed" value="true"/>
+                              <setting name="GptIsrEnable" value="false"/>
+                              <setting name="GptChannelIsUsed" value="false"/>
                            </struct>
                            <struct name="15">
                               <setting name="Name" value="GptHwConfiguration_15"/>
@@ -2433,14 +2714,6 @@
                               <struct name="0">
                                  <setting name="Name" value="GptClockReferencePoint_0"/>
                                  <setting name="GptClockReference" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/GptClockReferencePoint"/>
-                              </struct>
-                              <struct name="1">
-                                 <setting name="Name" value="GptClockReferencePoint_1"/>
-                                 <setting name="GptClockReference" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/Ftm1ClockReferencePoint"/>
-                              </struct>
-                              <struct name="2">
-                                 <setting name="Name" value="GptClockReferencePoint_2"/>
-                                 <setting name="GptClockReference" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/Ftm3ClockReferencePoint"/>
                               </struct>
                            </array>
                         </struct>
@@ -3132,32 +3405,46 @@
                                     <setting name="IsrHandler" value="FTM_0_OVF_RELOAD_ISR"/>
                                  </struct>
                                  <struct name="8">
-                                    <setting name="Name" value="PlatformIsrConfig_8"/>
-                                    <setting name="IsrName" value="FTM1_Ch0_Ch1_IRQn"/>
-                                    <setting name="IsrEnabled" value="true"/>
-                                    <setting name="IsrPriority" value="0"/>
-                                    <setting name="IsrHandler" value="FTM_1_CH_0_CH_1_ISR"/>
-                                 </struct>
-                                 <struct name="9">
                                     <setting name="Name" value="PlatformIsrConfig_9"/>
                                     <setting name="IsrName" value="FTM2_Ovf_Reload_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="FTM_2_OVF_RELOAD_ISR"/>
                                  </struct>
-                                 <struct name="10">
+                                 <struct name="9">
                                     <setting name="Name" value="PlatformIsrConfig_10"/>
                                     <setting name="IsrName" value="LPI2C0_Master_IRQn"/>
                                     <setting name="IsrEnabled" value="false"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPI2C0_Master_IRQHandler"/>
                                  </struct>
-                                 <struct name="11">
+                                 <struct name="10">
                                     <setting name="Name" value="PlatformIsrConfig_12"/>
                                     <setting name="IsrName" value="FTM1_Ch2_Ch3_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="FTM_1_CH_2_CH_3_ISR"/>
+                                 </struct>
+                                 <struct name="11">
+                                    <setting name="Name" value="PlatformIsrConfig_11"/>
+                                    <setting name="IsrName" value="LPIT0_Ch0_IRQn"/>
+                                    <setting name="IsrEnabled" value="true"/>
+                                    <setting name="IsrPriority" value="0"/>
+                                    <setting name="IsrHandler" value="LPIT_0_CH_0_ISR"/>
+                                 </struct>
+                                 <struct name="12">
+                                    <setting name="Name" value="PlatformIsrConfig_12"/>
+                                    <setting name="IsrName" value="LPIT0_Ch1_IRQn"/>
+                                    <setting name="IsrEnabled" value="true"/>
+                                    <setting name="IsrPriority" value="0"/>
+                                    <setting name="IsrHandler" value="LPIT_0_CH_1_ISR"/>
+                                 </struct>
+                                 <struct name="13">
+                                    <setting name="Name" value="PlatformIsrConfig_13"/>
+                                    <setting name="IsrName" value="LPIT0_Ch2_IRQn"/>
+                                    <setting name="IsrEnabled" value="true"/>
+                                    <setting name="IsrPriority" value="0"/>
+                                    <setting name="IsrHandler" value="LPIT_0_CH_2_ISR"/>
                                  </struct>
                               </array>
                               <array name="PlatformNvicEcucPartitionRef"/>

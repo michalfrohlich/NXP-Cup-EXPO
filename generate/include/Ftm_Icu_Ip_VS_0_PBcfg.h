@@ -85,6 +85,11 @@ extern "C"{
 /*==================================================================================================
 *                                       DEFINES AND MACROS
 ==================================================================================================*/
+/* Macro used to export generated configuration. */
+#define FTM_ICU_CONFIG_VS_0_PB \
+    extern const Ftm_Icu_Ip_ChannelConfigType  Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U]; \
+    extern const Ftm_Icu_Ip_InstanceConfigType Ftm_Icu_Ip_1_InstanceConfig_PB_VS_0; \
+    extern const Ftm_Icu_Ip_ConfigType         Ftm_Icu_Ip_1_Config_PB_VS_0; \
 
 #ifdef __cplusplus
 }

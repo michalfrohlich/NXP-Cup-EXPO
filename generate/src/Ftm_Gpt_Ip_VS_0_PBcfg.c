@@ -109,38 +109,6 @@ extern "C"{
  *================================================================================================*/
 #define GPT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
-
-
-const Ftm_Gpt_Ip_InstanceConfigType FTM_1_InitConfig_PB_VS_0 =
-{
-    /** @brief FTM Freeze Enable */
-    (boolean)FALSE,
-    /** @brief FTM Clock Source */
-    FTM_GPT_IP_CLOCK_SOURCE_EXTERNALCLK,
-#if (FTM_GPT_IP_SET_CLOCK_MODE == STD_ON)
-    /** @brief FTM Alternate Prescaler Value */
-    0U,
-#endif
-    /** @brief FTM Prescaler Value */
-    0U,
-    /** @brief FTM Counting Mode */
-    FTM_GPT_IP_MODE_UP_TIMER
-};
-
-
-const Ftm_Gpt_Ip_ChannelConfigType FTM_1_ChannelConfig_PB_VS_0[1U] =
-{
-    {
-        /** @brief Ftm Channel Id */
-        0U,
-        /** @brief Ftm callback name */
-        &Gpt_ProcessCommonInterrupt,
-        /** @brief Ftm callbackparam */
-        (uint8)1U,
-        /** @brief Ftm channel mode  */
-        FTM_GPT_IP_CH_MODE_ONESHOT,
-    }
-};
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 

@@ -208,7 +208,7 @@ extern "C"{
 /** 
  * @brief   Icu channels IP related configuration array
  */
-const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[1U] =
+const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[2U] =
 {
 
     /** @brief Receiver_Input */
@@ -231,6 +231,27 @@ const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[1U] =
     #endif  /* CMP_IP_USED */
         /** @brief Index in the configuration table of the Port Ci channels */
         (uint8)0
+    },
+    /** @brief Ultrasonic_Echo */
+    {
+        /** @brief IP type of this channel */
+        ICU_FTM_MODULE,
+        /** @brief Instance number */
+        (uint8)1,
+        /** @brief Ftm IP channel pointer */
+        &Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[0U],
+        /** @brief Lpit IP channel pointer */
+        NULL_PTR,
+        /** @brief Lptmr IP channel pointer */
+        NULL_PTR,
+        /** @brief Port Ci IP channel pointer */
+        NULL_PTR,
+    #if (STD_ON == CMP_IP_USED)
+        /** @brief Cmp IP channel pointer */
+        NULL_PTR,
+    #endif  /* CMP_IP_USED */
+        /** @brief Index in the configuration table of the Ftm channels */
+        (uint8)0
     }
 };
 
@@ -238,8 +259,26 @@ const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[1U] =
  * @brief   Icu instances related configuration array
  */
 
-const Icu_Ipw_IpConfigType Icu_Ipw_IpConfig_PB_VS_0[1U] =
+const Icu_Ipw_IpConfigType Icu_Ipw_IpConfig_PB_VS_0[2U] =
 {
+    {
+        /** @brief IP type */
+        ICU_FTM_MODULE,
+        /** @brief pointer to Ftm HW configuration of instance */
+        &Ftm_Icu_Ip_1_Config_PB_VS_0,
+        /** @brief pointer to Lpit HW configuration of instance */
+        NULL_PTR,
+        /** @brief pointer to Lptmr HW configuration of instance */
+        NULL_PTR,
+        /** @brief pointer to Port Ci HW configuration of instance */
+        NULL_PTR,
+    #if (STD_ON == CMP_IP_USED)
+        /** @brief pointer to Cmp HW configuration of instance */
+        NULL_PTR,
+    #endif  /* CMP_IP_USED */
+        /** @brief IP instance number */
+        1U
+    },
     {
         /** @brief IP type */
         ICU_PORT_CI_MODULE,

@@ -116,7 +116,7 @@ extern "C"{
 #define ICU_PRECOMPILE_SUPPORT
 
 /** @brief Maximum number of ICU channels configured. */
-#define ICU_MAX_CHANNEL                 ((Icu_ChannelType)1U)
+#define ICU_MAX_CHANNEL                 ((Icu_ChannelType)2U)
 
 /**
 *   @brief  Switches the Development Error Detection and Notification on or off.
@@ -195,7 +195,7 @@ extern "C"{
 *        STD_OFF: The services listed above can not be used.
 *   @implements ICU_TIMESTAMP_API_define
 */
-#define ICU_TIMESTAMP_API                 (STD_OFF)
+#define ICU_TIMESTAMP_API                 (STD_ON)
 
 /**
 *   @brief  Adds or removes all services related to the edge counting functionality as listed below,
@@ -213,7 +213,7 @@ extern "C"{
 *        STD_OFF: Icu_GetTimeElapsed() can not be used.
 *   @implements ICU_GET_TIME_ELAPSED_API_define
 */
-#define ICU_GET_TIME_ELAPSED_API          (STD_OFF)
+#define ICU_GET_TIME_ELAPSED_API          (STD_ON)
 
 /**
 *   @brief  Adds or removes the service Icu_GetDutyCycleValues() from the code.
@@ -238,7 +238,7 @@ extern "C"{
 *        STD_OFF: Icu_StartSignalMeasurement() and Icu_StopSignalMeasurement() can not be used.
 *   @implements ICU_SIGNAL_MEASUREMENT_API_define
 */
-#define ICU_SIGNAL_MEASUREMENT_API        (STD_OFF)
+#define ICU_SIGNAL_MEASUREMENT_API        (STD_ON)
 
 /**
 *   @brief  Adds or removes the service Icu_CheckWakeup() from the code.
@@ -345,6 +345,8 @@ extern "C"{
 
 #define Receiver_Input                     (IcuConf_IcuChannel_Receiver_Input)
 #define IcuConf_IcuChannel_Receiver_Input  ((Icu_ChannelType)0U)
+#define Ultrasonic_Echo                     (IcuConf_IcuChannel_Ultrasonic_Echo)
+#define IcuConf_IcuChannel_Ultrasonic_Echo  ((Icu_ChannelType)1U)
 
 /**
 * @brief          Number of configured partitions.

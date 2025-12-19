@@ -1,5 +1,15 @@
 -c
 -I../RTD/include
+-I"C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include"
+-I"C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/RTD/include"
+-I"C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include"
+-I"C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/board"
+-I"C:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header"
+-I"C:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include"
+-I"C:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/Platform_TS_T40D2M20I0R0/include"
+-I"C:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/Platform_TS_T40D2M20I0R0/startup/include"
+-I"C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include"
+-I"C:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/src"
 -x assembler-with-cpp
 -g3
 -mcpu=cortex-m4

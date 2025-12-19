@@ -177,13 +177,13 @@ Gpt_Ipw_HwInstanceConfigType Gpt_Ipw_HwInstanceConfig_PB_VS_0[2U] =
     },
     {
         /** @brief IP type  */
-        GPT_FTM_MODULE,
+        GPT_LPIT_MODULE,
         /** @brief IP instance */
-        1U,
+        0U,
         /** @brief IP instance pointer */
         {
-            &FTM_1_InitConfig_PB_VS_0,
-            NULL_PTR
+            NULL_PTR,
+            &LPIT_0_InitConfig_PB_VS_0
         }
     }
 };
@@ -191,7 +191,7 @@ Gpt_Ipw_HwInstanceConfigType Gpt_Ipw_HwInstanceConfig_PB_VS_0[2U] =
 /** 
  * @brief   GPT channels IP related configuration array
  */
-Gpt_Ipw_HwChannelConfigType Gpt_Ipw_ChannelConfig_PB_VS_0[2U] =
+Gpt_Ipw_HwChannelConfigType Gpt_Ipw_ChannelConfig_PB_VS_0[4U] =
 {
 
     {
@@ -211,17 +211,47 @@ Gpt_Ipw_HwChannelConfigType Gpt_Ipw_ChannelConfig_PB_VS_0[2U] =
     },
     {
         /** @brief IP type  */
-        GPT_FTM_MODULE,
+        GPT_LPIT_MODULE,
         /** @brief IP instance */
-        1U,
+        0U,
         /**@brief IP channel */
         0U,
         /** @brief IP channel pointer */
         {
-            &FTM_1_ChannelConfig_PB_VS_0[0U],
             NULL_PTR,
             NULL_PTR,
-            NULL_PTR
+            NULL_PTR,
+            &LPIT_0_ChannelConfig_PB_VS_0[0U]
+        }
+    },
+    {
+        /** @brief IP type  */
+        GPT_LPIT_MODULE,
+        /** @brief IP instance */
+        0U,
+        /**@brief IP channel */
+        1U,
+        /** @brief IP channel pointer */
+        {
+            NULL_PTR,
+            NULL_PTR,
+            NULL_PTR,
+            &LPIT_0_ChannelConfig_PB_VS_0[1U]
+        }
+    },
+    {
+        /** @brief IP type  */
+        GPT_LPIT_MODULE,
+        /** @brief IP instance */
+        0U,
+        /**@brief IP channel */
+        2U,
+        /** @brief IP channel pointer */
+        {
+            NULL_PTR,
+            NULL_PTR,
+            NULL_PTR,
+            &LPIT_0_ChannelConfig_PB_VS_0[2U]
         }
     }
 };

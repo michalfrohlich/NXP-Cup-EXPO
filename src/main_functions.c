@@ -31,6 +31,9 @@ extern "C" {
 #include "Gpt.h"
 #include "Adc.h"
 #include "Mcal.h"
+#include "Dio.h" //temporary for the switch
+#include "Dio_Cfg.h" //temporary for the switch
+#include "OsIf.h"
 
 #include "display.h"
 #include "receiver.h"
@@ -39,6 +42,8 @@ extern "C" {
 #include "Hbridge.h"
 #include "esc.h"
 #include "linear_camera.h"
+#include "buttons.h"
+#include "ultrasonic.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -310,6 +315,25 @@ void EscTest(){
         EscSetBrake(0U);
     }
 }
+
+uint8 ReadBaselineWithButton(uint8 potValue)
+{
+    /* If SW2 is pressed then, force baseline = 0,
+     * after it is not pressed anymore it will read the pot value again.
+     *
+     * If SW3 was pressed then, on the next refresh the baseline is forced to 0
+     * on next refresh it will read the pot value again.
+     */
+    if (Buttons_IsPressed(BUTTON_ID_SW2) || Buttons_WasPressed(BUTTON_ID_SW3))
+    {
+        return 0U;
+    }
+    else
+    {
+        return potValue;
+    }
+}
+
 
 #ifdef __cplusplus
 }

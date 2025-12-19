@@ -106,6 +106,8 @@ extern void Icu_ReportWakeupAndOverflow(uint16 Channel, boolean bOverflow);
 /** @brief Signature of change logic channel state function. */
 extern void Icu_LogicChStateCallback(uint16 logicChannel, uint8 mask, boolean set);
 
+/** @brief External Notifications for Timestamp function. */
+extern void Icu_TimestampUltrasonicNotification(void);
 
 #define ICU_STOP_SEC_CODE
 #include "Icu_MemMap.h"
@@ -115,6 +117,75 @@ extern void Icu_LogicChStateCallback(uint16 logicChannel, uint8 mask, boolean se
 #define ICU_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Icu_MemMap.h"
 
+/**
+ *  @brief PB_VS_0 FTM Channels Configuration
+ */
+const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
+{
+    /** @brief IcuFtmChannel_UltraEcho */
+    {
+        /** @brief ID of FTM hardware channel used. */
+        (uint8)2,
+        /** @brief FTM IP layer mode of operation. */
+        FTM_ICU_MODE_TIMESTAMP,
+        /** @brief DMA support for timestamp measurement. */
+        FTM_ICU_MODE_WITHOUT_DMA,
+        /** @brief Measurement mode for signal measurement. */
+        FTM_ICU_NO_MEASUREMENT,
+        /** @brief Edge alignment for signal measurement. */
+        FTM_ICU_BOTH_EDGES,
+        /** @brief Continuos measurement enable/disable. */
+        (boolean)FALSE,
+        /** @brief FTM Channel Input Filter value */
+        (uint8)0,
+        /** @brief Callback function for channels. */
+        NULL_PTR,
+        /** @brief Parameters used by callback function. */
+        (uint8)1,
+#if (STD_ON == FTM_ICU_TIMESTAMP_API)
+        /** @brief Timestamp buffer used. */
+        FTM_ICU_LINEAR_BUFFER,
+#endif
+        /** @brief Address of function used to change logic channel state in HLD. */
+        &Icu_LogicChStateCallback,
+        /** @brief Channel specific notification(e.g timestamp). */
+        &Icu_TimestampUltrasonicNotification,
+        /** @brief Logic channel overflow notification. */
+        NULL_PTR
+    }
+};
+
+/**
+ *  @brief PB_VS_0 FTM 1 Instance Configuration
+ */
+const Ftm_Icu_Ip_InstanceConfigType Ftm_Icu_Ip_1_InstanceConfig_PB_VS_0 = 
+{
+    /** @brief FTM clock source */
+    FTM_EXTERNAL_CLOCK,
+    /** @brief FTM instance prescaler  */
+    (uint8)4,
+#if (FTM_ICU_DUAL_CLOCK_MODE_API == STD_ON)
+    /** @brief FTM instance alternate prescaler  */
+    (uint8)1,
+#endif
+    /** @brief FTM debug mode  */
+    MODE_0,
+    /** @brief FTM maxim counter value */
+    (uint16)65535
+};
+
+/**
+ *  @brief    PB_VS_0 FTM IP Configuration
+ */
+const Ftm_Icu_Ip_ConfigType Ftm_Icu_Ip_1_Config_PB_VS_0 = 
+{
+    /** @brief Number of FTM channels in the Icu configuration */
+    (uint8)1,
+    /** @brief The FTM instance configuration */
+    &Ftm_Icu_Ip_1_InstanceConfig_PB_VS_0,
+    /** @brief Pointer to the array of FTM channel configurations */
+    &Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0
+};
 
 #define ICU_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Icu_MemMap.h"

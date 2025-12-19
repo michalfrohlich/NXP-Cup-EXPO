@@ -159,6 +159,11 @@ extern "C"{
 *
 */
 extern void Icu_SignalNotification(void);
+/**
+* @brief External Notifications for Timestamp
+*
+*/
+extern void Icu_TimestampUltrasonicNotification(void);
 
 #define ICU_STOP_SEC_CODE
 #include "Icu_MemMap.h"
@@ -169,15 +174,16 @@ extern void Icu_SignalNotification(void);
 /*
 *   @brief Translation LUT for Logical channel number to Partition Configuration indexed location
 */
-const uint8 Icu_ChIndexMap_PB_VS_0[1U] = 
+const uint8 Icu_ChIndexMap_PB_VS_0[2U] = 
 {
-    0U
+    0U,
+    1U
 };
 
 /*
 *  @brief    PB_VS_0 Configuration
 */
-static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[1U]=
+static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[2U]=
 {
     /* Receiver_Input */
     {
@@ -196,6 +202,24 @@ static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[1U]=
         (Icu_WakeupValueType)0U,    /* Icu_Channel_WakeupValue */
 #endif /* (ICU_REPORT_WAKEUP_SOURCE == STD_ON) */
         &Icu_Ipw_IpChannelConfig_PB_VS_0[0U] /* Ipw channel pointer */
+    },
+    /* Ultrasonic_Echo */
+    {
+        (boolean)FALSE,    /* Wakeup capability */
+        ICU_BOTH_EDGES,    /* Edge used */
+        ICU_MODE_TIMESTAMP,    /* Measurement mode */
+        (Icu_MeasurementSubModeType)ICU_LINEAR_BUFFER,    /* Icu_MeasurementSubModeType */
+        &Icu_TimestampUltrasonicNotification,    /* Icu_Channel_Notification */
+#if ((ICU_SIGNALMEASUREMENT_USES_DMA == STD_ON) || (ICU_TIMESTAMP_USES_DMA == STD_ON))
+        (Mcl_ChannelType)NoMclDmaChannel,    /* Mcl_DmaChannel */
+#endif
+#if (ICU_OVERFLOW_NOTIFICATION_API == STD_ON)
+        NULL_PTR,    /* Icu_Channel_OverflowNotification */
+#endif  /* ICU_OVERFLOW_NOTIFICATION_API */
+#if (ICU_REPORT_WAKEUP_SOURCE == STD_ON)
+        (Icu_WakeupValueType)0U,    /* Icu_Channel_WakeupValue */
+#endif /* (ICU_REPORT_WAKEUP_SOURCE == STD_ON) */
+        &Icu_Ipw_IpChannelConfig_PB_VS_0[1U] /* Ipw channel pointer */
     }
 };
 
@@ -205,11 +229,11 @@ static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[1U]=
 #ifdef ICU_PRECOMPILE_SUPPORT
 const Icu_ConfigType Icu_Config = 
 {
-    (uint8)1, 
+    (uint8)2, 
     /** @brief The number of channels configured*/
     &Icu_ChannelConfig_PB_VS_0, 
     /** @brief Icu Channel Configuration Pointer */
-    (uint8)1, /* The number of IP instances configured*/
+    (uint8)2, /* The number of IP instances configured*/
     /** @brief Icu Instance Configuration Pointer */
     &Icu_Ipw_IpConfig_PB_VS_0,
     /** @brief Index of channel in each partition map table*/

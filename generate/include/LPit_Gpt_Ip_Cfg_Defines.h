@@ -74,7 +74,7 @@ extern "C"{
 /**
 * @brief These defines indicate that at least one channel from each module is used in all configurations.
 */
-#define LPIT_GPT_IP_USED (STD_OFF) 
+#define LPIT_GPT_IP_USED (STD_ON) 
 
 #define LPIT_GPT_IP_ENABLE_EXT_TRIGGERS     (STD_OFF)
 
@@ -98,6 +98,27 @@ extern "C"{
 *        on entire module sources hardware implementations.
 *
 */
+#define LPIT_0_CH_0_ISR_USED
+
+#ifndef LPIT_0_CH_0_USED
+    #define LPIT_0_CH_0_USED
+#else
+    #error "LPIT_0_CH_0 cannot be used by GPT. Instance locked by another driver!"
+#endif
+#define LPIT_0_CH_1_ISR_USED
+
+#ifndef LPIT_0_CH_1_USED
+    #define LPIT_0_CH_1_USED
+#else
+    #error "LPIT_0_CH_1 cannot be used by GPT. Instance locked by another driver!"
+#endif
+#define LPIT_0_CH_2_ISR_USED
+
+#ifndef LPIT_0_CH_2_USED
+    #define LPIT_0_CH_2_USED
+#else
+    #error "LPIT_0_CH_2 cannot be used by GPT. Instance locked by another driver!"
+#endif
 
 /*==================================================================================================
 *                                             ENUMS

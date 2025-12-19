@@ -215,9 +215,9 @@ const Adc_Ipw_Config AdcIpwCfg_VS_0 =
     {
         { ADC_INTERRUPT, ADC_IPW_INVALID_TRANSFER_TYPE /* Unit not used */ }, /* AdcDmaInterruptSoftware */
         /**< @brief number of groups per hw unit > */
-        { 1U, 0U }, /* AdcGroups */
+        { 2U, 0U }, /* AdcGroups */
         /**< @brief number of channels per hw unit > */
-        { 1U, 0U }, /* AdcChannels */
+        { 2U, 0U }, /* AdcChannels */
         { ADC_IPW_INVALID_DMA_CHANNEL_ID, ADC_IPW_INVALID_DMA_CHANNEL_ID }, /* AdcDmaChannelLogicId */
 #if (STD_ON == ADC_OPTIMIZE_DMA_STREAMING_GROUPS) || (ADC_ENABLE_GROUP_STREAMING_RESULTS_REORDER == STD_ON)
         { ADC_IPW_INVALID_DMA_CHANNEL_ID, ADC_IPW_INVALID_DMA_CHANNEL_ID }, /* AdcCountingDmaChanLogicId */
@@ -231,6 +231,32 @@ const Adc_Ipw_Config AdcIpwCfg_VS_0 =
 * @brief          ADC Ipw Group 0 Config VS_0.
 */
 const Adc_Ipw_GroupConfig AdcIpwGroupConfig_0_VS_0 =
+{
+#if (ADC_SET_ADC_CONV_TIME_ONCE == STD_OFF)
+    /**< @brief Main Average enable status of group */
+    STD_OFF, /* GroupAvgEnable */
+    /**< @brief Main Average selection of group */
+    ADC_IP_AVG_4_CONV, /* GroupAvgSelect */
+    20U, /* ConvTime */
+#if (ADC_DUAL_CLOCK_MODE == STD_ON)
+    /**< @brief Alternate Average enable status of group */
+    STD_OFF, /* GroupAvgEnableAlternate */
+    /**< @brief Alternate Average selection of group */
+    ADC_IP_AVG_4_CONV, /* GroupAvgSelectAlternate */
+    ADC_IP_DEFAULT_SAMPLE_TIME, /* AlternateConvTime */
+#endif /* (ADC_DUAL_CLOCK_MODE == STD_ON) */
+#endif /* (ADC_SET_ADC_CONV_TIME_ONCE == STD_OFF) */
+    0U, /* PdbPeriod */
+    0U, /* PdbDelay */
+    (boolean)TRUE, /* AdcGroupEnableBackToBack */
+    (boolean)FALSE, /* AdcGroupEnableChannelDelays */
+    NULL_PTR /* DelayPtr */
+};
+
+/**
+* @brief          ADC Ipw Group 1 Config VS_0.
+*/
+const Adc_Ipw_GroupConfig AdcIpwGroupConfig_1_VS_0 =
 {
 #if (ADC_SET_ADC_CONV_TIME_ONCE == STD_OFF)
     /**< @brief Main Average enable status of group */

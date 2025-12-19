@@ -72,9 +72,23 @@ void CameraClock(void){
 }
 
 void CameraAdcFinished(void){
-    LinearCameraInstance.BufferReference->Values[LinearCameraInstance.CurrentIndex] = AdcResultBuffer*25U/64U;
+    /* ADC is configured for 12-bit mode (0..4095).
+     * Convert raw sample to a 0..100 brightness scale.
+     */
+    uint16 raw12 = (uint16)AdcResultBuffer;              /* 0 .. 4095 */
+    uint8  scaled = (uint8)((raw12 * 100U) / 4095U);     /* 0 .. 100 */
+
+    LinearCameraInstance.BufferReference->Values[LinearCameraInstance.CurrentIndex] = scaled;
     LinearCameraInstance.CurrentIndex++;
 }
+
+
+/* === FUNCTION THAT WAS ORIGINALLY USED WITH THE 8-bit RESOLUTION ===
+ * void CameraAdcFinished(void){
+    LinearCameraInstance.BufferReference->Values[LinearCameraInstance.CurrentIndex] = AdcResultBuffer*25U/64U;
+    LinearCameraInstance.CurrentIndex++;
+}*/
+
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
