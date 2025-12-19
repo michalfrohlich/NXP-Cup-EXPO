@@ -59,6 +59,12 @@ static void Debug_ForceFtm1Run(void)
        Fixed Frequency (SIRC) is usually CLKS = 2 (binary 10)
     */
     IP_FTM1->SC = FTM_SC_CLKS(2u) | FTM_SC_PS(2u);
+
+    /* * Manually set the Clock Source bits (CLKS) in the Status and Control register.
+    	 * Bit 3 is the start of the CLKS field.
+    	 * Value 01 (bit 3 = 1) selects the System Clock.
+    	 */
+	IP_FTM1->SC |= (1u << 3);
 }
 
 
@@ -127,18 +133,7 @@ int main(void)
 	/* Initialize ultrasonic driver (TRIG low, ICU notification, internal state) */
 	Ultrasonic_Init();     /* uses Dio + Icu, so it must come after DriversInit */
 
-	Debug_ForceFtm1Run(); //temporary to check FTM1 clock
-	uint32 clockGateEnabled = (IP_PCC->PCCn[PCC_FTM1_INDEX] & PCC_PCCn_CGC_MASK);
-	if (clockGateEnabled == 0) {
-	    /* If this is 0, FTM1 has no power/clock gate.
-	       The hardware is physically disabled. */
-	}
-
-	/* * Manually set the Clock Source bits (CLKS) in the Status and Control register.
-	 * Bit 3 is the start of the CLKS field.
-	 * Value 01 (bit 3 = 1) selects the System Clock.
-	 */
-	IP_FTM1->SC |= (1u << 3);
+	//Debug_ForceFtm1Run(); //FTM1 clock not working without this XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 	/* Temporarily force PTD0 as GPIO high → LED off */
 	    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */

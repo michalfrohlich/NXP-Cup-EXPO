@@ -161,17 +161,17 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
 const Ftm_Icu_Ip_InstanceConfigType Ftm_Icu_Ip_1_InstanceConfig_PB_VS_0 = 
 {
     /** @brief FTM clock source */
-    FTM_FIXED_FREQUENCY_CLOCK,
+    FTM_EXTERNAL_CLOCK,
     /** @brief FTM instance prescaler  */
     (uint8)4,
 #if (FTM_ICU_DUAL_CLOCK_MODE_API == STD_ON)
     /** @brief FTM instance alternate prescaler  */
-    (uint8)0,
+    (uint8)1,
 #endif
     /** @brief FTM debug mode  */
     MODE_0,
     /** @brief FTM maxim counter value */
-    (uint16)0
+    (uint16)65535
 };
 
 /**

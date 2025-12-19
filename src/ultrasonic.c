@@ -82,10 +82,6 @@ void Ultrasonic_Init(void)
 
     /* Force edge config at runtime (removes UI ambiguity) */
 	Icu_SetActivationCondition(ULTRA_ICU_ECHO_CHANNEL, ICU_BOTH_EDGES);
-
-	/* Force FTM1 to use the System Clock (or SIRC) by setting CLKS bits in SC register */
-	/* 01: System Clock, 10: Fixed Frequency Clock (SIRC) */
-	IP_FTM1->SC |= FTM_SC_CLKS(10);
 }
 
 void Ultrasonic_StartMeasurement(void)

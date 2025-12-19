@@ -2011,11 +2011,11 @@
                               <struct name="0">
                                  <setting name="Name" value="IcuFtm_echo"/>
                                  <setting name="IcuFtmModule" value="1"/>
-                                 <setting name="IcuFtmClockSource" value="FIXED_FREQUENCY_CLOCK"/>
+                                 <setting name="IcuFtmClockSource" value="EXTERNAL_CLOCK"/>
                                  <setting name="IcuFtmPrescaler" value="4"/>
-                                 <setting name="IcuFtmPrescalerAlternate" value="0"/>
+                                 <setting name="IcuFtmPrescalerAlternate" value="1"/>
                                  <setting name="IcuFtmDebugMode" value="MODE_0"/>
-                                 <setting name="IcuFtmModValue" value="0"/>
+                                 <setting name="IcuFtmModValue" value="65535"/>
                                  <array name="IcuFtmChannels">
                                     <struct name="0">
                                        <setting name="Name" value="IcuFtmChannel_UltraEcho"/>
