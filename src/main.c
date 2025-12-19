@@ -32,42 +32,12 @@ extern "C" {
 #define CAR_CAMERA_TEST          0   /* Line-following car demo from linear camera example project*/
 #define ULTRASONIC_TEST_LOW_LEVEL 0 /* Used for separate low level control off the ultrasonic pins*/
 
-/* Test mode flags – enable only one at a time */
+/* Test mode flags – enable only one at a time (disable if MAIN_ENABLE = 0 */
 #define DISPLAY_TEST      0   /* Camera signal simulation + display + buttons + potentiometer demo */
-#define ICU_RAW_TEST  0
-#define ICU_RAW_TEST2  0
-#define ICU_RAW_TEST3  1
-#define ULTRASONIC_100MS_TEST    0
-#define ULTRA_TRIG_SLOW_TEST 0
-#define ULTRA_LOOPBACK_ICU_TEST 0
-#define FTM_CNT_TEST 0
+#define ULTRASONIC_500MS_SAMPLE    1 //working example of using ultrasonic
 
-static void Debug_ForceFtm1Run(void)
-{
-    /* 1. Un-gate the clock */
-    IP_PCC->PCCn[PCC_FTM1_INDEX] &= ~PCC_PCCn_CGC_MASK; // Toggle it
-    IP_PCC->PCCn[PCC_FTM1_INDEX] |= PCC_PCCn_CGC_MASK;
-
-    /* 2. Stop the timer and clear control register */
-    IP_FTM1->SC = 0;
-
-    /* 3. Reset the counter values */
-    IP_FTM1->CNT = 0;
-    IP_FTM1->MOD = 0xFFFF;
-
-    /* 4. Set Clock Source to Fixed Frequency (SIRC) and Prescaler to 4
-       Fixed Frequency (SIRC) is usually CLKS = 2 (binary 10)
-    */
-    IP_FTM1->SC = FTM_SC_CLKS(2u) | FTM_SC_PS(2u);
-
-    /* * Manually set the Clock Source bits (CLKS) in the Status and Control register.
-    	 * Bit 3 is the start of the CLKS field.
-    	 * Value 01 (bit 3 = 1) selects the System Clock.
-    	 */
-	IP_FTM1->SC |= (1u << 3);
-}
-
-
+#define ICU_RAW_TEST3  0 //used for debugging and implementing the ultrasonic
+#define FTM_CNT_TEST 0 //used for debugging and implementing the ultrasonic
 /*==================================================================================================
  *                                       MAIN
 ==================================================================================================*/
@@ -127,13 +97,9 @@ int main(void)
     /*Pixy2Init(0x54, 0U);*/
     /*Pixy2Test();*/
 
-    /* Initialize ultrasonic driver (HC-SR04 on PTA15/PTE15) */
-    //Ultrasonic_Init(&Ultrasonic_Config); - older drivers
-
 	/* Initialize ultrasonic driver (TRIG low, ICU notification, internal state) */
 	Ultrasonic_Init();     /* uses Dio + Icu, so it must come after DriversInit */
 
-	//Debug_ForceFtm1Run(); //FTM1 clock not working without this XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 	/* Temporarily force PTD0 as GPIO high → LED off */
 	    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
@@ -145,142 +111,14 @@ int main(void)
 /*==================================================================================================
 *                                  NEW DRIVER TEST
 ==================================================================================================*/
-/*This version:
 
-	triggers every 100 ms, but only if not BUSY
-
-	shows status, cm, ticks, IRQ count
-
-	shows “NEW” reliably via a justGot flag (without changing your driver semantics) */
-#if ULTRA_LOOPBACK_ICU_TEST
-
-    /* 16-char fixed lines (padded) */
-    const char L0[] = "ULTRA LOOPBACK  ";  /* 16 */
-    const char L1[] = "I:     x:      ";   /* 16 */
-    const char L2[] = "t:              ";  /* 16 */
-    const char L3[] = "Hms:   Lms:    ";   /* 16 */
-
-    /* Use a big pulse so timing is obvious even without scope */
-    const uint32 HIGH_MS = 500u;
-    const uint32 LOW_MS  = 2000u;
-
-    /* Local timestamp buffer for raw capture */
-    static Icu_ValueType tsBuf[8];
-
-    /* Debug values */
-    uint32 lastTicks = 0u;
-    uint16 lastIdx   = 0u;
-
-    for (;;)
-    {
-        /* Clear buffer */
-        for (uint32 i = 0u; i < 8u; i++)
-        {
-            tsBuf[i] = 0u;
-        }
-
-        /* Arm timestamp capture BEFORE generating the pulse */
-        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, tsBuf, 8u, 1u);
-
-        /* Generate a clean loopback pulse on TRIG */
-        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_LOW);
-        uint32 t0 = Timebase_GetMs();
-        while ((Timebase_GetMs() - t0) < 1u) {}
-
-        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_HIGH);
-        uint32 th = Timebase_GetMs();
-        while ((Timebase_GetMs() - th) < HIGH_MS) {}
-
-        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_LOW);
-        uint32 tl = Timebase_GetMs();
-        while ((Timebase_GetMs() - tl) < LOW_MS) {}
-
-        /* Read how many edges were captured */
-        Icu_IndexType idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
-        lastIdx = (uint16)idx;
-
-        /* Compute high time in ticks if we got at least 2 edges */
-        if (idx >= 2u)
-        {
-            uint32 rise = (uint32)tsBuf[0];
-            uint32 fall = (uint32)tsBuf[1];
-            lastTicks = (uint32)(fall - rise); /* unsigned wrap-safe */
-        }
-        else
-        {
-            lastTicks = 0u;
-        }
-
-        /* Stop capture until next cycle */
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-
-        /* Optional: if you have your ultrasonic driver debug getters, show IRQ count.
-           If not, just show idx/ticks and ignore irq. */
-        uint32 irqCnt = Ultrasonic_GetIrqCount();
-
-        /* ----- OLED ----- */
-        DisplayClear();
-
-        DisplayText(0U, L0, 16U, 0U);
-
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayValue(1U, (int)irqCnt, 5U, 2U);      /* I: at col 2..6 */
-        DisplayValue(1U, (int)lastIdx, 6U, 10U);     /* x: at col 10..15 */
-
-        DisplayText(2U, L2, 16U, 0U);
-        DisplayValue(2U, (int)lastTicks, 14U, 2U);   /* t: at col 2..15 */
-
-        DisplayText(3U, L3, 16U, 0U);
-        DisplayValue(3U, (int)HIGH_MS, 3U, 4U);      /* Hms: at col 4..6 */
-        DisplayValue(3U, (int)LOW_MS,  4U, 11U);     /* Lms: at col 11..14 */
-
-        DisplayRefresh();
-    }
-
-#endif /* ULTRA_LOOPBACK_ICU_TEST */
-
-
-#if ULTRA_TRIG_SLOW_TEST
-
-    const char L0[] = "TRIG SLOW TEST  ";
-    const char L1[] = "TRIG:           ";
-
-    for (;;)
-    {
-        /* Force TRIG high long enough to observe */
-        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_HIGH);
-        uint32 t0 = Timebase_GetMs();
-        while ((Timebase_GetMs() - t0) < 200u) {}
-
-        /* Display HIGH */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayText(1U, "TRIG: HIGH      ", 16U, 0U);
-        DisplayRefresh();
-
-        /* Force TRIG low long enough to observe */
-        Dio_WriteChannel(ULTRA_DIO_TRIG_CHANNEL, STD_LOW);
-        t0 = Timebase_GetMs();
-        while ((Timebase_GetMs() - t0) < 200u) {}
-
-        /* Display LOW */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayText(1U, "TRIG: LOW       ", 16U, 0U);
-        DisplayRefresh();
-    }
-
-#endif
-
-#if ULTRASONIC_100MS_TEST
+#if ULTRASONIC_500MS_SAMPLE
 
     /* 16-char fixed lines (padded) — safe for your DisplayText() */
-    const char L0[] = "ULTRA 100ms     ";  /* 16 */
-    const char L1[] = "S:     I:       ";  /* 16 */
-    const char L2[] = "cm:    x:       ";  /* 16 */
-    const char L3[] = "t:              ";  /* 16 */
+    const char L0[] = "ULTRA 500ms     ";  /* 16 */
+    const char L1[] = "S:     I:      ";  /* 16 */
+    const char L2[] = "cm:    x:      ";  /* 16 */
+    const char L3[] = "t:     a:      ";  /* 16 */
 
     uint32 lastTrigMs     = Timebase_GetMs();
     float  lastDistanceCm = 0.0f;
@@ -289,8 +127,8 @@ int main(void)
     {
         uint32 nowMs = Timebase_GetMs();
 
-        /* Trigger every 100ms, but never interrupt BUSY */
-        if ((uint32)(nowMs - lastTrigMs) >= 100u)
+        /* Trigger every 500ms, but do not interrupt a BUSY measurement */
+        if ((uint32)(nowMs - lastTrigMs) >= 500u)
         {
             if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
             {
@@ -299,275 +137,61 @@ int main(void)
             }
         }
 
+        /* Let the driver progress/timeout */
         Ultrasonic_Task();
 
-        /* Latch new value if available */
-        float distanceCm = 0.0f;
-        boolean gotDistance = Ultrasonic_GetDistanceCm(&distanceCm);
-        if (gotDistance == TRUE)
-        {
-            lastDistanceCm = distanceCm;
-        }
-
+        /* Read status for display */
         Ultrasonic_StatusType st = Ultrasonic_GetStatus();
 
+        /* consume valid and set invalid to max+1 */
+        float d;
+        if (Ultrasonic_GetDistanceCm(&d) == TRUE)
+        {
+            lastDistanceCm = d;
+        }
+        else if (st == ULTRA_STATUS_ERROR)
+        {
+            lastDistanceCm = ULTRA_MAX_DISTANCE_CM + 1.0f;  /* “no obstacle” sentinel */
+        }
+
+        /* Debug getters */
         uint32 irqCnt = Ultrasonic_GetIrqCount();
         uint32 ticks  = Ultrasonic_GetLastHighTicks();
         uint16 idx    = Ultrasonic_GetTsIndex();
 
+        /* Age since last trigger (ms) */
+        uint32 ageMs = (uint32)(nowMs - lastTrigMs);
+
         /* ----- OLED ----- */
         DisplayClear();
 
-        /* Line 0 */
         DisplayText(0U, L0, 16U, 0U);
 
-        /* Line 1 template */
+        /* Line 1: status + IRQ count */
         DisplayText(1U, L1, 16U, 0U);
+        if (st == ULTRA_STATUS_NEW_DATA)      { DisplayText(1U, "NEW  ", 5U, 2U); }
+        else if (st == ULTRA_STATUS_BUSY)    { DisplayText(1U, "BUSY ", 5U, 2U); }
+        else if (st == ULTRA_STATUS_ERROR)   { DisplayText(1U, "ERR  ", 5U, 2U); }
+        else                                 { DisplayText(1U, "IDLE ", 5U, 2U); }
+        DisplayValue(1U, (int)irqCnt, 6U, 10U);   /* I: at col 10..15 */
 
-        /* Status field (Line 1, col 2..6) */
-        if (gotDistance == TRUE)
-        {
-            DisplayText(1U, "NEW  ", 5U, 2U);     /* 5 chars */
-        }
-        else if (st == ULTRA_STATUS_BUSY)
-        {
-            DisplayText(1U, "BUSY ", 5U, 2U);
-        }
-        else if (st == ULTRA_STATUS_ERROR)
-        {
-            DisplayText(1U, "ERROR", 5U, 2U);
-        }
-        else
-        {
-            DisplayText(1U, "IDLE ", 5U, 2U);
-        }
-
-        /* IRQ count (Line 1, col 11..15 => len=5) */
-        DisplayValue(1U, (int)irqCnt, 5U, 11U);
-
-        /* Line 2 template */
+        /* Line 2: distance + timestamp index */
         DisplayText(2U, L2, 16U, 0U);
-
-        /* Distance (Line 2, col 3..6 => len=4) */
         {
             int distInt = (int)(lastDistanceCm + 0.5f);
-            DisplayValue(2U, distInt, 4U, 3U);
+            DisplayValue(2U, distInt, 4U, 3U);     /* cm at col 3..6 */
         }
+        DisplayValue(2U, (int)idx, 6U, 10U);       /* x: at col 10..15 */
 
-        /* Timestamp index (Line 2, col 10..15 => len=6) */
-        DisplayValue(2U, (int)idx, 6U, 10U);
-
-        /* Line 3 template */
+        /* Line 3: ticks + age */
         DisplayText(3U, L3, 16U, 0U);
-
-        /* Ticks (Line 3, col 2..15 => len=14) */
-        DisplayValue(3U, (int)ticks, 14U, 2U);
+        DisplayValue(3U, (int)ticks, 5U, 2U);      /* t: at col 2..6 */
+        DisplayValue(3U, (int)ageMs, 6U, 10U);     /* a: at col 10..15 */
 
         DisplayRefresh();
     }
 
-#endif /* ULTRASONIC_100MS_TEST */
-
-#if ICU_RAW_TEST
-/* ===============================================================
- * ICU RAW TEST (TIMESTAMP MODE) — LOOPBACK FRIENDLY
- *
- * Purpose:
- * - Prove timestamp capture works by using a LONG known pulse.
- *
- * Sequence:
- *  1) Start timestamp capture (buffer)
- *  2) Generate TRIG pulse: LOW 1ms, HIGH 5ms, LOW 10ms
- *  3) Poll until idx>=2 or timeout
- *  4) Show idx, ts0, ts1, dt ticks
- * =============================================================== */
-
-    /* Ensure TRIG pin PTE15 is GPIO output (optional if already set via Dio/Port) */
-    IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
-    IP_PTE->PDDR     |= (1UL << 15);
-
-    UsTimer_Init();
-
-    const char L0[] = "ICU RAW TS TEST "; /* 16 */
-    const char L1[] = "x:    dt:      "; /* 16 */
-    const char L2[] = "t0:           ";  /* 16 */
-    const char L3[] = "t1:           ";  /* 16 */
-
-    static Icu_ValueType tsBuf[4];
-
-    for (;;)
-    {
-        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, tsBuf, 4u, 1u);
-
-        /* --- Generate a LONG pulse for loopback --- */
-        IP_PTE->PCOR = (1UL << 15);         /* LOW */
-        Timebase_DelayMs(1u);
-
-        IP_PTE->PSOR = (1UL << 15);         /* HIGH */
-        Timebase_DelayMs(50u);               /* 5ms high => should never be dt=0 */
-
-        IP_PTE->PCOR = (1UL << 15);         /* LOW */
-        Timebase_DelayMs(100u);
-
-        /* Poll for edges */
-        uint32 startMs = Timebase_GetMs();
-        Icu_IndexType idx = 0u;
-
-        while (idx < 2u)
-        {
-            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
-            if ((Timebase_GetMs() - startMs) >= 20u)
-            {
-                break;
-            }
-        }
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-
-        uint32 t0 = (uint32)tsBuf[0];
-        uint32 t1 = (uint32)tsBuf[1];
-        uint32 dt = 0u;
-
-        if (idx >= 2u)
-        {
-            dt = (uint32)(t1 - t0);
-        }
-
-        /* OLED */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayValue(1U, (int)idx, 4U, 2U);     /* x at col 2..5 */
-        DisplayValue(1U, (int)dt, 6U, 10U);     /* dt at col 10..15 */
-
-        DisplayText(2U, L2, 16U, 0U);
-        DisplayValue(2U, (int)t0, 13U, 3U);     /* t0 at col 3..15 */
-
-        DisplayText(3U, L3, 16U, 0U);
-        DisplayValue(3U, (int)t1, 13U, 3U);     /* t1 at col 3..15 */
-
-        DisplayRefresh();
-
-        Timebase_DelayMs(200u);
-    }
-
-#endif /* ICU_RAW_TEST */
-
-#if ICU_RAW_TEST2
-/* ===============================================================
- * ICU RAW TEST (TIMESTAMP MODE) — DIAGNOSTIC VERSION
- *
- * Goal:
- * - Prove whether the timestamp buffer is truly written
- * - Prove whether the underlying timer counter is running
- *
- * Key AUTOSAR facts:
- * - Icu_StartTimestamp captures timer values into external BufferPtr. :contentReference[oaicite:1]{index=1}
- * - Icu_GetTimestampIndex returns the NEXT index to be written. :contentReference[oaicite:2]{index=2}
- *
- * If idx==2 but ts0/ts1 are 0:
- * - either the timer counter is not running
- * - or the channel is not really configured as ICU_MODE_TIMESTAMP / config mismatch
- * =============================================================== */
-
-    /* TRIG pin PTE15 as GPIO output (if not already configured elsewhere) */
-    IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
-    IP_PTE->PDDR     |= (1UL << 15);
-
-    UsTimer_Init();
-
-    /* STATIC + VOLATILE buffer to remove any placement/optimization ambiguity */
-    static volatile Icu_ValueType tsBuf[4];
-
-    const char L0[] = "ICU TS DIAG     "; /* 16 */
-    const char L1[] = "x:  dt:        "; /* 16 */
-    const char L2[] = "t0:           ";  /* 16 */
-    const char L3[] = "t1:           ";  /* 16 */
-
-    for (;;)
-    {
-        /* Clear buffer */
-        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
-
-        /* --- Force BOTH edges at runtime (only works if API is enabled in your build) --- */
-        /* If this call compiles, use it. If it does not, your optional API is not enabled. */
-        Icu_SetActivationCondition(ULTRA_ICU_ECHO_CHANNEL, ICU_BOTH_EDGES);
-
-        /* Start capture */
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, (Icu_ValueType*)tsBuf, 4u, 1u);
-
-        /* Optional: snapshot counter movement to prove timer is running
-           (Adjust FTM instance if your channel is not on FTM1)
-        */
-        uint16 cnt_before = (uint16)IP_FTM1->CNT;
-
-        /* Generate a LONG pulse so dt cannot be 0 unless timer resolution is broken/stopped */
-        IP_PTE->PCOR = (1UL << 15);
-        Timebase_DelayMs(10u);
-
-        IP_PTE->PSOR = (1UL << 15);
-        Timebase_DelayMs(50u);
-
-        IP_PTE->PCOR = (1UL << 15);
-        Timebase_DelayMs(10u);
-
-        uint16 cnt_after = (uint16)IP_FTM1->CNT;
-
-        /* Poll index */
-        uint32 startMs = Timebase_GetMs();
-        Icu_IndexType idx = 0u;
-        while (idx < 2u)
-        {
-            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
-            if ((Timebase_GetMs() - startMs) >= 20u)
-            {
-                break;
-            }
-        }
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-
-        /* Read results */
-        uint32 t0 = (uint32)tsBuf[0];
-        uint32 t1 = (uint32)tsBuf[1];
-        uint32 dt = 0u;
-        if (idx >= 2u)
-        {
-            dt = (uint32)(t1 - t0);
-        }
-
-        /* Display */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayValue(1U, (int)idx, 2U, 2U);      /* x at col 2..3 */
-        DisplayValue(1U, (int)dt, 10U, 6U);      /* dt at col 6..15 */
-
-        DisplayText(2U, L2, 16U, 0U);
-        DisplayValue(2U, (int)t0, 13U, 3U);
-
-        DisplayText(3U, L3, 16U, 0U);
-        DisplayValue(3U, (int)t1, 13U, 3U);
-
-        /* If you need counter sanity too, temporarily replace line 3 with:
-           "c0:     c1:     " and show cnt_before/cnt_after.
-         */
-
-        DisplayRefresh();
-
-        Timebase_DelayMs(200u);
-
-        (void)cnt_before;
-        (void)cnt_after;
-    }
-
-#endif
+#endif /* ULTRASONIC_500MS_TEST */
 
 #if ICU_RAW_TEST3
 /* ===============================================================
@@ -709,7 +333,7 @@ int main(void)
 
 #endif /* FTM_CNT_TEST */
 
-    /*==================================================================================================
+/*==================================================================================================
  *                                       DISPLAY TEST
 ==================================================================================================*/
 
@@ -868,6 +492,7 @@ int main(void)
 /*==================================================================================================
  *                                  CAR TEST (LINEAR CAMERA EXAMPLE CODE) (OWN MAIN)
 ==================================================================================================*/
+//line tracking macro:s
 
 #if CAR_CAMERA_TEST
 /* Linear camera code */

@@ -18,9 +18,12 @@
 #define ULTRA_FTM_TICK_HZ         (2000000u) /* Tick frequency: SIRC (8MHz) / Prescaler (4) = 2MHz */
 #define ULTRA_CM_PER_TICK         (34300.0f / (2.0f * (float)ULTRA_FTM_TICK_HZ))
 
-#define ULTRA_MIN_DISTANCE_CM     (5.0f)
-#define ULTRA_MAX_DISTANCE_CM     (300.0f)
-#define ULTRA_TIMEOUT_MS          (20u)
+#define ULTRA_MIN_DISTANCE_CM     (3.0f) //if ticks convert to LESS than this then trigger ERROR state
+#define ULTRA_MAX_DISTANCE_CM     (400.0f) //if ticks convert to MORE than this then trigger ERROR state
+
+/* 25ms timeout: (25ms * 34300 cm/s) / 2 = 428cm max detection.
+   At 2MHz, this is 50,000 ticks (fits in 16-bit FTM). */
+#define ULTRA_TIMEOUT_MS  (25u)
 
 typedef enum
 {
