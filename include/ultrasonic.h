@@ -11,16 +11,16 @@
 #define ULTRA_ICU_ECHO_CHANNEL    (IcuConf_IcuChannel_Ultrasonic_Echo)
 
 /* Timestamp */
-#define ULTRA_TS_BUF_SIZE         (4u)
+#define ULTRA_TS_BUF_SIZE         (2u)
 #define ULTRA_TS_NOTIFY_INTERVAL  (1u)
 
 /* Tick frequency (still needs calibration later if distance scaling is wrong) */
-#define ULTRA_FTM_TICK_HZ         (8000000u)
+#define ULTRA_FTM_TICK_HZ         (2000000u) /* Tick frequency: SIRC (8MHz) / Prescaler (4) = 2MHz */
 #define ULTRA_CM_PER_TICK         (34300.0f / (2.0f * (float)ULTRA_FTM_TICK_HZ))
 
 #define ULTRA_MIN_DISTANCE_CM     (5.0f)
-#define ULTRA_MAX_DISTANCE_CM     (200.0f)
-#define ULTRA_TIMEOUT_MS          (12u)
+#define ULTRA_MAX_DISTANCE_CM     (300.0f)
+#define ULTRA_TIMEOUT_MS          (20u)
 
 typedef enum
 {

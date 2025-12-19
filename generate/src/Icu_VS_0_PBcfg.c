@@ -206,7 +206,7 @@ static const Icu_ChannelConfigType Icu_ChannelConfig_PB_VS_0[2U]=
     /* Ultrasonic_Echo */
     {
         (boolean)FALSE,    /* Wakeup capability */
-        ICU_RISING_EDGE,    /* Edge used */
+        ICU_BOTH_EDGES,    /* Edge used */
         ICU_MODE_TIMESTAMP,    /* Measurement mode */
         (Icu_MeasurementSubModeType)ICU_LINEAR_BUFFER,    /* Icu_MeasurementSubModeType */
         &Icu_TimestampUltrasonicNotification,    /* Icu_Channel_Notification */

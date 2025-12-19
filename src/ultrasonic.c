@@ -33,14 +33,22 @@ static void Ultrasonic_TryCompleteFromBuffer(void)
 {
     Icu_IndexType idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
 
+    /* Ensure we have at least 2 edges (Rising and Falling) */
     if (idx >= 2u)
     {
         uint32 t0 = (uint32)g_ultraTsBuf[0];
         uint32 t1 = (uint32)g_ultraTsBuf[1];
 
-        uint32 ticks = (uint32)(t1 - t0); /* wrap-safe unsigned subtraction */
-        g_ultraLastTicks = ticks;
+        /* Hardware logic: For a high pulse, the first timestamp (t0)
+           should be smaller than the second (t1) unless a wrap occurred. */
+        uint32 ticks = (t1 >= t0) ? (t1 - t0) : ((0xFFFFu - t0) + t1 + 1u);
 
+        /* Sanity Check: Ignore impossibly small pulses (noise filter) */
+        if (ticks < 10u) { // adjust 10u based on your clock
+             return;
+        }
+
+        g_ultraLastTicks = ticks;
         Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
 
         float distanceCm = ((float)ticks) * ULTRA_CM_PER_TICK;
@@ -71,27 +79,29 @@ void Ultrasonic_Init(void)
 
     /* Enable notifications for the channel */
     Icu_EnableNotification(ULTRA_ICU_ECHO_CHANNEL);
+
+    /* Force edge config at runtime (removes UI ambiguity) */
+	Icu_SetActivationCondition(ULTRA_ICU_ECHO_CHANNEL, ICU_BOTH_EDGES);
+
+	/* Force FTM1 to use the System Clock (or SIRC) by setting CLKS bits in SC register */
+	/* 01: System Clock, 10: Fixed Frequency Clock (SIRC) */
+	IP_FTM1->SC |= FTM_SC_CLKS(10);
 }
 
 void Ultrasonic_StartMeasurement(void)
 {
-    if (g_ultraStatus == ULTRA_STATUS_BUSY)
-    {
-        return;
-    }
+    if (g_ultraStatus == ULTRA_STATUS_BUSY) { return; }
 
+    /* 1. Reset state variables BEFORE starting hardware */
     g_ultraStatus      = ULTRA_STATUS_BUSY;
     g_ultraLastTicks   = 0u;
     g_ultraStartTimeMs = Timebase_GetMs();
 
-    for (uint32 i = 0u; i < ULTRA_TS_BUF_SIZE; i++)
-    {
-        g_ultraTsBuf[i] = 0u;
-    }
-
-    /* Force edge config at runtime (removes UI ambiguity) */
-    Icu_SetActivationCondition(ULTRA_ICU_ECHO_CHANNEL, ICU_BOTH_EDGES);
-
+    /* 2. Start ICU Hardware FIRST */
+    /* Ensure the buffer is passed correctly.
+       Note: Some RTD versions require Icu_StopTimestamp before starting again
+       to clear internal registers. */
+    Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
 
     Icu_StartTimestamp(
         ULTRA_ICU_ECHO_CHANNEL,
@@ -100,6 +110,7 @@ void Ultrasonic_StartMeasurement(void)
         (uint16)ULTRA_TS_NOTIFY_INTERVAL
     );
 
+    /* 3. Trigger the sensor pulse LAST */
     Ultrasonic_SendTriggerPulse();
 }
 

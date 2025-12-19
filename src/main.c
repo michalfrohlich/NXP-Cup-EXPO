@@ -35,9 +35,33 @@ extern "C" {
 /* Test mode flags – enable only one at a time */
 #define DISPLAY_TEST      0   /* Camera signal simulation + display + buttons + potentiometer demo */
 #define ICU_RAW_TEST  0
-#define ULTRASONIC_100MS_TEST     0
+#define ICU_RAW_TEST2  0
+#define ICU_RAW_TEST3  1
+#define ULTRASONIC_100MS_TEST    0
 #define ULTRA_TRIG_SLOW_TEST 0
-#define ULTRA_LOOPBACK_ICU_TEST 1
+#define ULTRA_LOOPBACK_ICU_TEST 0
+#define FTM_CNT_TEST 0
+
+static void Debug_ForceFtm1Run(void)
+{
+    /* 1. Un-gate the clock */
+    IP_PCC->PCCn[PCC_FTM1_INDEX] &= ~PCC_PCCn_CGC_MASK; // Toggle it
+    IP_PCC->PCCn[PCC_FTM1_INDEX] |= PCC_PCCn_CGC_MASK;
+
+    /* 2. Stop the timer and clear control register */
+    IP_FTM1->SC = 0;
+
+    /* 3. Reset the counter values */
+    IP_FTM1->CNT = 0;
+    IP_FTM1->MOD = 0xFFFF;
+
+    /* 4. Set Clock Source to Fixed Frequency (SIRC) and Prescaler to 4
+       Fixed Frequency (SIRC) is usually CLKS = 2 (binary 10)
+    */
+    IP_FTM1->SC = FTM_SC_CLKS(2u) | FTM_SC_PS(2u);
+}
+
+
 /*==================================================================================================
  *                                       MAIN
 ==================================================================================================*/
@@ -100,15 +124,28 @@ int main(void)
     /* Initialize ultrasonic driver (HC-SR04 on PTA15/PTE15) */
     //Ultrasonic_Init(&Ultrasonic_Config); - older drivers
 
-    /* Temporarily force PTD0 as GPIO high → LED off */
-    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
-        IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
-        IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
-        IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
-
-
 	/* Initialize ultrasonic driver (TRIG low, ICU notification, internal state) */
 	Ultrasonic_Init();     /* uses Dio + Icu, so it must come after DriversInit */
+
+	Debug_ForceFtm1Run(); //temporary to check FTM1 clock
+	uint32 clockGateEnabled = (IP_PCC->PCCn[PCC_FTM1_INDEX] & PCC_PCCn_CGC_MASK);
+	if (clockGateEnabled == 0) {
+	    /* If this is 0, FTM1 has no power/clock gate.
+	       The hardware is physically disabled. */
+	}
+
+	/* * Manually set the Clock Source bits (CLKS) in the Status and Control register.
+	 * Bit 3 is the start of the CLKS field.
+	 * Value 01 (bit 3 = 1) selects the System Clock.
+	 */
+	IP_FTM1->SC |= (1u << 3);
+
+	/* Temporarily force PTD0 as GPIO high → LED off */
+	    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
+	        IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
+	        IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
+	        IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
+
 
 /*==================================================================================================
 *                                  NEW DRIVER TEST
@@ -258,7 +295,7 @@ int main(void)
         uint32 nowMs = Timebase_GetMs();
 
         /* Trigger every 100ms, but never interrupt BUSY */
-        if ((uint32)(nowMs - lastTrigMs) >= 1000u)
+        if ((uint32)(nowMs - lastTrigMs) >= 100u)
         {
             if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
             {
@@ -336,95 +373,348 @@ int main(void)
 
 #endif /* ULTRASONIC_100MS_TEST */
 
-
-
-
 #if ICU_RAW_TEST
 /* ===============================================================
- * ICU RAW TEST WITH TRIG + UsTimer microsecond pulses
+ * ICU RAW TEST (TIMESTAMP MODE) — LOOPBACK FRIENDLY
  *
- * Sequence per loop:
- *   1) Generate TRIG pulse using UsTimer (2us low → 10us high)
- *   2) Start ICU HIGH-TIME measurement
- *   3) Wait a short time for echo
- *   4) Read ICU value and print on display
+ * Purpose:
+ * - Prove timestamp capture works by using a LONG known pulse.
+ *
+ * Sequence:
+ *  1) Start timestamp capture (buffer)
+ *  2) Generate TRIG pulse: LOW 1ms, HIGH 5ms, LOW 10ms
+ *  3) Poll until idx>=2 or timeout
+ *  4) Show idx, ts0, ts1, dt ticks
  * =============================================================== */
 
-    /* Configure TRIG pin = PTE15 */
+    /* Ensure TRIG pin PTE15 is GPIO output (optional if already set via Dio/Port) */
     IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
     IP_PTE->PDDR     |= (1UL << 15);
 
-    /* Init the microsecond timer flag */
     UsTimer_Init();
 
-    DisplayClear();
-    DisplayText(0U, "ICU UsTimer", 11U, 0U);
-    DisplayRefresh();
+    const char L0[] = "ICU RAW TS TEST "; /* 16 */
+    const char L1[] = "x:    dt:      "; /* 16 */
+    const char L2[] = "t0:           ";  /* 16 */
+    const char L3[] = "t1:           ";  /* 16 */
+
+    static Icu_ValueType tsBuf[4];
 
     for (;;)
     {
-        /* -------------------------------------
-         * 1) TRIG PULSE USING UsTimer
-         * ------------------------------------- */
+        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
 
-        /* LOW for 2 µs */
-        IP_PTE->PCOR = (1UL << 15);
-        UsTimer_Start(2u);
-        while (!UsTimer_HasElapsed()) {}
-        UsTimer_ClearFlag();
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
+        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, tsBuf, 4u, 1u);
 
-        /* HIGH for 10 µs */
-        IP_PTE->PSOR = (1UL << 15);
-        UsTimer_Start(10u);
-        while (!UsTimer_HasElapsed()) {}
-        UsTimer_ClearFlag();
+        /* --- Generate a LONG pulse for loopback --- */
+        IP_PTE->PCOR = (1UL << 15);         /* LOW */
+        Timebase_DelayMs(1u);
 
-        /* back LOW */
-        IP_PTE->PCOR = (1UL << 15);
+        IP_PTE->PSOR = (1UL << 15);         /* HIGH */
+        Timebase_DelayMs(50u);               /* 5ms high => should never be dt=0 */
 
-        /* -------------------------------------
-         * 2) Start ICU HIGH-TIME measurement
-         * ------------------------------------- */
-        Icu_StopSignalMeasurement(ULTRA_ICU_ECHO_CHANNEL);
-        Icu_StartSignalMeasurement(ULTRA_ICU_ECHO_CHANNEL);
+        IP_PTE->PCOR = (1UL << 15);         /* LOW */
+        Timebase_DelayMs(100u);
 
-        /* -------------------------------------
-         * 3) Wait for echo window
-         * ------------------------------------- */
-        Timebase_DelayMs(5u);
+        /* Poll for edges */
+        uint32 startMs = Timebase_GetMs();
+        Icu_IndexType idx = 0u;
 
-        /* -------------------------------------
-         * 4) Read ICU echo pulse width
-         * ------------------------------------- */
-        Icu_ValueType ticks = Icu_GetTimeElapsed(ULTRA_ICU_ECHO_CHANNEL);
+        while (idx < 2u)
+        {
+            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
+            if ((Timebase_GetMs() - startMs) >= 20u)
+            {
+                break;
+            }
+        }
 
-        /* Convert to microseconds: 8 MHz → 8 ticks per µs */
-        uint32 us_times100 = (ticks * 100u) / 8u;
-        uint32 us_int = us_times100 / 100u;
-        uint32 us_dec = us_times100 % 100u;
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
 
-        /* -------------------------------------
-         * 5) DISPLAY
-         * ------------------------------------- */
-        char buf[20];
+        uint32 t0 = (uint32)tsBuf[0];
+        uint32 t1 = (uint32)tsBuf[1];
+        uint32 dt = 0u;
 
+        if (idx >= 2u)
+        {
+            dt = (uint32)(t1 - t0);
+        }
+
+        /* OLED */
         DisplayClear();
-        DisplayText(0U, "ICU UsTimer", 11U, 0U);
+        DisplayText(0U, L0, 16U, 0U);
 
-        DisplayText(1U, "Ticks:", 6U, 0U);
-        DisplayValue(1U, ticks, 10U, 7U);
+        DisplayText(1U, L1, 16U, 0U);
+        DisplayValue(1U, (int)idx, 4U, 2U);     /* x at col 2..5 */
+        DisplayValue(1U, (int)dt, 6U, 10U);     /* dt at col 10..15 */
 
-        snprintf(buf, sizeof(buf), "%lu.%02lu us", us_int, us_dec);
-        DisplayText(2U, buf, 16U, 0U);
+        DisplayText(2U, L2, 16U, 0U);
+        DisplayValue(2U, (int)t0, 13U, 3U);     /* t0 at col 3..15 */
+
+        DisplayText(3U, L3, 16U, 0U);
+        DisplayValue(3U, (int)t1, 13U, 3U);     /* t1 at col 3..15 */
 
         DisplayRefresh();
 
-        Timebase_DelayMs(40u);
+        Timebase_DelayMs(200u);
     }
 
 #endif /* ICU_RAW_TEST */
 
-/*==================================================================================================
+#if ICU_RAW_TEST2
+/* ===============================================================
+ * ICU RAW TEST (TIMESTAMP MODE) — DIAGNOSTIC VERSION
+ *
+ * Goal:
+ * - Prove whether the timestamp buffer is truly written
+ * - Prove whether the underlying timer counter is running
+ *
+ * Key AUTOSAR facts:
+ * - Icu_StartTimestamp captures timer values into external BufferPtr. :contentReference[oaicite:1]{index=1}
+ * - Icu_GetTimestampIndex returns the NEXT index to be written. :contentReference[oaicite:2]{index=2}
+ *
+ * If idx==2 but ts0/ts1 are 0:
+ * - either the timer counter is not running
+ * - or the channel is not really configured as ICU_MODE_TIMESTAMP / config mismatch
+ * =============================================================== */
+
+    /* TRIG pin PTE15 as GPIO output (if not already configured elsewhere) */
+    IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
+    IP_PTE->PDDR     |= (1UL << 15);
+
+    UsTimer_Init();
+
+    /* STATIC + VOLATILE buffer to remove any placement/optimization ambiguity */
+    static volatile Icu_ValueType tsBuf[4];
+
+    const char L0[] = "ICU TS DIAG     "; /* 16 */
+    const char L1[] = "x:  dt:        "; /* 16 */
+    const char L2[] = "t0:           ";  /* 16 */
+    const char L3[] = "t1:           ";  /* 16 */
+
+    for (;;)
+    {
+        /* Clear buffer */
+        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
+
+        /* --- Force BOTH edges at runtime (only works if API is enabled in your build) --- */
+        /* If this call compiles, use it. If it does not, your optional API is not enabled. */
+        Icu_SetActivationCondition(ULTRA_ICU_ECHO_CHANNEL, ICU_BOTH_EDGES);
+
+        /* Start capture */
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
+        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, (Icu_ValueType*)tsBuf, 4u, 1u);
+
+        /* Optional: snapshot counter movement to prove timer is running
+           (Adjust FTM instance if your channel is not on FTM1)
+        */
+        uint16 cnt_before = (uint16)IP_FTM1->CNT;
+
+        /* Generate a LONG pulse so dt cannot be 0 unless timer resolution is broken/stopped */
+        IP_PTE->PCOR = (1UL << 15);
+        Timebase_DelayMs(10u);
+
+        IP_PTE->PSOR = (1UL << 15);
+        Timebase_DelayMs(50u);
+
+        IP_PTE->PCOR = (1UL << 15);
+        Timebase_DelayMs(10u);
+
+        uint16 cnt_after = (uint16)IP_FTM1->CNT;
+
+        /* Poll index */
+        uint32 startMs = Timebase_GetMs();
+        Icu_IndexType idx = 0u;
+        while (idx < 2u)
+        {
+            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
+            if ((Timebase_GetMs() - startMs) >= 20u)
+            {
+                break;
+            }
+        }
+
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
+
+        /* Read results */
+        uint32 t0 = (uint32)tsBuf[0];
+        uint32 t1 = (uint32)tsBuf[1];
+        uint32 dt = 0u;
+        if (idx >= 2u)
+        {
+            dt = (uint32)(t1 - t0);
+        }
+
+        /* Display */
+        DisplayClear();
+        DisplayText(0U, L0, 16U, 0U);
+
+        DisplayText(1U, L1, 16U, 0U);
+        DisplayValue(1U, (int)idx, 2U, 2U);      /* x at col 2..3 */
+        DisplayValue(1U, (int)dt, 10U, 6U);      /* dt at col 6..15 */
+
+        DisplayText(2U, L2, 16U, 0U);
+        DisplayValue(2U, (int)t0, 13U, 3U);
+
+        DisplayText(3U, L3, 16U, 0U);
+        DisplayValue(3U, (int)t1, 13U, 3U);
+
+        /* If you need counter sanity too, temporarily replace line 3 with:
+           "c0:     c1:     " and show cnt_before/cnt_after.
+         */
+
+        DisplayRefresh();
+
+        Timebase_DelayMs(200u);
+
+        (void)cnt_before;
+        (void)cnt_after;
+    }
+
+#endif
+
+#if ICU_RAW_TEST3
+/* ===============================================================
+ * ICU RAW TEST (TIMESTAMP MODE) — WITH COUNTER DISPLAY
+ * TRIG->ECHO jumper required.
+ * =============================================================== */
+
+    IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
+    IP_PTE->PDDR     |= (1UL << 15);
+
+    UsTimer_Init();
+
+    static volatile Icu_ValueType tsBuf[4];
+
+    /* 16-char padded labels (safe for your DisplayText) */
+    const char L0[] = "ICU TS DIAG     ";
+    const char L1[] = "x:  dt:        ";
+    const char L2[] = "t0:           ";
+    const char L3[] = "c0:   c1:     ";   /* we'll show counters here */
+
+    /* check if these values will be overridden*/
+    tsBuf[0] = 0x1111u;
+    tsBuf[1] = 0x2222u;
+
+    for (;;)
+    {
+        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
+
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
+        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, (Icu_ValueType*)tsBuf, 4u, 1u);
+
+        /* Read counter BEFORE pulse (assumes echo channel uses FTM1; change if needed) */
+        uint16 c0 = (uint16)IP_FTM1->CNT;
+
+        /* LONG pulse */
+        IP_PTE->PCOR = (1UL << 15);
+        Timebase_DelayMs(1u);
+
+        IP_PTE->PSOR = (1UL << 15);
+        Timebase_DelayMs(5u);
+
+        IP_PTE->PCOR = (1UL << 15);
+        Timebase_DelayMs(1u);
+
+        /* Read counter AFTER pulse */
+        uint16 c1 = (uint16)IP_FTM1->CNT;
+
+        /* Poll index */
+        uint32 startMs = Timebase_GetMs();
+        Icu_IndexType idx = 0u;
+        while (idx < 2u)
+        {
+            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
+            if ((Timebase_GetMs() - startMs) >= 20u)
+            {
+                break;
+            }
+        }
+
+        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
+
+        uint32 t0 = (uint32)tsBuf[0];
+        uint32 t1 = (uint32)tsBuf[1];
+        uint32 dt = 0u;
+        if (idx >= 2u)
+        {
+            dt = (uint32)(t1 - t0);
+        }
+
+        /* Display */
+        DisplayClear();
+        DisplayText(0U, L0, 16U, 0U);
+
+        DisplayText(1U, L1, 16U, 0U);
+        DisplayValue(1U, (int)idx, 2U, 2U);      /* x at col 2..3 */
+        DisplayValue(1U, (int)dt, 10U, 6U);      /* dt at col 6..15 */
+
+        /* Show t0 on line 2 */
+        DisplayText(2U, L2, 16U, 0U);
+        DisplayValue(2U, (int)t0, 13U, 3U);
+
+        /* Show counters on line 3: c0 and c1 */
+        DisplayText(3U, L3, 16U, 0U);
+        DisplayValue(3U, (int)c0, 4U, 3U);       /* c0 at col 3..6 */
+        DisplayValue(3U, (int)c1, 6U, 9U);       /* c1 at col 9..14 */
+
+        DisplayRefresh();
+
+        /* If you want t1 too, swap line 3 to "t1:" on alternate loops */
+        Timebase_DelayMs(200u);
+
+        (void)t1; /* keep compiler quiet if not shown */
+    }
+
+#endif  /* ICU RAW TEST 3 */
+
+#if FTM_CNT_TEST
+
+    /* 16-char padded headers for DisplayText safety */
+    const char L0[] = "FTM CNT DEC     "; /* 16 */
+
+    for (;;)
+    {
+        /* Read all three counters (snapshot A) */
+        uint16 c0a = (uint16)IP_FTM0->CNT;
+        uint16 c1a = (uint16)IP_FTM1->CNT;
+        uint16 c2a = (uint16)IP_FTM2->CNT;
+
+        Timebase_DelayMs(50u);
+
+        /* Read all three counters (snapshot B) */
+        uint16 c0b = (uint16)IP_FTM0->CNT;
+        uint16 c1b = (uint16)IP_FTM1->CNT;
+        uint16 c2b = (uint16)IP_FTM2->CNT;
+
+        /* ----- OLED ----- */
+        DisplayClear();
+        DisplayText(0U, L0, 16U, 0U);
+
+        /* Line 1: "0:AAAAA->BBBBB" (A and B are 5 digits) */
+        DisplayText(1U, "0:     ->     ", 16U, 0U);
+        DisplayValue(1U, (int)c0a, 5U, 2U);   /* col 2..6 */
+        DisplayValue(1U, (int)c0b, 5U, 11U);  /* col 11..15 */
+
+        /* Line 2: "1:AAAAA->BBBBB" */
+        DisplayText(2U, "1:     ->     ", 16U, 0U);
+        DisplayValue(2U, (int)c1a, 5U, 2U);
+        DisplayValue(2U, (int)c1b, 5U, 11U);
+
+        /* Line 3: "2:AAAAA->BBBBB" */
+        DisplayText(3U, "2:     ->     ", 16U, 0U);
+        DisplayValue(3U, (int)c2a, 5U, 2U);
+        DisplayValue(3U, (int)c2b, 5U, 11U);
+
+        DisplayRefresh();
+
+        Timebase_DelayMs(200u);
+    }
+
+#endif /* FTM_CNT_TEST */
+
+    /*==================================================================================================
  *                                       DISPLAY TEST
 ==================================================================================================*/
 

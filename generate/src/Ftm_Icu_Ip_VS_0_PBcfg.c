@@ -133,7 +133,7 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
         /** @brief Measurement mode for signal measurement. */
         FTM_ICU_NO_MEASUREMENT,
         /** @brief Edge alignment for signal measurement. */
-        FTM_ICU_RISING_EDGE,
+        FTM_ICU_BOTH_EDGES,
         /** @brief Continuos measurement enable/disable. */
         (boolean)FALSE,
         /** @brief FTM Channel Input Filter value */
@@ -161,9 +161,9 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
 const Ftm_Icu_Ip_InstanceConfigType Ftm_Icu_Ip_1_InstanceConfig_PB_VS_0 = 
 {
     /** @brief FTM clock source */
-    FTM_SYSTEM_CLOCK,
+    FTM_FIXED_FREQUENCY_CLOCK,
     /** @brief FTM instance prescaler  */
-    (uint8)1,
+    (uint8)4,
 #if (FTM_ICU_DUAL_CLOCK_MODE_API == STD_ON)
     /** @brief FTM instance alternate prescaler  */
     (uint8)0,
