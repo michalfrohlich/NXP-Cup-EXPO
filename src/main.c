@@ -1,4 +1,27 @@
-/*EXPO_03_Nxp_Cup_project - main file */
+/*==================================================================================================
+*  EXPO_03_Nxp_Cup_project - main.c
+*  --------------------------------------------------------------
+*  NXP Cup Line Following (Linear Camera) - S32K144EVB
+*
+*  CAR BEHAVIOR (what it MUST do):
+*   - SW2 = START: after 3 seconds it begins driving
+*   - SW3 = STOP: stops immediately and returns to IDLE
+*   - Linear camera provides 128 pixels -> detect black edge lines -> lane center
+*   - Steering: servo (Ackermann)
+*   - Drive: ESC PWM (single output for both rear motors in phase-1)
+*   - Line lost:
+*       If camera sees no black (all white), keep moving for 2 seconds.
+*       If still lost after 2 seconds -> stop and go back to IDLE.
+*
+*  EMBEDDED TIMING / POLLING:
+*   - NO random delay loops for control.
+*   - Use Timebase_GetMs() to run tasks on schedule:
+*       Buttons_Update  every BUTTONS_PERIOD_MS
+*       Camera capture  every CAMERA_PERIOD_MS
+*       Control update  every CONTROL_PERIOD_MS  (fixed dt for PID)
+*       Display update  every DISPLAY_PERIOD_MS
+==================================================================================================*/
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -6,612 +29,631 @@ extern "C" {
 /*==================================================================================================
  *                                        INCLUDE FILES
 ==================================================================================================*/
-#include "display.h"
-#include "receiver.h"
-#include "CDD_I2c.h"
-#include "esc.h"
-#include "servo.h"
-#include "linear_camera.h"
-#include "camera_emulator.h"
 #include "main_functions.h"
-#include "hbridge.h"
-#include "Mcal.h"
-#include "pixy2.h"
+#include "timebase.h"
+#include "buttons.h"
+#include "onboard_pot.h"
+#include "display.h"
+
+#include "servo.h"
+#include "esc.h"
+#include "hbridge.h"        /* optional fallback */
+#include "linear_camera.h"
+
+#include "Std_Types.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "onboard_pot.h"
-#include "buttons.h"
-#include "ultrasonic.h"
-#include "timebase.h"
 
-#include "S32K144.h" //bare-metal pot test
 /*==================================================================================================
  *                                       LOCAL MACROS
 ==================================================================================================*/
-#define MAIN_ENABLE     1 /* All macros are here */
-#define CAR_CAMERA_TEST          0   /* Line-following car demo from linear camera example project*/
-#define ULTRASONIC_TEST_LOW_LEVEL 0 /* Used for separate low level control off the ultrasonic pins*/
 
-/* Test mode flags – enable only one at a time (disable if MAIN_ENABLE = 0 */
-#define DISPLAY_TEST      0   /* Camera signal simulation + display + buttons + potentiometer demo */
-#define ULTRASONIC_500MS_SAMPLE    1 //working example of using ultrasonic
+/* ===== Choose what runs ===== */
+#define MAIN_ENABLE                 1
+#define RUN_LINE_FOLLOW_APP         1   /* <-- THIS is the real app */
 
-#define ICU_RAW_TEST3  0 //used for debugging and implementing the ultrasonic
-#define FTM_CNT_TEST 0 //used for debugging and implementing the ultrasonic
+/* ===== Drive mode =====
+ * Phase-1: ESC (recommended). If you ever want H-bridge, set USE_ESC=0.
+ */
+#define USE_ESC                     1
+
+/* ===== Hardware mapping ===== */
+
+/* Servo (you confirmed this configuration works) */
+#define SERVO_PWM_CH                1U
+
+/* SERVO RANGE: CHANGE HERE ONLY
+ * ServoInit(channel, MaxDuty, MinDuty, MedDuty)
+ * - If wheels don't turn enough: increase distance between MED and MIN/MAX
+ * - If wheels bind: reduce extremes
+ * - If steering direction is wrong: flip STEER_SIGN (+1 / -1) OR swap MIN/MAX
+ */
+#define SERVO_DUTY_MAX              3300U
+#define SERVO_DUTY_MIN              1700U
+#define SERVO_DUTY_MED              2500U
+#define STEER_SIGN                  (+1)
+
+/* ESC (values already in your project comments; keep if ESC arms correctly) */
+#define ESC_PWM_CH                  0U
+#define ESC_DUTY_MIN                1638U
+#define ESC_DUTY_MED                2457U
+#define ESC_DUTY_MAX                3276U
+
+/* Optional H-bridge mapping (not used in Phase-1) */
+#define PWM_LEFT_CH                 2U
+#define PWM_RIGHT_CH                3U
+#define L_FWD_CH                    32U
+#define L_REV_CH                    33U
+#define R_FWD_CH                    6U
+#define R_REV_CH                    64U
+
+/* Linear camera init (you confirmed this works) */
+#define CAM_CLK_PWM_CH              4U
+#define CAM_SHUTTER_GPT_CH          1U
+#define CAM_ADC_GROUP               0U
+#define CAM_SHUTTER_PCR             97U
+
+/* Buttons */
+#define BTN_START_ID                BUTTON_ID_SW2
+#define BTN_STOP_ID                 BUTTON_ID_SW3
+
+/* ===== Timing ===== */
+#define BUTTONS_PERIOD_MS           5u
+#define CAMERA_PERIOD_MS            5u    /* 200 Hz camera capture */
+#define CONTROL_PERIOD_MS           2u    /* 500 Hz control loop */
+#define DISPLAY_PERIOD_MS           100u  /* 10 Hz display refresh */
+
+/* Start delay after SW2 */
+#define START_DELAY_MS              3000u
+
+/* Line lost behavior: keep going for 2 seconds */
+#define LINE_LOST_COAST_MS          2000u
+
+/* ===== Camera processing ===== */
+#define CAM_N_PIXELS                128u
+#define CAM_CENTER_PX               63
+
+/* Threshold control */
+#define USE_POT_FOR_THRESHOLD       1
+#define BLACK_THRESHOLD_DEFAULT     40u
+
+/* Edge width estimate (depends on camera mounting, tune later) */
+#define EXPECTED_TRACK_WIDTH_PX     88
+
+/* Intersection heuristics */
+#define INTERSECTION_BLACK_RATIO_PCT 35u
+#define INTERSECTION_COMMIT_MS       600u
+#define INTERSECTION_SPEED           22
+
+/* ===== PID steering tuning =====
+ * Error is normalized to roughly [-1..+1]
+ */
+#define KP                          2.2f
+#define KD                          8.0f
+#define KI                          0.0f
+#define ITERM_CLAMP                 0.6f
+
+/* Output clamps */
+#define STEER_CMD_CLAMP             80
+
+/* Low-pass filter on steering output to reduce jitter */
+#define STEER_LPF_ALPHA             0.35f
+
+/* Speed policy */
+#define SPEED_BASE                  35
+#define SPEED_MIN                   18
+#define SPEED_MAX                   60
+#define SPEED_SLOW_PER_STEER        25
+#define SPEED_LOST_LINE             20
+
 /*==================================================================================================
- *                                       MAIN
+ *                                       HELPERS
+==================================================================================================*/
+static inline sint32 abs_s32(sint32 x) { return (x < 0) ? -x : x; }
+
+static inline sint32 clamp_s32(sint32 v, sint32 lo, sint32 hi)
+{
+    return (v < lo) ? lo : ((v > hi) ? hi : v);
+}
+
+static inline float clamp_f(float v, float lo, float hi)
+{
+    return (v < lo) ? lo : ((v > hi) ? hi : v);
+}
+
+/* Wrap-safe "time reached" */
+static inline boolean time_reached(uint32 nowMs, uint32 dueMs)
+{
+    return ((uint32)(nowMs - dueMs) < 0x80000000u) ? TRUE : FALSE;
+}
+
+/* Map pot 0..255 to threshold 20..70 */
+static uint8 threshold_from_pot(uint8 pot)
+{
+    return (uint8)(20u + (uint16)((uint16)pot * 50u) / 255u);
+}
+
+/*==================================================================================================
+ *                          CAMERA -> LANE READING
+==================================================================================================*/
+typedef struct
+{
+    boolean valid;
+
+    sint16 left_edge_px;     /* -1 if not found */
+    sint16 right_edge_px;    /* -1 if not found */
+    sint16 lane_center_px;   /* 0..127 */
+
+    uint8 region_count;
+    uint8 black_ratio_pct;   /* 0..100 */
+
+    uint8 confidence;        /* 0..100 */
+    boolean intersection_likely;
+} LaneReading_t;
+
+static uint8 find_black_regions(const uint8 *vals, uint8 thr, sint16 *centers, uint8 maxCenters, uint16 *blackCountOut)
+{
+    uint8 inBlack = 0u;
+    uint16 start = 0u;
+    uint8 count = 0u;
+    uint16 blackCount = 0u;
+
+    for (uint16 i = 0u; i < CAM_N_PIXELS; i++)
+    {
+        boolean isBlack = (vals[i] < thr) ? TRUE : FALSE;
+        if (isBlack) { blackCount++; }
+
+        if (isBlack && (inBlack == 0u))
+        {
+            inBlack = 1u;
+            start = i;
+        }
+        else if ((!isBlack) && (inBlack != 0u))
+        {
+            uint16 end = (i > 0u) ? (i - 1u) : 0u;
+            if (count < maxCenters)
+            {
+                centers[count] = (sint16)((start + end) / 2u);
+                count++;
+            }
+            inBlack = 0u;
+        }
+    }
+
+    if (inBlack != 0u)
+    {
+        uint16 end = (CAM_N_PIXELS - 1u);
+        if (count < maxCenters)
+        {
+            centers[count] = (sint16)((start + end) / 2u);
+            count++;
+        }
+    }
+
+    if (blackCountOut != NULL_PTR)
+    {
+        *blackCountOut = blackCount;
+    }
+    return count;
+}
+
+static LaneReading_t process_camera(const LinearCameraFrame *frame, uint8 thr, sint16 lastLaneCenter)
+{
+    LaneReading_t out;
+
+    /* FULL initialization (prevents “maybe uninitialized” warnings) */
+    out.valid = FALSE;
+    out.left_edge_px = -1;
+    out.right_edge_px = -1;
+    out.lane_center_px = lastLaneCenter;
+    out.region_count = 0u;
+    out.black_ratio_pct = 0u;
+    out.confidence = 0u;
+    out.intersection_likely = FALSE;
+
+    sint16 centers[8];
+    uint16 blackCount = 0u;
+
+    uint8 n = find_black_regions(frame->Values, thr, centers, 8u, &blackCount);
+    out.region_count = n;
+    out.black_ratio_pct = (uint8)((blackCount * 100u) / CAM_N_PIXELS);
+
+    if (n == 0u)
+    {
+        out.valid = FALSE;
+        out.confidence = 0u;
+        return out;
+    }
+
+    if (n == 1u)
+    {
+        /* one edge -> estimate other using EXPECTED_TRACK_WIDTH_PX */
+        sint16 e = centers[0];
+
+        if (e < (sint16)CAM_CENTER_PX)
+        {
+            out.left_edge_px = e;
+            out.right_edge_px = (sint16)(e + EXPECTED_TRACK_WIDTH_PX);
+            if (out.right_edge_px > 127) out.right_edge_px = 127;
+        }
+        else
+        {
+            out.right_edge_px = e;
+            out.left_edge_px = (sint16)(e - EXPECTED_TRACK_WIDTH_PX);
+            if (out.left_edge_px < 0) out.left_edge_px = 0;
+        }
+
+        out.lane_center_px = (sint16)((out.left_edge_px + out.right_edge_px) / 2);
+        out.valid = TRUE;
+        out.confidence = 40u;
+    }
+    else
+    {
+        /* >=2 regions -> take left-most and right-most */
+        out.left_edge_px = centers[0];
+        out.right_edge_px = centers[n - 1u];
+        out.lane_center_px = (sint16)((out.left_edge_px + out.right_edge_px) / 2);
+
+        /* confidence based on plausible width and region count */
+        sint32 width = (sint32)out.right_edge_px - (sint32)out.left_edge_px;
+        sint32 widthErr = abs_s32(width - (sint32)EXPECTED_TRACK_WIDTH_PX);
+
+        sint32 conf = 100;
+        conf -= (widthErr * 2);
+        conf -= ((sint32)(n - 2u) * 10);
+        conf = clamp_s32(conf, 0, 100);
+
+        out.confidence = (uint8)conf;
+        out.valid = (out.confidence > 10u) ? TRUE : FALSE;
+    }
+
+    /* intersection heuristic */
+    if ((out.black_ratio_pct >= INTERSECTION_BLACK_RATIO_PCT) || (n >= 3u))
+    {
+        out.intersection_likely = TRUE;
+    }
+
+    return out;
+}
+
+/*==================================================================================================
+ *                                  PID CONTROLLER STATE
+==================================================================================================*/
+typedef struct
+{
+    float prev_err;
+    float i_term;
+    float steer_filtered;
+} PidState_t;
+
+static void pid_reset(PidState_t *s)
+{
+    s->prev_err = 0.0f;
+    s->i_term = 0.0f;
+    s->steer_filtered = 0.0f;
+}
+
+/*==================================================================================================
+ *                                  DRIVE WRAPPERS
+==================================================================================================*/
+static void drive_stop(void)
+{
+#if USE_ESC
+    EscSetSpeed(0);
+    EscSetBrake(1U);
+#else
+    HbridgeSetSpeed(0);
+    HbridgeSetBrake(1U);
+#endif
+}
+
+static void drive_forward(sint32 speedPercent_0_100)
+{
+    sint32 spd = clamp_s32(speedPercent_0_100, 0, 100);
+
+#if USE_ESC
+    EscSetBrake(0U);
+    EscSetSpeed((int)spd);
+#else
+    HbridgeSetBrake(0U);
+    HbridgeSetSpeed((int)spd);
+#endif
+}
+
+/*==================================================================================================
+ *                                  STATE MACHINE
+==================================================================================================*/
+typedef enum
+{
+    STATE_IDLE = 0,
+    STATE_ARMING,
+    STATE_RUNNING,
+    STATE_INTERSECTION_COMMIT
+} CarState_t;
+
+/*==================================================================================================
+ *                                  MAIN
 ==================================================================================================*/
 #if MAIN_ENABLE
 int main(void)
 {
-    //LinearCameraFrame FrameBuffer; - part of nxp example code (not using that camera now
-    /*Initialize RTD drivers with the compiled configurations*/
-     DriversInit();
+#if RUN_LINE_FOLLOW_APP
 
-     Timebase_Init();
-
-     OnboardPot_Init();
-
-    /*Initialize Esc driver*/
-    /*First parameter: The Pwm Channel that was configured in Peripherals tool for the Esc*/
-    /*Next parameters: Amount of Pwm ticks needed to achieve 1ms, 1.5ms and 2ms long signals, standard for controlling an esc.*/
-    /*EscInit(0U, 1638U, 2457U, 3276U);*/
-
-    /*Initialize Servo driver*/
-    /*First parameter: The Pwm Channel that was configured in Peripherals tool for the Servo*/
-    /*Next parameters: Amount of Pwm ticks needed to achieve maximum desired left turn, right turn and middle position for your servo.*/
-    ServoInit(1U, 3300U, 1700U, 2500U);
-    /*ServoTest();*/
-
-    /*Initialize Hbridge driver*/
-    /*First two parameters: The Pwm Channels that were configured in Peripherals tool for the motors' speeds*/
-    /*Next parameters: The Pcr of the pins used for the motors' directions*/
-    HbridgeInit(2U, 3U, 32U, 33U, 6U, 64U);
-    /*HbridgeTest();*/
-
-    /*Initialize display driver*/
-    /*The display driver is for a 0.96", 128x32 OLED monochrome using a SSD1306 chip, like the one in the MR-CANHUBK344 kit*/
-    /*Parameter: Should the driver rotate the fontmap before printing. You should leave this to 1U unless you have a special use case*/
-    DisplayInit(0U, STD_ON);
-    /*DisplayTest();*/
-
-    /*Initialize receiver driver*/
-    /*First parameter: The Icu channel that was configured in Peripherals tool for the input pin connected to the receiver's PPM signal*/
-    /*Second parameter: The Gpt channel that was configured in Peripherals tool for measuring the input signal's length*/
-    /*Next parameters: Amount of Gpt ticks needed to measure the shortest channel signal length, median signal length,
-     * maximum signal length and the minimum signal length for the portion between the PPM signals*/
-    /*ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U);*/
-    /*ReceiverTest();*/
-
-    /*Initialize linear camera driver*/
-    /*First parameter: The Pwm channel that was configured in Peripherals tool for the clock sent to the camera*/
-    /*Second parameter: The Gpt channel that was configured in Peripherals tool for determining the length of the shutter signal*/
-    /*Third parameter: The Adc group that was configured in Peripherals tool for sampling the analog signal output of the camera*/
-    /*Fourth parameter: The Pcr of the pin used for sending the shutter signal to the camera*/
-    LinearCameraInit(4U, 1U, 0U, 97U);
-    /*LinearCameraTest();*/
-
-    /*Initialize Pixy2 camera driver*/
-    /*First parameter: The I2c address that was configured on the Pixy2 that the driver should communicate with*/
-    /*Second parameter: The I2c channel that was configured in Peripherals tool for communication with the camera and display*/
-    /*Pixy2Init(0x54, 0U);*/
-    /*Pixy2Test();*/
-
-	/* Initialize ultrasonic driver (TRIG low, ICU notification, internal state) */
-	Ultrasonic_Init();     /* uses Dio + Icu, so it must come after DriversInit */
-
-
-	/* Temporarily force PTD0 as GPIO high → LED off */
-	    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
-	        IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
-	        IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
-	        IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
-
-
-/*==================================================================================================
-*                                  NEW DRIVER TEST
-==================================================================================================*/
-
-#if ULTRASONIC_500MS_SAMPLE
-
-    /* 16-char fixed lines (padded) — safe for your DisplayText() */
-    const char L0[] = "ULTRA 500ms     ";  /* 16 */
-    const char L1[] = "S:     I:      ";  /* 16 */
-    const char L2[] = "cm:    x:      ";  /* 16 */
-    const char L3[] = "t:     a:      ";  /* 16 */
-
-    uint32 lastTrigMs     = Timebase_GetMs();
-    float  lastDistanceCm = 0.0f;
-
-    for (;;)
-    {
-        uint32 nowMs = Timebase_GetMs();
-
-        /* Trigger every 500ms, but do not interrupt a BUSY measurement */
-        if ((uint32)(nowMs - lastTrigMs) >= 500u)
-        {
-            if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
-            {
-                lastTrigMs = nowMs;
-                Ultrasonic_StartMeasurement();
-            }
-        }
-
-        /* Let the driver progress/timeout */
-        Ultrasonic_Task();
-
-        /* Read status for display */
-        Ultrasonic_StatusType st = Ultrasonic_GetStatus();
-
-        /* consume valid and set invalid to max+1 */
-        float d;
-        if (Ultrasonic_GetDistanceCm(&d) == TRUE)
-        {
-            lastDistanceCm = d;
-        }
-        else if (st == ULTRA_STATUS_ERROR)
-        {
-            lastDistanceCm = ULTRA_MAX_DISTANCE_CM + 1.0f;  /* “no obstacle” sentinel */
-        }
-
-        /* Debug getters */
-        uint32 irqCnt = Ultrasonic_GetIrqCount();
-        uint32 ticks  = Ultrasonic_GetLastHighTicks();
-        uint16 idx    = Ultrasonic_GetTsIndex();
-
-        /* Age since last trigger (ms) */
-        uint32 ageMs = (uint32)(nowMs - lastTrigMs);
-
-        /* ----- OLED ----- */
-        DisplayClear();
-
-        DisplayText(0U, L0, 16U, 0U);
-
-        /* Line 1: status + IRQ count */
-        DisplayText(1U, L1, 16U, 0U);
-        if (st == ULTRA_STATUS_NEW_DATA)      { DisplayText(1U, "NEW  ", 5U, 2U); }
-        else if (st == ULTRA_STATUS_BUSY)    { DisplayText(1U, "BUSY ", 5U, 2U); }
-        else if (st == ULTRA_STATUS_ERROR)   { DisplayText(1U, "ERR  ", 5U, 2U); }
-        else                                 { DisplayText(1U, "IDLE ", 5U, 2U); }
-        DisplayValue(1U, (int)irqCnt, 6U, 10U);   /* I: at col 10..15 */
-
-        /* Line 2: distance + timestamp index */
-        DisplayText(2U, L2, 16U, 0U);
-        {
-            int distInt = (int)(lastDistanceCm + 0.5f);
-            DisplayValue(2U, distInt, 4U, 3U);     /* cm at col 3..6 */
-        }
-        DisplayValue(2U, (int)idx, 6U, 10U);       /* x: at col 10..15 */
-
-        /* Line 3: ticks + age */
-        DisplayText(3U, L3, 16U, 0U);
-        DisplayValue(3U, (int)ticks, 5U, 2U);      /* t: at col 2..6 */
-        DisplayValue(3U, (int)ageMs, 6U, 10U);     /* a: at col 10..15 */
-
-        DisplayRefresh();
-    }
-
-#endif /* ULTRASONIC_500MS_TEST */
-
-#if ICU_RAW_TEST3
-/* ===============================================================
- * ICU RAW TEST (TIMESTAMP MODE) — WITH COUNTER DISPLAY
- * TRIG->ECHO jumper required.
- * =============================================================== */
-
-    IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
-    IP_PTE->PDDR     |= (1UL << 15);
-
-    UsTimer_Init();
-
-    static volatile Icu_ValueType tsBuf[4];
-
-    /* 16-char padded labels (safe for your DisplayText) */
-    const char L0[] = "ICU TS DIAG     ";
-    const char L1[] = "x:  dt:        ";
-    const char L2[] = "t0:           ";
-    const char L3[] = "c0:   c1:     ";   /* we'll show counters here */
-
-    /* check if these values will be overridden*/
-    tsBuf[0] = 0x1111u;
-    tsBuf[1] = 0x2222u;
-
-    for (;;)
-    {
-        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, (Icu_ValueType*)tsBuf, 4u, 1u);
-
-        /* Read counter BEFORE pulse (assumes echo channel uses FTM1; change if needed) */
-        uint16 c0 = (uint16)IP_FTM1->CNT;
-
-        /* LONG pulse */
-        IP_PTE->PCOR = (1UL << 15);
-        Timebase_DelayMs(1u);
-
-        IP_PTE->PSOR = (1UL << 15);
-        Timebase_DelayMs(5u);
-
-        IP_PTE->PCOR = (1UL << 15);
-        Timebase_DelayMs(1u);
-
-        /* Read counter AFTER pulse */
-        uint16 c1 = (uint16)IP_FTM1->CNT;
-
-        /* Poll index */
-        uint32 startMs = Timebase_GetMs();
-        Icu_IndexType idx = 0u;
-        while (idx < 2u)
-        {
-            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
-            if ((Timebase_GetMs() - startMs) >= 20u)
-            {
-                break;
-            }
-        }
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-
-        uint32 t0 = (uint32)tsBuf[0];
-        uint32 t1 = (uint32)tsBuf[1];
-        uint32 dt = 0u;
-        if (idx >= 2u)
-        {
-            dt = (uint32)(t1 - t0);
-        }
-
-        /* Display */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayValue(1U, (int)idx, 2U, 2U);      /* x at col 2..3 */
-        DisplayValue(1U, (int)dt, 10U, 6U);      /* dt at col 6..15 */
-
-        /* Show t0 on line 2 */
-        DisplayText(2U, L2, 16U, 0U);
-        DisplayValue(2U, (int)t0, 13U, 3U);
-
-        /* Show counters on line 3: c0 and c1 */
-        DisplayText(3U, L3, 16U, 0U);
-        DisplayValue(3U, (int)c0, 4U, 3U);       /* c0 at col 3..6 */
-        DisplayValue(3U, (int)c1, 6U, 9U);       /* c1 at col 9..14 */
-
-        DisplayRefresh();
-
-        /* If you want t1 too, swap line 3 to "t1:" on alternate loops */
-        Timebase_DelayMs(200u);
-
-        (void)t1; /* keep compiler quiet if not shown */
-    }
-
-#endif  /* ICU RAW TEST 3 */
-
-#if FTM_CNT_TEST
-
-    /* 16-char padded headers for DisplayText safety */
-    const char L0[] = "FTM CNT DEC     "; /* 16 */
-
-    for (;;)
-    {
-        /* Read all three counters (snapshot A) */
-        uint16 c0a = (uint16)IP_FTM0->CNT;
-        uint16 c1a = (uint16)IP_FTM1->CNT;
-        uint16 c2a = (uint16)IP_FTM2->CNT;
-
-        Timebase_DelayMs(50u);
-
-        /* Read all three counters (snapshot B) */
-        uint16 c0b = (uint16)IP_FTM0->CNT;
-        uint16 c1b = (uint16)IP_FTM1->CNT;
-        uint16 c2b = (uint16)IP_FTM2->CNT;
-
-        /* ----- OLED ----- */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-
-        /* Line 1: "0:AAAAA->BBBBB" (A and B are 5 digits) */
-        DisplayText(1U, "0:     ->     ", 16U, 0U);
-        DisplayValue(1U, (int)c0a, 5U, 2U);   /* col 2..6 */
-        DisplayValue(1U, (int)c0b, 5U, 11U);  /* col 11..15 */
-
-        /* Line 2: "1:AAAAA->BBBBB" */
-        DisplayText(2U, "1:     ->     ", 16U, 0U);
-        DisplayValue(2U, (int)c1a, 5U, 2U);
-        DisplayValue(2U, (int)c1b, 5U, 11U);
-
-        /* Line 3: "2:AAAAA->BBBBB" */
-        DisplayText(3U, "2:     ->     ", 16U, 0U);
-        DisplayValue(3U, (int)c2a, 5U, 2U);
-        DisplayValue(3U, (int)c2b, 5U, 11U);
-
-        DisplayRefresh();
-
-        Timebase_DelayMs(200u);
-    }
-
-#endif /* FTM_CNT_TEST */
-
-/*==================================================================================================
- *                                       DISPLAY TEST
-==================================================================================================*/
-
-	#if DISPLAY_TEST
-		uint8 SimPixels[CAMERA_EMU_NUM_PIXELS];
-		uint8 GraphValues[CAMERA_EMU_NUM_PIXELS];
-		static uint32 EmuFrameCount = 0U; //number of times the graph was updated
-
-		CameraEmulator_Init();
-
-		DisplayClear();
-		DisplayText(0U, "HELLO", 5U, 0U);
-		DisplayRefresh();
-
-		for (;;) //loop forever
-		{
-
-			/* Update debounced button  */
-			Buttons_Update();
-
-			/* ----- Capture new frame and process it ----- (for now it is simulated */
-			if (g_EmuNewFrameFlag)
-			{
-			    g_EmuNewFrameFlag = FALSE;
-
-				/* 0) Read potentiometer -> 0..255 "brightness" */
-
-			    uint8 baseLevelPot = OnboardPot_ReadLevelFiltered(); //Read pot normally
-			    uint8 baseLevel = ReadBaselineWithButton(baseLevelPot); //Override with button test (read with a different function
-
-				/* 1) Get emulated camera frame */
-				CameraEmulator_GetFrame(SimPixels, baseLevel);
-				EmuFrameCount++;
-
-				/* 2) Scale 0..255 -> 0..100 for bar height */
-				for (uint16 i = 0U; i < CAMERA_EMU_NUM_PIXELS; i++)
-				{
-					GraphValues[i] = (uint8)(((uint16)SimPixels[i] * 100U) / 255U);
-				}
-
-				/* 3) Clear entire display buffer */
-				DisplayClear();
-
-				/* 4) Draw bar graph in lower 3 pages (rows 8–31):
-				 *    - DisplayLine = 1   → start at second page (row 8)
-				 *    - LinesSpan   = 3   → use 3 pages (24 px high)
-				 *      Bars will internally use only 2/3 of that height, with a ref line at the top.
-				 */
-				DisplayBarGraph(1U, GraphValues, CAMERA_EMU_NUM_PIXELS, 3U);
-
-				/* 5) Prepare debug text in the top-left corner (page 0, row 0–7).
-				 *    We keep the number reasonably small: modulo 100000 → max 5 digits. */
-				/* Left side: read counter "R:xxxxx" */
-				char debugLineLeft[16];
-				uint32 displayCount = EmuFrameCount % 100000UL;
-				(void)snprintf(debugLineLeft, sizeof(debugLineLeft), "R:%5lu", (unsigned long)displayCount);
-
-				/* Right side: baseLevel "B:xxx" */
-				/* The display is 128 px wide. Each character is 6 px (5 px glyph + 1 px spacing).
-				 * "B:255" is 5 characters → 5 * 6 = 30 px.
-				 * 128 - 30 ≈ 98 px → as column index ~98 / 6 ≈ 16 characters from left.
-				 */
-				char debugLineRight[16];
-				(void)snprintf(debugLineRight, sizeof(debugLineRight), "B:%3u", baseLevel);
-
-				/* Draw both texts on page 0.
-				 * left text at column = 0 chars
-				 * right text at column = 16 chars  (→ top-right area)
-				 */
-				DisplayText(0U, debugLineLeft, 7U, 0U);   /* top-left  */
-				DisplayText(0U, debugLineRight, 5U, 11U); /* top-right */
-
-				/* 6) Send everything to the OLED */
-				DisplayRefresh();
-			}
-		}
-	#endif /* DISPLAY_TEST */
-
-} /*main function end */
-
-#endif /* MAIN_ENABLE */
-
-/*==================================================================================================
- *                                  ULTRASONIC_TEST_LOW_LEVEL (OWN MAIN)
-==================================================================================================*/
-
-#if ULTRASONIC_TEST_LOW_LEVEL
-#include "timebase.h"
-#include "Mcal.h"        /* for DriversInit() and MCAL drivers */
-
-/* Simple state machine for the waveform */
-typedef enum
-{
-    WAVE_STATE_LOW_PHASE = 0,
-    WAVE_STATE_HIGH_PHASE
-} WaveStateType;
-
-static WaveStateType g_waveState = WAVE_STATE_LOW_PHASE;
-
-int main(void)
-{
-    /* Initialise MCAL drivers (Port, Dio, Gpt, etc.) */
+    /* ===== INIT ===== */
     DriversInit();
+    Timebase_Init();
+    OnboardPot_Init();
 
-    /* Initialise UsTimer software state (flag) */
-    UsTimer_Init();
+    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    SteerStraight();
 
-    /* Configure PTE15 as GPIO output */
-    IP_PORTE->PCR[15] &= ~PORT_PCR_MUX_MASK;
-    IP_PORTE->PCR[15] |= PORT_PCR_MUX(1u);      /* ALT1 = GPIO */
-    IP_PTE->PDDR      |= (1UL << 15);           /* PTE15 as output */
-
-    /* --- Start in LOW phase: PTE15 = LOW for 2 µs --- */
-    IP_PTE->PCOR = (1UL << 15);                 /* drive LOW */
-    g_waveState  = WAVE_STATE_LOW_PHASE;
-    UsTimer_Start(2u);                          /* schedule 2 µs */
-
-    for (;;)
-    {
-        /* Check if UsTimer one-shot has elapsed (set in UsTimer_Notification) */
-        if (UsTimer_HasElapsed() == TRUE)
-        {
-            /* Clear flag so we only handle this expiration once */
-            UsTimer_ClearFlag();
-
-            switch (g_waveState)
-            {
-                case WAVE_STATE_LOW_PHASE:
-                    /* LOW phase finished → go HIGH for 10 µs */
-                    IP_PTE->PSOR = (1UL << 15); /* drive HIGH */
-                    g_waveState  = WAVE_STATE_HIGH_PHASE;
-                    UsTimer_Start(2u);         /* schedule 10 µs */
-                    break;
-
-                case WAVE_STATE_HIGH_PHASE:
-                    /* HIGH phase finished → go LOW for 2 µs */
-                    IP_PTE->PCOR = (1UL << 15); /* drive LOW */
-                    g_waveState  = WAVE_STATE_LOW_PHASE;
-                    UsTimer_Start(10u);          /* schedule 2 µs */
-                    break;
-
-                default:
-                    /* Should not happen; reset to a safe state */
-                    IP_PTE->PCOR = (1UL << 15);
-                    g_waveState  = WAVE_STATE_LOW_PHASE;
-                    UsTimer_Start(2u);
-                    break;
-            }
-        }
-
-        /* No busy-wait delays here; loop just reacts to the timer flag. */
-    }
-}
+#if USE_ESC
+    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscSetBrake(1U);
+    EscSetSpeed(0);
+#else
+    HbridgeInit(PWM_LEFT_CH, PWM_RIGHT_CH, L_FWD_CH, L_REV_CH, R_FWD_CH, R_REV_CH);
+    HbridgeSetBrake(1U);
+    HbridgeSetSpeed(0);
 #endif
 
-/*==================================================================================================
- *                                  CAR TEST (LINEAR CAMERA EXAMPLE CODE) (OWN MAIN)
-==================================================================================================*/
-//line tracking macro:s
+    LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
 
-#if CAR_CAMERA_TEST
-/* Linear camera code */
-#define THRESHOLD 40
-#define BUFFER_SIZE 128
-#define MID_POINT BUFFER_SIZE/2
+    DisplayInit(0U, STD_ON);
+    DisplayClear();
+    DisplayText(0U, "LINE FOLLOW APP", 14U, 0U);
+    DisplayText(1U, "SW2 START (3s) ", 14U, 0U);
+    DisplayText(2U, "SW3 STOP       ", 10U, 0U);
+    DisplayRefresh();
 
-typedef struct {
-    uint8 start;
-    uint8 end;
-}BlackRegion;
+    /* ===== Scheduler timestamps (polling) ===== */
+    uint32 now = Timebase_GetMs();
+    uint32 nextButtonsMs = now + BUTTONS_PERIOD_MS;
+    uint32 nextCameraMs  = now + CAMERA_PERIOD_MS;
+    uint32 nextControlMs = now + CONTROL_PERIOD_MS;
+    uint32 nextDispMs    = now + DISPLAY_PERIOD_MS;
 
-BlackRegion BlackRegionBuffer[25];
-uint8 RegionIndex;
-float TotalCenter;
+    /* ===== App state ===== */
+    CarState_t state = STATE_IDLE;
+    uint32 startGoMs = 0u;
 
-uint8 findBlackRegions(uint8* Buff, BlackRegion* Regions, uint8 MaxRegions) {
-    uint8 RegionIndex = 0;
-    uint8 BRegFlag = 0;
-    for(int i = 1 ; i < BUFFER_SIZE - 1; i++) {
-        if(Buff[i] < THRESHOLD) {
-            if(!BRegFlag) {
-                BRegFlag = 1;
-                Regions[RegionIndex].start = i;
+    /* Line-lost timer:
+     * We use lastLineSeenMs ONLY (no unused vars).
+     * If no line seen for > LINE_LOST_COAST_MS -> stop -> IDLE.
+     */
+    uint32 lastLineSeenMs = now;
+
+    /* Intersection commit */
+    uint32 intersectionEndMs = 0u;
+    sint32 intersectionSteerCmd = 0;
+
+    /* Controller state */
+    PidState_t pid;
+    pid_reset(&pid);
+
+    /* Latest sensor data (initialized to safe defaults) */
+    LinearCameraFrame frame;
+    LaneReading_t lane;
+    lane.valid = FALSE;
+    lane.left_edge_px = -1;
+    lane.right_edge_px = -1;
+    lane.lane_center_px = (sint16)CAM_CENTER_PX;
+    lane.region_count = 0u;
+    lane.black_ratio_pct = 0u;
+    lane.confidence = 0u;
+    lane.intersection_likely = FALSE;
+
+    /* Last known good lane center + last steering command */
+    sint16 lastLaneCenter = (sint16)CAM_CENTER_PX;
+    sint32 lastSteerCmd = 0;
+
+    /* Safe outputs */
+    drive_stop();
+    SteerStraight();
+
+    while (1)
+    {
+        now = Timebase_GetMs();
+
+        /* ---------------- Buttons task (polling) ---------------- */
+        if (time_reached(now, nextButtonsMs))
+        {
+            nextButtonsMs += BUTTONS_PERIOD_MS;
+            Buttons_Update();
+
+            /* STOP always wins */
+            if (Buttons_WasPressed(BTN_STOP_ID))
+            {
+                state = STATE_IDLE;
+                drive_stop();
+                SteerStraight();
             }
-            Regions[RegionIndex].end = i;
-        } else {
-            if(BRegFlag) {
-                BRegFlag = 0;
-                RegionIndex ++;
-                if(RegionIndex > MaxRegions) {
-                    break;
+
+            /* START only from IDLE */
+            if ((state == STATE_IDLE) && Buttons_WasPressed(BTN_START_ID))
+            {
+                state = STATE_ARMING;
+                startGoMs = now + START_DELAY_MS;
+
+                pid_reset(&pid);
+                lastSteerCmd = 0;
+                lastLaneCenter = (sint16)CAM_CENTER_PX;
+
+                lastLineSeenMs = now;
+
+                drive_stop();
+                SteerStraight();
+            }
+        }
+
+        /* ---------------- Camera task (polling) ---------------- */
+        if (time_reached(now, nextCameraMs))
+        {
+            nextCameraMs += CAMERA_PERIOD_MS;
+
+            if (state != STATE_IDLE)
+            {
+                uint8 thr = BLACK_THRESHOLD_DEFAULT;
+#if USE_POT_FOR_THRESHOLD
+                uint8 pot = OnboardPot_ReadLevelFiltered();
+                thr = threshold_from_pot(pot);
+#endif
+                LinearCameraGetFrame(&frame);
+
+                lane = process_camera(&frame, thr, lastLaneCenter);
+
+                if (lane.valid)
+                {
+                    lastLaneCenter = lane.lane_center_px;
+                    lastLineSeenMs = now; /* <-- USED in line-lost logic */
                 }
             }
         }
-    }
-    /* If the buffer ends and we are still in the black region set the black region end to the buffer end */
-    if(BRegFlag) {
-        Regions[RegionIndex].end = BUFFER_SIZE - 1;
-        RegionIndex++;
-    }
-    return RegionIndex;
-}
 
-float calculateCenterOfRegions(BlackRegion Regions[], uint8 RegionCount) {
-    uint32 TotalCenter = 0;
+        /* ---------------- Control task (polling fixed-step) ---------------- */
+        if (time_reached(now, nextControlMs))
+        {
+            nextControlMs += CONTROL_PERIOD_MS;
+            const float dt = ((float)CONTROL_PERIOD_MS) * 0.001f;
 
-    for (int i = 0; i < RegionCount; i++) {
-        uint32 RegionCenter = (Regions[i].start + Regions[i].end) / 2;
-        TotalCenter += RegionCenter;
-    }
-    return (float)TotalCenter / RegionCount;
-}
-
-int main(void)
-{
-    LinearCameraFrame FrameBuffer;
-    /*Initialize RTD drivers with the compiled configurations*/
-     DriversInit();
-
-    /*Initialize Servo driver*/
-    /*First parameter: The Pwm Channel that was configured in Peripherals tool for the Servo*/
-    /*Next parameters: Amount of Pwm ticks needed to achieve maximum desired left turn, right turn and middle position for your servo.*/
-    ServoInit(1U, 3300U, 1700U, 2500U);
-    /*ServoTest();*/
-
-    /*Initialize Hbridge driver*/
-    /*First two parameters: The Pwm Channels that were configured in Peripherals tool for the motors' speeds*/
-    /*Next parameters: The Pcr of the pins used for the motors' directions*/
-    HbridgeInit(2U, 3U, 32U, 33U, 6U, 64U);
-    /*HbridgeTest();*/
-
-    /*Initialize display driver*/
-    /*The display driver is for a 0.96", 128x32 OLED monochrome using a SSD1306 chip, like the one in the MR-CANHUBK344 kit*/
-    /*Parameter: Should the driver rotate the fontmap before printing. You should leave this to 1U unless you have a special use case*/
-    DisplayInit(0U, STD_ON);
-    /*DisplayTest();*/
-
-
-    /*Initialize linear camera driver*/
-    /*First parameter: The Pwm channel that was configured in Peripherals tool for the clock sent to the camera*/
-    /*Second parameter: The Gpt channel that was configured in Peripherals tool for determining the length of the shutter signal*/
-    /*Third parameter: The Adc group that was configured in Peripherals tool for sampling the analog signal output of the camera*/
-    /*Fourth parameter: The Pcr of the pin used for sending the shutter signal to the camera*/
-    LinearCameraInit(4U, 1U, 0U, 97U);
-    /*CameraTest();*/
-
-    HbridgeSetSpeed(50);
-    while(1){
-        LinearCameraGetFrame(&FrameBuffer);
-        /* The black regions are the values in the CameraResultsBuffer < a chosen threshold */
-        /* The threshold must be chosen manually depending on how you calibrated the camera */
-        RegionIndex = findBlackRegions(FrameBuffer.Values, BlackRegionBuffer, 3);
-        /* Take the middle of all the black regions detected */
-        TotalCenter = calculateCenterOfRegions(BlackRegionBuffer, RegionIndex);
-
-        switch(RegionIndex){
-        case 1:
-            if(TotalCenter < MID_POINT) {
-                Steer(-50);
-            } else {
-                Steer(50);
+            if (state == STATE_IDLE)
+            {
+                drive_stop();
+                SteerStraight();
+                continue;
             }
-            break;
-        case 2:
-            /* Because the Steer takes values between -100 and 100, this formula is needed as totalCenter is unsigned*/
-            Steer(2 *(TotalCenter - 50));
-            break;
+
+            if (state == STATE_ARMING)
+            {
+                drive_stop();
+                SteerStraight();
+
+                if (time_reached(now, startGoMs))
+                {
+                    state = STATE_RUNNING;
+                    pid_reset(&pid);
+                }
+                continue;
+            }
+
+            /* ===== RUNNING / INTERSECTION / LINE LOST ===== */
+
+            /* Line lost check (based on elapsed time since last valid line) */
+            if ((uint32)(now - lastLineSeenMs) > LINE_LOST_COAST_MS)
+            {
+                /* Stop and go IDLE */
+                state = STATE_IDLE;
+                drive_stop();
+                SteerStraight();
+                continue;
+            }
+
+            /* If the current frame is invalid, coast with last commands (still within 2s) */
+            if (!lane.valid)
+            {
+                drive_forward(SPEED_LOST_LINE);
+                Steer((int)lastSteerCmd);
+                continue;
+            }
+
+            /* Intersection commit state machine */
+            if ((state == STATE_RUNNING) && lane.intersection_likely)
+            {
+                sint32 errPx = (sint32)lane.lane_center_px - (sint32)CAM_CENTER_PX;
+
+                if (errPx > -10 && errPx < 10)
+                    intersectionSteerCmd = 0;
+                else
+                    intersectionSteerCmd = (errPx > 0) ? +35 : -35;
+
+                intersectionEndMs = now + INTERSECTION_COMMIT_MS;
+                state = STATE_INTERSECTION_COMMIT;
+            }
+
+            if (state == STATE_INTERSECTION_COMMIT)
+            {
+                if (time_reached(now, intersectionEndMs))
+                {
+                    state = STATE_RUNNING;
+                }
+                else
+                {
+                    drive_forward(INTERSECTION_SPEED);
+                    Steer((int)intersectionSteerCmd);
+                    lastSteerCmd = intersectionSteerCmd;
+                    continue;
+                }
+            }
+
+            /* ===== Normal PID steering ===== */
+            {
+                float errPx = ((float)lane.lane_center_px) - ((float)CAM_CENTER_PX);
+                float error = errPx / 63.0f; /* normalize approx */
+
+                float dErr = (error - pid.prev_err) / (dt + 1e-9f);
+                pid.prev_err = error;
+
+                pid.i_term += error * dt;
+                pid.i_term = clamp_f(pid.i_term, -ITERM_CLAMP, +ITERM_CLAMP);
+
+                float steer = (KP * error) + (KD * dErr) + (KI * pid.i_term);
+                steer = clamp_f(steer, -1.0f, +1.0f);
+
+                float steerCmdF = steer * (float)STEER_CMD_CLAMP * (float)STEER_SIGN;
+
+                /* Low-pass filter */
+                pid.steer_filtered = (STEER_LPF_ALPHA * steerCmdF) +
+                                     ((1.0f - STEER_LPF_ALPHA) * pid.steer_filtered);
+
+                sint32 steerCmd = (sint32)(pid.steer_filtered);
+                steerCmd = clamp_s32(steerCmd, -STEER_CMD_CLAMP, +STEER_CMD_CLAMP);
+
+                Steer((int)steerCmd);
+                lastSteerCmd = steerCmd;
+
+                /* Speed policy */
+                sint32 absSteer = abs_s32(steerCmd);
+                sint32 speed = (sint32)SPEED_BASE - ((sint32)SPEED_SLOW_PER_STEER * absSteer) / 100;
+                speed = clamp_s32(speed, SPEED_MIN, SPEED_MAX);
+
+                drive_forward(speed);
+            }
         }
-        /*Update the display buffer*/
-        DisplayClear();
-        DisplayValue(0U, TotalCenter, 4U, 0U);
-        DisplayGraph(1U, FrameBuffer.Values, 128U, 3U);
-        DisplayRefresh();
+
+        /* ---------------- Display task (polling) ---------------- */
+        if (time_reached(now, nextDispMs))
+        {
+            nextDispMs += DISPLAY_PERIOD_MS;
+
+            DisplayClear();
+
+            if (state == STATE_IDLE) DisplayText(0U, "STATE: IDLE     ", 16U, 0U);
+            else if (state == STATE_ARMING) DisplayText(0U, "STATE: ARMING   ", 16U, 0U);
+            else if (state == STATE_INTERSECTION_COMMIT) DisplayText(0U, "STATE: XCOMMIT  ", 16U, 0U);
+            else DisplayText(0U, "STATE: RUN      ", 16U, 0U);
+
+            DisplayText(1U, "LC:    CF:     ", 16U, 0U);
+            DisplayValue(1U, (int)lastLaneCenter, 3U, 3U);
+            DisplayValue(1U, (int)lane.confidence, 3U, 12U);
+
+            DisplayText(2U, "LOST(ms):      ", 16U, 0U);
+            DisplayValue(2U, (int)(now - lastLineSeenMs), 6U, 9U);
+
+            DisplayText(3U, "ST:            ", 16U, 0U);
+            DisplayValue(3U, (int)lastSteerCmd, 4U, 3U);
+
+            DisplayRefresh();
+        }
     }
+
+#else
+    DriversInit();
+    while (1) { }
+#endif
 }
-	#endif
+#endif /* MAIN_ENABLE */
 
 #ifdef __cplusplus
 }
 #endif
-/** @} */
