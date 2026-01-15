@@ -44,7 +44,7 @@ static void Ultrasonic_TryCompleteFromBuffer(void)
         uint32 ticks = (t1 >= t0) ? (t1 - t0) : ((0xFFFFu - t0) + t1 + 1u);
 
         /* Sanity Check: Ignore impossibly small pulses (noise filter) */
-        if (ticks < 10u) { // adjust 10u based on your clock
+        if (ticks < 10u) {
              return;
         }
 

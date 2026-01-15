@@ -24,20 +24,17 @@ extern "C" {
 #include "ultrasonic.h"
 #include "timebase.h"
 
-#include "S32K144.h" //bare-metal pot test
+#include "S32K144.h"
 /*==================================================================================================
  *                                       LOCAL MACROS
 ==================================================================================================*/
 #define MAIN_ENABLE     1 /* All macros are here */
+	/* Test mode flags – enable only one at a time (disable if MAIN_ENABLE = 0 */
+	#define DISPLAY_TEST      0   /* Camera signal simulation + display + buttons + potentiometer demo */
+	#define ULTRASONIC_500MS_SAMPLE    1 //working example of using ultrasonic
+
 #define CAR_CAMERA_TEST          0   /* Line-following car demo from linear camera example project*/
-#define ULTRASONIC_TEST_LOW_LEVEL 0 /* Used for separate low level control off the ultrasonic pins*/
 
-/* Test mode flags – enable only one at a time (disable if MAIN_ENABLE = 0 */
-#define DISPLAY_TEST      0   /* Camera signal simulation + display + buttons + potentiometer demo */
-#define ULTRASONIC_500MS_SAMPLE    1 //working example of using ultrasonic
-
-#define ICU_RAW_TEST3  0 //used for debugging and implementing the ultrasonic
-#define FTM_CNT_TEST 0 //used for debugging and implementing the ultrasonic
 /*==================================================================================================
  *                                       MAIN
 ==================================================================================================*/
@@ -75,14 +72,6 @@ int main(void)
     DisplayInit(0U, STD_ON);
     /*DisplayTest();*/
 
-    /*Initialize receiver driver*/
-    /*First parameter: The Icu channel that was configured in Peripherals tool for the input pin connected to the receiver's PPM signal*/
-    /*Second parameter: The Gpt channel that was configured in Peripherals tool for measuring the input signal's length*/
-    /*Next parameters: Amount of Gpt ticks needed to measure the shortest channel signal length, median signal length,
-     * maximum signal length and the minimum signal length for the portion between the PPM signals*/
-    /*ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U);*/
-    /*ReceiverTest();*/
-
     /*Initialize linear camera driver*/
     /*First parameter: The Pwm channel that was configured in Peripherals tool for the clock sent to the camera*/
     /*Second parameter: The Gpt channel that was configured in Peripherals tool for determining the length of the shutter signal*/
@@ -100,16 +89,14 @@ int main(void)
 	/* Initialize ultrasonic driver (TRIG low, ICU notification, internal state) */
 	Ultrasonic_Init();     /* uses Dio + Icu, so it must come after DriversInit */
 
-
-	/* Temporarily force PTD0 as GPIO high → LED off */
+	/* Force PTD0 as GPIO high → LED off */
 	    /* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
 	        IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
 	        IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
 	        IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
 
-
 /*==================================================================================================
-*                                  NEW DRIVER TEST
+*                                  ULTRASONIC TEST
 ==================================================================================================*/
 
 #if ULTRASONIC_500MS_SAMPLE
@@ -193,146 +180,6 @@ int main(void)
 
 #endif /* ULTRASONIC_500MS_TEST */
 
-#if ICU_RAW_TEST3
-/* ===============================================================
- * ICU RAW TEST (TIMESTAMP MODE) — WITH COUNTER DISPLAY
- * TRIG->ECHO jumper required.
- * =============================================================== */
-
-    IP_PORTE->PCR[15] = PORT_PCR_MUX(1u);
-    IP_PTE->PDDR     |= (1UL << 15);
-
-    UsTimer_Init();
-
-    static volatile Icu_ValueType tsBuf[4];
-
-    /* 16-char padded labels (safe for your DisplayText) */
-    const char L0[] = "ICU TS DIAG     ";
-    const char L1[] = "x:  dt:        ";
-    const char L2[] = "t0:           ";
-    const char L3[] = "c0:   c1:     ";   /* we'll show counters here */
-
-    /* check if these values will be overridden*/
-    tsBuf[0] = 0x1111u;
-    tsBuf[1] = 0x2222u;
-
-    for (;;)
-    {
-        tsBuf[0] = 0u; tsBuf[1] = 0u; tsBuf[2] = 0u; tsBuf[3] = 0u;
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-        Icu_StartTimestamp(ULTRA_ICU_ECHO_CHANNEL, (Icu_ValueType*)tsBuf, 4u, 1u);
-
-        /* Read counter BEFORE pulse (assumes echo channel uses FTM1; change if needed) */
-        uint16 c0 = (uint16)IP_FTM1->CNT;
-
-        /* LONG pulse */
-        IP_PTE->PCOR = (1UL << 15);
-        Timebase_DelayMs(1u);
-
-        IP_PTE->PSOR = (1UL << 15);
-        Timebase_DelayMs(5u);
-
-        IP_PTE->PCOR = (1UL << 15);
-        Timebase_DelayMs(1u);
-
-        /* Read counter AFTER pulse */
-        uint16 c1 = (uint16)IP_FTM1->CNT;
-
-        /* Poll index */
-        uint32 startMs = Timebase_GetMs();
-        Icu_IndexType idx = 0u;
-        while (idx < 2u)
-        {
-            idx = Icu_GetTimestampIndex(ULTRA_ICU_ECHO_CHANNEL);
-            if ((Timebase_GetMs() - startMs) >= 20u)
-            {
-                break;
-            }
-        }
-
-        Icu_StopTimestamp(ULTRA_ICU_ECHO_CHANNEL);
-
-        uint32 t0 = (uint32)tsBuf[0];
-        uint32 t1 = (uint32)tsBuf[1];
-        uint32 dt = 0u;
-        if (idx >= 2u)
-        {
-            dt = (uint32)(t1 - t0);
-        }
-
-        /* Display */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-
-        DisplayText(1U, L1, 16U, 0U);
-        DisplayValue(1U, (int)idx, 2U, 2U);      /* x at col 2..3 */
-        DisplayValue(1U, (int)dt, 10U, 6U);      /* dt at col 6..15 */
-
-        /* Show t0 on line 2 */
-        DisplayText(2U, L2, 16U, 0U);
-        DisplayValue(2U, (int)t0, 13U, 3U);
-
-        /* Show counters on line 3: c0 and c1 */
-        DisplayText(3U, L3, 16U, 0U);
-        DisplayValue(3U, (int)c0, 4U, 3U);       /* c0 at col 3..6 */
-        DisplayValue(3U, (int)c1, 6U, 9U);       /* c1 at col 9..14 */
-
-        DisplayRefresh();
-
-        /* If you want t1 too, swap line 3 to "t1:" on alternate loops */
-        Timebase_DelayMs(200u);
-
-        (void)t1; /* keep compiler quiet if not shown */
-    }
-
-#endif  /* ICU RAW TEST 3 */
-
-#if FTM_CNT_TEST
-
-    /* 16-char padded headers for DisplayText safety */
-    const char L0[] = "FTM CNT DEC     "; /* 16 */
-
-    for (;;)
-    {
-        /* Read all three counters (snapshot A) */
-        uint16 c0a = (uint16)IP_FTM0->CNT;
-        uint16 c1a = (uint16)IP_FTM1->CNT;
-        uint16 c2a = (uint16)IP_FTM2->CNT;
-
-        Timebase_DelayMs(50u);
-
-        /* Read all three counters (snapshot B) */
-        uint16 c0b = (uint16)IP_FTM0->CNT;
-        uint16 c1b = (uint16)IP_FTM1->CNT;
-        uint16 c2b = (uint16)IP_FTM2->CNT;
-
-        /* ----- OLED ----- */
-        DisplayClear();
-        DisplayText(0U, L0, 16U, 0U);
-
-        /* Line 1: "0:AAAAA->BBBBB" (A and B are 5 digits) */
-        DisplayText(1U, "0:     ->     ", 16U, 0U);
-        DisplayValue(1U, (int)c0a, 5U, 2U);   /* col 2..6 */
-        DisplayValue(1U, (int)c0b, 5U, 11U);  /* col 11..15 */
-
-        /* Line 2: "1:AAAAA->BBBBB" */
-        DisplayText(2U, "1:     ->     ", 16U, 0U);
-        DisplayValue(2U, (int)c1a, 5U, 2U);
-        DisplayValue(2U, (int)c1b, 5U, 11U);
-
-        /* Line 3: "2:AAAAA->BBBBB" */
-        DisplayText(3U, "2:     ->     ", 16U, 0U);
-        DisplayValue(3U, (int)c2a, 5U, 2U);
-        DisplayValue(3U, (int)c2b, 5U, 11U);
-
-        DisplayRefresh();
-
-        Timebase_DelayMs(200u);
-    }
-
-#endif /* FTM_CNT_TEST */
-
 /*==================================================================================================
  *                                       DISPLAY TEST
 ==================================================================================================*/
@@ -415,79 +262,6 @@ int main(void)
 } /*main function end */
 
 #endif /* MAIN_ENABLE */
-
-/*==================================================================================================
- *                                  ULTRASONIC_TEST_LOW_LEVEL (OWN MAIN)
-==================================================================================================*/
-
-#if ULTRASONIC_TEST_LOW_LEVEL
-#include "timebase.h"
-#include "Mcal.h"        /* for DriversInit() and MCAL drivers */
-
-/* Simple state machine for the waveform */
-typedef enum
-{
-    WAVE_STATE_LOW_PHASE = 0,
-    WAVE_STATE_HIGH_PHASE
-} WaveStateType;
-
-static WaveStateType g_waveState = WAVE_STATE_LOW_PHASE;
-
-int main(void)
-{
-    /* Initialise MCAL drivers (Port, Dio, Gpt, etc.) */
-    DriversInit();
-
-    /* Initialise UsTimer software state (flag) */
-    UsTimer_Init();
-
-    /* Configure PTE15 as GPIO output */
-    IP_PORTE->PCR[15] &= ~PORT_PCR_MUX_MASK;
-    IP_PORTE->PCR[15] |= PORT_PCR_MUX(1u);      /* ALT1 = GPIO */
-    IP_PTE->PDDR      |= (1UL << 15);           /* PTE15 as output */
-
-    /* --- Start in LOW phase: PTE15 = LOW for 2 µs --- */
-    IP_PTE->PCOR = (1UL << 15);                 /* drive LOW */
-    g_waveState  = WAVE_STATE_LOW_PHASE;
-    UsTimer_Start(2u);                          /* schedule 2 µs */
-
-    for (;;)
-    {
-        /* Check if UsTimer one-shot has elapsed (set in UsTimer_Notification) */
-        if (UsTimer_HasElapsed() == TRUE)
-        {
-            /* Clear flag so we only handle this expiration once */
-            UsTimer_ClearFlag();
-
-            switch (g_waveState)
-            {
-                case WAVE_STATE_LOW_PHASE:
-                    /* LOW phase finished → go HIGH for 10 µs */
-                    IP_PTE->PSOR = (1UL << 15); /* drive HIGH */
-                    g_waveState  = WAVE_STATE_HIGH_PHASE;
-                    UsTimer_Start(2u);         /* schedule 10 µs */
-                    break;
-
-                case WAVE_STATE_HIGH_PHASE:
-                    /* HIGH phase finished → go LOW for 2 µs */
-                    IP_PTE->PCOR = (1UL << 15); /* drive LOW */
-                    g_waveState  = WAVE_STATE_LOW_PHASE;
-                    UsTimer_Start(10u);          /* schedule 2 µs */
-                    break;
-
-                default:
-                    /* Should not happen; reset to a safe state */
-                    IP_PTE->PCOR = (1UL << 15);
-                    g_waveState  = WAVE_STATE_LOW_PHASE;
-                    UsTimer_Start(2u);
-                    break;
-            }
-        }
-
-        /* No busy-wait delays here; loop just reacts to the timer flag. */
-    }
-}
-#endif
 
 /*==================================================================================================
  *                                  CAR TEST (LINEAR CAMERA EXAMPLE CODE) (OWN MAIN)

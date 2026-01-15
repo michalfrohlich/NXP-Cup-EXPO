@@ -1,12 +1,12 @@
 #include "timebase.h"
-#include "Gpt.h"     /* brings in Gpt prototypes, types, etc. */
+#include "Gpt.h"
 
 /* ===================== Millisecond timebase (EmuTimer, GPT channel 2) ===================== */
 
 /* Free-running millisecond tick */
 volatile uint32 g_SystemMs = 0u;
 
-/* Used by your camera emulator logic (existing behavior) */
+/* Used by camera emulator logic (existing behavior) */
 volatile boolean g_EmuNewFrameFlag = FALSE;
 
 /* Internal sub-counter for 1-second frame flag */
@@ -62,7 +62,7 @@ void Timebase_DelayMs(uint32 delayMs)
 }
 
 
-/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */
+/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */ // <-----might not be a correct comment
 
 /* GPT channel ID used for the microsecond one-shot LPIT timer.
  * In ConfigTools:
