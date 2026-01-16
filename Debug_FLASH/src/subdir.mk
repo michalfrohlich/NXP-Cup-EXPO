@@ -17,7 +17,8 @@ C_SRCS += \
 ../src/receiver.c \
 ../src/servo.c \
 ../src/timebase.c \
-../src/ultrasonic.c 
+../src/ultrasonic.c \
+../src/vision.c 
 
 OBJS += \
 ./src/buttons.o \
@@ -33,7 +34,8 @@ OBJS += \
 ./src/receiver.o \
 ./src/servo.o \
 ./src/timebase.o \
-./src/ultrasonic.o 
+./src/ultrasonic.o \
+./src/vision.o 
 
 C_DEPS += \
 ./src/buttons.d \
@@ -49,7 +51,8 @@ C_DEPS += \
 ./src/receiver.d \
 ./src/servo.d \
 ./src/timebase.d \
-./src/ultrasonic.d 
+./src/ultrasonic.d \
+./src/vision.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
