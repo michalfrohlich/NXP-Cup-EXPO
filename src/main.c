@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 /*==================================================================================================
- *                                        INCLUDE FILES
+ *                                        INCLUDE FILES -TODO: need to cleanup and sort
 ==================================================================================================*/
 #include "display.h"
 #include "receiver.h"
@@ -103,96 +103,189 @@ static void System_Init(void)
 /*==================================================================================================
  *                                 MAIN CODE FOR THE CAR
 ==================================================================================================*/
-#if CAR_MAIN
-/*------------------------------------------------------------------------------------------------
- *                                 DEFINES
--------------------------------------------------------------------------------------------------*/
 
-/* Vision-related globals used by main */
-BlackRegion BlackRegionBuffer[25];
-uint8 RegionIndex;
-float TotalCenter;
-#define MID_POINT   (VISION_BUFFER_SIZE / 2U)
+#if CAR_MAIN && !TESTS_ENABLE
+
+/* ----- Top-level application states ----- */
+typedef enum
+{
+    APP_STATE_INIT = 0,   /* One-time init + possible calibration */
+    APP_STATE_IDLE,       /* Car stopped, tuning / menu */
+    APP_STATE_RUN         /* Car driving on the track */
+} AppState_t;
+
+/* Global application state */
+static AppState_t gAppState = APP_STATE_INIT;
+
+/* Latched RUN/STOP request from SW3 (edge-triggered) */
+static boolean gRunStopRequest = FALSE;
 
 /*------------------------------------------------------------------------------------------------
  *                                   MAIN
 -------------------------------------------------------------------------------------------------*/
-int main(void){
 
-	System_Init(); //initialize everything
+int main(void)
+{
+    uint32 lastLoopMs  = 0u;  /* Time of last 5 ms loop execution */
+    uint32 loopCounter = 0u;  /* Counts 5 ms ticks; used for "every Nth loop" scheduling */
 
-	LinearCameraFrame FrameBuffer;
+    /* One-time system / drivers init */
+    System_Init();
 
-    HbridgeSetSpeed(50);
+    /* Base timestamp for 5 ms scheduling */
+    lastLoopMs = Timebase_GetMs();
 
-    /* Force PTD0 (BLUE LED) OFF to indiate end of initialization */
-	/* Set PTD0 as GPIO output, HIGH → LED off (active-low) */
-	IP_PORTD->PCR[0] = PORT_PCR_MUX(1);      /* MUX = 1 → GPIO */
-	IP_PTD->PDDR     |= (1UL << 0);          /* PTD0 as output */
-	IP_PTD->PSOR     =  (1UL << 0);          /* set PTD0 high → LED off */
+    /* ---------------- MAIN CYCLIC LOOP ----------------
+     *  - Executes the state machine every 5 ms.
+     *  - Inside that 5 ms slot we can further schedule slower tasks
+     *    (10 ms, 20 ms, 50 ms...) using loopCounter.
+     */
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
 
-    /*------------------------------------------------------------------------------------------------
-     *                                 LOOP FOEREVER
-    -------------------------------------------------------------------------------------------------*/
-    while(1){
-        LinearCameraGetFrame(&FrameBuffer);
-        /* The black regions are the values in the CameraResultsBuffer < a chosen threshold */
-        /* The threshold must be chosen manually depending on how you calibrated the camera */
-        RegionIndex = Vision_FindBlackRegions(FrameBuffer.Values, BlackRegionBuffer, 3U);
-		/* Take the middle of all the black regions detected */
-        TotalCenter = Vision_CalculateCenter(BlackRegionBuffer, RegionIndex);
-
-        switch (RegionIndex)
+        /* Wait until at least 5 ms elapsed since last loop.
+         * Using unsigned subtraction makes this safe even if the
+         * millisecond counter wraps around.
+         */
+        if ((uint32)(nowMs - lastLoopMs) < 5u)
         {
-            case 0U:
-                /* No line: choose a safe behavior (example: straight, maybe slow) */
-                Steer(0);
-                break;
-
-            case 1U:
-                if (TotalCenter < MID_POINT)
-                {
-                    Steer(-50);   /* line on left side → steer left */
-                }
-                else
-                {
-                    Steer(50);    /* line on right side → steer right */
-                }
-                break;
-
-            case 2U:
-            {
-                /* Convert center to a steering command in -100..100 */
-                float raw = 2.0f * (TotalCenter - (float)MID_POINT);  /* simple proportional rule */
-
-                sint16 steer = (sint16)raw;
-                if (steer > 100)  { steer = 100; }
-                if (steer < -100) { steer = -100; }
-
-                Steer(steer);
-                break;
-            }
-
-            default:
-                /* More than 2 regions – treat as ambiguous; keep straight for now */
-                Steer(0);
-                break;
+            /* Not time yet → skip this iteration. */
+            continue;
         }
 
+        /* 5 ms elapsed → start a new logical loop tick */
+        lastLoopMs = nowMs;
+        loopCounter++;   /* 1 increment = 5 ms */
 
-        /*Update the display buffer*/
-        DisplayClear();
-        DisplayValue(0U, TotalCenter, 4U, 0U);
-        DisplayGraph(1U, FrameBuffer.Values, 128U, 3U);
-        DisplayRefresh();
+        /* --------- Common periodic input sampling (every 5 ms) --------- */
+
+        /* Debounce all buttons and update edge detection.
+         * Must be called once per logical loop.
+         */
+        Buttons_Update();
+
+        /* Detect RUN/STOP button (SW3) edge once per loop.
+         *   - This latches a request handled by the state machine.
+         *   - Using a latched flag avoids missing presses when
+         *     state logic takes more than one loop to react.
+         */
+        if (Buttons_WasPressed(BUTTON_ID_SW3) == TRUE)
+        {
+            gRunStopRequest = TRUE;
+        }
+
+        /* =============================================================
+         *  TOP-LEVEL STATE MACHINE: INIT → IDLE ↔ RUN
+         * ============================================================= */
+        switch (gAppState)
+        {
+            case APP_STATE_INIT:
+                /* INIT state (first few 5 ms ticks after boot)
+                 * --------------------------------------------
+                 * Intended later:
+                 *   - One-time calibrations (e.g. baseline for
+                 *     linear camera, ESC arming sequence, etc.).
+                 *   - Display splash / "Initializing" message.
+                 *   - Any checks that need the timebase running.
+                 *
+                 * MVP now:
+                 *   - Directly jump to IDLE on the first loop tick.
+                 */
+                gAppState = APP_STATE_IDLE;
+                break;
+
+            case APP_STATE_IDLE:
+                /* IDLE state (car is fully stopped)
+                 * ---------------------------------
+                 * Intended later:
+                 *   - Force safe outputs every loop (throttle = 0,
+                 *     steering = center).
+                 *   - Run simple menu / tuning UI on the display.
+                 *   - Read onboard potentiometer for base speed or
+                 *     Kp adjustment.
+                 *
+                 * Example of multi-rate tasks in IDLE:
+                 *   - Every 20 ms (4 × 5 ms) update display text:
+                 *       if ((loopCounter % 4u) == 0u) { update IDLE UI }
+                 *   - Every 100 ms (20 × 5 ms) blink an LED:
+                 *       if ((loopCounter % 20u) == 0u) { toggle LED }
+                 */
+
+                /* MVP transition: start driving when SW3 pressed */
+                if (gRunStopRequest == TRUE)
+                {
+                    gRunStopRequest = FALSE;
+
+                    /* TODO (later): reset controllers, filters, and any
+                     * RUN sub-state in the steering module before
+                     * entering APP_STATE_RUN.
+                     */
+
+                    gAppState = APP_STATE_RUN;
+                }
+                break;
+
+            case APP_STATE_RUN:
+                /* RUN state (car driving on the track)
+                 * ------------------------------------
+                 * The detailed behaviour is inside the steering/vision
+                 * modules; main.c only orchestrates timing.
+                 *
+                 * Typical scheduling inside RUN:
+                 *   - Every 5 ms (every loop):
+                 *       * Use the latest vision result to compute
+                 *         steering & throttle (fast control loop).
+                 *   - Every 10 ms (2 × 5 ms):
+                 *       if ((loopCounter % 2u) == 0u)
+                 *       {
+                 *           // Update debug text on display
+                 *       }
+                 *   - Every 50 ms (10 × 5 ms):
+                 *       if ((loopCounter % 10u) == 0u)
+                 *       {
+                 *           // Trigger new ultrasonic measurement
+                 *       }
+                 *   - Every 100 ms (20 × 5 ms):
+                 *       if ((loopCounter % 20u) == 0u)
+                 *       {
+                 *           // Process slower house-keeping tasks
+                 *       }
+                 *
+                 * All of that logic will live in the dedicated
+                 * service modules; here we only provide comments
+                 * and the timing hooks.
+                 */
+
+                /* TODO (later):
+                 *   - Call vision + steering controller modules here.
+                 *   - Apply ESC and servo outputs.
+                 *   - Integrate ultrasonic-based braking.
+                 *   - Log / show key values on OLED.
+                 */
+
+                /* RUN → IDLE: Stop driving when SW3 is pressed again. */
+                if (gRunStopRequest == TRUE)
+                {
+                    gRunStopRequest = FALSE;
+
+                    /* TODO (later): smooth ramp-down of throttle and
+                     * optional \"RUN_BRAKE\" behaviour inside steering
+                     * module before fully stopping.
+                     */
+
+                    gAppState = APP_STATE_IDLE;
+                }
+                break;
+
+            default:
+                /* Should not happen; fall back to a safe state. */
+                gAppState = APP_STATE_IDLE;
+                break;
+        }
     }
 }
-	#endif
-
-#ifdef __cplusplus
-}
-#endif
-/** @} */
+#endif /* CAR_MAIN && !TESTS_ENABLE */
 
 
 /*==================================================================================================

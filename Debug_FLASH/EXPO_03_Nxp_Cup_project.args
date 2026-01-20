@@ -194,7 +194,7 @@
 "./src/servo.o"
 "./src/timebase.o"
 "./src/ultrasonic.o"
-"./src/vision.o"
+"./src/vision_linear.o"
 -lc
 -lm
 -lgcc
