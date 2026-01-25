@@ -18,6 +18,9 @@ static Adc_ValueGroupType s_PotResultBuffer[1];
 /* Last filtered value for smoothing (0..255). */
 static uint8 s_LastLevel = 128U;
 
+/* Last filtered value for smoothing 12bit version (0..4095). */
+static uint16 s_LastLevel12Bit = 2048U;
+
 /* Initialize the onboard potentiometer reading.
  * - Sets up the ADC result buffer for the pot group.
  * - Initializes the filtered value to mid-scale.
@@ -100,4 +103,15 @@ uint8 OnboardPot_ReadLevelFiltered(void)
     s_LastLevel = (uint8)smoothed;
 
     return s_LastLevel;
+}
+
+uint16 OnboardPot_ReadLevelFiltered_12bit(void)
+{
+    uint16 newLevel = OnboardPot_ReadRaw();
+    uint16 smoothed;
+
+    smoothed = ((uint32)s_LastLevel12Bit * 3U + (uint32)newLevel) / 4U;
+    s_LastLevel12Bit = (uint16)smoothed;
+
+    return s_LastLevel12Bit;
 }

@@ -68,7 +68,8 @@ typedef struct{
 *                                   LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/
 void LinearCameraInit(Pwm_ChannelType ClkPwmChannel, Gpt_ChannelType ShutterGptChannel, Adc_GroupType InputAdcGroup, Dio_ChannelType ShutterDioChannel);
-void LinearCameraGetFrame(LinearCameraFrame *Frame);
+void LinearCameraGetFrame(LinearCameraFrame *Frame); /*NXP Example*/
+void LinearCameraGetFrameEx(LinearCameraFrame *Frame, uint32 exposureTicks); /* exposure specified per capture */
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS

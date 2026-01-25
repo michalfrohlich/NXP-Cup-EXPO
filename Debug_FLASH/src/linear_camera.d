@@ -103,7 +103,8 @@ src/linear_camera.o: ../src/linear_camera.c \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/CDD_I2c_VS_0_PBcfg.h \
  ../RTD/include/I2c_Types.h \
  C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/main_types.h \
- C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h
+ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h \
+ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/rgb_led.h
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/linear_camera.h:
 ../RTD/include/Pwm.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Std_Types.h:
@@ -222,3 +223,4 @@ C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/CD
 ../RTD/include/I2c_Types.h:
 C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/main_types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h:
+C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/include/rgb_led.h:

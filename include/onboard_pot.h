@@ -18,4 +18,6 @@ uint8 OnboardPot_ReadLevel_0_255(void);
  * to reduce jitter when the pot is near a value. */
 uint8 OnboardPot_ReadLevelFiltered(void);
 
+uint16 OnboardPot_ReadLevelFiltered_12bit(void); //filter WITHOUT downscaling to 0...255
+
 #endif /* ONBOARD_POT_H */

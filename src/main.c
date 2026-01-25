@@ -38,7 +38,8 @@ extern "C" {
 
 	#define RAW_CAMERA_TEST  0   /* Raw linear camera capture + OLED bar graph */
 	#define NXP_EXAMPLE_CAM_DRIVERS   0   /* From the NXP example code */
-	#define SIMPLIFIED_VISION_TEST   1 /* Gemini simplified vision module test */
+	#define SIMPLIFIED_VISION_TEST   0 /* Gemini simplified vision module test */
+	#define EXPOSURE_SCAN_TEST 1 /* Vision linear with adjustable exposure test*/
 
 #define CAR_MAIN         0   /* Line-following car main code that will run the whole car*/
 
@@ -98,9 +99,9 @@ static void System_Init(void)
 	/*Pixy2Test();*/
 
 	RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });  // red on
-	for (volatile uint32 i=0; i<500000u; i++) { }                      // crude delay
+	for (volatile uint32 i=0; i<700000u; i++) { }                      // crude delay
 	RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });  // green on
-	for (volatile uint32 i=0; i<500000u; i++) { }
+	for (volatile uint32 i=0; i<600000u; i++) { }
 	RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });  // blue on
 	for (volatile uint32 i=0; i<500000u; i++) { }
 	RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false }); //LED off
@@ -388,6 +389,65 @@ int main(void)
 ==================================================================================================*/
 #if TESTS_ENABLE
 
+
+/*==================================================================================================
+ *                                       EXPOSURE ADJUSTMENT TESTING
+==================================================================================================*/
+#if EXPOSURE_SCAN_TEST
+    int main(void)
+    		{
+    		/* Data containers */
+    		LinearCameraFrame frame;
+    		VisionResultType visionResult;
+			char debugLine[17]; /* 16 chars + null terminator */
+
+    		/* Initialize System */
+    		System_Init();
+    		VisionLinear_Init();
+
+    		DisplayClear();
+    		DisplayText(0U, "MVP VISION", 10U, 0U);
+    		DisplayRefresh();
+
+    		for (;;)
+    		    {
+    		        /* 1. Read Pot (0...255) */
+    				uint16 potRaw = OnboardPot_ReadLevelFiltered();
+
+    		        /* 2. Map to 10 - 130k range */
+    		        uint32 exposureTicks = (uint32)(potRaw * potRaw * 2) + 10U;
+
+    		        /* 3. Capture */
+    		        LinearCameraGetFrameEx(&frame, exposureTicks);
+    		        //LinearCameraGetFrame(&frame);
+
+    		        /* 4. Vision Process */
+    		        Vision_Process(frame.Values, &visionResult);
+
+    		        /* 5. Display */
+    		        DisplayClear();
+
+    		        /* Format Line 0: Exposure only */
+    		        /* Using %u because exposureTicks is uint32 (small enough for %u) */
+    		        memset(debugLine, 0, sizeof(debugLine));
+    		        snprintf(debugLine, sizeof(debugLine), "Exp: %u", (unsigned int)exposureTicks);
+    		        DisplayText(0U, debugLine, 16U, 0U);
+
+    		        /* Format Line 1: Left and Right Indices */
+    		        memset(debugLine, 0, sizeof(debugLine));
+    		        snprintf(debugLine, sizeof(debugLine), "L:%3u R:%3u",
+    		                 (unsigned int)visionResult.LeftEdgeIdx,
+    		                 (unsigned int)visionResult.RightEdgeIdx);
+    		        DisplayText(1U, debugLine, 16U, 0U);
+
+    		        /* Line 2-3: Graph */
+    		        DisplayGraph(2U, frame.Values, 128U, 2U);
+
+    		        DisplayRefresh();
+    		    }
+	}
+#endif
+
 	/*==================================================================================================
 	 *                                       WORKING VERSION OF LINE DETECTION BY NXP
 	==================================================================================================*/
@@ -474,8 +534,6 @@ int main(void)
 		{
 			uint32 nowMs = Timebase_GetMs();
 
-			/* Update inputs */
-			Buttons_Update();
 
 			/* Run loop at ~20ms (50Hz) to make display readable */
 			if ((uint32)(nowMs - lastUpdateMs) < 20u)
@@ -604,7 +662,6 @@ int main(void)
 		}
 
 		#endif /* RAW_CAMERA_TEST */
-
 
 	#if ULTRASONIC_500MS_SAMPLE
 		int main(void)
