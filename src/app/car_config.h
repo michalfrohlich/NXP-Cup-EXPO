@@ -38,7 +38,7 @@
    SW2 = START (after delay)
    SW3 = STOP immediately -> safe outputs
 ========================================================= */
-#define START_DELAY_MS                 3000u
+#define START_DELAY_MS                 1000u
 
 
 /* =========================================================
@@ -87,14 +87,21 @@
 #define POT_CENTER_RAW                 128
 #define POT_RIGHT_RAW                  255
 
-
 /* =========================================================
-   5) ESC CONFIG (your known working values)
-========================================================= */
-#define ESC_PWM_CH                     0U
-#define ESC_DUTY_MIN                   1638U
-#define ESC_DUTY_MED                   2457U
-#define ESC_DUTY_MAX                   3276U
+   5) ESC CONFIG (BIDIRECTIONAL TEST)
+   ========================================================= */
+#define ESC_PWM_CH            0U
+
+#define ESC_DUTY_MIN          1638U   /* ~1.0ms */
+#define ESC_DUTY_MED          2457U   /* ~1.5ms (NEUTRAL) */
+#define ESC_DUTY_MAX          3276U   /* ~2.0ms */
+
+#define POT_LEFT_RAW          0
+#define POT_CENTER_RAW        128
+#define POT_RIGHT_RAW         255
+
+#define MOTOR_DEADBAND_PCT    6U
+#define ESC_ARM_TIME_MS       3000u
 
 
 /* =========================================================
