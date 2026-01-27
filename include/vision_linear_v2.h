@@ -2,7 +2,6 @@
 * vision_linear_v2.h
 *
 * Linear camera (1x128) vision processing service.
-* "Split-Tracking" Version.
 *
 * Purpose:
 * - Detect Left and Right lane edges independently.
@@ -32,7 +31,7 @@ extern "C" {
 
 /* Dynamic threshold = min + (contrast * frac/100) */
 #ifndef VISION_LINEAR_THRESH_FRAC_PCT
-#define VISION_LINEAR_THRESH_FRAC_PCT        (50U)
+#define VISION_LINEAR_THRESH_FRAC_PCT        (65U) //was 50 originally
 #endif
 
 /* Minimum contrast to consider the frame valid (0-100) */
@@ -45,11 +44,13 @@ extern "C" {
 #define VISION_LINEAR_MIN_BLOB_WIDTH         (2U)
 #endif
 
+#define VLIN_MAX_BLOBS   6u
+
 /* Nominal lane width in pixels. Used to "guess" the center when only one line is seen.
  * Calibrate this by placing the car in the center of the track and checking (Right - Left).
  */
 #ifndef VISION_LINEAR_NOMINAL_LANE_WIDTH
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (70U)
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (70U) //<--- this needs to be calibrated
 #endif
 
 /* Sentinel value for "Line Not Found" */
@@ -84,8 +85,6 @@ typedef struct
 } VisionLinear_ResultType;
 
 //-----------
-
-#define VLIN_MAX_BLOBS   8u
 
 typedef struct
 {
@@ -125,12 +124,6 @@ typedef struct
     uint8 bestLeftIdx;
     uint8 bestRightIdx;
 } VisionLinear_DebugOut_t;
-
-/* New function */
-void VisionLinear_ProcessFrameEx(const uint8 *pixels,
-                                 VisionLinear_ResultType *out,
-                                 VisionLinear_DebugOut_t *dbg);
-
 
 //-----------
 

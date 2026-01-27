@@ -81,9 +81,6 @@ void DisplayInit(uint8 I2cChannel, uint8 FontmapRotation);
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
 
-
-
-
 #ifdef __cplusplus
 }
 #endif

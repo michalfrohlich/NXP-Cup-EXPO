@@ -20,6 +20,7 @@ C_SRCS += \
 ../src/servo.c \
 ../src/timebase.c \
 ../src/ultrasonic.c \
+../src/vision_debug.c \
 ../src/vision_linear.c \
 ../src/vision_linear_v2.c 
 
@@ -40,6 +41,7 @@ OBJS += \
 ./src/servo.o \
 ./src/timebase.o \
 ./src/ultrasonic.o \
+./src/vision_debug.o \
 ./src/vision_linear.o \
 ./src/vision_linear_v2.o 
 
@@ -60,6 +62,7 @@ C_DEPS += \
 ./src/servo.d \
 ./src/timebase.d \
 ./src/ultrasonic.d \
+./src/vision_debug.d \
 ./src/vision_linear.d \
 ./src/vision_linear_v2.d 
 

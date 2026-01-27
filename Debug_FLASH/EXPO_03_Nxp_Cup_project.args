@@ -196,6 +196,7 @@
 "./src/servo.o"
 "./src/timebase.o"
 "./src/ultrasonic.o"
+"./src/vision_debug.o"
 "./src/vision_linear.o"
 "./src/vision_linear_v2.o"
 -lc

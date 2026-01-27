@@ -394,11 +394,6 @@ void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, u
     }
 }
 
-/* Overlay a solid vertical line (full height of the graph region) at pixel column x.
- * - DisplayLine: first page row (0..3)
- * - LinesSpan: number of pages used by the graph (1..4)
- * - x: 0..127 pixel column
- */
 void DisplayOverlayVerticalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 x)
 {
     /* Driver is 128x32 => 4 pages (CharacterRows). Prevent out-of-range page access. */
