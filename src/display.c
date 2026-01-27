@@ -394,8 +394,24 @@ void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, u
     }
 }
 
+/* Overlay a solid vertical line (full height of the graph region) at pixel column x.
+ * - DisplayLine: first page row (0..3)
+ * - LinesSpan: number of pages used by the graph (1..4)
+ * - x: 0..127 pixel column
+ */
+void DisplayOverlayVerticalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 x)
+{
+    if (x >= 128U)
+    {
+        return;
+    }
 
-
+    for (uint8 row = DisplayLine; row < (uint8)(DisplayLine + LinesSpan); row++)
+    {
+        /* +1 because AllDataBuffer[0] is the control byte (0x40). */
+        AllDataBuffer[(uint16)(row * 128U) + (uint16)x + 1U] |= 0xFFU;
+    }
+}
 
 void DisplayClear(){
     for(uint16 Index = 1U; Index < CharacterRows * 8U * CharacterColumns + 1U; Index++){

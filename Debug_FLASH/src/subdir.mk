@@ -20,7 +20,8 @@ C_SRCS += \
 ../src/servo.c \
 ../src/timebase.c \
 ../src/ultrasonic.c \
-../src/vision_linear.c 
+../src/vision_linear.c \
+../src/vision_linear_v2.c 
 
 OBJS += \
 ./src/buttons.o \
@@ -39,7 +40,8 @@ OBJS += \
 ./src/servo.o \
 ./src/timebase.o \
 ./src/ultrasonic.o \
-./src/vision_linear.o 
+./src/vision_linear.o \
+./src/vision_linear_v2.o 
 
 C_DEPS += \
 ./src/buttons.d \
@@ -58,7 +60,8 @@ C_DEPS += \
 ./src/servo.d \
 ./src/timebase.d \
 ./src/ultrasonic.d \
-./src/vision_linear.d 
+./src/vision_linear.d \
+./src/vision_linear_v2.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

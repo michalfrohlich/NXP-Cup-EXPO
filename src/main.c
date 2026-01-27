@@ -25,6 +25,7 @@ extern "C" {
 #include "timebase.h"
 #include "vision_linear.h"
 #include "nxp_vision_linear.h" //original vision algorithm from NXP Example code
+#include "vision_linear_v2.h" //most complex version of the algorithm
 #include "rgb_led.h"
 
 #include "S32K144.h"
@@ -38,8 +39,10 @@ extern "C" {
 
 	#define RAW_CAMERA_TEST  0   /* Raw linear camera capture + OLED bar graph */
 	#define NXP_EXAMPLE_CAM_DRIVERS   0   /* From the NXP example code */
-	#define SIMPLIFIED_VISION_TEST   0 /* Gemini simplified vision module test */
-	#define EXPOSURE_SCAN_TEST 1 /* Vision linear with adjustable exposure test*/
+	#define SIMPLIFIED_VISION_TEST 0 /* Gemini simplified vision module test */
+	#define EXPOSURE_SCAN_TEST 0 /* Vision linear with adjustable exposure test*/
+	#define VISION_V2_SPLIT_TEST 0 /* Vision linear v2 - complex algorithm module*/
+	#define VISION_LINEAR_V2_2 1
 
 #define CAR_MAIN         0   /* Line-following car main code that will run the whole car*/
 
@@ -388,6 +391,257 @@ int main(void)
  *                                       TESTS - must be enabled by the macros above
 ==================================================================================================*/
 #if TESTS_ENABLE
+/*==================================================================================================
+ *                                       VISION LINEAR V2 TESTING
+==================================================================================================*/
+#if VISION_V2_SPLIT_TEST
+int main(void)
+{
+    /* 1. Initialization */
+    System_Init();
+    VisionLinear_InitV2(); /* Initializes the internal center-tracking state */
+
+    LinearCameraFrame frame;
+    VisionLinear_ResultType result;
+    char msg[17];
+
+    /* Using a fixed exposure for stability during algo testing */
+    const uint32 TEST_EXPOSURE = 100U;
+
+    for (;;)
+    {
+        /* 2. Capture and Process */
+    	RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+        LinearCameraGetFrameEx(&frame, TEST_EXPOSURE);
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });
+        VisionLinear_ProcessFrame(frame.Values, &result);
+
+        DisplayClear();
+
+        /* --- Line 0: Status String --- */
+        /* Status: 0=LOST, 1=BOTH, 2=LEFT, 3=RIGHT */
+        const char* statusStr;
+        switch(result.Status) {
+            case VISION_LINEAR_TRACK_BOTH:  statusStr = "BOTH";  break;
+            case VISION_LINEAR_TRACK_LEFT:  statusStr = "L-ONLY"; break;
+            case VISION_LINEAR_TRACK_RIGHT: statusStr = "R-ONLY"; break;
+            default:                        statusStr = "LOST";   break;
+        }
+        (void)snprintf(msg, sizeof(msg), "S:%-6s C:%3u%%", statusStr, result.Confidence);
+        DisplayText(0U, msg, 16U, 0U);
+
+        /* --- Line 1: Steering Error --- */
+        sint16 errPct = (sint16)(result.Error * 100.0f);
+        (void)snprintf(msg, sizeof(msg), "Steer Err: %+3d", errPct);
+        DisplayText(1U, msg, 16U, 0U);
+
+        /* --- Line 2-3: The Visual Graph --- */
+        DisplayGraph(2U, frame.Values, 128U, 2U);
+
+        /* --- DRAW ACTUAL LINE MARKERS --- */
+        /* We use the specific indices provided by the new struct.
+         * We place the markers on the very bottom row (Line 3).
+         * Screen is 128px wide, text columns are ~6px wide.
+         */
+        if (result.LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+        {
+            /* Draw 'L' under the left line position */
+            DisplayText(3U, "L", 1U, result.LeftLineIdx / 6U);
+        }
+
+        if (result.RightLineIdx != VISION_LINEAR_INVALID_IDX)
+        {
+            /* Draw 'R' under the right line position */
+            DisplayText(3U, "R", 1U, result.RightLineIdx / 6U);
+        }
+
+        DisplayRefresh();
+    }
+    return 0;
+}
+#endif
+
+#if VISION_LINEAR_V2_2
+
+typedef enum
+{
+    SCREEN_MAIN_VISION = 0,
+    SCREEN_DEBUG_STATS = 1
+} DebugScreen_t;
+
+int main(void)
+{
+    System_Init();
+    VisionLinear_InitV2();
+
+    LinearCameraFrame        frame;
+    VisionLinear_ResultType  result;
+
+    const uint32 TEST_EXPOSURE      = 100U;
+    const uint32 LOOP_PERIOD_MS     = 5U;
+    const uint32 DISPLAY_PERIOD_MS  = 20U;
+    const uint32 DISPLAY_TICKS      = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS); /* 4 */
+
+    uint32 nextTickMs = Timebase_GetMs();
+
+    /* Timing / jitter counters (ms resolution) */
+    uint32 tickCount        = 0U;
+    uint32 missedTicks      = 0U;
+    uint32 overrunCount     = 0U;
+
+    uint32 lastExecMs       = 0U;
+    uint32 execMinMs        = 0xFFFFFFFFu;
+    uint32 execMaxMs        = 0U;
+
+    uint32 lastLatenessMs   = 0U;
+    uint32 lateMaxMs        = 0U;
+
+    DebugScreen_t screen = SCREEN_MAIN_VISION;
+
+    char line0[17];
+    char line1[17];
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+
+        /* Wait for next slot (phase-locked scheduler) */
+        if ((uint32)(nowMs - nextTickMs) < LOOP_PERIOD_MS)
+        {
+            continue;
+        }
+
+        /* Lateness relative to schedule */
+        lastLatenessMs = (uint32)(nowMs - nextTickMs);
+        if (lastLatenessMs > lateMaxMs)
+        {
+            lateMaxMs = lastLatenessMs;
+        }
+
+        /* Missed tick accounting (coarse) */
+        if (lastLatenessMs >= LOOP_PERIOD_MS)
+        {
+            uint32 slotsLate = (lastLatenessMs / LOOP_PERIOD_MS);
+            if (slotsLate > 0U)
+            {
+                missedTicks += slotsLate;
+            }
+        }
+
+        /* Advance schedule by exactly one period */
+        nextTickMs += LOOP_PERIOD_MS;
+        tickCount++;
+
+        uint32 execStartMs = Timebase_GetMs();
+
+        /* --- 5 ms tasks start --- */
+        Buttons_Update();
+
+        if (Buttons_WasPressed(BUTTON_ID_SW2) == TRUE)
+        {
+            screen = (screen == SCREEN_MAIN_VISION) ? SCREEN_DEBUG_STATS : SCREEN_MAIN_VISION;
+        }
+
+        /* Optional scope-friendly marker at tick start */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+
+        /* Capture + process every 5 ms (your test goal) */
+        LinearCameraGetFrameEx(&frame, TEST_EXPOSURE);
+        VisionLinear_ProcessFrame(frame.Values, &result);
+
+        /* Optional marker after processing */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+
+        /* --- Display update only every ~20 ms --- */
+        if ((DISPLAY_TICKS != 0U) && ((tickCount % DISPLAY_TICKS) == 0U))
+        {
+            DisplayClear();
+
+            if (screen == SCREEN_MAIN_VISION)
+            {
+                /* MAIN SCREEN: vision output + raw + vertical lines */
+
+                /* Keep lines short (16 chars) */
+                /* Example: "C: 85 E:-12" (confidence + error%) */
+                sint16 errPct = (sint16)(result.Error * 100.0f);
+                (void)snprintf(line0, sizeof(line0), "C:%3u E:%+4d",
+                               (unsigned)result.Confidence, (int)errPct);
+                DisplayText(0U, line0, 16U, 0U);
+
+                /* Example: "L:034 R:091" (indices) */
+                (void)snprintf(line1, sizeof(line1), "L:%03u R:%03u",
+                               (unsigned)result.LeftLineIdx, (unsigned)result.RightLineIdx);
+                DisplayText(1U, line1, 16U, 0U);
+
+                /* Graph on lines 2-3 */
+                DisplayGraph(2U, frame.Values, 128U, 2U);
+
+                /* Overlay vertical marker lines (pixel-accurate) */
+                if (result.LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+                {
+                    DisplayOverlayVerticalLine(2U, 2U, result.LeftLineIdx);
+                }
+                if (result.RightLineIdx != VISION_LINEAR_INVALID_IDX)
+                {
+                    DisplayOverlayVerticalLine(2U, 2U, result.RightLineIdx);
+                }
+
+                DisplayRefresh();
+            }
+            else
+            {
+                /* DEBUG SCREEN: loop health metrics */
+
+                /* Line0: exec last/min/max */
+                (void)snprintf(line0, sizeof(line0), "E%lu m%lu M%lu",
+                               (unsigned long)lastExecMs,
+                               (unsigned long)((execMinMs == 0xFFFFFFFFu) ? 0u : execMinMs),
+                               (unsigned long)execMaxMs);
+                DisplayText(0U, line0, 16U, 0U);
+
+                /* Line1: lateness + missed + overruns */
+                (void)snprintf(line1, sizeof(line1), "L%lu LM%lu O%lu",
+                               (unsigned long)lastLatenessMs,
+                               (unsigned long)lateMaxMs,
+                               (unsigned long)overrunCount);
+                DisplayText(1U, line1, 16U, 0U);
+
+                /* For the bottom, you can either show raw graph again
+                   or show a minimal “bar” of timing; keep raw for correlation. */
+                DisplayGraph(2U, frame.Values, 128U, 2U);
+
+                if (result.LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+                {
+                    DisplayOverlayVerticalLine(2U, 2U, result.LeftLineIdx);
+                }
+                if (result.RightLineIdx != VISION_LINEAR_INVALID_IDX)
+                {
+                    DisplayOverlayVerticalLine(2U, 2U, result.RightLineIdx);
+                }
+
+                DisplayRefresh();
+            }
+        }
+
+        /* End marker */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
+        /* --- 5 ms tasks end --- */
+
+        uint32 execEndMs = Timebase_GetMs();
+        lastExecMs = (uint32)(execEndMs - execStartMs);
+
+        /* Update exec stats */
+        if (lastExecMs < execMinMs) { execMinMs = lastExecMs; }
+        if (lastExecMs > execMaxMs) { execMaxMs = lastExecMs; }
+
+        /* Deadline overrun (coarse): took >= 5 ms */
+        if (lastExecMs >= LOOP_PERIOD_MS)
+        {
+            overrunCount++;
+        }
+    }
+}
+#endif
 
 
 /*==================================================================================================
@@ -415,14 +669,14 @@ int main(void)
     				uint16 potRaw = OnboardPot_ReadLevelFiltered();
 
     		        /* 2. Map to 10 - 130k range */
-    		        uint32 exposureTicks = (uint32)(potRaw * potRaw * 2) + 10U;
+    		        uint32 exposureTicks = (uint32)(potRaw * potRaw) + 10U;
 
     		        /* 3. Capture */
     		        LinearCameraGetFrameEx(&frame, exposureTicks);
     		        //LinearCameraGetFrame(&frame);
 
     		        /* 4. Vision Process */
-    		        Vision_Process(frame.Values, &visionResult);
+    		        Vision_Process(frame.Values, &visionResult); //vison_linear (v1)
 
     		        /* 5. Display */
     		        DisplayClear();

@@ -24,6 +24,7 @@ extern "C" {
 #include "Adc_Types.h"
 #include "pixy2.h"
 #include "rgb_led.h"
+#include "timebase.h"
 /*==================================================================================================
 *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -90,6 +91,24 @@ void CameraAdcFinished(void){
     LinearCameraInstance.CurrentIndex++;
 }*/
 
+/* --- safe abort helper (prevents late ISR writes + stops clocking) --- */
+static void LinearCamera_AbortCapture(void)
+{
+    /* Stop sensor clocking first */
+    (void)Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0U);
+    (void)Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
+
+    /* End shutter */
+    (void)Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
+
+    /* Stop shutter timer notifications and timer */
+    (void)Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
+    (void)Gpt_StopTimer(LinearCameraInstance.ShutterGptChannel);
+
+    /* Stop ADC group conversion (this API exists in your build) */
+    (void)Adc_StopGroupConversion(LinearCameraInstance.InputAdcGroup);
+}
+
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
@@ -104,28 +123,19 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel, Gpt_ChannelType ShutterGptC
     Adc_SetupResultBuffer(LinearCameraInstance.InputAdcGroup , &AdcResultBuffer);
     Adc_EnableGroupNotification(LinearCameraInstance.InputAdcGroup);
 }
+
 /* NXP Example code function */
 void LinearCameraGetFrame(LinearCameraFrame *Frame){
     LinearCameraInstance.BufferReference = Frame;
     LinearCameraInstance.CurrentIndex = 0U;
-    uint32 safetyCounter = 0U;
-	const uint32 MAX_WAIT = 480000U;
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_HIGH);
-    Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, 10U);
+    Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, 100U);
     Gpt_EnableNotification(LinearCameraInstance.ShutterGptChannel);
-
     /* Blocking wait until 128 samples captured by ADC notification */
-        while((LinearCameraInstance.CurrentIndex <= 127U) && (safetyCounter < MAX_WAIT))
-        {
-            safetyCounter++;
-        }
-
-        /* If timed out, force the index to 128 to let the rest of the code run */
-        if (safetyCounter >= MAX_WAIT)
-        {
-            LinearCameraInstance.CurrentIndex = 128U;
-            RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });  // red on
-        }
+	while(LinearCameraInstance.CurrentIndex <= 127U)
+	{
+		;
+	}
 }
 /* Added variable exposure to the NXP Example*/
 void LinearCameraGetFrameEx(LinearCameraFrame *Frame, uint32 exposureTicks)
@@ -133,18 +143,18 @@ void LinearCameraGetFrameEx(LinearCameraFrame *Frame, uint32 exposureTicks)
     LinearCameraInstance.BufferReference = Frame;
     LinearCameraInstance.CurrentIndex = 0U;
 
-    uint32 safetyCounter = 0U;
-    const uint32 MAX_WAIT = 480000U; // Large enough for 32k exposure + readout
+    const uint32 TIMEOUT_MS = 30U;
+    uint32 t0 = Timebase_GetMs();
 
     //clamp min-max
     if (exposureTicks <= 10U)
        {
            exposureTicks = 10U;
        }
-    if (exposureTicks >= 160000U)
-           {
-               exposureTicks = 160000U;
-           }
+    if (exposureTicks >= 80000U)
+	   {
+		   exposureTicks = 80000U;
+	   }
 
 
     /* Begin exposure */
@@ -154,18 +164,33 @@ void LinearCameraGetFrameEx(LinearCameraFrame *Frame, uint32 exposureTicks)
     Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, exposureTicks);
     Gpt_EnableNotification(LinearCameraInstance.ShutterGptChannel);
 
-    /* Blocking wait until 128 samples captured by ADC notification */
-    while((LinearCameraInstance.CurrentIndex <= 127U) && (safetyCounter < MAX_WAIT))
+    /* Wait for the image */
+    while (LinearCameraInstance.CurrentIndex <= 127U)
     {
-        safetyCounter++;
+        uint32 now = Timebase_GetMs();
+        if ((now - t0) > TIMEOUT_MS)
+        {
+            LinearCamera_AbortCapture();
+            RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+
+            return; /* Exit early: capture failed */
+        }
     }
 
-    /* If timed out, force the index to 128 to let the rest of the code run */
-    if (safetyCounter >= MAX_WAIT)
-    {
-        LinearCameraInstance.CurrentIndex = 128U;
-        RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });  // red on
-    }
+	#if 0
+		/* Blocking wait until 128 samples captured by ADC notification */
+		while((LinearCameraInstance.CurrentIndex <= 127U) && (safetyCounter < MAX_WAIT))
+		{
+			safetyCounter++;
+		}
+
+		/* If timed out, force the index to 128 to let the rest of the code run */
+		if (safetyCounter >= MAX_WAIT)
+		{
+			LinearCameraInstance.CurrentIndex = 128U;
+			RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });  // red on
+		}
+	#endif
 }
 
 
