@@ -83,12 +83,69 @@ typedef struct
 
 } VisionLinear_ResultType;
 
+//-----------
+
+#define VLIN_MAX_BLOBS   8u
+
+typedef struct
+{
+    uint8 start;
+    uint8 end;
+    uint8 width;
+    uint8 center;
+} VisionLinear_DebugBlob_t;
+
+typedef enum
+{
+    VLIN_DBG_NONE   = 0u,
+    VLIN_DBG_SMOOTH = 1u << 0,  /* copy smooth[] to caller */
+    VLIN_DBG_STATS  = 1u << 1,  /* min/max/contrast/threshold/split */
+    VLIN_DBG_BLOBS  = 1u << 2   /* blob segments */
+} VisionLinear_DebugMask_t;
+
+typedef struct
+{
+    uint32 mask;
+
+    /* Optional: caller provides buffer [VISION_LINEAR_BUFFER_SIZE] */
+    uint8* smoothOut;
+
+    /* Scalars (valid if VLIN_DBG_STATS) */
+    uint8 minVal;
+    uint8 maxVal;
+    uint8 contrast;
+    uint8 threshold;
+    uint8 splitPoint;
+
+    /* Blob segments (valid if VLIN_DBG_BLOBS) */
+    uint8 blobCount;
+    VisionLinear_DebugBlob_t blobs[VLIN_MAX_BLOBS];
+
+    /* Helpful: chosen indices (valid if VLIN_DBG_STATS) */
+    uint8 bestLeftIdx;
+    uint8 bestRightIdx;
+} VisionLinear_DebugOut_t;
+
+/* New function */
+void VisionLinear_ProcessFrameEx(const uint8 *pixels,
+                                 VisionLinear_ResultType *out,
+                                 VisionLinear_DebugOut_t *dbg);
+
+
+//-----------
+
 /* ----------------------------- API ----------------------------- */
 
 void VisionLinear_InitV2(void);
 
 /* Process one 128-pixel frame. */
 void VisionLinear_ProcessFrame(const uint8 *pixels, VisionLinear_ResultType *out);
+
+/* New API (recommended): - if it works it will be replaced into VisionLinear_ProcessFrame() */
+void VisionLinear_ProcessFrameEx(const uint8 *pixels,
+                                 VisionLinear_ResultType *out,
+                                 VisionLinear_DebugOut_t *dbg);
+
 
 #ifdef __cplusplus
 }

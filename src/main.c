@@ -42,7 +42,8 @@ extern "C" {
 	#define SIMPLIFIED_VISION_TEST 0 /* Gemini simplified vision module test */
 	#define EXPOSURE_SCAN_TEST 0 /* Vision linear with adjustable exposure test*/
 	#define VISION_V2_SPLIT_TEST 0 /* Vision linear v2 - complex algorithm module*/
-	#define VISION_LINEAR_V2_2 1
+	#define VISION_LINEAR_V2_2 0
+	#define VISION_LINEAR_V2_3 1
 
 #define CAR_MAIN         0   /* Line-following car main code that will run the whole car*/
 
@@ -642,6 +643,306 @@ int main(void)
     }
 }
 #endif
+
+#if VISION_LINEAR_V2_3
+
+typedef enum
+{
+    SCREEN_MAIN_VISION = 0,
+    SCREEN_DEBUG_FULL  = 1
+} DebugScreen_t;
+
+/* Your DisplayGraph() expects Values in range 0..100.
+ * Convert camera values (0..255) to percentage.
+ */
+static uint8 U8_ToPct100(uint8 v)
+{
+    return (uint8)(((uint16)v * 100U) / 255U);
+}
+
+static void ConvertArray_ToPct100(uint8 *dst, const uint8 *src, uint8 n)
+{
+    for (uint8 i = 0U; i < n; i++)
+    {
+        dst[i] = U8_ToPct100(src[i]);
+    }
+}
+
+static void NormalizeU8_ToPct100(uint8 *dstPct, const uint8 *srcU8, uint8 n,
+                                 uint8 *outMin, uint8 *outMax)
+{
+    uint8 mn = 255U;
+    uint8 mx = 0U;
+
+    for (uint8 i = 0U; i < n; i++)
+    {
+        uint8 v = srcU8[i];
+        if (v < mn) { mn = v; }
+        if (v > mx) { mx = v; }
+    }
+
+    *outMin = mn;
+    *outMax = mx;
+
+    if (mx == mn)
+    {
+        /* Flat signal: draw it at the top (100%) so you “see white as top”. */
+        for (uint8 i = 0U; i < n; i++)
+        {
+            dstPct[i] = 100U;
+        }
+        return;
+    }
+
+    uint16 range = (uint16)(mx - mn);
+
+    for (uint8 i = 0U; i < n; i++)
+    {
+        uint16 num = (uint16)(srcU8[i] - mn) * 100U;
+        uint8 pct = (uint8)(num / range);
+
+        /* IMPORTANT for DisplayGraph(): avoid 0 when height=32 (would produce shift=32) */
+        if (pct == 0U)   { pct = 1U; }
+        if (pct > 100U)  { pct = 100U; }
+
+        dstPct[i] = pct;
+    }
+}
+
+/* Map a percentage (1..100) to the same yPx mapping DisplayGraph uses for a full-height graph.
+   HeightPx is 32 for LinesSpan=4. y=0 is top, y=31 is bottom. */
+static uint8 Pct100_ToYPx_DisplayGraph(uint8 pct, uint8 heightPx)
+{
+    if (pct == 0U)  { pct = 1U; }
+    if (pct > 100U) { pct = 100U; }
+
+    uint32 y = ((uint32)(100U - pct) * (uint32)heightPx) / 100U;
+    if (y >= (uint32)heightPx) { y = (uint32)(heightPx - 1U); }
+    return (uint8)y;
+}
+
+/* Normalize a scalar (e.g. threshold in 0..255) using the SAME min/max used for the plotted signal */
+static uint8 NormalizeScalar_ToPct100(uint8 v, uint8 mn, uint8 mx)
+{
+    if (mx == mn) { return 100U; }
+
+    uint16 range = (uint16)(mx - mn);
+    uint16 num;
+
+    if (v <= mn) { return 1U; }
+    if (v >= mx) { return 100U; }
+
+    num = (uint16)(v - mn) * 100U;
+    uint8 pct = (uint8)(num / range);
+
+    if (pct == 0U)  { pct = 1U; }
+    if (pct > 100U) { pct = 100U; }
+    return pct;
+}
+
+
+int main(void)
+{
+    System_Init();
+    VisionLinear_InitV2();
+
+    LinearCameraFrame       frame;
+    VisionLinear_ResultType result;
+
+    /* Debug step output */
+    static uint8 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+    static uint8 rawPct[VISION_LINEAR_BUFFER_SIZE];
+    static uint8 smoothPct[VISION_LINEAR_BUFFER_SIZE];
+    VisionLinear_DebugOut_t dbg;
+
+    const uint32 TEST_EXPOSURE      = 100U;
+    const uint32 LOOP_PERIOD_MS     = 5U;
+    const uint32 DISPLAY_PERIOD_MS  = 20U;
+    const uint32 DISPLAY_TICKS      = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS); /* 4 */
+
+    uint32 nextTickMs = Timebase_GetMs();
+
+    /* Timing / jitter counters (ms resolution) */
+    uint32 tickCount        = 0U;
+    uint32 missedTicks      = 0U;
+    uint32 overrunCount     = 0U;
+
+    uint32 lastExecMs       = 0U;
+    uint32 execMinMs        = 0xFFFFFFFFu;
+    uint32 execMaxMs        = 0U;
+
+    uint32 lastLatenessMs   = 0U;
+    uint32 lateMaxMs        = 0U;
+
+    DebugScreen_t screen = SCREEN_MAIN_VISION;
+
+    char line0[17];
+    char line1[17];
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+
+        /* Wait for next slot (phase-locked scheduler) */
+        if ((uint32)(nowMs - nextTickMs) < LOOP_PERIOD_MS)
+        {
+            continue;
+        }
+
+        /* Lateness relative to schedule */
+        lastLatenessMs = (uint32)(nowMs - nextTickMs);
+        if (lastLatenessMs > lateMaxMs)
+        {
+            lateMaxMs = lastLatenessMs;
+        }
+
+        /* Missed tick accounting (coarse) */
+        if (lastLatenessMs >= LOOP_PERIOD_MS)
+        {
+            uint32 slotsLate = (lastLatenessMs / LOOP_PERIOD_MS);
+            if (slotsLate > 0U)
+            {
+                missedTicks += slotsLate;
+            }
+        }
+
+        /* Advance schedule by exactly one period */
+        nextTickMs += LOOP_PERIOD_MS;
+        tickCount++;
+
+        uint32 execStartMs = Timebase_GetMs();
+
+        /* --- 5 ms tasks start --- */
+        Buttons_Update();
+
+        if (Buttons_WasPressed(BUTTON_ID_SW2) == TRUE)
+        {
+            screen = (screen == SCREEN_MAIN_VISION) ? SCREEN_DEBUG_FULL : SCREEN_MAIN_VISION;
+        }
+
+        /* marker at tick start */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+
+        /* Capture + process every 5 ms */
+        LinearCameraGetFrameEx(&frame, TEST_EXPOSURE);
+
+        if (screen == SCREEN_DEBUG_FULL)
+        {
+            dbg.mask = (uint32)(VLIN_DBG_SMOOTH | VLIN_DBG_STATS | VLIN_DBG_BLOBS);
+            dbg.smoothOut = smoothBuf;
+            VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
+        }
+        else
+        {
+            VisionLinear_ProcessFrame(frame.Values, &result);
+        }
+
+        /* marker after processing */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+
+        /* --- Display update only every ~20 ms --- */
+        if ((DISPLAY_TICKS != 0U) && ((tickCount % DISPLAY_TICKS) == 0U))
+        {
+            DisplayClear();
+
+            if (screen == SCREEN_MAIN_VISION)
+            {
+                /* MAIN SCREEN: 2 lines text + RAW graph (2 pages) */
+                sint16 errPct = (sint16)(result.Error * 100.0f);
+                (void)snprintf(line0, sizeof(line0), "C:%3u E:%+4d",
+                               (unsigned)result.Confidence, (int)errPct);
+                DisplayText(0U, line0, 16U, 0U);
+
+                (void)snprintf(line1, sizeof(line1), "L:%03u R:%03u",
+                               (unsigned)result.LeftLineIdx, (unsigned)result.RightLineIdx);
+                DisplayText(1U, line1, 16U, 0U);
+
+                /* DisplayGraph expects 0..100 */
+                ConvertArray_ToPct100(rawPct, frame.Values, VISION_LINEAR_BUFFER_SIZE);
+                DisplayGraph(2U, rawPct, VISION_LINEAR_BUFFER_SIZE, 2U);
+
+                if (result.LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+                {
+                    DisplayOverlayVerticalLine(2U, 2U, result.LeftLineIdx);
+                }
+                if (result.RightLineIdx != VISION_LINEAR_INVALID_IDX)
+                {
+                    DisplayOverlayVerticalLine(2U, 2U, result.RightLineIdx);
+                }
+
+                DisplayRefresh();
+            }
+            else
+            {
+            	/* DEBUG FULL SCREEN: full height for 128x32 OLED = 4 pages (32 px). */
+            	const uint8 graphStartLine = 0U;
+            	const uint8 graphLinesSpan = 4U;
+            	const uint8 graphHeightPx  = 32U;
+
+            	/* Normalize smooth to 1..100% based on THIS frame’s min/max (auto-scale) */
+            	uint8 mn, mx;
+            	NormalizeU8_ToPct100(smoothPct, smoothBuf, VISION_LINEAR_BUFFER_SIZE, &mn, &mx);
+
+            	/* Plot normalized smooth */
+            	DisplayGraph(graphStartLine, smoothPct, VISION_LINEAR_BUFFER_SIZE, graphLinesSpan);
+
+            	/* Threshold: normalize using the SAME min/max as the plotted smooth */
+            	uint8 thrPct = NormalizeScalar_ToPct100(dbg.threshold, mn, mx);
+            	uint8 yThresh = Pct100_ToYPx_DisplayGraph(thrPct, graphHeightPx);
+            	DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yThresh);
+
+            	/* Blob segments at the lowest pixel row */
+            	uint8 yBlob = (uint8)(graphHeightPx - 1U);
+            	for (uint8 k = 0U; k < dbg.blobCount; k++)
+            	{
+            	    uint8 x0 = dbg.blobs[k].start;
+            	    uint8 x1 = dbg.blobs[k].end;
+
+            	    if (x0 >= 128U) { continue; }
+            	    if (x1 >= 128U) { x1 = 127U; }
+            	    if (x0 > x1) { continue; }
+
+            	    DisplayOverlayHorizontalSegment(graphStartLine, graphLinesSpan, yBlob, x0, x1);
+            	}
+
+            	/* Vertical detected lines */
+            	if (result.LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+            	{
+            	    uint8 lx = result.LeftLineIdx;
+            	    if (lx >= 128U) { lx = 127U; }
+            	    DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, lx);
+            	}
+            	if (result.RightLineIdx != VISION_LINEAR_INVALID_IDX)
+            	{
+            	    uint8 rx = result.RightLineIdx;
+            	    if (rx >= 128U) { rx = 127U; }
+            	    DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, rx);
+            	}
+
+            	DisplayRefresh();
+
+            }
+        }
+
+        /* End marker */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
+        /* --- 5 ms tasks end --- */
+
+        uint32 execEndMs = Timebase_GetMs();
+        lastExecMs = (uint32)(execEndMs - execStartMs);
+
+        if (lastExecMs < execMinMs) { execMinMs = lastExecMs; }
+        if (lastExecMs > execMaxMs) { execMaxMs = lastExecMs; }
+
+        if (lastExecMs >= LOOP_PERIOD_MS)
+        {
+            overrunCount++;
+        }
+    }
+}
+#endif
+
+
 
 
 /*==================================================================================================
