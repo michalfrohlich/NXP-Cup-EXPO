@@ -2,60 +2,53 @@
 /*
   steering_control_linear.h
   =========================
-  PURE LOGIC controller for the LINEAR CAMERA pipeline.
+  PID controller using VisionLinear V2 output.
 
-  What it does:
-    - Input: LinearVision_t (lane center / error / confidence)
-    - Output: SteeringOutput_t (steer_cmd + throttle_pct + brake)
+  IMPORTANT UNITS:
+  - Vision V2:
+      result.Error in [-1.0 .. +1.0]
+  - Output:
+      SteeringOutput_t.steer_cmd in [-STEER_CMD_CLAMP .. +STEER_CMD_CLAMP]
+      (typically -100..+100) which is SERVO COMMAND UNITS.
 
-  What it does NOT do:
-    - NO servo calls
-    - NO esc calls
-    - NO display calls
-    - NO timebase calls
-
-  Main.c / app layer will use the output to drive hardware.
+  NOTE:
+  - SteeringOutput_t is ALREADY defined in src/app/main_types.h.
+    DO NOT redefine it here (that caused your compile error).
 */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "Std_Types.h"
+#include "Platform_Types.h"
 
-/* We need the shared structs */
+/* app-level types (contains SteeringOutput_t) */
 #include "../app/main_types.h"
 
-/* =========================================================
-   Controller internal state
-   ---------------------------------------------------------
-   PID needs memory:
-     - previous error
-     - integral sum
-     - filtered steer output
-========================================================= */
+/* config is in app/ */
+#include "../app/car_config.h"
+
+/* vision v2 is in services/ */
+#include "vision_linear_v2.h"
+
+/* Controller internal state */
 typedef struct
 {
-    float prev_err;
-    float i_term;
-    float steer_filtered;
+    float prev_err;         /* previous error [-1..+1] */
+    float i_term;           /* integral term (clamped) */
+    float steer_filtered;   /* filtered steer (normalized) [-1..+1] */
 } SteeringLinearState_t;
 
-/* Initialize state once at startup */
 void SteeringLinear_Init(SteeringLinearState_t *s);
-
-/* Reset state whenever you start driving (after SW2 delay) */
 void SteeringLinear_Reset(SteeringLinearState_t *s);
 
-/* Main controller update function
-   - v: vision output from VisionLinear_Process()
-   - dt_seconds: control loop period in seconds (ex: 0.002 for 2ms)
-   - base_speed: main gives base speed (from pot) so user can limit power
+/* Main update (VISION V2)
+   Returns SteeringOutput_t from main_types.h
 */
-SteeringOutput_t SteeringLinear_Update(SteeringLinearState_t *s,
-                                      const LinearVision_t *v,
-                                      float dt_seconds,
-                                      uint8 base_speed);
+SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
+                                        const VisionLinear_ResultType *r,
+                                        float dt_seconds,
+                                        uint8 base_speed);
 
 #ifdef __cplusplus
 }
