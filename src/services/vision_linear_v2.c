@@ -66,15 +66,6 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
         smooth = dbg->smoothOut;
     }
 
-    /* Compute smooth[] into selected buffer (local or debug-provided) */
-    smooth[0] = pixels[0];
-    for (i = 1U; i < (VISION_LINEAR_BUFFER_SIZE - 1U); i++)
-    {
-        uint16 val = (uint16)pixels[i-1] + ((uint16)pixels[i] * 2U) + (uint16)pixels[i+1];
-        smooth[i] = (uint8)(val / 4U);
-    }
-    smooth[VISION_LINEAR_BUFFER_SIZE - 1U] = pixels[VISION_LINEAR_BUFFER_SIZE - 1U];
-
 
     /* 1. Spatial Smoothing (Noise Reduction) - Simple 3-tap weighted average */
     smooth[0] = pixels[0];
