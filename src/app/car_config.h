@@ -22,8 +22,8 @@
 #define APP_TEST_ULTRASONIC_500MS         0
 
 /* --- Combined module tests (SAFE, no motor) --- */
-#define APP_TEST_CAMERA_SERVO_ONLY_V1     1      /* v1 vision -> v1 controller -> servo only */
-#define APP_TEST_CAMERA_SERVO_ONLY_V2     0      /* v2 vision -> adapter -> v1 controller -> servo only */
+#define APP_TEST_CAMERA_SERVO_ONLY_V1     0      /* v1 vision -> v1 controller -> servo only */
+#define APP_TEST_CAMERA_SERVO_ONLY_V2     1      /* v2 vision -> adapter -> v1 controller -> servo only */
 
 /* --- Full car mode (BLDC + ESC + Linear camera + Controller v1) --- */
 #define APP_TEST_FULL_LINE_FOLLOW_V1      0      /* VERY SLOW by default */
