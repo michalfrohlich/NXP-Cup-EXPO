@@ -1,0 +1,5 @@
+Debug_FLASH/
+Debug_RAM/
+*.o
+*.elf
+*.map
