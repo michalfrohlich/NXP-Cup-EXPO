@@ -285,6 +285,21 @@ extern "C" {
 *
 */
 #define DioConf_DioChannel_LinearCameraShutter  ((uint16)0x0064U)
+/**
+* @brief          Symbolic name for the channel DioChannel_LED_R.
+*
+*/
+#define DioConf_DioChannel_DioChannel_LED_R  ((uint16)0x006fU)
+/**
+* @brief          Symbolic name for the channel DioChannel_LED_G.
+*
+*/
+#define DioConf_DioChannel_DioChannel_LED_G  ((uint16)0x0070U)
+/**
+* @brief          Symbolic name for the channel DioChannel_LED_B.
+*
+*/
+#define DioConf_DioChannel_DioChannel_LED_B  ((uint16)0x0060U)
 /* ---------- DioPort_E ---------- */
 
 /**
