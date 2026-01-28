@@ -394,8 +394,72 @@ void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, u
     }
 }
 
+void DisplayOverlayVerticalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 x)
+{
+    /* Driver is 128x32 => 4 pages (CharacterRows). Prevent out-of-range page access. */
+    if (x >= 128U) { return; }
+    if (LinesSpan == 0U) { return; }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows) { return; }
+
+    for (uint8 row = DisplayLine; row < (uint8)(DisplayLine + LinesSpan); row++)
+    {
+        /* AllDataBuffer index: +1 because [0] is I2C control byte (0x40). */
+        uint16 idx = (uint16)(row * 128U) + (uint16)x + 1U;
+        if (idx < (uint16)(CharacterRows * CharacterColumns * 8U + 1U))
+        {
+            AllDataBuffer[idx] |= 0xFFU;
+        }
+    }
+}
+
+void DisplayOverlayHorizontalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx)
+{
+    if (LinesSpan == 0U) { return; }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows) { return; }
+
+    uint8 heightPx = (uint8)(LinesSpan * 8U);
+    if (yPx >= heightPx) { return; }
+
+    uint8 page = (uint8)(DisplayLine + (yPx / 8U));
+    uint8 bit  = (uint8)(1U << (yPx % 8U));
+
+    for (uint16 x = 0U; x < 128U; x++)
+    {
+        uint16 idx = (uint16)(page * 128U) + x + 1U;
+        if (idx < (uint16)(CharacterRows * CharacterColumns * 8U + 1U))
+        {
+            AllDataBuffer[idx] |= bit;
+        }
+    }
+}
+
+void DisplayOverlayHorizontalSegment(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx, uint8 x0, uint8 x1)
+{
+    if (LinesSpan == 0U) { return; }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows) { return; }
+
+    uint8 heightPx = (uint8)(LinesSpan * 8U);
+    if (yPx >= heightPx) { return; }
+
+    if (x0 >= 128U) { return; }
+    if (x1 >= 128U) { x1 = 127U; }
+    if (x0 > x1) { return; }
+
+    uint8 page = (uint8)(DisplayLine + (yPx / 8U));
+    uint8 bit  = (uint8)(1U << (yPx % 8U));
+
+    for (uint16 x = (uint16)x0; x <= (uint16)x1; x++)
+    {
+        uint16 idx = (uint16)(page * 128U) + x + 1U;
+        if (idx < (uint16)(CharacterRows * CharacterColumns * 8U + 1U))
+        {
+            AllDataBuffer[idx] |= bit;
+        }
+    }
+}
 
 
+// ^ for easier camera testing
 
 void DisplayClear(){
     for(uint16 Index = 1U; Index < CharacterRows * 8U * CharacterColumns + 1U; Index++){

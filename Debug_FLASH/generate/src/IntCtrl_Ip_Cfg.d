@@ -1,7 +1,7 @@
 generate/src/IntCtrl_Ip_Cfg.o: ../generate/src/IntCtrl_Ip_Cfg.c \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_Cfg.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/IntCtrl_Ip_Cfg.h \
  ../RTD/include/IntCtrl_Ip_TypesDef.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_CfgDefines.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/IntCtrl_Ip_CfgDefines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h \
@@ -49,9 +49,9 @@ generate/src/IntCtrl_Ip_Cfg.o: ../generate/src/IntCtrl_Ip_Cfg.c \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_TRGMUX.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_WDOG.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_MemMap.h
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_Cfg.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/IntCtrl_Ip_Cfg.h:
 ../RTD/include/IntCtrl_Ip_TypesDef.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/IntCtrl_Ip_CfgDefines.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/IntCtrl_Ip_CfgDefines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h:

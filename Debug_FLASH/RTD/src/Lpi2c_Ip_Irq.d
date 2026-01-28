@@ -7,23 +7,23 @@ RTD/src/Lpi2c_Ip_Irq.o: ../RTD/src/Lpi2c_Ip_Irq.c \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Soc_Ips.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Soc_Ips.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/IpVersionMacros.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Reg_eSys.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/OsIf_Internal.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_Cfg.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_ArchCfg.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/OsIf_Cfg.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/OsIf_ArchCfg.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_COMMON.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BasicTypes.h \
  ../RTD/include/Lpi2c_Ip_Types.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Lpi2c_Ip_CfgDefines.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Lpi2c_Ip_CfgDefines.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_LPI2C.h \
  ../RTD/include/Lpi2c_Ip_Features.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Lpi2c_Ip_Cfg.h \
- C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Lpi2c_Ip_VS_0_PBcfg.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Lpi2c_Ip_Cfg.h \
+ C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Lpi2c_Ip_VS_0_PBcfg.h \
  ../RTD/include/Lpi2c_Ip_Types.h \
  C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/I2c_MemMap.h \
  ../RTD/include/Lpi2c_Ip_Irq.h ../RTD/include/OsIf.h \
@@ -38,23 +38,23 @@ C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/PlatformTypes.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Soc_Ips.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Soc_Ips.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Platform_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/IpVersionMacros.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/Reg_eSys.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/OsIf_Internal.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_Cfg.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/OsIf_ArchCfg.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/OsIf_Cfg.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/OsIf_ArchCfg.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/StandardTypes.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_SYSTICK.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_COMMON.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/BasicTypes.h:
 ../RTD/include/Lpi2c_Ip_Types.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Lpi2c_Ip_CfgDefines.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Lpi2c_Ip_CfgDefines.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/header/S32K144_LPI2C.h:
 ../RTD/include/Lpi2c_Ip_Features.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Lpi2c_Ip_Cfg.h:
-C\:/Users/misof/workspaceS32DS.3.6.3/EXPO_03_Nxp_Cup_project/generate/include/Lpi2c_Ip_VS_0_PBcfg.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Lpi2c_Ip_Cfg.h:
+C\:/Users/Navif/workspaceS32DS.3.6.3/NXP_Cup/generate/include/Lpi2c_Ip_VS_0_PBcfg.h:
 ../RTD/include/Lpi2c_Ip_Types.h:
 C\:/NXP/S32DS.3.6.3/S32DS/software/PlatformSDK_S32K1_S32M24/RTD/BaseNXP_TS_T40D2M20I0R0/include/I2c_MemMap.h:
 ../RTD/include/Lpi2c_Ip_Irq.h:

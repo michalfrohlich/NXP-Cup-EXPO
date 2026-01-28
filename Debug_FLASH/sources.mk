@@ -24,5 +24,7 @@ Project_Settings/Startup_Code \
 RTD/src \
 board \
 generate/src \
+src/app \
 src \
+src/services \
 

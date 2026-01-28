@@ -15,9 +15,12 @@ C_SRCS += \
 ../src/onboard_pot.c \
 ../src/pixy2.c \
 ../src/receiver.c \
+../src/rgb_led.c \
 ../src/servo.c \
 ../src/timebase.c \
-../src/ultrasonic.c 
+../src/ultrasonic.c \
+../src/vision_debug.c \
+../src/vision_linear_v2.c 
 
 OBJS += \
 ./src/buttons.o \
@@ -31,9 +34,12 @@ OBJS += \
 ./src/onboard_pot.o \
 ./src/pixy2.o \
 ./src/receiver.o \
+./src/rgb_led.o \
 ./src/servo.o \
 ./src/timebase.o \
-./src/ultrasonic.o 
+./src/ultrasonic.o \
+./src/vision_debug.o \
+./src/vision_linear_v2.o 
 
 C_DEPS += \
 ./src/buttons.d \
@@ -47,9 +53,12 @@ C_DEPS += \
 ./src/onboard_pot.d \
 ./src/pixy2.d \
 ./src/receiver.d \
+./src/rgb_led.d \
 ./src/servo.d \
 ./src/timebase.d \
-./src/ultrasonic.d 
+./src/ultrasonic.d \
+./src/vision_debug.d \
+./src/vision_linear_v2.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

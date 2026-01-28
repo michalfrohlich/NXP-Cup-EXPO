@@ -1,50 +1,63 @@
+/* ============================== car_config.h ============================== */
 #pragma once
 /*
   car_config.h
   ============
-  This file is the "control panel" for your whole project.
+  Single source of truth for build-time mode selection and tuning constants.
 
-  ✅ If you want to change behavior, you change values here.
-  ✅ If you want to run a different test, you switch the flags here.
-
-  IMPORTANT RULE:
-  - Enable ONLY ONE TEST MODE at a time (set it to 1).
-  - All other test modes must be 0.
+  RULE:
+  - Enable EXACTLY ONE APP_TEST_* flag (set it to 1).
+  - All others MUST be 0.
+  - If not, the build FAILS with a #error.
 */
 
 /* =========================================================
-   1) TEST MODE FLAGS (Enable ONE at a time)
-   ---------------------------------------------------------
-   These are similar to your teammate's style.
-
-   EXAMPLES:
-   - Servo calibration (no display, no esc, no camera):
-       APP_TEST_SERVO_ONLY = 1
-   - Ultrasonic OLED test:
-       APP_TEST_ULTRASONIC_500MS = 1
-   - Full line following (camera + servo + esc):
-       APP_TEST_FULL_LINE_FOLLOW = 1
+   1) BUILD MODE FLAGS (Enable EXACTLY ONE)
 ========================================================= */
-#define APP_TEST_SERVO_ONLY            0
-#define APP_TEST_MOTOR_ESC_ONLY        1
-#define APP_TEST_CAMERA_ONLY           0
-#define APP_TEST_ULTRASONIC_500MS      0
-#define APP_TEST_FULL_LINE_FOLLOW      0
+
+/* --- Basic module tests --- */
+#define APP_TEST_SERVO_ONLY               0
+#define APP_TEST_MOTOR_ESC_ONLY           0
+#define APP_TEST_CAMERA_ONLY_V1           0      /* VisionLinear_Process (v1) debug text */
+#define APP_TEST_ULTRASONIC_500MS         0
+
+/* --- Combined module tests (SAFE, no motor) --- */
+#define APP_TEST_CAMERA_SERVO_ONLY_V1     1      /* v1 vision -> v1 controller -> servo only */
+#define APP_TEST_CAMERA_SERVO_ONLY_V2     0      /* v2 vision -> adapter -> v1 controller -> servo only */
+
+/* --- Full car mode (BLDC + ESC + Linear camera + Controller v1) --- */
+#define APP_TEST_FULL_LINE_FOLLOW_V1      0      /* VERY SLOW by default */
+
+/* --- Camera/Vision advanced debug (friend’s latest style) --- */
+#define APP_TEST_VISION_V2_DEBUG          0      /* Vision v2 + debug overlay UI */
+
+/* ---------------------------------------------------------
+   Build safety: EXACTLY one mode must be enabled.
+--------------------------------------------------------- */
+#define APP_MODE_COUNT ( \
+    (APP_TEST_SERVO_ONLY) + \
+    (APP_TEST_MOTOR_ESC_ONLY) + \
+    (APP_TEST_CAMERA_ONLY_V1) + \
+    (APP_TEST_ULTRASONIC_500MS) + \
+    (APP_TEST_CAMERA_SERVO_ONLY_V1) + \
+    (APP_TEST_CAMERA_SERVO_ONLY_V2) + \
+    (APP_TEST_FULL_LINE_FOLLOW_V1) + \
+    (APP_TEST_VISION_V2_DEBUG) \
+)
+
+#if (APP_MODE_COUNT != 1)
+  #error "CONFIG ERROR: Enable EXACTLY ONE APP_TEST_* flag in car_config.h"
+#endif
 
 
 /* =========================================================
-   2) BUTTON BEHAVIOR (same for all modes)
-   ---------------------------------------------------------
-   SW2 = START (after delay)
-   SW3 = STOP immediately -> safe outputs
+   2) BUTTON BEHAVIOR
 ========================================================= */
 #define START_DELAY_MS                 1000u
 
 
 /* =========================================================
    3) SCHEDULER PERIODS (milliseconds)
-   ---------------------------------------------------------
-   "Polling tasks" like you already used.
 ========================================================= */
 #define BUTTONS_PERIOD_MS              5u
 #define CAMERA_PERIOD_MS               5u
@@ -53,59 +66,37 @@
 
 
 /* =========================================================
-  /* =========================================================
-   4) SERVO CONFIG (calibrated & testable) DO NOT TOUCH
-   ========================================================= */
-
-/* PWM channel used for the steering servo */
+   4) SERVO CONFIG (DO NOT TOUCH)
+========================================================= */
 #define SERVO_PWM_CH                   1U
 
-/* Servo PWM limits (in PWM ticks)
-   RULE:  SERVO_DUTY_MIN < SERVO_DUTY_MED < SERVO_DUTY_MAX
-*/
-#define SERVO_DUTY_MIN                 1000U    /* full LEFT */
-#define SERVO_DUTY_MED                 1500U   /* CENTER (straight wheels) */
-#define SERVO_DUTY_MAX                 2000U   /* full RIGHT */
+#define SERVO_DUTY_MIN                 1000U
+#define SERVO_DUTY_MED                 1500U
+#define SERVO_DUTY_MAX                 2000U
 
-/* If steering direction is backwards, flip this: +1 -> -1 */
 #define STEER_SIGN                     (+1)
-
-/* Steering command clamp
-   Steer() works in range -100 .. +100 ONLY
-*/
 #define STEER_CMD_CLAMP                100
 
-/* ---------------------------------------------------------
-   POTENTIOMETER CALIBRATION FOR SERVO TEST
-   These define how the pot maps to steering:
-
-   - POT_CENTER_RAW  -> wheels straight
-   - POT_LEFT_RAW    -> full LEFT
-   - POT_RIGHT_RAW   -> full RIGHT
---------------------------------------------------------- */
 #define POT_LEFT_RAW                   0
 #define POT_CENTER_RAW                 128
 #define POT_RIGHT_RAW                  255
 
+
 /* =========================================================
-   5) ESC CONFIG (BIDIRECTIONAL TEST)
-   ========================================================= */
-#define ESC_PWM_CH            0U
+   5) ESC CONFIG
+========================================================= */
+#define ESC_PWM_CH                     0U
 
-#define ESC_DUTY_MIN          1638U   /* ~1.0ms */
-#define ESC_DUTY_MED          2457U   /* ~1.5ms (NEUTRAL) */
-#define ESC_DUTY_MAX          3276U   /* ~2.0ms */
+#define ESC_DUTY_MIN                   1638U
+#define ESC_DUTY_MED                   2457U
+#define ESC_DUTY_MAX                   3276U
 
-#define POT_LEFT_RAW          0
-#define POT_CENTER_RAW        128
-#define POT_RIGHT_RAW         255
-
-#define MOTOR_DEADBAND_PCT    6U
-#define ESC_ARM_TIME_MS       3000u
+#define MOTOR_DEADBAND_PCT             6U
+#define ESC_ARM_TIME_MS                3000u
 
 
 /* =========================================================
-   6) LINEAR CAMERA CONFIG (your known working values)
+   6) LINEAR CAMERA CONFIG
 ========================================================= */
 #define CAM_CLK_PWM_CH                 4U
 #define CAM_SHUTTER_GPT_CH             1U
@@ -117,36 +108,22 @@
 
 
 /* =========================================================
-   7) CAMERA DETECTION SETTINGS
+   7) CAMERA DETECTION SETTINGS (v1 VisionLinear_Process)
 ========================================================= */
-
-/* Basic threshold:
-   pixel < threshold => black
-   pixel >= threshold => white */
 #define BLACK_THRESHOLD_DEFAULT        40u
-
-/* OPTIONAL: use pot to change threshold live (helps if lighting changes).
-   0 = use constant threshold
-   1 = threshold from pot (20..70) */
 #define USE_POT_FOR_THRESHOLD          0
-
-/* Used when only one edge is seen, we "guess" the other edge. */
 #define EXPECTED_TRACK_WIDTH_PX        88
 
 
 /* =========================================================
-   8) LINE LOST BEHAVIOR
-   ---------------------------------------------------------
-   If we lose the line:
-   - keep going for LINE_LOST_COAST_MS
-   - if still lost after that -> STOP to IDLE
+   8) LINE LOST BEHAVIOR (full mode)
 ========================================================= */
 #define LINE_LOST_COAST_MS             2000u
 #define SPEED_LOST_LINE                20
 
 
 /* =========================================================
-   9) INTERSECTION BEHAVIOR (simple version)
+   9) INTERSECTION BEHAVIOR (full mode)
 ========================================================= */
 #define INTERSECTION_BLACK_RATIO_PCT   35u
 #define INTERSECTION_COMMIT_MS         600u
@@ -154,7 +131,7 @@
 
 
 /* =========================================================
-   10) CONTROLLER (PID) SETTINGS
+   10) CONTROLLER (PD/PID) SETTINGS
 ========================================================= */
 #define KP                             2.2f
 #define KD                             8.0f
@@ -164,12 +141,24 @@
 
 
 /* =========================================================
-   11) SPEED SETTINGS
-   ---------------------------------------------------------
-   Pot will control base speed in full mode.
+   11) SPEED SETTINGS (full mode)
 ========================================================= */
 #define SPEED_MIN                      18
 #define SPEED_MAX                      60
-
-/* Reduce speed when steering is large (stability) */
 #define SPEED_SLOW_PER_STEER           25
+
+
+/* =========================================================
+   12) FULL MODE: FORCE VERY SLOW SPEED (SAFE TESTING)
+========================================================= */
+#define FULLMODE_FORCE_SLOW_SPEED      1
+#define FULLMODE_SLOW_SPEED_PCT        12
+
+
+/* =========================================================
+   13) VISION V2 DEBUG MODE SETTINGS
+========================================================= */
+#define V2_LOOP_PERIOD_MS              5u
+#define V2_DISPLAY_PERIOD_MS           20u
+#define V2_TEST_EXPOSURE_TICKS         100u
+#define V2_WHITE_SAT_U8                220u

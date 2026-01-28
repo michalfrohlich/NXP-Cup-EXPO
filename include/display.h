@@ -65,6 +65,9 @@ void DisplayText(uint16 DisplayLine, const char Text[16], uint16 TextLength, uin
 void DisplayValue(uint16 DisplayLine, int Value, uint16 TextLength, uint16 TextOffset);
 void DisplayGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan);
 void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan);
+void DisplayOverlayVerticalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 x); //for camera testing
+void DisplayOverlayHorizontalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx); //for camera testing
+void DisplayOverlayHorizontalSegment(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx, uint8 x0, uint8 x1); //for camera testing
 void DisplayVector(Vector VectorCoordinates);
 void DisplayClear(void);
 void RotateFontmap(void);
@@ -77,9 +80,6 @@ void DisplayInit(uint8 I2cChannel, uint8 FontmapRotation);
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
-
-
-
 
 #ifdef __cplusplus
 }

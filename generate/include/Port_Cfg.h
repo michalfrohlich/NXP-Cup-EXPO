@@ -718,6 +718,9 @@ PORT_CONFIG_VS_0_PB \
 #define PortConf_PortPin_PortPin_PTC13_sw3 15
 #define PortConf_PortPin_TRIG 16
 #define PortConf_PortPin_ECHO 17
+#define PortConf_PortPin_RED_pin 18
+#define PortConf_PortPin_GREEN_pin 19
+#define PortConf_PortPin_BLUE_pin 20
 
 /**
 * @brief Number of available pad modes options
@@ -737,12 +740,12 @@ PORT_CONFIG_VS_0_PB \
 /**
 * @brief The maximum number of configured pins
 */
-#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)18)
+#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)21)
 
 /**
  * @brief Number of UnUsed pin array
 */
-#define PORT_MAX_UNUSED_PADS_U16    (66U)
+#define PORT_MAX_UNUSED_PADS_U16    (63U)
 
 /**
 * @brief Port driver Pre-Compile configuration switch
