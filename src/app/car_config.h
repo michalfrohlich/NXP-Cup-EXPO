@@ -6,28 +6,17 @@
 */
 
 /* =========================================================
-   1) BUILD MODE FLAGS (Enable EXACTLY ONE)
+   BUILD MODE FLAGS (Enable EXACTLY ONE)
 ========================================================= */
-
-/* 1) Servo only (steering) */
 #define APP_TEST_SERVO_ONLY               0
-
-/* 2) ESC only (drive motor) */
-#define APP_TEST_ESC_ONLY                 0
-
-/* 3) Camera only (Vision V2 debug) */
+#define APP_TEST_ESC_ONLY_WORKING         1
 #define APP_TEST_VISION_V2_DEBUG          0
-
-/* 4) Camera + Servo (NO drive motor) - VisionDebug display fully */
 #define APP_TEST_CAMERA_SERVO_V2          0
-
-/* 5) Full car (ESC + Servo + Camera + PID + VisionDebug) */
-#define APP_TEST_FULL_CAR_V2              1
-
+#define APP_TEST_FULL_CAR_V2              0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_SERVO_ONLY) + \
-    (APP_TEST_ESC_ONLY) + \
+    (APP_TEST_ESC_ONLY_WORKING) + \
     (APP_TEST_VISION_V2_DEBUG) + \
     (APP_TEST_CAMERA_SERVO_V2) + \
     (APP_TEST_FULL_CAR_V2) \
@@ -37,26 +26,25 @@
   #error "CONFIG ERROR: Enable EXACTLY ONE APP_TEST_* flag in car_config.h"
 #endif
 
+/* =========================================================
+   Ultrasonic default + runtime toggle
+   ---------------------------------------------------------
+   You can toggle ultrasonic in ANY mode:
+   Press SW2 + SW3 at the same time.
+========================================================= */
+#define ULTRASONIC_DEFAULT_ON             0
 
 /* =========================================================
-   2) BUTTON / STARTUP BEHAVIOR
+   Timing
 ========================================================= */
 #define START_DELAY_MS                    1000u
-
-
-/* =========================================================
-   3) PERIODS (ms)
-========================================================= */
 #define BUTTONS_PERIOD_MS                 5u
 #define CAMERA_PERIOD_MS                  5u
 #define DISPLAY_PERIOD_MS                 20u
-
-/* Servo control update (anti-jitter) */
 #define STEER_UPDATE_MS                   10u
 
-
 /* =========================================================
-   4) SERVO CONFIG
+   Servo
 ========================================================= */
 #define SERVO_PWM_CH                      1U
 #define SERVO_DUTY_MIN                    1000U
@@ -66,21 +54,23 @@
 #define STEER_SIGN                        (+1)
 #define STEER_CMD_CLAMP                   140
 
+/* Pot constants (required by ESC-only working mode) */
+#define POT_LEFT_RAW                      0
+#define POT_CENTER_RAW                    128
+#define POT_RIGHT_RAW                     255
 
 /* =========================================================
-   5) ESC CONFIG
+   ESC
 ========================================================= */
 #define ESC_PWM_CH                        0U
 #define ESC_DUTY_MIN                      1638U
 #define ESC_DUTY_MED                      2457U
 #define ESC_DUTY_MAX                      3276U
-
 #define MOTOR_DEADBAND_PCT                6U
 #define ESC_ARM_TIME_MS                   3000u
 
-
 /* =========================================================
-   6) LINEAR CAMERA CONFIG
+   Linear camera
 ========================================================= */
 #define CAM_CLK_PWM_CH                    4U
 #define CAM_SHUTTER_GPT_CH                1U
@@ -90,24 +80,18 @@
 #define CAM_N_PIXELS                      128u
 #define CAM_CENTER_PX                     63
 
-
-/* =========================================================
-   7) CAMERA SETTINGS (keep)
-========================================================= */
 #define BLACK_THRESHOLD_DEFAULT           40u
 #define USE_POT_FOR_THRESHOLD             0
 #define EXPECTED_TRACK_WIDTH_PX           88
 
-
 /* =========================================================
-   8) FULL CAR: LINE LOST BEHAVIOR
+   Full car safety
 ========================================================= */
 #define LINE_LOST_COAST_MS                2000u
 #define SPEED_LOST_LINE                   20
 
-
 /* =========================================================
-   9) PID SETTINGS (Vision V2 Error is normalized [-1..+1])
+   PID (Vision V2 error is normalized -1..+1)
 ========================================================= */
 #define KP                                4.5f
 #define KD                                1.2f
@@ -115,9 +99,8 @@
 #define ITERM_CLAMP                       0.3f
 #define STEER_LPF_ALPHA                   0.60f
 
-
 /* =========================================================
-   10) SPEED POLICY (full-car)
+   Speed policy (full car)
 ========================================================= */
 #define SPEED_MIN                         18
 #define SPEED_MAX                         60
@@ -126,9 +109,8 @@
 #define FULLMODE_FORCE_SLOW_SPEED         1
 #define FULLMODE_SLOW_SPEED_PCT           12
 
-
 /* =========================================================
-   11) VISION V2 DEBUG SETTINGS
+   Vision V2 debug settings
 ========================================================= */
 #define V2_LOOP_PERIOD_MS                 5u
 #define V2_TEST_EXPOSURE_TICKS            100u
