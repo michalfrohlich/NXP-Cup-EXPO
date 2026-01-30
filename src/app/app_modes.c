@@ -59,13 +59,34 @@ static sint16 iir_s16(sint16 y_prev, sint16 x, float alpha)
     return (sint16)(y);
 }
 
+/* Battery display wake reliability */
+static void display_power_stabilize_delay(void)
+{
+    uint32 t0 = Timebase_GetMs();
+    while ((uint32)(Timebase_GetMs() - t0) < 200u) { }
+}
+
+/* Ultrasonic distance helper (your API returns boolean + out-param) */
+static boolean try_get_ultra_cm(float *out_cm)
+{
+    float d = 0.0f;
+    boolean ok = Ultrasonic_GetDistanceCm(&d);
+    if (ok)
+    {
+        *out_cm = d;
+        return TRUE;
+    }
+    *out_cm = 0.0f;
+    return FALSE;
+}
+
 /* =========================================================
    Ultrasonic runtime enable (independent of mode)
    Toggle: press SW2 + SW3 in the same update cycle
 ========================================================= */
 static boolean g_ultraEnabled = (ULTRASONIC_DEFAULT_ON ? TRUE : FALSE);
 
-/* IMPORTANT:
+/* NOTE:
    Buttons_WasPressed() is typically "edge detected" and can be consumed.
    So we toggle using the sampled sw2/sw3 values from the loop (read once). */
 static void toggle_ultrasonic_if_both_pressed(boolean sw2, boolean sw3)
@@ -121,6 +142,7 @@ static void mode_esc_only_working(void)
     Timebase_Init();
     OnboardPot_Init();
 
+    display_power_stabilize_delay();
     DisplayInit(0U, STD_ON);
     DisplayClear();
     DisplayText(0U, "ESC ONLY", 8U, 0U);
@@ -159,11 +181,10 @@ static void mode_esc_only_working(void)
 
         Buttons_Update();
 
-        /* Read inputs ONCE per loop (WasPressed is edge-based) */
+        /* Feed UI inputs ONCE per loop */
         boolean sw2 = Buttons_WasPressed(BUTTON_ID_SW2);
         boolean sw3 = Buttons_WasPressed(BUTTON_ID_SW3);
         uint8  pot  = OnboardPot_ReadLevelFiltered();
-
         UI_Input(sw2, sw3, pot);
 
         toggle_ultrasonic_if_both_pressed(sw2, sw3);
@@ -228,11 +249,20 @@ static void mode_esc_only_working(void)
             Ultrasonic_Task();
         }
 
-        UI_Task(Ultrasonic_GetStatus(),
-                Ultrasonic_GetIrqCount(),
-                Ultrasonic_GetLastHighTicks(),
-                UI_BRAKE_STATE_IDLE,
-                0.0f);
+        /* Update UI run state so header shows I/R/F */
+        UI_SetRunState((mode == CAR_RUN) ? TRUE : FALSE, FALSE);
+
+        /* UI owns the display */
+        {
+            float dist = 0.0f;
+            (void)try_get_ultra_cm(&dist);
+
+            UI_Task(Ultrasonic_GetStatus(),
+                    Ultrasonic_GetIrqCount(),
+                    Ultrasonic_GetLastHighTicks(),
+                    UI_BRAKE_STATE_IDLE,
+                    dist);
+        }
     }
 }
 
@@ -243,6 +273,9 @@ static void mode_vision_v2_debug(void)
 {
     DriversInit();
     Timebase_Init();
+    OnboardPot_Init();
+
+    display_power_stabilize_delay();
     DisplayInit(0U, STD_ON);
 
     UI_Init();
@@ -275,20 +308,15 @@ static void mode_vision_v2_debug(void)
 
         Buttons_Update();
 
-        /* Read inputs ONCE per loop (WasPressed is edge-based) */
         boolean sw2 = Buttons_WasPressed(BUTTON_ID_SW2);
         boolean sw3 = Buttons_WasPressed(BUTTON_ID_SW3);
-        uint8  pot  = OnboardPot_ReadLevelFiltered(); /* UI only in this mode */
-
+        uint8  pot  = OnboardPot_ReadLevelFiltered(); /* UI only */
         UI_Input(sw2, sw3, pot);
 
         toggle_ultrasonic_if_both_pressed(sw2, sw3);
 
-        boolean screenTogglePressed = sw2;
-        boolean modeNextPressed     = sw3;
-        VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
+        VisionDebug_OnTick(&vdbg, sw2, sw3);
 
-        /* keep the camera debug LED behavior in camera-only mode */
         RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
         LinearCameraGetFrameEx(&frame, (uint32)V2_TEST_EXPOSURE_TICKS);
 
@@ -305,23 +333,36 @@ static void mode_vision_v2_debug(void)
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
         VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
 
-        if (doDisplay == TRUE)
-        {
-            const uint8 *pSmooth = (dbg.smoothOut != (uint8*)0) ? smoothBuf : (const uint8*)0;
-            const VisionLinear_DebugOut_t *pDbg = (dbg.mask != 0u) ? &dbg : (const VisionLinear_DebugOut_t*)0;
-            VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
-        }
-
         if (g_ultraEnabled == TRUE)
         {
             Ultrasonic_Task();
         }
 
-        UI_Task(Ultrasonic_GetStatus(),
-                Ultrasonic_GetIrqCount(),
-                Ultrasonic_GetLastHighTicks(),
-                UI_BRAKE_STATE_IDLE,
-                0.0f);
+        /* Decide who owns the display (VisionDebug OR UI) */
+        {
+            UI_SetRunState(FALSE, FALSE);
+
+            if (UI_IsInTerminal() && (UI_GetActivePage() == UI_PAGE_VISION_DEBUG))
+            {
+                if (doDisplay == TRUE)
+                {
+                    const uint8 *pSmooth = (dbg.smoothOut != (uint8*)0) ? smoothBuf : (const uint8*)0;
+                    const VisionLinear_DebugOut_t *pDbg = (dbg.mask != 0u) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+                    VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+                }
+            }
+            else
+            {
+                float dist = 0.0f;
+                (void)try_get_ultra_cm(&dist);
+
+                UI_Task(Ultrasonic_GetStatus(),
+                        Ultrasonic_GetIrqCount(),
+                        Ultrasonic_GetLastHighTicks(),
+                        UI_BRAKE_STATE_IDLE,
+                        dist);
+            }
+        }
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
     }
@@ -334,6 +375,9 @@ static void mode_camera_servo_v2(void)
 {
     DriversInit();
     Timebase_Init();
+    OnboardPot_Init();
+
+    display_power_stabilize_delay();
     DisplayInit(0U, STD_ON);
 
     UI_Init();
@@ -381,20 +425,15 @@ static void mode_camera_servo_v2(void)
 
         Buttons_Update();
 
-        /* Read inputs ONCE per loop (WasPressed is edge-based) */
         boolean sw2 = Buttons_WasPressed(BUTTON_ID_SW2);
         boolean sw3 = Buttons_WasPressed(BUTTON_ID_SW3);
-        uint8  pot  = OnboardPot_ReadLevelFiltered(); /* UI only in this mode */
-
+        uint8  pot  = OnboardPot_ReadLevelFiltered(); /* UI only */
         UI_Input(sw2, sw3, pot);
 
         toggle_ultrasonic_if_both_pressed(sw2, sw3);
 
-        boolean screenTogglePressed = sw2;
-        boolean modeNextPressed     = sw3;
-        VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
+        VisionDebug_OnTick(&vdbg, sw2, sw3);
 
-        /* camera-only debug LED behavior is fine here */
         RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
         LinearCameraGetFrameEx(&frame, (uint32)V2_TEST_EXPOSURE_TICKS);
 
@@ -426,7 +465,6 @@ static void mode_camera_servo_v2(void)
             steerFilt = iir_s16(steerFilt, steerRaw, 0.45f);
 
             {
-                /* Rate limit steering changes so it doesn't snap instantly */
                 sint16 delta = (sint16)(steerFilt - steerOut);
                 delta = clamp_s16(delta, (sint16)(-STEER_RATE_MAX), (sint16)(+STEER_RATE_MAX));
                 steerOut = (sint16)(steerOut + delta);
@@ -436,24 +474,36 @@ static void mode_camera_servo_v2(void)
             Steer((int)steerOut);
         }
 
-        if (doDisplay == TRUE)
-        {
-            /* pSmooth2 is the smoothed version of the camera line (if enabled in debug view) */
-            const uint8 *pSmooth2 = (dbg.smoothOut != (uint8*)0) ? smoothBuf : (const uint8*)0;
-            const VisionLinear_DebugOut_t *pDbg = (dbg.mask != 0u) ? &dbg : (const VisionLinear_DebugOut_t*)0;
-            VisionDebug_Draw(&vdbg, frame.Values, pSmooth2, &result, pDbg);
-        }
-
         if (g_ultraEnabled == TRUE)
         {
             Ultrasonic_Task();
         }
 
-        UI_Task(Ultrasonic_GetStatus(),
-                Ultrasonic_GetIrqCount(),
-                Ultrasonic_GetLastHighTicks(),
-                UI_BRAKE_STATE_IDLE,
-                0.0f);
+        /* Decide who owns the display (VisionDebug OR UI) */
+        {
+            UI_SetRunState(FALSE, FALSE);
+
+            if (UI_IsInTerminal() && (UI_GetActivePage() == UI_PAGE_VISION_DEBUG))
+            {
+                if (doDisplay == TRUE)
+                {
+                    const uint8 *pSmooth = (dbg.smoothOut != (uint8*)0) ? smoothBuf : (const uint8*)0;
+                    const VisionLinear_DebugOut_t *pDbg = (dbg.mask != 0u) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+                    VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+                }
+            }
+            else
+            {
+                float dist = 0.0f;
+                (void)try_get_ultra_cm(&dist);
+
+                UI_Task(Ultrasonic_GetStatus(),
+                        Ultrasonic_GetIrqCount(),
+                        Ultrasonic_GetLastHighTicks(),
+                        UI_BRAKE_STATE_IDLE,
+                        dist);
+            }
+        }
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
     }
@@ -461,14 +511,17 @@ static void mode_camera_servo_v2(void)
 
 /* =========================================================
    MODE: Full car
-   - SW2 toggles IDLE/RUN
-   - LED shows IDLE/RUN/FAIL
+   - SW2 = UI interaction ONLY
+   - SW3 = RUN/STOP toggle ONLY
    - VisionDebug stays active on screen
 ========================================================= */
 static void mode_full_car_v2(void)
 {
     DriversInit();
     Timebase_Init();
+    OnboardPot_Init();
+
+    display_power_stabilize_delay();
     DisplayInit(0U, STD_ON);
 
     UI_Init();
@@ -491,7 +544,10 @@ static void mode_full_car_v2(void)
         }
     }
 
-    fullcar_stop();
+    /* IMPORTANT: keep neutral with brake OFF after arming */
+    EscSetBrake(0U);
+    EscSetSpeed(0);
+    SteerStraight();
     StatusLed_SetIdle();
 
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
@@ -537,20 +593,19 @@ static void mode_full_car_v2(void)
 
         Buttons_Update();
 
-        /* Read inputs ONCE per loop (WasPressed is edge-based) */
+        /* SW2 = UI ONLY, SW3 = RUN/STOP ONLY */
         boolean sw2 = Buttons_WasPressed(BUTTON_ID_SW2);
         boolean sw3 = Buttons_WasPressed(BUTTON_ID_SW3);
-        uint8  pot  = OnboardPot_ReadLevelFiltered(); /* UI only in this mode */
-
+        uint8  pot  = OnboardPot_ReadLevelFiltered(); /* UI only */
         UI_Input(sw2, sw3, pot);
 
         toggle_ultrasonic_if_both_pressed(sw2, sw3);
 
-        /* SW2 start/stop */
-        if (sw2)
+        /* RUN/STOP toggle moved to SW3 */
+        if (sw3)
         {
             running = (running == TRUE) ? FALSE : TRUE;
-            fail = FALSE; /* reset fail when toggling */
+            fail = FALSE;
 
             if (running == FALSE)
             {
@@ -561,17 +616,17 @@ static void mode_full_car_v2(void)
             {
                 SteeringLinear_Reset(&ctrl);
                 steerRaw = steerFilt = steerOut = 0;
+
                 EscSetBrake(0U);
+                EscSetSpeed(0);
                 StatusLed_SetRun();
             }
         }
 
-        /* SW3 camera debug mode switch */
-        {
-            VisionDebug_OnTick(&vdbg, FALSE, sw3);
-        }
+        /* VisionDebug should be controlled by SW2 only (never steal SW3) */
+        VisionDebug_OnTick(&vdbg, sw2, FALSE);
 
-        /* Camera capture (NO LED overrides here) */
+        /* Camera capture */
         LinearCameraGetFrameEx(&frame, (uint32)V2_TEST_EXPOSURE_TICKS);
 
         boolean doDisplay = ((DISP_TICKS != 0U) && ((tickCount % DISP_TICKS) == 0U));
@@ -593,7 +648,6 @@ static void mode_full_car_v2(void)
             if (running == FALSE)
             {
                 fullcar_stop();
-                /* keep idle LED unless fail */
                 if (fail == FALSE) StatusLed_SetIdle();
             }
             else
@@ -609,58 +663,45 @@ static void mode_full_car_v2(void)
 
                 SteeringOutput_t out = SteeringLinear_UpdateV2(&ctrl, &result, dt, baseSpeed);
 
-                /* FAIL detection: controller requests brake OR vision lost */
+                /* FAIL detection */
                 if (out.brake == TRUE)
                 {
                     fail = TRUE;
                     fullcar_stop();
                     StatusLed_SetFail();
-                    continue;
                 }
-
-                /* You can also treat "lost line" as fail if you want */
-                if (result.Status == VISION_LINEAR_LOST)
+                else if (result.Status == VISION_LINEAR_LOST)
                 {
                     fail = TRUE;
                     fullcar_stop();
                     StatusLed_SetFail();
-                    continue;
                 }
-
-                /* If we are running and no fail -> green */
-                fail = FALSE;
-                StatusLed_SetRun();
-
-                /* motor */
-                EscSetBrake(0U);
-                EscSetSpeed((int)out.throttle_pct);
-
-                /* steer shaping */
-                steerRaw = (sint16)out.steer_cmd;
-                if (abs_s16(steerRaw) <= STEER_DEADBAND) { steerRaw = 0; }
-
-                steerFilt = iir_s16(steerFilt, steerRaw, 0.45f);
-
+                else
                 {
-                    /* Rate limit steering changes so it doesn't snap instantly */
-                    sint16 delta = (sint16)(steerFilt - steerOut);
-                    delta = clamp_s16(delta, (sint16)(-STEER_RATE_MAX), (sint16)(+STEER_RATE_MAX));
-                    steerOut = (sint16)(steerOut + delta);
+                    fail = FALSE;
+                    StatusLed_SetRun();
+
+                    EscSetBrake(0U);
+                    EscSetSpeed((int)out.throttle_pct);
+
+                    steerRaw = (sint16)out.steer_cmd;
+                    if (abs_s16(steerRaw) <= STEER_DEADBAND) { steerRaw = 0; }
+
+                    steerFilt = iir_s16(steerFilt, steerRaw, 0.45f);
+
+                    {
+                        sint16 delta = (sint16)(steerFilt - steerOut);
+                        delta = clamp_s16(delta, (sint16)(-STEER_RATE_MAX), (sint16)(+STEER_RATE_MAX));
+                        steerOut = (sint16)(steerOut + delta);
+                    }
+
+                    steerOut = clamp_s16(steerOut,
+                                         (sint16)(-STEER_CMD_CLAMP),
+                                         (sint16)(+STEER_CMD_CLAMP));
+
+                    Steer((int)steerOut);
                 }
-
-                steerOut = clamp_s16(steerOut,
-                                     (sint16)(-STEER_CMD_CLAMP),
-                                     (sint16)(+STEER_CMD_CLAMP));
-
-                Steer((int)steerOut);
             }
-        }
-
-        if (doDisplay == TRUE)
-        {
-            const uint8 *pSmooth = (dbg.smoothOut != (uint8*)0) ? smoothBuf : (const uint8*)0;
-            const VisionLinear_DebugOut_t *pDbg = (dbg.mask != 0u) ? &dbg : (const VisionLinear_DebugOut_t*)0;
-            VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
         }
 
         if (g_ultraEnabled == TRUE)
@@ -668,11 +709,31 @@ static void mode_full_car_v2(void)
             Ultrasonic_Task();
         }
 
-        UI_Task(Ultrasonic_GetStatus(),
-                Ultrasonic_GetIrqCount(),
-                Ultrasonic_GetLastHighTicks(),
-                UI_BRAKE_STATE_IDLE,
-                0.0f);
+        /* UI owns display unless VisionDebug wants it */
+        {
+            float dist = 0.0f;
+            (void)try_get_ultra_cm(&dist);
+
+            UI_SetRunState(running, fail);
+
+            if (UI_IsInTerminal() && (UI_GetActivePage() == UI_PAGE_VISION_DEBUG))
+            {
+                if (doDisplay == TRUE)
+                {
+                    const uint8 *pSmooth = (dbg.smoothOut != (uint8*)0) ? smoothBuf : (const uint8*)0;
+                    const VisionLinear_DebugOut_t *pDbg = (dbg.mask != 0u) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+                    VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+                }
+            }
+            else
+            {
+                UI_Task(Ultrasonic_GetStatus(),
+                        Ultrasonic_GetIrqCount(),
+                        Ultrasonic_GetLastHighTicks(),
+                        UI_BRAKE_STATE_IDLE,
+                        dist);
+            }
+        }
     }
 }
 
