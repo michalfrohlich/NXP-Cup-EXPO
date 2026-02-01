@@ -3,15 +3,6 @@
 #include "display.h"
 #include "timebase.h"
 
-/* ============================
-   Small-display UI rules
-   ============================
-   - MENU: POT selects item, SW2 enters
-   - TERMINAL: POT selects <Back / Live View, SW2 confirms
-   - SETTINGS: SW2 toggles EDIT. While EDIT=ON, POT changes value.
-              SW2 again commits + exits EDIT.
-*/
-
 #define UI_MAIN_ITEMS        (6u)
 #define UI_VISIBLE_LINES     (3u)
 
@@ -92,7 +83,11 @@ static uint8   g_pot = 0u;
 static boolean g_running = FALSE;
 static boolean g_fail    = FALSE;
 
-/* -------- helpers -------- */
+/* telemetry */
+static int   g_speedPct = 0;
+static float g_lastDistCm = 0.0f;
+
+/* ---------- helpers ---------- */
 
 static uint8 mapPotToIndex(uint8 pot, uint8 nItems)
 {
@@ -123,7 +118,6 @@ static void potSelectIndex(uint8 pot, uint8 nItems, uint8 *sel, uint8 *top, uint
         }
     }
 
-    /* keep visible */
     if (*sel < *top) *top = *sel;
     else if (*sel >= (uint8)(*top + visibleLines))
         *top = (uint8)(*sel - (visibleLines - 1u));
@@ -137,9 +131,28 @@ static void drawHeader(const char *title16)
     DisplayText(0U, "                ", 16U, 0U);
     DisplayText(0U, title16, 16U, 0U);
 
+    /* keep letters exactly I / R / F */
     if (g_fail) DisplayText(0U, "F", 1U, 15U);
     else if (g_running) DisplayText(0U, "R", 1U, 15U);
     else DisplayText(0U, "I", 1U, 15U);
+}
+
+/* RUN HUD: do NOT clear screen (vision is drawn by app_modes) */
+static void drawRunHudOverlay(void)
+{
+    /* bottom row only */
+    DisplayText(3U, "                ", 16U, 0U);
+
+    /* Format: "V:xxx% D:yyycm" */
+    DisplayText(3U, "V:", 2U, 0U);
+    DisplayValue(3U, g_speedPct, 3U, 2U);
+    DisplayText(3U, "%", 1U, 5U);
+
+    DisplayText(3U, " D:", 3U, 7U);
+    DisplayValue(3U, (int)(g_lastDistCm + 0.5f), 3U, 10U);
+    DisplayText(3U, "cm", 2U, 13U);
+
+    DisplayRefresh();
 }
 
 static void drawMenu(void)
@@ -173,7 +186,6 @@ static void drawTerminalList(const char *title16)
         DisplayText(row, g_termItems[line], 15U, 1U);
     }
 
-    /* minimal hint */
     DisplayText(3U, "SW2=OK  SW3=Run ", 16U, 0U);
     DisplayRefresh();
 }
@@ -225,7 +237,7 @@ static void drawSettings(void)
                 DisplayText(row, "x0.01", 6U, 10U);
                 break;
 
-            default: /* 5 */
+            default:
                 DisplayText(row, "Scale:", 6U, 1U);
                 DisplayValue(row, (int)(g_settings.steerScale * 100.0f), 4U, 8U);
                 DisplayText(row, "x0.01", 6U, 12U);
@@ -236,57 +248,7 @@ static void drawSettings(void)
     DisplayRefresh();
 }
 
-/* Live views kept SIMPLE */
-static void drawUltrasonicLive(Ultrasonic_StatusType st, float distanceCm)
-{
-    DisplayClear();
-    drawHeader("ULTRASONIC      ");
-
-    DisplayText(1U, "Dist:", 5U, 0U);
-    DisplayValue(1U, (int)(distanceCm + 0.5f), 4U, 6U);
-    DisplayText(1U, "cm", 2U, 11U);
-
-    DisplayText(2U, "Stop:", 5U, 0U);
-    DisplayValue(2U, (int)g_settings.ultraStopCm, 3U, 6U);
-    DisplayText(2U, "cm", 2U, 10U);
-
-    if (st == ULTRA_STATUS_ERROR) DisplayText(3U, "STATUS: ERR     ", 16U, 0U);
-    else DisplayText(3U, "                ", 16U, 0U);
-
-    DisplayRefresh();
-}
-
-static void drawServoManualLive(void)
-{
-    DisplayClear();
-    drawHeader("SERVO MANUAL    ");
-    DisplayText(1U, "POT controls    ", 16U, 0U);
-    DisplayText(2U, "steering angle  ", 16U, 0U);
-    DisplayText(3U, "SW3 enables     ", 16U, 0U);
-    DisplayRefresh();
-}
-
-static void drawEscManualLive(void)
-{
-    DisplayClear();
-    drawHeader("ESC MANUAL      ");
-    DisplayText(1U, "POT controls    ", 16U, 0U);
-    DisplayText(2U, "throttle        ", 16U, 0U);
-    DisplayText(3U, "SW3 enables     ", 16U, 0U);
-    DisplayRefresh();
-}
-
-static void drawFullAutoLive(void)
-{
-    DisplayClear();
-    drawHeader("FULL AUTO       ");
-    DisplayText(1U, "SW3 RUN/STOP    ", 16U, 0U);
-    DisplayText(2U, "Tune in Settings", 16U, 0U);
-    DisplayText(3U, "<Back to menu   ", 16U, 0U);
-    DisplayRefresh();
-}
-
-/* -------- public API -------- */
+/* ---------- public API ---------- */
 
 void UI_Init(void)
 {
@@ -308,6 +270,9 @@ void UI_Init(void)
 
     g_running = FALSE;
     g_fail = FALSE;
+
+    g_speedPct = 0;
+    g_lastDistCm = 0.0f;
 }
 
 void UI_Input(boolean sw2Pressed, boolean sw3Pressed, uint8 pot)
@@ -315,6 +280,13 @@ void UI_Input(boolean sw2Pressed, boolean sw3Pressed, uint8 pot)
     g_sw2 = sw2Pressed;
     g_sw3 = sw3Pressed;
     g_pot = pot;
+}
+
+void UI_SetTelemetry(int speedPct)
+{
+    if (speedPct > 100) speedPct = 100;
+    if (speedPct < -100) speedPct = -100;
+    g_speedPct = speedPct;
 }
 
 boolean UI_IsInTerminal(void)
@@ -325,11 +297,6 @@ boolean UI_IsInTerminal(void)
 UiPageType UI_GetActivePage(void)
 {
     return g_activePage;
-}
-
-boolean UI_IsLiveView(void)
-{
-    return (g_mode == UI_MODE_TERMINAL && g_termSelected == UI_TERM_VIEW_INDEX) ? TRUE : FALSE;
 }
 
 const UiSettingsType* UI_GetSettings(void)
@@ -349,9 +316,19 @@ void UI_Task(Ultrasonic_StatusType ultraStatus,
              Braking_StateType brakeState,
              float lastDistanceCm)
 {
+    (void)ultraStatus;
     (void)ultraIrqCount;
     (void)ultraTicks;
     (void)brakeState;
+
+    g_lastDistCm = lastDistanceCm;
+
+    /* RUN = HUD ONLY (vision drawn by app_modes) */
+    if (g_running == TRUE)
+    {
+        drawRunHudOverlay();
+        return;
+    }
 
     /* MENU */
     if (g_mode == UI_MODE_MENU)
@@ -374,8 +351,6 @@ void UI_Task(Ultrasonic_StatusType ultraStatus,
     }
 
     /* TERMINAL */
-    /* If editing settings, DO NOT let pot change terminal/menu selection */
-    if (!(g_activePage == UI_PAGE_SETTINGS && g_edit))
     {
         uint8 dummyTop = 0u;
         potSelectIndex(g_pot, UI_TERM_ITEMS, &g_termSelected, &dummyTop, UI_TERM_ITEMS);
@@ -390,10 +365,8 @@ void UI_Task(Ultrasonic_StatusType ultraStatus,
             g_edit = FALSE;
             return;
         }
-        /* Live view chosen: stay */
     }
 
-    /* If user is on <Back item, just show terminal list */
     if (g_termSelected == UI_TERM_BACK_INDEX)
     {
         switch (g_activePage)
@@ -409,34 +382,12 @@ void UI_Task(Ultrasonic_StatusType ultraStatus,
         return;
     }
 
-    /* Live view */
+    /* Live view selection: keep simple screens here (vision itself is app-owned) */
     switch (g_activePage)
     {
-        case UI_PAGE_ULTRASONIC:
-            drawUltrasonicLive(ultraStatus, lastDistanceCm);
-            break;
-
-        case UI_PAGE_SERVO_MANUAL:
-            drawServoManualLive();
-            break;
-
-        case UI_PAGE_ESC_MANUAL:
-            drawEscManualLive();
-            break;
-
-        case UI_PAGE_VISION_DEBUG:
-            /* UI does NOT draw vision debug live screen; app_modes will */
-            drawTerminalList("VISION DEBUG    ");
-            break;
-
-        case UI_PAGE_FULL_AUTO:
-            drawFullAutoLive();
-            break;
-
         case UI_PAGE_SETTINGS:
         default:
         {
-            /* SETTINGS: selection changes only when NOT editing */
             if (!g_edit)
             {
                 potSelectIndex(g_pot, UI_SETTINGS_ITEMS, &g_setSelected, &g_setTop, UI_SET_VISIBLE_LINES);
@@ -444,37 +395,19 @@ void UI_Task(Ultrasonic_StatusType ultraStatus,
 
             if (g_sw2)
             {
-                g_edit = (g_edit == TRUE) ? FALSE : TRUE; /* toggle edit */
+                g_edit = (g_edit == TRUE) ? FALSE : TRUE;
             }
 
             if (g_edit)
             {
-                /* POT adjusts value */
                 switch (g_setSelected)
                 {
-                    case 0u: /* exposure: 200..4000 */
-                        g_settings.camExposureTicks = 200u + ((uint32)g_pot * 15u);
-                        break;
-
-                    case 1u: /* stop cm: 5..80 */
-                        g_settings.ultraStopCm = (uint16)(5u + ((uint16)g_pot * 75u) / 255u);
-                        break;
-
-                    case 2u: /* base speed: 0..60% */
-                        g_settings.baseSpeedPct = (uint8)(((uint16)g_pot * 60u) / 255u);
-                        break;
-
-                    case 3u: /* kp: 0.30..3.00 */
-                        g_settings.kp = 0.30f + (2.70f * ((float)g_pot / 255.0f));
-                        break;
-
-                    case 4u: /* kd: 0.00..0.80 */
-                        g_settings.kd = 0.00f + (0.80f * ((float)g_pot / 255.0f));
-                        break;
-
-                    default: /* steerScale: 0.80..2.50 */
-                        g_settings.steerScale = 0.80f + (1.70f * ((float)g_pot / 255.0f));
-                        break;
+                    case 0u: g_settings.camExposureTicks = 200u + ((uint32)g_pot * 15u); break;
+                    case 1u: g_settings.ultraStopCm = (uint16)(5u + ((uint16)g_pot * 75u) / 255u); break;
+                    case 2u: g_settings.baseSpeedPct = (uint8)(((uint16)g_pot * 60u) / 255u); break;
+                    case 3u: g_settings.kp = 0.30f + (2.70f * ((float)g_pot / 255.0f)); break;
+                    case 4u: g_settings.kd = 0.00f + (0.80f * ((float)g_pot / 255.0f)); break;
+                    default: g_settings.steerScale = 0.80f + (1.70f * ((float)g_pot / 255.0f)); break;
                 }
             }
 

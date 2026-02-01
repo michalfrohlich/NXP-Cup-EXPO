@@ -9,17 +9,21 @@
    BUILD MODE FLAGS (Enable EXACTLY ONE)
 ========================================================= */
 #define APP_TEST_SERVO_ONLY               0
-#define APP_TEST_ESC_ONLY_WORKING         1
+#define APP_TEST_ESC_ONLY_WORKING         0
 #define APP_TEST_VISION_V2_DEBUG          0
 #define APP_TEST_CAMERA_SERVO_V2          0
 #define APP_TEST_FULL_CAR_V2              0
+
+/* NEW: combined dummy final (ESC-only + Camera+Servo) */
+#define APP_TEST_FINAL_DUMMY              1
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_SERVO_ONLY) + \
     (APP_TEST_ESC_ONLY_WORKING) + \
     (APP_TEST_VISION_V2_DEBUG) + \
     (APP_TEST_CAMERA_SERVO_V2) + \
-    (APP_TEST_FULL_CAR_V2) \
+    (APP_TEST_FULL_CAR_V2) + \
+    (APP_TEST_FINAL_DUMMY) \
 )
 
 #if (APP_MODE_COUNT != 1)
@@ -63,11 +67,11 @@
    ESC
 ========================================================= */
 #define ESC_PWM_CH                        0U
-#define ESC_DUTY_MIN                      1638U
-#define ESC_DUTY_MED                      2457U
-#define ESC_DUTY_MAX                      3276U
+#define ESC_DUTY_MIN   1638U   // not working: 409U  Idk why it doesnt work with 25% speed
+#define ESC_DUTY_MED   2457U   // not working: 614U
+#define ESC_DUTY_MAX   3276U   // not working: 819U
 #define MOTOR_DEADBAND_PCT                6U
-#define ESC_ARM_TIME_MS                   3000u
+#define ESC_ARM_TIME_MS                   3000u //Try to see if I can make the delay lower
 
 /* =========================================================
    Linear camera
