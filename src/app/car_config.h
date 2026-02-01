@@ -67,11 +67,17 @@
    ESC
 ========================================================= */
 #define ESC_PWM_CH                        0U
-#define ESC_DUTY_MIN   1638U   // not working: 409U  Idk why it doesnt work with 25% speed
-#define ESC_DUTY_MED   2457U   // not working: 614U
-#define ESC_DUTY_MAX   3276U   // not working: 819U
+
+/* ESC calibration values (timer compare) that arm correctly on your setup.
+   DO NOT change these to "25% speed".
+   Old attempt (did NOT arm): 409/614/819
+*/
+#define ESC_DUTY_MIN   1638U   /* was: 409U */
+#define ESC_DUTY_MED   2457U   /* was: 614U */
+#define ESC_DUTY_MAX   3276U   /* was: 819U */
+
 #define MOTOR_DEADBAND_PCT                6U
-#define ESC_ARM_TIME_MS                   3000u //Try to see if I can make the delay lower
+#define ESC_ARM_TIME_MS                   3000u /* Try lowering later; keep stable for now */
 
 /* =========================================================
    Linear camera
@@ -103,8 +109,16 @@
 #define ITERM_CLAMP                       0.3f
 #define STEER_LPF_ALPHA                   0.60f
 
+/* What changing each does (quick tuning notes):
+   - KP: higher = stronger centering, too high = oscillation / weave
+   - KD: higher = more damping, too high = twitchy/jitter (amplifies noise)
+   - KI: fixes steady drift/bias, too high = slow weave + wind-up
+   - ITERM_CLAMP: caps integral; higher = more bias correction but more wind-up risk
+   - STEER_LPF_ALPHA: higher = smoother steering, but adds lag (can miss corners)
+*/
+
 /* =========================================================
-   Speed policy (full car)
+   Speed policy
 ========================================================= */
 #define SPEED_MIN                         18
 #define SPEED_MAX                         60
@@ -112,6 +126,14 @@
 
 #define FULLMODE_FORCE_SLOW_SPEED         1
 #define FULLMODE_SLOW_SPEED_PCT           12
+
+/* IMPORTANT:
+   - POT (manual) mode should stay FULL RANGE (-100..+100)
+   - FULL AUTO (SW3 camera mode in FINAL_DUMMY) should be capped here
+*/
+#define FULL_AUTO_SPEED_PCT               25   /* was effectively: 100 (uncapped) */
+#define FULL_AUTO_RAMP_STEP_PCT           2    /* was: (none) */
+#define FULL_AUTO_RAMP_PERIOD_MS          20u  /* was: (none) */
 
 /* =========================================================
    Vision V2 debug settings

@@ -48,6 +48,14 @@ static void StatusLed_Green(void)
     RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });
 }
 
+/* Neutral stop for ESC: do NOT use brake unless you are 100% sure the ESC driver/ESC supports it.
+   This avoids the “full reverse/full blast on braking” hazard noted in esc.c. */
+static void Esc_StopNeutral(void)
+{
+    EscSetBrake(0U);
+    EscSetSpeed(0);
+}
+
 /* =========================================================
    WORKING ESC-ONLY logic (used inside FINAL_DUMMY)
 ========================================================= */
@@ -80,8 +88,7 @@ static void esc_enter(EscRunState_t *st)
     }
 
     /* Default STOP */
-    EscSetSpeed(0);
-    EscSetBrake(1U);
+    Esc_StopNeutral();
 }
 
 static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3, uint8 pot)
@@ -91,8 +98,7 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
     {
         st->mode = CAR_IDLE;
         st->enabled = FALSE;
-        EscSetSpeed(0);
-        EscSetBrake(1U);
+        Esc_StopNeutral();
         return;
     }
 
@@ -114,12 +120,11 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
 
     if (st->mode != CAR_RUN)
     {
-        EscSetSpeed(0);
-        EscSetBrake(1U);
+        Esc_StopNeutral();
     }
     else
     {
-        /* POT -> -100..+100 exactly like your working mode */
+        /* POT -> -100..+100 FULL RANGE */
         sint32 cmdPct;
 
         if (pot <= (uint8)POT_CENTER_RAW)
@@ -272,15 +277,19 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 }
 
 /* =========================================================
-   FINAL DUMMY (the ONLY new mode)
+   FINAL DUMMY
    - SW3 switches ESC <-> CAM+SERVO
-   - ESC behavior is IDENTICAL to ESC-only working mode
-   - CAM+SERVO behavior is IDENTICAL to camera_servo_v2 mode
+   - POT mode: FULL RANGE manual (-100..+100)
+   - CAM mode: explicit forward speed command capped to FULL_AUTO_SPEED_PCT with ramp
 ========================================================= */
 static void mode_final_dummy(void)
 {
     typedef enum { DUMMY_ESC = 0, DUMMY_CAM = 1 } DummyState_t;
     DummyState_t state = DUMMY_ESC;
+
+    /* FULL AUTO (CAM mode) motor command */
+    sint32 autoSpeedPct = 0;
+    uint32 nextAutoSpeedMs = 0u;
 
     DriversInit();
     Timebase_Init();
@@ -312,12 +321,17 @@ static void mode_final_dummy(void)
             if (state == DUMMY_ESC)
             {
                 /* stop ESC safely before switching */
-                EscSetSpeed(0);
-                EscSetBrake(1U);
+                Esc_StopNeutral();
 
                 camservo_enter(&camSt, now);
                 state = DUMMY_CAM;
                 StatusLed_Green();
+
+                /* Start auto speed ramp from 0 */
+                autoSpeedPct = 0;
+                nextAutoSpeedMs = now;
+                EscSetBrake(0U);
+                EscSetSpeed(0);
             }
             else
             {
@@ -327,6 +341,9 @@ static void mode_final_dummy(void)
                 esc_enter(&escSt);
                 state = DUMMY_ESC;
                 StatusLed_Blue();
+
+                autoSpeedPct = 0;
+                nextAutoSpeedMs = 0u;
             }
 
             /* do not also treat SW3 as ESC stop in the same tick */
@@ -340,6 +357,28 @@ static void mode_final_dummy(void)
         else
         {
             camservo_update(&camSt, now, sw2);
+
+            /* Motor command in CAM mode (full auto): ramp up to capped forward speed */
+            if (time_reached(now, nextAutoSpeedMs))
+            {
+                nextAutoSpeedMs = now + FULL_AUTO_RAMP_PERIOD_MS;
+
+                if (autoSpeedPct < (sint32)FULL_AUTO_SPEED_PCT)
+                {
+                    autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
+                    if (autoSpeedPct > (sint32)FULL_AUTO_SPEED_PCT)
+                    {
+                        autoSpeedPct = (sint32)FULL_AUTO_SPEED_PCT;
+                    }
+                }
+
+                /* forward-only for now */
+                if (autoSpeedPct < 0) autoSpeedPct = 0;
+                if (autoSpeedPct > 100) autoSpeedPct = 100;
+
+                EscSetBrake(0U);
+                EscSetSpeed((int)autoSpeedPct);
+            }
         }
     }
 }
@@ -352,10 +391,8 @@ void App_RunSelectedMode(void)
 #if APP_TEST_FINAL_DUMMY
     mode_final_dummy();
 #elif APP_TEST_ESC_ONLY_WORKING
-    /* Keep your original if you want */
     while (1) { }
 #elif APP_TEST_CAMERA_SERVO_V2
-    /* Keep your original if you want */
     while (1) { }
 #else
     while (1) { }
