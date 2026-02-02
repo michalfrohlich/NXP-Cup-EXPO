@@ -49,7 +49,9 @@ static void StatusLed_Green(void)
 }
 
 /* Neutral stop for ESC: do NOT use brake unless you are 100% sure the ESC driver/ESC supports it.
-   This avoids the “full reverse/full blast on braking” hazard noted in esc.c. */
+   This avoids the “full reverse/full blast on braking” hazard noted in esc.c.
+
+   I Don't really know what the thing above means but I will test later on*/
 static void Esc_StopNeutral(void)
 {
     EscSetBrake(0U);
@@ -377,7 +379,9 @@ static void mode_final_dummy(void)
                 if (autoSpeedPct > 100) autoSpeedPct = 100;
 
                 EscSetBrake(0U);
-                EscSetSpeed((int)autoSpeedPct);
+        // flipped: SW3 mode forward direction (If the - sign removed = direction change )
+                EscSetSpeed((int)(-autoSpeedPct));
+
             }
         }
     }
@@ -385,6 +389,9 @@ static void mode_final_dummy(void)
 
 /* =========================================================
    Dispatcher
+
+
+  I deleted the other modes From the dispatcher for debugging, but they can be added anytime now
 ========================================================= */
 void App_RunSelectedMode(void)
 {

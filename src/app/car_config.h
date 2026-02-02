@@ -11,11 +11,11 @@
 #define APP_TEST_SERVO_ONLY               0
 #define APP_TEST_ESC_ONLY_WORKING         0
 #define APP_TEST_VISION_V2_DEBUG          0
-#define APP_TEST_CAMERA_SERVO_V2          0
+#define APP_TEST_CAMERA_SERVO_V2          1
 #define APP_TEST_FULL_CAR_V2              0
 
-/* NEW: combined dummy final (ESC-only + Camera+Servo) */
-#define APP_TEST_FINAL_DUMMY              1
+/* NEW: combined dummy final (ESC-only + Camera+Servo) *///Which for some reason happens to work Unlike the Full Car v2 (for now)
+#define APP_TEST_FINAL_DUMMY              0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_SERVO_ONLY) + \
@@ -98,24 +98,29 @@
    Full car safety
 ========================================================= */
 #define LINE_LOST_COAST_MS                2000u
-#define SPEED_LOST_LINE                   20
+#define SPEED_LOST_LINE                   20   //I guess If the line is lost it should be zero test this because Idle mode seems to be this speed but idk for now
 
 /* =========================================================
    PID (Vision V2 error is normalized -1..+1)
 ========================================================= */
+/* What changing each does (quick tuning notes):
+
+  Described below :
+*/
+
+
+// - KP: higher = stronger centering, too high = oscillation / weave
 #define KP                                4.5f
+// - KD: higher = more damping, too high = twitchy/jitter (amplifies noise)
 #define KD                                1.2f
+//   - KI: fixes steady drift/bias, too high = slow weave + wind-up
 #define KI                                0.0f
+//   - ITERM_CLAMP: caps integral; higher = more bias correction but more wind-up risk
 #define ITERM_CLAMP                       0.3f
+//   - STEER_LPF_ALPHA: higher = smoother steering, but adds lag (can miss corners)
 #define STEER_LPF_ALPHA                   0.60f
 
-/* What changing each does (quick tuning notes):
-   - KP: higher = stronger centering, too high = oscillation / weave
-   - KD: higher = more damping, too high = twitchy/jitter (amplifies noise)
-   - KI: fixes steady drift/bias, too high = slow weave + wind-up
-   - ITERM_CLAMP: caps integral; higher = more bias correction but more wind-up risk
-   - STEER_LPF_ALPHA: higher = smoother steering, but adds lag (can miss corners)
-*/
+
 
 /* =========================================================
    Speed policy
