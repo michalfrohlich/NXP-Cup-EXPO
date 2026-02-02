@@ -110,9 +110,9 @@
 
 
 // - KP: higher = stronger centering, too high = oscillation / weave
-#define KP                                4.0f
+#define KP                                4.5f
 // - KD: higher = more damping, too high = twitchy/jitter (amplifies noise)
-#define KD                                1.5f
+#define KD                                2.0f
 //   - KI: fixes steady drift/bias, too high = slow weave + wind-up
 #define KI                                0.03f
 //   - ITERM_CLAMP: caps integral; higher = more bias correction but more wind-up risk

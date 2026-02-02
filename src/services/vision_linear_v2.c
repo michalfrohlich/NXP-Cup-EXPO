@@ -44,12 +44,11 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
                                           VisionLinear_ResultType *out,
                                           VisionLinear_DebugOut_t *dbg)
 {
-	/* Buffers */
-	uint8 smoothLocal[VISION_LINEAR_BUFFER_SIZE];
-	uint8 *smooth = smoothLocal;
-	VisionBlob_t blobs[8];
-	uint8 blobCount = 0U;
-
+    /* Buffers */
+    uint8 smoothLocal[VISION_LINEAR_BUFFER_SIZE];
+    uint8 *smooth = smoothLocal;
+    VisionBlob_t blobs[8];
+    uint8 blobCount = 0U;
 
     /* Variables */
     uint8 i, minVal = 255U, maxVal = 0U;
@@ -66,7 +65,6 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
         smooth = dbg->smoothOut;
     }
 
-
     /* 1. Spatial Smoothing (Noise Reduction) - Simple 3-tap weighted average */
     smooth[0] = pixels[0];
     for (i = 1U; i < (VISION_LINEAR_BUFFER_SIZE - 1U); i++)
@@ -75,17 +73,6 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
         smooth[i] = (uint8)(val / 4U);
     }
     smooth[VISION_LINEAR_BUFFER_SIZE - 1U] = pixels[VISION_LINEAR_BUFFER_SIZE - 1U];
-
-    /* Optional: output smooth[] only when requested */
-    if ((dbg != (VisionLinear_DebugOut_t*)0) &&
-        ((dbg->mask & (uint32)VLIN_DBG_SMOOTH) != 0u) &&
-        (dbg->smoothOut != (uint8*)0))
-    {
-        for (i = 0U; i < VISION_LINEAR_BUFFER_SIZE; i++)
-        {
-            dbg->smoothOut[i] = smooth[i];
-        }
-    }
 
     /* 2. Dynamic Threshold Calculation */
     for (i = 0U; i < VISION_LINEAR_BUFFER_SIZE; i++)
@@ -114,7 +101,7 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
                 dbg->minVal       = minVal;
                 dbg->maxVal       = maxVal;
                 dbg->contrast     = contrast;
-                dbg->threshold    = minVal; // threshold not meaningful when contrast fails, but keep deterministic
+                dbg->threshold    = minVal; /* deterministic even when contrast fails */
                 dbg->splitPoint   = 0U;
                 dbg->bestLeftIdx  = VISION_LINEAR_INVALID_IDX;
                 dbg->bestRightIdx = VISION_LINEAR_INVALID_IDX;
@@ -197,8 +184,7 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
 
             if (c <= splitPoint)
             {
-                /* Candidate for LEFT line: Pick the one closest to the split point
-                 * (innermost line) if multiple exist */
+                /* Candidate for LEFT line: pick the one closest to the split point */
                 uint8 dist = splitPoint - c;
                 if (dist < minDistLeft)
                 {

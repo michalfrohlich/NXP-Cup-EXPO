@@ -143,7 +143,7 @@ void LinearCameraGetFrameEx(LinearCameraFrame *Frame, uint32 exposureTicks)
     LinearCameraInstance.BufferReference = Frame;
     LinearCameraInstance.CurrentIndex = 0U;
 
-    const uint32 TIMEOUT_MS = 40U;
+    const uint32 TIMEOUT_MS = 50U;
     uint32 t0 = Timebase_GetMs();
 
     //clamp min-max

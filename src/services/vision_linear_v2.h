@@ -50,7 +50,7 @@ extern "C" {
  * Calibrate this by placing the car in the center of the track and checking (Right - Left).
  */
 #ifndef VISION_LINEAR_NOMINAL_LANE_WIDTH
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (70U) //<--- this needs to be calibrated
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (100U) //<--- this needs to be calibrated (was 70)
 #endif
 
 /* Sentinel value for "Line Not Found" */
