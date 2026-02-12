@@ -452,7 +452,7 @@ extern "C"{
 * @brief        Support for User mode.
 *               If this parameter has been configured to 'TRUE' the Mcu driver can be executed from both supervisor and user mode.
 */
-#define MCU_ENABLE_USER_MODE_SUPPORT   (STD_OFF)
+#define MCU_ENABLE_USER_MODE_SUPPORT   (STD_ON)
 
 /** Check the driver user mode is enabled only when the MCAL_ENABLE_USER_MODE_SUPPORT is enabled */
 #ifndef MCAL_ENABLE_USER_MODE_SUPPORT

@@ -269,21 +269,21 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             #if CLOCK_IP_SELECTORS_NO > 0U
             {
                 SCS_RUN_CLK,                    /* Clock name associated to selector */
-                FIRC_CLK,                    /* Name of the selected input source */
+                SPLL_CLK,                    /* Name of the selected input source */
             },
             #endif
 
             #if CLOCK_IP_SELECTORS_NO > 1U
             {
                 SCS_VLPR_CLK,                    /* Clock name associated to selector */
-                SIRC_CLK,                    /* Name of the selected input source */
+                SPLL_CLK,                    /* Name of the selected input source */
             },
             #endif
 
             #if CLOCK_IP_SELECTORS_NO > 2U
             {
                 SCS_HSRUN_CLK,                    /* Clock name associated to selector */
-                FIRC_CLK,                    /* Name of the selected input source */
+                SPLL_CLK,                    /* Name of the selected input source */
             },
             #endif
 
@@ -561,7 +561,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             #if CLOCK_IP_DIVIDERS_NO > 9U
             {
                 BUS_RUN_CLK,                    /* name */
-                1U,                              /* value */
+                2U,                              /* value */
                 {
                     0U,
                 }
@@ -571,7 +571,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             #if CLOCK_IP_DIVIDERS_NO > 10U
             {
                 BUS_VLPR_CLK,                    /* name */
-                1U,                              /* value */
+                2U,                              /* value */
                 {
                     0U,
                 }
@@ -581,7 +581,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             #if CLOCK_IP_DIVIDERS_NO > 11U
             {
                 BUS_HSRUN_CLK,                    /* name */
-                1U,                              /* value */
+                2U,                              /* value */
                 {
                     0U,
                 }

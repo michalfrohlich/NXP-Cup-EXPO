@@ -1,4 +1,6 @@
 #include "buttons.h"
+
+/* AUTOSAR MCAL Dio API */
 #include "Dio.h"
 #include "Dio_Cfg.h"
 
@@ -11,8 +13,7 @@
 #define BUTTON_DEBOUNCE_TICKS   (3u)
 
 /* Active level for "pressed".
- * You observed: released -> 0, pressed -> 1, so use STD_HIGH.
- * If you later discover the opposite, change this to STD_LOW.
+ * released -> 0, pressed -> 1 => STD_HIGH
  */
 #define BUTTON_ACTIVE_LEVEL_PRESSED   STD_HIGH
 
@@ -20,13 +21,13 @@
 
 typedef struct
 {
-    uint8  stableState;      /* 0 = not pressed, 1 = pressed (debounced) */
-    uint8  lastStableState;  /* previous stable state */
-    uint8  counter;          /* debounce counter */
-    boolean pressedEvent;    /* latched "0->1" event */
+    uint8   stableState;      /* 0 = not pressed, 1 = pressed (debounced) */
+    uint8   lastStableState;  /* previous stable state */
+    uint8   counter;          /* debounce counter */
+    boolean pressedEvent;     /* latched "0->1" event */
 } ButtonContext_t;
 
-/* ===== Static configuration (no init needed) ===== */
+/* ===== Static configuration ===== */
 
 /* One DIO channel per button ID; order MUST match ButtonId_t enum */
 static const Dio_ChannelType Buttons_Channels[BUTTON_ID_COUNT] =
@@ -77,12 +78,11 @@ void Buttons_Update(void)
 
             if (btn->counter >= BUTTON_DEBOUNCE_TICKS)
             {
-                /* Accept new state */
                 btn->lastStableState = btn->stableState;
                 btn->stableState     = rawPressed;
                 btn->counter         = 0u;
 
-                /* Rising edge: 0 -> 1 → new press event */
+                /* Rising edge: 0 -> 1 */
                 if ((btn->lastStableState == 0u) && (btn->stableState == 1u))
                 {
                     btn->pressedEvent = TRUE;
@@ -91,7 +91,6 @@ void Buttons_Update(void)
         }
         else
         {
-            /* No change → reset counter */
             btn->counter = 0u;
         }
     }

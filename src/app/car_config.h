@@ -136,7 +136,7 @@
    - POT (manual) mode should stay FULL RANGE (-100..+100)
    - FULL AUTO (SW3 camera mode in FINAL_DUMMY) should be capped here
 */
-#define FULL_AUTO_SPEED_PCT               25   /* was effectively: 100 (uncapped) */
+#define FULL_AUTO_SPEED_PCT               25   /* was effectively: 100 (uncapped) */ //Was 25
 #define FULL_AUTO_RAMP_STEP_PCT           2    /* was: (none) */
 #define FULL_AUTO_RAMP_PERIOD_MS          20u  /* was: (none) */
 

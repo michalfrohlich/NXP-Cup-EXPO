@@ -226,7 +226,7 @@ static const Power_Ip_SMC_ConfigType Power_Ip_SMC_ConfigPB =
 {
     /* Allowed modes */
     (
-        SMC_PMPROT_HSRUN_NOT_ALLOWED_U32 |
+        SMC_PMPROT_HSRUN_ALLOWED_U32 |
         SMC_PMPROT_VLP_NOT_ALLOWED_U32
     ),
 };
