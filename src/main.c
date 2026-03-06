@@ -1,3 +1,4 @@
+
 /*EXPO_03_Nxp_Cup_project - main file */
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +25,7 @@ extern "C" {
 #include "ultrasonic.h"
 #include "timebase.h"
 #include "services/vision_linear_v2.h" //most complex version of the algorithm
+#include "app/vision_debug.h"
 #include "rgb_led.h"
 
 #include "S32K144.h"
@@ -36,11 +38,11 @@ extern "C" {
 	#define ULTRASONIC_500MS_SAMPLE    0 //working example of using ultrasonic
 
 	#define RAW_CAMERA_TEST  0   /* Raw linear camera capture + OLED bar graph */
-	#define NXP_EXAMPLE_CAM_DRIVERS   0   /* From the NXP example code */
 	#define SIMPLIFIED_VISION_TEST 0 /* Gemini simplified vision module test */
 	#define EXPOSURE_SCAN_TEST 0 /* Vision linear with adjustable exposure test*/
 	#define VISION_V2_SPLIT_TEST 0 /* Vision linear v2 - complex algorithm module*/
-	#define VISION_V2_DEBUG 1 //full vision debug module used
+	#define VISION_V2_DEBUG 0 //full vision debug module used
+	#define VISION_REFACTOR_DEBUG1 1 //after changing to raw 12-bit values and non-blocking driver
 
 #define CAR_MAIN         0   /* Line-following car main code that will run the whole car*/
 
@@ -331,9 +333,112 @@ int main(void)
 ==================================================================================================*/
 #if TESTS_ENABLE
 
+#if VISION_REFACTOR_DEBUG1
+
+
+int main(void)
+{
+    System_Init();
+    VisionLinear_InitV2();
+
+    /* --- Vision debug UI state --- */
+    VisionDebug_State_t vdbg;
+    VisionDebug_Init(&vdbg, 3200U); /* max graph value for raw ADC display */
+
+    /* --- Runtime data --- */
+    LinearCameraFrame frame;
+    VisionLinear_ResultType result;
+
+    VisionLinear_DebugOut_t dbg;
+    static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+
+    /* --- Fixed test settings --- */
+    const uint32 TEST_EXPOSURE = 100U;
+
+    const uint32 LOOP_PERIOD_MS    = 5U;
+    const uint32 DISPLAY_PERIOD_MS = 20U;
+    const uint32 DISPLAY_TICKS     = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
+
+    uint32 nextTickMs = Timebase_GetMs();
+    uint32 tickCount  = 0U;
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+
+        /* Phase-locked 5ms scheduler */
+        if ((uint32)(nowMs - nextTickMs) < LOOP_PERIOD_MS)
+        {
+            continue;
+        }
+
+        nextTickMs += LOOP_PERIOD_MS;
+        tickCount++;
+
+        /* --- 5ms tasks start --- */
+
+        Buttons_Update();
+
+        /* Button mapping:
+           - SW2 toggles MAIN <-> DEBUG
+           - SW3 cycles DEBUG modes
+        */
+        {
+            boolean screenTogglePressed = Buttons_WasPressed(BUTTON_ID_SW2);
+            boolean modeNextPressed     = Buttons_WasPressed(BUTTON_ID_SW3);
+
+            VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
+        }
+
+        /* Scope-friendly markers */
+        RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+
+        /* Capture (blocking, raw uint16 frame) */
+        LinearCameraGetFrame(&frame, TEST_EXPOSURE);
+
+        /* Decide if this frame will also be displayed */
+        {
+            boolean doDisplay = ((DISPLAY_TICKS != 0U) &&
+                                 ((tickCount % DISPLAY_TICKS) == 0U));
+
+            /* Default: no debug export for this frame */
+            dbg.mask      = (uint32)VLIN_DBG_NONE;
+            dbg.smoothOut = (uint16*)0;
+
+            /* Export extra debug only for display frames and only if UI wants it */
+            if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE))
+            {
+                VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
+            }
+
+            RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+
+            /* Process in raw uint16 domain */
+            VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
+
+            /* Refresh display every 20ms */
+            if (doDisplay == TRUE)
+            {
+                const uint16 *pSmooth =
+                    (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
+
+                const VisionLinear_DebugOut_t *pDbg =
+                    (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+
+                VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+            }
+        }
+
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
+        /* --- 5ms tasks end --- */
+    }
+}
+
+#endif /* VISION_REFACTOR_DEBUG1 */
+
 #if VISION_V2_DEBUG
 
-#include "vision_debug.h"
+#include "app/vision_debug.h"
 
 int main(void)
 {
@@ -555,68 +660,6 @@ int main(void)
     		    }
 	}
 #endif
-
-	/*==================================================================================================
-	 *                                       WORKING VERSION OF LINE DETECTION BY NXP
-	==================================================================================================*/
-	#if NXP_EXAMPLE_CAM_DRIVERS
-		#include "display.h"
-		#include "receiver.h"
-		#include "CDD_I2c.h"
-		#include "esc.h"
-		#include "servo.h"
-		#include "linear_camera.h"
-		#include "main_functions.h"
-		#include "hbridge.h"
-		#include "Mcal.h"
-		#include "pixy2.h"
-		#include <stdio.h>
-		#include <string.h>
-
-		#include "nxp_vision_linear.h"
-		BlackRegionType BlackRegionBuffer[25];
-
-		int main(void)
-		{
-			LinearCameraFrame FrameBuffer;
-			uint8 RegionIndex = 0U;
-			float TotalCenter = 0.0f;
-
-			/* Initialize RTD drivers */
-			DriversInit();
-
-			/* Initialize Esc driver */
-			EscInit(0U, 1638U, 2457U, 3276U);
-
-			/* Initialize Servo driver */
-			/* ServoInit(1U, 3300U, 1700U, 2500U); */
-
-			/* Initialize display driver */
-			DisplayInit(0U, STD_ON);
-
-			/* Initialize linear camera driver */
-			LinearCameraInit(4U, 1U, 0U, 97U);
-
-			while(1)
-			{
-				/* 1. Capture Frame */
-				LinearCameraGetFrame(&FrameBuffer);
-
-				/* 2. Process Vision (Find Regions) */
-				/* Pass the raw values, the buffer to fill, and the max capacity (3, per original logic) */
-				RegionIndex = Vision_FindBlackRegions(FrameBuffer.Values, BlackRegionBuffer, 3U);
-
-				/* 3. Calculate Center */
-				TotalCenter = Vision_CalculateCenter(BlackRegionBuffer, RegionIndex);
-
-				/* 4. Update Display */
-				DisplayClear();
-				DisplayValue(0U, (int)TotalCenter, 4U, 0U); /* Cast to int for display */
-				DisplayGraph(1U, FrameBuffer.Values, 128U, 3U);
-				DisplayRefresh();
-			}
-		}
-	#endif /*NXP_EXAMPLE_CAM_DRIVERS*/
 
 	/*==================================================================================================
 	*                                  SIMPLIFIED VISION MODULE TEST

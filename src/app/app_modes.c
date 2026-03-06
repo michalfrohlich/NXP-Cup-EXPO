@@ -16,13 +16,11 @@
 /* Vision V2 + debug */
 #include "../services/vision_linear_v2.h"
 #include "rgb_led.h"
-#include "vision_debug.h"
-
-/* PID */
 #include "../services/steering_control_linear.h"
 
 /* UI (do not fight it now; just compile with project) */
 #include "user_interface.h"
+#include "vision_debug.h"
 
 /* =========================================================
    Helpers
@@ -228,7 +226,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     /* SW2 allowed, SW3 NOT passed here (reserved for switching modes) */
     VisionDebug_OnTick(&st->vdbg, sw2, FALSE);
 
-    LinearCameraGetFrameEx(&st->frame, (uint32)V2_TEST_EXPOSURE_TICKS);
+    LinearCameraGetFrame(&st->frame, (uint32)V2_TEST_EXPOSURE_TICKS);
 
     boolean doDisplay = ((DISP_TICKS != 0U) && ((st->tickCount % DISP_TICKS) == 0U));
 

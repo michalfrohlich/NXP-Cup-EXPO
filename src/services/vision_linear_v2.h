@@ -31,17 +31,17 @@ extern "C" {
 
 /* Dynamic threshold = min + (contrast * frac/100) */
 #ifndef VISION_LINEAR_THRESH_FRAC_PCT
-#define VISION_LINEAR_THRESH_FRAC_PCT        (65U) //was 50 originally
+#define VISION_LINEAR_THRESH_FRAC_PCT        (60U) //was 50 originally
 #endif
 
-/* Minimum contrast to consider the frame valid (0-100) */
+/* Minimum contrast to consider the frame valid (raw ADC domain, 0-4095) */
 #ifndef VISION_LINEAR_MIN_CONTRAST
-#define VISION_LINEAR_MIN_CONTRAST           (10U)
+#define VISION_LINEAR_MIN_CONTRAST           (450U)
 #endif
 
 /* Ignore blobs smaller than this (noise filtering) */
 #ifndef VISION_LINEAR_MIN_BLOB_WIDTH
-#define VISION_LINEAR_MIN_BLOB_WIDTH         (2U)
+#define VISION_LINEAR_MIN_BLOB_WIDTH         (3U)
 #endif
 
 #define VLIN_MAX_BLOBS   6u
@@ -107,13 +107,13 @@ typedef struct
     uint32 mask;
 
     /* Optional: caller provides buffer [VISION_LINEAR_BUFFER_SIZE] */
-    uint8* smoothOut;
+    uint16* smoothOut;
 
     /* Scalars (valid if VLIN_DBG_STATS) */
-    uint8 minVal;
-    uint8 maxVal;
-    uint8 contrast;
-    uint8 threshold;
+    uint16 minVal;
+    uint16 maxVal;
+    uint16 contrast;
+    uint16 threshold;
     uint8 splitPoint;
 
     /* Blob segments (valid if VLIN_DBG_BLOBS) */
@@ -124,7 +124,6 @@ typedef struct
     uint8 bestLeftIdx;
     uint8 bestRightIdx;
 } VisionLinear_DebugOut_t;
-
 //-----------
 
 /* ----------------------------- API ----------------------------- */
@@ -132,10 +131,10 @@ typedef struct
 void VisionLinear_InitV2(void);
 
 /* Process one 128-pixel frame. */
-void VisionLinear_ProcessFrame(const uint8 *pixels, VisionLinear_ResultType *out);
+void VisionLinear_ProcessFrame(const uint16 *pixels, VisionLinear_ResultType *out);
 
 /* New API (recommended): - if it works it will be replaced into VisionLinear_ProcessFrame() */
-void VisionLinear_ProcessFrameEx(const uint8 *pixels,
+void VisionLinear_ProcessFrameEx(const uint16 *pixels,
                                  VisionLinear_ResultType *out,
                                  VisionLinear_DebugOut_t *dbg);
 

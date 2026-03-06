@@ -40,37 +40,38 @@ static uint8 Vision_AbsDiff(uint8 a, uint8 b)
  * - If dbg == NULL: behaves like ProcessFrame (no debug outputs).
  * - If dbg != NULL: exports only what dbg->mask requests (and only if buffers are provided).
  */
-static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
+static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                                           VisionLinear_ResultType *out,
                                           VisionLinear_DebugOut_t *dbg)
 {
+
     /* Buffers */
-    uint8 smoothLocal[VISION_LINEAR_BUFFER_SIZE];
-    uint8 *smooth = smoothLocal;
+    uint16 smoothLocal[VISION_LINEAR_BUFFER_SIZE];
+    uint16 *smooth = smoothLocal;
     VisionBlob_t blobs[8];
-    uint8 blobCount = 0U;
+    uint16 blobCount = 0U;
 
     /* Variables */
-    uint8 i, minVal = 255U, maxVal = 0U;
-    uint8 threshold, contrast;
-    uint8 bestLeftIdx = VISION_LINEAR_INVALID_IDX;
-    uint8 bestRightIdx = VISION_LINEAR_INVALID_IDX;
+    uint16 i, minVal = 0xFFFFU, maxVal = 0U;
+    uint16 threshold, contrast;
+    uint16 bestLeftIdx = VISION_LINEAR_INVALID_IDX;
+    uint16 bestRightIdx = VISION_LINEAR_INVALID_IDX;
 
     /* 1. Spatial Smoothing (Noise Reduction) - Simple 3-tap weighted average
      * If debug wants smooth output and provides a buffer, write smoothing directly into it. */
     if ((dbg != (VisionLinear_DebugOut_t*)0) &&
         ((dbg->mask & (uint32)VLIN_DBG_SMOOTH) != 0u) &&
-        (dbg->smoothOut != (uint8*)0))
+        (dbg->smoothOut != (uint16*)0))
     {
         smooth = dbg->smoothOut;
     }
 
     /* 1. Spatial Smoothing (Noise Reduction) - Simple 3-tap weighted average */
-    smooth[0] = pixels[0];
+        smooth[0] = pixels[0];
     for (i = 1U; i < (VISION_LINEAR_BUFFER_SIZE - 1U); i++)
     {
-        uint16 val = (uint16)pixels[i-1] + ((uint16)pixels[i] * 2U) + (uint16)pixels[i+1];
-        smooth[i] = (uint8)(val / 4U);
+        uint32 val = (uint32)pixels[i-1] + ((uint32)pixels[i] * 2U) + (uint32)pixels[i+1];
+        smooth[i] = (uint16)(val / 4U);
     }
     smooth[VISION_LINEAR_BUFFER_SIZE - 1U] = pixels[VISION_LINEAR_BUFFER_SIZE - 1U];
 
@@ -81,7 +82,7 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
         if (smooth[i] > maxVal) { maxVal = smooth[i]; }
     }
 
-    contrast = (uint8)(maxVal - minVal);
+    contrast = (uint16)(maxVal - minVal);
 
     /* If contrast is too low, the image is garbage */
     if (contrast < VISION_LINEAR_MIN_CONTRAST)
@@ -116,7 +117,7 @@ static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
     }
 
     /* Threshold formula */
-    threshold = minVal + (uint8)(((uint16)contrast * VISION_LINEAR_THRESH_FRAC_PCT) / 100U);
+    threshold = minVal + (uint16)(((uint32)contrast * VISION_LINEAR_THRESH_FRAC_PCT) / 100U);
 
     /* 3. Blob Extraction */
     {
@@ -297,12 +298,12 @@ void VisionLinear_InitV2(void)
     s_isLocked = 0U;
 }
 
-void VisionLinear_ProcessFrame(const uint8 *pixels, VisionLinear_ResultType *out)
+void VisionLinear_ProcessFrame(const uint16 *pixels, VisionLinear_ResultType *out)
 {
     VisionLinear_ProcessFrameImpl(pixels, out, (VisionLinear_DebugOut_t*)0);
 }
 
-void VisionLinear_ProcessFrameEx(const uint8 *pixels,
+void VisionLinear_ProcessFrameEx(const uint16 *pixels,
                                  VisionLinear_ResultType *out,
                                  VisionLinear_DebugOut_t *dbg)
 {
