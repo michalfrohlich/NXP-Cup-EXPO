@@ -43,6 +43,15 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel);
 
+/* Stage A non-blocking API */
+boolean LinearCameraStartCapture(LinearCameraFrame *Frame, uint32 exposureTicks);
+LinearCameraStatus LinearCameraGetStatus(void);
+boolean LinearCameraIsBusy(void);
+boolean LinearCameraIsFrameReady(void);
+boolean LinearCameraConsumeFrame(void);
+void LinearCameraAbort(void);
+
+/* Backward-compatible blocking wrapper */
 void LinearCameraGetFrame(LinearCameraFrame *Frame, uint32 exposureTicks);
 
 #ifdef __cplusplus

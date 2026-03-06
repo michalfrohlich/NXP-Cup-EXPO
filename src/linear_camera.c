@@ -8,9 +8,30 @@ extern "C" {
 static volatile LinearCamera LinearCameraInstance;
 static Adc_ValueGroupType AdcResultBuffer;
 
+/* ------------------------------------------------------------------------------------------------
+ * Internal helper: stop/cleanup active capture-related peripherals.
+ * This is intentionally minimal and keeps the existing hardware flow intact.
+ * -----------------------------------------------------------------------------------------------*/
+static void LinearCamera_StopCaptureHw(void)
+{
+    Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0U);
+    Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
+
+    Gpt_StopTimer(LinearCameraInstance.ShutterGptChannel);
+    Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
+
+    Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW); //is this needed?
+}
+
 /* Called when exposure time is finished */
 void NewCameraFrame(void)
 {
+    /* Ignore stray callback unless a capture is actually active */
+    if (LinearCameraInstance.Status != LINEAR_CAMERA_CAPTURING)
+    {
+        return;
+    }
+
     Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0x4000U);
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
     Pwm_EnableNotification(LinearCameraInstance.ClkPwmChannel, PWM_FALLING_EDGE);
@@ -19,16 +40,18 @@ void NewCameraFrame(void)
 /* Called on each pixel clock edge */
 void CameraClock(void)
 {
+    if (LinearCameraInstance.Status != LINEAR_CAMERA_CAPTURING)
+    {
+        return;
+    }
+
     if (LinearCameraInstance.CurrentIndex < LINEAR_CAMERA_PIXEL_COUNT)
     {
         Adc_StartGroupConversion(LinearCameraInstance.InputAdcGroup);
     }
     else
     {
-        Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0U);
-        Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
-        Gpt_StopTimer(LinearCameraInstance.ShutterGptChannel);
-        Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
+        LinearCamera_StopCaptureHw();
         LinearCameraInstance.Status = LINEAR_CAMERA_READY;
     }
 }
@@ -36,6 +59,11 @@ void CameraClock(void)
 /* Called when one ADC sample is finished */
 void CameraAdcFinished(void)
 {
+    if (LinearCameraInstance.Status != LINEAR_CAMERA_CAPTURING)
+    {
+        return;
+    }
+
     if ((LinearCameraInstance.BufferReference != (LinearCameraFrame *)0) &&
         (LinearCameraInstance.CurrentIndex < LINEAR_CAMERA_PIXEL_COUNT))
     {
@@ -61,12 +89,28 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     LinearCameraInstance.BufferReference = (LinearCameraFrame *)0;
 
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
+
     Adc_SetupResultBuffer(LinearCameraInstance.InputAdcGroup, &AdcResultBuffer);
     Adc_EnableGroupNotification(LinearCameraInstance.InputAdcGroup);
+
+    /* Ensure capture-related HW starts from a stopped state */
+    Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0U);
+    Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
+    Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
 }
 
-void LinearCameraGetFrame(LinearCameraFrame *Frame, uint32 exposureTicks)
+boolean LinearCameraStartCapture(LinearCameraFrame *Frame, uint32 exposureTicks)
 {
+    if (Frame == (LinearCameraFrame *)0)
+    {
+        return FALSE;
+    }
+
+    if (LinearCameraInstance.Status != LINEAR_CAMERA_IDLE)
+    {
+        return FALSE;
+    }
+
     LinearCameraInstance.BufferReference = Frame;
     LinearCameraInstance.CurrentIndex = 0U;
     LinearCameraInstance.Status = LINEAR_CAMERA_CAPTURING;
@@ -75,14 +119,59 @@ void LinearCameraGetFrame(LinearCameraFrame *Frame, uint32 exposureTicks)
     Gpt_EnableNotification(LinearCameraInstance.ShutterGptChannel);
     Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, exposureTicks);
 
+    return TRUE;
+}
 
-    while (LinearCameraInstance.Status != LINEAR_CAMERA_READY)
+LinearCameraStatus LinearCameraGetStatus(void)
+{
+    return LinearCameraInstance.Status;
+}
+
+boolean LinearCameraIsBusy(void)
+{
+    return (LinearCameraInstance.Status == LINEAR_CAMERA_CAPTURING) ? TRUE : FALSE;
+}
+
+boolean LinearCameraIsFrameReady(void)
+{
+    return (LinearCameraInstance.Status == LINEAR_CAMERA_READY) ? TRUE : FALSE;
+}
+
+boolean LinearCameraConsumeFrame(void)
+{
+    if (LinearCameraInstance.Status != LINEAR_CAMERA_READY)
+    {
+        return FALSE;
+    }
+
+    LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
+    return TRUE;
+}
+
+void LinearCameraAbort(void)
+{
+    LinearCamera_StopCaptureHw();
+    LinearCameraInstance.CurrentIndex = 0U;
+    LinearCameraInstance.BufferReference = (LinearCameraFrame *)0;
+    LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
+}
+
+/* Legacy blocking version */
+void LinearCameraGetFrame(LinearCameraFrame *Frame, uint32 exposureTicks)
+{
+    if (LinearCameraStartCapture(Frame, exposureTicks) == FALSE)
+    {
+        return;
+    }
+
+    while (LinearCameraIsFrameReady() == FALSE)
     {
         ;
     }
 
-    LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
+    (void)LinearCameraConsumeFrame();
 }
+
 #ifdef __cplusplus
 }
 #endif

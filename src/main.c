@@ -335,38 +335,38 @@ int main(void)
 
 #if VISION_REFACTOR_DEBUG1
 
-
 int main(void)
 {
     System_Init();
     VisionLinear_InitV2();
 
-    /* --- Vision debug UI state --- */
     VisionDebug_State_t vdbg;
-    VisionDebug_Init(&vdbg, 3200U); /* max graph value for raw ADC display */
+    VisionDebug_Init(&vdbg, 3200U);
 
-    /* --- Runtime data --- */
-    LinearCameraFrame frame;
+    static LinearCameraFrame frame;
     VisionLinear_ResultType result;
 
     VisionLinear_DebugOut_t dbg;
     static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
 
-    /* --- Fixed test settings --- */
     const uint32 TEST_EXPOSURE = 100U;
 
-    const uint32 LOOP_PERIOD_MS    = 5U;
+    const uint32 LOOP_PERIOD_MS    = 1U;
     const uint32 DISPLAY_PERIOD_MS = 20U;
     const uint32 DISPLAY_TICKS     = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
 
     uint32 nextTickMs = Timebase_GetMs();
     uint32 tickCount  = 0U;
 
+    /* NEW: track if we ever processed a frame */
+    boolean haveValidVision = FALSE;
+
+    (void)LinearCameraStartCapture(&frame, TEST_EXPOSURE);
+
     for (;;)
     {
         uint32 nowMs = Timebase_GetMs();
 
-        /* Phase-locked 5ms scheduler */
         if ((uint32)(nowMs - nextTickMs) < LOOP_PERIOD_MS)
         {
             continue;
@@ -379,10 +379,6 @@ int main(void)
 
         Buttons_Update();
 
-        /* Button mapping:
-           - SW2 toggles MAIN <-> DEBUG
-           - SW3 cycles DEBUG modes
-        */
         {
             boolean screenTogglePressed = Buttons_WasPressed(BUTTON_ID_SW2);
             boolean modeNextPressed     = Buttons_WasPressed(BUTTON_ID_SW3);
@@ -390,51 +386,52 @@ int main(void)
             VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
         }
 
-        /* Scope-friendly markers */
         RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
 
-        /* Capture (blocking, raw uint16 frame) */
-        LinearCameraGetFrame(&frame, TEST_EXPOSURE);
+        /* ---- PROCESS FRAME WHEN READY ---- */
 
-        /* Decide if this frame will also be displayed */
+        if (LinearCameraIsFrameReady() == TRUE)
         {
-            boolean doDisplay = ((DISPLAY_TICKS != 0U) &&
-                                 ((tickCount % DISPLAY_TICKS) == 0U));
-
-            /* Default: no debug export for this frame */
             dbg.mask      = (uint32)VLIN_DBG_NONE;
             dbg.smoothOut = (uint16*)0;
 
-            /* Export extra debug only for display frames and only if UI wants it */
-            if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE))
+            if (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE)
             {
                 VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
             }
 
             RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
 
-            /* Process in raw uint16 domain */
             VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
 
-            /* Refresh display every 20ms */
-            if (doDisplay == TRUE)
-            {
-                const uint16 *pSmooth =
-                    (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
+            haveValidVision = TRUE;
 
-                const VisionLinear_DebugOut_t *pDbg =
-                    (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+            (void)LinearCameraConsumeFrame();
+            (void)LinearCameraStartCapture(&frame, TEST_EXPOSURE);
+        }
 
-                VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
-            }
+        /* ---- DISPLAY EVERY 20ms USING LAST RESULT ---- */
+
+        if ((DISPLAY_TICKS != 0U) &&
+            ((tickCount % DISPLAY_TICKS) == 0U) &&
+            (haveValidVision == TRUE))
+        {
+            const uint16 *pSmooth =
+                (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
+
+            const VisionLinear_DebugOut_t *pDbg =
+                (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+
+            VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
         }
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
+
         /* --- 5ms tasks end --- */
     }
 }
 
-#endif /* VISION_REFACTOR_DEBUG1 */
+#endif
 
 #if VISION_V2_DEBUG
 
