@@ -455,7 +455,7 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg2 =
     /* WriteProtection */       (boolean)FALSE,
     /* InitTriggerEn */         (boolean)FALSE,
     /* InitTrigMode */          FTM_PWM_IP_INIT_TRIGG_RELOAD_POINT,
-    /* PwmPeriod */             1000U,
+    /* PwmPeriod */             16U,
 #if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
     /* PwmPeriodDither */       0U,
 #endif
@@ -494,7 +494,33 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch0 =
 #if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
-    /* DutyCycle */             0U,
+    /* DutyCycle */             8U,
+#if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
+    /* DutyCycleDither */       0U,
+#endif
+    /* InitOut */               FTM_PWM_IP_OUTPUT_STATE_LOW,
+    /* Polarity */              FTM_PWM_IP_POLARITY_HIGH,
+    /* PairCfg */               NULL_PTR
+};
+
+/* Ftm channel 1 configuration */
+const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch1 =
+{
+    /* ChannelId */             1U,
+    /* ChannelMode */           FTM_PWM_IP_MODE_EDGE_ALIGNED_HIGH,
+    /* ChIrqEn */               (boolean)TRUE,
+    /* ChannelCb */             {
+        /* FunctionCallback */      &Pwm_Ipw_FlexTimerNotification,
+        /* CbParam */               1U
+                                },
+    /* ChOutputEn */            (boolean)FALSE,
+    /* SwControlEn */           (boolean)FALSE,
+    /* SwControlVal */          (boolean)FALSE,
+    /* ExtTrigEn */             (boolean)TRUE,
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
+    /* ChMatchLoadEn */         (boolean)FALSE,
+#endif
+    /* DutyCycle */             8U,
 #if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
     /* DutyCycleDither */       0U,
 #endif
@@ -505,9 +531,10 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch0 =
 
 
 /* Ftm channels configuration array */
-const Ftm_Pwm_Ip_ChannelConfigType * const Ftm_Pwm_Ip_VS_0_I2_ChArray[1U] =
+const Ftm_Pwm_Ip_ChannelConfigType * const Ftm_Pwm_Ip_VS_0_I2_ChArray[2U] =
 {
-    &Ftm_Pwm_Ip_VS_0_I2_Ch0
+    &Ftm_Pwm_Ip_VS_0_I2_Ch0,
+    &Ftm_Pwm_Ip_VS_0_I2_Ch1
 };
 
 /* Ftm instance 2 User configuration structure */
@@ -515,7 +542,7 @@ const Ftm_Pwm_Ip_UserCfgType Ftm_Pwm_Ip_VS_0_UserCfg2 =
 {
     /* InstanceCfg */           &Ftm_Pwm_Ip_VS_0_InstCfg2,
     /* ConfiguredChArray */     Ftm_Pwm_Ip_VS_0_I2_ChArray,
-    /* NoOfConfiguredCh */      1U
+    /* NoOfConfiguredCh */      2U
 #if (defined(FTM_PWM_IP_HAS_FAULT) && (FTM_PWM_IP_HAS_FAULT == STD_ON))
     ,
     /* ConfiguredFaultArray */  NULL_PTR,

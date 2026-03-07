@@ -333,43 +333,40 @@ int main(void)
 ==================================================================================================*/
 #if TESTS_ENABLE
 
-#if VISION_REFACTOR_DEBUG1
+#if VISION_REFACTOR_DEBUG1-OLD
+
 
 int main(void)
 {
     System_Init();
     VisionLinear_InitV2();
 
+    /* --- Vision debug UI state --- */
     VisionDebug_State_t vdbg;
-    VisionDebug_Init(&vdbg, 3200U);
+    VisionDebug_Init(&vdbg, 3200U); /* max graph value for raw ADC display */
 
-    static LinearCameraFrame frame;
+    /* --- Runtime data --- */
+    LinearCameraFrame frame;
     VisionLinear_ResultType result;
 
     VisionLinear_DebugOut_t dbg;
     static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
 
-    const uint32 LOOP_PERIOD_MS     = 5U;
-    const uint32 DISPLAY_PERIOD_MS  = 20U;
-    const uint32 DISPLAY_TICKS      = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
-    const uint32 POT_PERIOD_MS      = 20U;
-    const uint32 POT_TICKS          = (POT_PERIOD_MS / LOOP_PERIOD_MS);
+    /* --- Fixed test settings --- */
+    const uint32 TEST_EXPOSURE = 100U;
+
+    const uint32 LOOP_PERIOD_MS    = 5U;
+    const uint32 DISPLAY_PERIOD_MS = 20U;
+    const uint32 DISPLAY_TICKS     = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
 
     uint32 nextTickMs = Timebase_GetMs();
     uint32 tickCount  = 0U;
-
-    boolean haveValidVision = FALSE;
-
-    /* Exposure used for the NEXT capture */
-    uint32 currentExposure = 37440U;
-
-    /* Initial capture */
-    (void)LinearCameraStartCapture(&frame, currentExposure);
 
     for (;;)
     {
         uint32 nowMs = Timebase_GetMs();
 
+        /* Phase-locked 5ms scheduler */
         if ((uint32)(nowMs - nextTickMs) < LOOP_PERIOD_MS)
         {
             continue;
@@ -382,6 +379,10 @@ int main(void)
 
         Buttons_Update();
 
+        /* Button mapping:
+           - SW2 toggles MAIN <-> DEBUG
+           - SW3 cycles DEBUG modes
+        */
         {
             boolean screenTogglePressed = Buttons_WasPressed(BUTTON_ID_SW2);
             boolean modeNextPressed     = Buttons_WasPressed(BUTTON_ID_SW3);
@@ -389,60 +390,51 @@ int main(void)
             VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
         }
 
+        /* Scope-friendly markers */
         RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
 
-#if 0
-        /* ---- READ POT EVERY 20 ms ---- */
-        if ((POT_TICKS != 0U) && ((tickCount % POT_TICKS) == 0U))
+        /* Capture (blocking, raw uint16 frame) */
+        LinearCameraGetFrame(&frame, TEST_EXPOSURE);
+
+        /* Decide if this frame will also be displayed */
         {
-            uint8 potLevel = OnboardPot_ReadLevelFiltered();   /* 0..255 */
-            currentExposure = 80000U + (((uint32)potLevel * (4000000U - 80000U)) / 255U);
-        }
-#endif
-        /* ---- PROCESS FRAME WHEN READY ---- */
-        if (LinearCameraIsFrameReady() == TRUE)
-        {
+            boolean doDisplay = ((DISPLAY_TICKS != 0U) &&
+                                 ((tickCount % DISPLAY_TICKS) == 0U));
+
+            /* Default: no debug export for this frame */
             dbg.mask      = (uint32)VLIN_DBG_NONE;
             dbg.smoothOut = (uint16*)0;
 
-            if (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE)
+            /* Export extra debug only for display frames and only if UI wants it */
+            if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE))
             {
                 VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
             }
 
             RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
 
+            /* Process in raw uint16 domain */
             VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
 
-            haveValidVision = TRUE;
+            /* Refresh display every 20ms */
+            if (doDisplay == TRUE)
+            {
+                const uint16 *pSmooth =
+                    (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
 
-            (void)LinearCameraConsumeFrame();
+                const VisionLinear_DebugOut_t *pDbg =
+                    (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
 
-            /* Apply latest exposure to the next capture */
-            (void)LinearCameraStartCapture(&frame, currentExposure);
-        }
-
-        /* ---- DISPLAY EVERY 20 ms USING LAST RESULT ---- */
-        if ((DISPLAY_TICKS != 0U) &&
-            ((tickCount % DISPLAY_TICKS) == 0U) &&
-            (haveValidVision == TRUE))
-        {
-            const uint16 *pSmooth =
-                (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
-
-            const VisionLinear_DebugOut_t *pDbg =
-                (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
-
-            VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+                VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+            }
         }
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
-
         /* --- 5ms tasks end --- */
     }
 }
 
-#endif
+#endif /* VISION_REFACTOR_DEBUG1 */
 
 #if VISION_V2_DEBUG
 

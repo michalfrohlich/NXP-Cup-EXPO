@@ -475,11 +475,6 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
-            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data>true</data>
-               </feature>
-            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -1864,7 +1859,7 @@
                                        <setting name="AdcGroupId" value="0"/>
                                        <array name="AdcGroupPriority"/>
                                        <array name="AdcGroupReplacement"/>
-                                       <setting name="AdcGroupTriggSrc" value="ADC_TRIGG_SRC_SW"/>
+                                       <setting name="AdcGroupTriggSrc" value="ADC_TRIGG_SRC_HW"/>
                                        <setting name="AdcGroupHwTriggerSource" value="/Adc/Adc/AdcConfigSet/AdcHwTrigger_0"/>
                                        <array name="AdcHwTrigSignal"/>
                                        <array name="AdcHwTrigTimer">
@@ -1883,16 +1878,18 @@
                                        <setting name="AdcWithoutInterrupts" value="false"/>
                                        <setting name="AdcWithoutDma" value="false"/>
                                        <setting name="AdcExtDMAChanEnable" value="false"/>
-                                       <setting name="AdcGroupInBacktoBackMode" value="true"/>
-                                       <setting name="AdcGroupUsesChannelDelays" value="false"/>
+                                       <setting name="AdcGroupInBacktoBackMode" value="false"/>
+                                       <setting name="AdcGroupUsesChannelDelays" value="true"/>
                                        <setting name="AdcDelayNextPdb" value="0"/>
                                        <setting name="AdcPdbPeriodContinuousMode" value="1000"/>
-                                       <array name="AdcChannelDelay"/>
+                                       <array name="AdcChannelDelay">
+                                          <setting name="0" value="12"/>
+                                       </array>
                                        <struct name="AdcGroupConversionConfiguration">
                                           <setting name="Name" value="AdcGroupConversionConfiguration"/>
                                           <setting name="AdcGroupHardwareAverageEnable" value="false"/>
                                           <setting name="AdcGroupHardwareAverageSelect" value="SAMPLES_4"/>
-                                          <setting name="AdcGroupSampleTimeDuration" value="20"/>
+                                          <setting name="AdcGroupSampleTimeDuration" value="13"/>
                                        </struct>
                                        <struct name="AdcAlternateGroupConvTimings">
                                           <setting name="Name" value="AdcAlternateGroupConvTimings"/>
@@ -2344,6 +2341,20 @@
                                        <setting name="trgmuxLogicTrigger_Name" value="TRGMUX_LOGIC_GROUP_0_TRIGGER_0"/>
                                        <setting name="trgmuxLogicTrigger_Output" value="TRGMUX_IP_OUTPUT_FTM3_HWTRIG0"/>
                                        <setting name="trgmuxLogicTrigger_Input" value="TRGMUX_IP_INPUT_FTM3_EXT_TRIG"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="trgmuxLogicGroup_1"/>
+                                 <setting name="trgmuxLogicGroupHardwareInstance" value="TRGMUX_IP_HW_INST_0"/>
+                                 <setting name="trgmuxLogicGroup_Name" value="TRGMUX_IP_PDB0"/>
+                                 <setting name="trgmuxLogicGroup_Lock" value="false"/>
+                                 <array name="trgmuxLogicTrigger">
+                                    <struct name="0">
+                                       <setting name="Name" value="trgmuxLogicTrigger_0"/>
+                                       <setting name="trgmuxLogicTrigger_Name" value="TRGMUX_LOGIC_GROUP_1_TRIGGER_0"/>
+                                       <setting name="trgmuxLogicTrigger_Output" value="TRGMUX_IP_OUTPUT_PDB0_TRIGGER_IN0"/>
+                                       <setting name="trgmuxLogicTrigger_Input" value="TRGMUX_IP_INPUT_FTM2_EXT_TRIG"/>
                                     </struct>
                                  </array>
                               </struct>
@@ -3029,13 +3040,27 @@
                                     <setting name="0" value="PWM_FIXED_PERIOD"/>
                                  </array>
                                  <setting name="PwmPeriodInTicks" value="true"/>
-                                 <setting name="PwmPeriodDefault" value="1000"/>
-                                 <setting name="PwmDutycycleDefault" value="0"/>
+                                 <setting name="PwmPeriodDefault" value="16"/>
+                                 <setting name="PwmDutycycleDefault" value="16384"/>
                                  <setting name="PwmPolarity" value="PWM_HIGH"/>
                                  <setting name="PwmIdleState" value="PWM_LOW"/>
                                  <array name="PwmNotification">
                                     <setting name="0" value="CameraClock"/>
                                  </array>
+                                 <setting name="PwmMcuClockReferencePoint" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/Ftm2ClockReferencePoint"/>
+                                 <array name="PwmChannelEcucPartitionRef"/>
+                              </struct>
+                              <struct name="5">
+                                 <setting name="Name" value="LinearCamera_SampleTrig"/>
+                                 <setting name="PwmChannelId" value="5"/>
+                                 <setting name="PwmHwChannel" value="/Pwm/Pwm/PwmChannelConfigSet/Ftm_Instance_2/PwmFtmCh_1"/>
+                                 <array name="PwmChannelClass"/>
+                                 <setting name="PwmPeriodInTicks" value="true"/>
+                                 <setting name="PwmPeriodDefault" value="16"/>
+                                 <setting name="PwmDutycycleDefault" value="16384"/>
+                                 <setting name="PwmPolarity" value="PWM_HIGH"/>
+                                 <setting name="PwmIdleState" value="PWM_LOW"/>
+                                 <array name="PwmNotification"/>
                                  <setting name="PwmMcuClockReferencePoint" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/Ftm2ClockReferencePoint"/>
                                  <array name="PwmChannelEcucPartitionRef"/>
                               </struct>
@@ -3323,6 +3348,30 @@
                                        <setting name="PwmFtmChSwCtrlEnable" value="false"/>
                                        <setting name="PwmFtmChSwCtrlValue" value="false"/>
                                        <setting name="PwmFtmChExternTriggerEnable" value="false"/>
+                                       <setting name="PwmFtmChMatchLoadPointEnable" value="false"/>
+                                       <setting name="PwmFtmPairChEnable" value="false"/>
+                                       <struct name="PwmFtmPairedCh">
+                                          <setting name="Name" value="PwmFtmPairedCh"/>
+                                          <setting name="PwmFtmPairedChDeadtimeEnable" value="false"/>
+                                          <setting name="PwmFtmPairedChSync" value="false"/>
+                                          <setting name="PwmFtmPairedChExtTrig" value="false"/>
+                                          <setting name="PwmFtmPairedChComplementary" value="false"/>
+                                          <setting name="PwmFtmDutyDitheringPaired" value="false"/>
+                                          <setting name="PwmFtmPairedChCombineMode" value="Combine_modes_disabled"/>
+                                          <setting name="PwmFtmPairedChComplementaryMode" value="Invert_Output"/>
+                                          <setting name="PwmFtmPairedChPhaseShift" value="0"/>
+                                       </struct>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="PwmFtmCh_1"/>
+                                       <setting name="PwmFtmChId" value="CH_1"/>
+                                       <setting name="PwmFtmChPulseType" value="High_true_pulse"/>
+                                       <setting name="PwmFtmChDutyCycleDither" value="0"/>
+                                       <setting name="PwmFtmChInterrupt" value="false"/>
+                                       <setting name="PwmFtmChPwmOutputEnable" value="false"/>
+                                       <setting name="PwmFtmChSwCtrlEnable" value="false"/>
+                                       <setting name="PwmFtmChSwCtrlValue" value="false"/>
+                                       <setting name="PwmFtmChExternTriggerEnable" value="true"/>
                                        <setting name="PwmFtmChMatchLoadPointEnable" value="false"/>
                                        <setting name="PwmFtmPairChEnable" value="false"/>
                                        <struct name="PwmFtmPairedCh">

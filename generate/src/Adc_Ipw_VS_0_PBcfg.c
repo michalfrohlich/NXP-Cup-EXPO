@@ -185,6 +185,10 @@ extern "C"{
 * @brief          Group Channel Delays for configuration variant _VS_0.
 *
 */
+static const uint16 Adc_GroupChannelDelays0_VS_0[] =
+{
+    12U
+};
 
 
 #define ADC_STOP_SEC_CONFIG_DATA_16
@@ -237,7 +241,7 @@ const Adc_Ipw_GroupConfig AdcIpwGroupConfig_0_VS_0 =
     STD_OFF, /* GroupAvgEnable */
     /**< @brief Main Average selection of group */
     ADC_IP_AVG_4_CONV, /* GroupAvgSelect */
-    20U, /* ConvTime */
+    13U, /* ConvTime */
 #if (ADC_DUAL_CLOCK_MODE == STD_ON)
     /**< @brief Alternate Average enable status of group */
     STD_OFF, /* GroupAvgEnableAlternate */
@@ -248,9 +252,9 @@ const Adc_Ipw_GroupConfig AdcIpwGroupConfig_0_VS_0 =
 #endif /* (ADC_SET_ADC_CONV_TIME_ONCE == STD_OFF) */
     0U, /* PdbPeriod */
     0U, /* PdbDelay */
-    (boolean)TRUE, /* AdcGroupEnableBackToBack */
-    (boolean)FALSE, /* AdcGroupEnableChannelDelays */
-    NULL_PTR /* DelayPtr */
+    (boolean)FALSE, /* AdcGroupEnableBackToBack */
+    (boolean)TRUE, /* AdcGroupEnableChannelDelays */
+    Adc_GroupChannelDelays0_VS_0 /* DelayPtr */
 };
 
 /**

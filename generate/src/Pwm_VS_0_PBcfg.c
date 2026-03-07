@@ -253,11 +253,36 @@ const Pwm_ChannelConfigType Pwm_Channels_VS_0_PB[PWM_VS_0_PB_CFG_CHANNELS_COUNT]
             /** @brief  Hardware Channel Instance ID */
             (Pwm_IpwInstanceType)FTM_PWM_IP_VS_0_I2_CH0_CFG,
             /** @brief The duty cycle of this channel */
-            0U
+            16384U
         },
         /** @brief  The state of the channel output in idle mode */
         PWM_LOW,
         &CameraClock
+    },
+    /* LinearCamera_SampleTrig */
+    {
+        /** @brief  Channel Id */
+        (Pwm_ChannelType)5U,
+        /** @brief  Channel class */
+        PWM_FIXED_PERIOD,
+        /** @brief  Ip channel configuration */
+        {
+            /** @brief  Hardware Channel Type */
+            PWM_CHANNEL_FTM,
+            /** @brief  Hardware Channel Configuration Pointer */
+            (const void *)(&Ftm_Pwm_Ip_VS_0_I2_Ch1),
+        #if (defined(PWM_FLEXIO_USED) && (PWM_FLEXIO_USED == STD_ON))
+            /** @brief  Pointer to the Flexio ip channel configuration structure */
+            NULL_PTR,
+        #endif
+            /** @brief  Hardware Channel Instance ID */
+            (Pwm_IpwInstanceType)FTM_PWM_IP_VS_0_I2_CH1_CFG,
+            /** @brief The duty cycle of this channel */
+            16384U
+        },
+        /** @brief  The state of the channel output in idle mode */
+        PWM_LOW,
+        NULL_PTR
     }
 };
 
@@ -316,7 +341,7 @@ const Pwm_ConfigType Pwm_Config =
         /* Index of channels 0 - 7 of FTM_1 in the array of logic PWM channels */
         (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255,
         /* Index of channels 0 - 7 of FTM_2 in the array of logic PWM channels */
-        (Pwm_ChannelType)4, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255,
+        (Pwm_ChannelType)4, (Pwm_ChannelType)5, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255,
         /* Index of channels 0 - 7 of FTM_3 in the array of logic PWM channels */
         (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)0, (Pwm_ChannelType)1,
         /*---------------------Flexio_0---------------------------*/

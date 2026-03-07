@@ -74,7 +74,7 @@ extern "C"
 
 #define TRGMUX_IP_MULTICORE_IS_AVAILABLE            STD_OFF
 
-#define TRGMUX_IP_NOF_CFG_LOGIC_TRIGGERS            ((uint32)1U)
+#define TRGMUX_IP_NOF_CFG_LOGIC_TRIGGERS            ((uint32)2U)
 /*-----------------------------------------------/
 /  TRGMUX IP USER MODE SUPPORT                    /
 /-----------------------------------------------*/

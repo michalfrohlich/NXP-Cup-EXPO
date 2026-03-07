@@ -168,10 +168,10 @@ static const Adc_GroupConfigurationType Adc_GroupsCfg_VS_0[] =
         /**< @brief Replacement mode */
         ADC_GROUP_REPL_ABORT_RESTART, /* eReplacementMode */
         /**< @brief Trigger source configured */
-        ADC_TRIGG_SRC_SW, /* TriggerSource */
+        ADC_TRIGG_SRC_HW, /* TriggerSource */
 #if (STD_ON == ADC_HW_TRIGGER_API)
         /**< @brief Hardware trigger source for the group */
-        PDB_ADC_IP_SOFTWARE_TRIGGER, /* HwTriggerSource */
+        PDB_ADC_IP_TRIGGER_IN0, /* HwTriggerSource */
         /**< @brief Hardware trigger signal */
         ADC_HW_TRIG_RISING_EDGE, /* eTriggerEdge */
 #endif /* (STD_ON == ADC_HW_TRIGGER_API) */

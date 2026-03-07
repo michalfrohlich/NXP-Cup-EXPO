@@ -28,9 +28,9 @@ typedef enum
 typedef struct
 {
     Pwm_ChannelType ClkPwmChannel;
-    Gpt_ChannelType ShutterGptChannel;
+    Gpt_ChannelType ShutterGptChannel;   /* kept for compatibility, used as inter-frame delay timer */
     Adc_GroupType InputAdcGroup;
-    Dio_ChannelType ShutterDioChannel;
+    Dio_ChannelType ShutterDioChannel;   /* kept for compatibility, actually used as SI */
 
     volatile uint16 CurrentIndex;
     volatile LinearCameraStatus Status;

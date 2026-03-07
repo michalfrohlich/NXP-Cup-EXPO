@@ -92,6 +92,8 @@ extern "C"{
 #define FTM_PWM_IP_VS_0_I3_CH6_CFG      (3U)
 /* Ftm instance index for configuration PwmFtmCh_0 */
 #define FTM_PWM_IP_VS_0_I2_CH0_CFG      (2U)
+/* Ftm instance index for configuration PwmFtmCh_1 */
+#define FTM_PWM_IP_VS_0_I2_CH1_CFG      (2U)
 
 /*==================================================================================================
 *                                      DEFINES AND MACROS
@@ -162,6 +164,9 @@ extern const Ftm_Pwm_Ip_SyncCfgType Ftm_Pwm_Ip_VS_0_SyncCfg2;
 /* Channel configurations for Ftm instance 2 */
 /* Ftm channel 0 configuration */
 extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch0;
+
+/* Ftm channel 1 configuration */
+extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch1;
 
 
 #define PWM_STOP_SEC_CONFIG_DATA_UNSPECIFIED
