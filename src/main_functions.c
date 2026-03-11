@@ -237,14 +237,6 @@ void ServoTest() {
     }
 }
 
-void LinearCameraTest(){
-    LinearCameraFrame FrameBuffer;
-    while(1){
-        LinearCameraGetFrame(&FrameBuffer, 100U);
-        DisplayGraph(0U, FrameBuffer.Values, 128U, 4U);
-        DisplayRefresh();
-    }
-}
 
 void HbridgeTest(){
     volatile int Delay;

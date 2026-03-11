@@ -119,6 +119,13 @@ extern "C"{
 #else
     #error "LPIT_0_CH_2 cannot be used by GPT. Instance locked by another driver!"
 #endif
+#define LPIT_0_CH_3_ISR_USED
+
+#ifndef LPIT_0_CH_3_USED
+    #define LPIT_0_CH_3_USED
+#else
+    #error "LPIT_0_CH_3 cannot be used by GPT. Instance locked by another driver!"
+#endif
 
 /*==================================================================================================
 *                                             ENUMS

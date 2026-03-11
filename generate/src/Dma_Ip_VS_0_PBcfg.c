@@ -112,6 +112,179 @@ extern "C"
 #include "Mcl_MemMap.h"
 
 
+/* DMA Logic Instance Configuration */
+const Dma_Ip_LogicInstanceConfigType LogicInstance0ConfigPB_VS_0 =
+{
+	{
+		/* uint32 logicInstId; */ DMA_LOGIC_INST_0,
+		/* uint8 hwVersId;     */ DMA_IP_HARDWARE_VERSION_2,
+		/* uint8 hwInst;       */ DMA_IP_HW_INST_0,
+	},
+	/* boolean EnDebug; */                 (boolean)FALSE,
+	/* boolean EnRoundRobin; */            (boolean)FALSE,
+	/* boolean EnHaltAfterError; */        (boolean)FALSE,
+	/* boolean EnChLinking; */             (boolean)FALSE,
+	/* boolean EnGlMasterIdReplication; */ (boolean)FALSE,
+};
+
+/* DMA Logic Instance Configuration Array */
+const Dma_Ip_LogicInstanceConfigType * const Dma_Ip_paxLogicInstanceConfigArrayPB_VS_0[DMA_IP_NOF_CFG_LOGIC_INSTANCES] =
+{
+		&LogicInstance0ConfigPB_VS_0,
+};
+
+
+#define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+
+#define MCL_START_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+
+/* DMA Logic Channel Configurations */
+const Dma_Ip_GlobalConfigType LogicChannel0GlobalConfigPB_VS_0 =
+{
+	{
+		/* boolean EnMasterIdReplication; */ (boolean)FALSE,
+		/* boolean EnBufferedWrites; */      (boolean)FALSE,
+	}, /* Control */
+	{
+		/* boolean EnRequest; */             (boolean)TRUE,
+	}, /* Request */
+	{
+		/* boolean EnErrorInt; */            (boolean)FALSE,
+	}, /* Interrupt */
+	{
+		/* uint8 SwapSize; */                (uint8)0U,
+	}, /* Swap */
+	{
+		/* uint8 Group; */                   0U,
+		/* uint8 Level; */                   DMA_IP_LEVEL_PRIO0,
+		/* boolean EnPreemption; */          (boolean)FALSE,
+		/* boolean DisPreempt; */            (boolean)FALSE,
+	}, /* Priority */
+};
+const Dma_Ip_TransferConfigType LogicChannel0TransferConfigPB_VS_0 =
+{
+	{
+		/* uint32 ScatterGatherAddr; */    0U,
+		/* uint32 DestinationStoreAddr; */ 0U,
+		/* uint8 BandwidthControl; */      DMA_IP_BWC_ENGINE_NO_STALL,
+		/* uint8 TransferModeControl; */   0U,
+		/* boolean EnStart; */             (boolean)FALSE,
+		/* boolean EnMajorInt; */          (boolean)TRUE,
+		/* boolean EnHalfMajorInt; */      (boolean)FALSE,
+		/* boolean DisAutoHwRequest; */    (boolean)TRUE,
+		/* boolean EnEndOfPacketSignal; */ (boolean)FALSE,
+	}, /* Control */
+	{
+		/* uint32 addr; */         0U,
+		/* sint32 lastAddrAdj; */  0,
+		/* sint16 signedOffset; */ 0,
+		/* uint8 transferSize; */  DMA_IP_TRANSFER_SIZE_2_BYTE,
+		/* uint8 modulo; */        0U,
+	}, /* Source */
+	{
+		/* uint32 addr; */         0U,
+		/* sint32 lastAddrAdj; */  0,
+		/* sint16 signedOffset; */ 2,
+		/* uint8 transferSize; */  DMA_IP_TRANSFER_SIZE_2_BYTE,
+		/* uint8 modulo; */        0U,
+	}, /* Destination */
+	{
+		/* uint32 size; */         2U,
+		/* sint32 offset; */       0,
+		/* uint8 LogicLinkCh; */   0U,
+		/* boolean EnLink; */      (boolean)FALSE,
+		/* boolean EnSrcOffset; */ (boolean)FALSE,
+		/* boolean EnDstOffset; */ (boolean)FALSE,
+	}, /* MinorLoop */
+	{
+		/* uint16 count; */        128U,
+		/* uint8 LogicLinkCh; */   0U,
+		/* boolean EnLink; */      (boolean)FALSE,
+	}, /* MajorLoop */
+};
+
+#define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_VAR_CLEARED_UNSPECIFIED_NO_CACHEABLE
+#include "Mcl_MemMap.h"
+
+
+#define MCL_STOP_SEC_VAR_CLEARED_UNSPECIFIED_NO_CACHEABLE
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_VAR_INIT_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+#define MCL_STOP_SEC_VAR_INIT_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+extern void Adc_Ipw_Adc0DmaTransferCompleteNotification(void);
+
+const Dma_Ip_LogicChannelConfigType LogicChannel0ConfigPB_VS_0 = 
+{
+		{
+				/* uint32 LogicChId; */               DMA_LOGIC_CH_0,
+				/* uint8 HwVersId; */                 DMA_IP_HARDWARE_VERSION_2,
+				/* uint8 HwInst; */                   DMA_IP_HW_INST_0,
+				/* uint8 HwChId; */                   0U,
+				/* Dma_Ip_Callback IntCallback; */    Adc_Ipw_Adc0DmaTransferCompleteNotification,
+				/* Dma_Ip_Callback ErrIntCallback; */ NULL_PTR,
+		}, /* Dma_Ip_LogicChannelIdType */
+		&LogicChannel0GlobalConfigPB_VS_0,
+		&LogicChannel0TransferConfigPB_VS_0,
+		NULL_PTR,
+};
+
+const Dma_Ip_LogicChannelConfigType * const Dma_Ip_paxLogicChannelConfigArrayPB_VS_0[DMA_IP_NOF_CFG_LOGIC_CHANNELS] =
+{
+		&LogicChannel0ConfigPB_VS_0,
+};
+
+#define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_VAR_CLEARED_UNSPECIFIED_NO_CACHEABLE
+#include "Mcl_MemMap.h"
+
+/* DMA Hardware Channel 0 */
+Dma_Ip_HwChannelStateType HwChannel0StatePB_VS_0;
+
+#define MCL_STOP_SEC_VAR_CLEARED_UNSPECIFIED_NO_CACHEABLE
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_VAR_INIT_UNSPECIFIED_NO_CACHEABLE
+#include "Mcl_MemMap.h"
+
+/* DMA Hardware Channel State and DMA Logic Channel Configuration Array */
+Dma_Ip_HwChannelStateType * Dma_Ip_paxHwChannelStateArrayPB_VS_0[DMA_IP_NOF_CFG_LOGIC_CHANNELS] =
+{
+		&HwChannel0StatePB_VS_0,
+};
+
+#define MCL_STOP_SEC_VAR_INIT_UNSPECIFIED_NO_CACHEABLE
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+/* DMA Initialization Structure */
+const Dma_Ip_InitType Dma_Ip_xDmaInitPB_VS_0 = 
+{
+		/* Dma_Ip_HwChannelStateType ** HwChStateArray; */                            &Dma_Ip_paxHwChannelStateArrayPB_VS_0[0U],         /* Static */
+		/* const Dma_Ip_LogicChannelConfigType * const LogicChConfigArray;   */       &Dma_Ip_xLogicChannelResetConfig,           /* Static */
+		/* const Dma_Ip_LogicChannelConfigType * const * LogicChConfigArray; */       &Dma_Ip_paxLogicChannelConfigArrayPB_VS_0[0U],     /* Static */
+		/* const Dma_Ip_LogicInstanceConfigType * const LogicInstConfigArray;   */    &Dma_Ip_xLogicInstanceResetConfig,          /* Static */
+		/* const Dma_Ip_LogicInstanceConfigType * const  * LogicInstConfigArray; */   &Dma_Ip_paxLogicInstanceConfigArrayPB_VS_0[0U],    /* Static */
+};
+
 #define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Mcl_MemMap.h"
 

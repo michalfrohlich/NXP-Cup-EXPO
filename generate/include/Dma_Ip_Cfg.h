@@ -105,6 +105,64 @@ extern "C"{
  ******************************************************************************/
 
 
+#define MCL_ENABLE_USER_MODE_SUPPORT     STD_OFF
+
+#if (STD_ON == MCL_ENABLE_USER_MODE_SUPPORT)
+#define MCL_DMA_REG_PROT_AVAILABLE
+#endif
+
+/* Number Of Configured Logic Instances */
+#define DMA_IP_NOF_CFG_LOGIC_INSTANCES   ((uint32)1U)
+
+/* Logic Instance 0 */
+#define DMA_LOGIC_INST_0      ((uint32)0U)
+
+/* Number Of Configured Logic Channels */
+#define DMA_IP_NOF_CFG_LOGIC_CHANNELS    ((uint32)1U)
+
+/* Logic Channel 0 */
+#define DMA_LOGIC_CH_0   ((uint8)0U)
+
+#define MCL_START_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+extern const Dma_Ip_InitType Dma_Ip_xDmaInitPB_VS_0;
+
+extern const Dma_Ip_LogicChannelConfigType Dma_Ip_xLogicChannelResetConfig;
+
+extern const Dma_Ip_LogicInstanceConfigType Dma_Ip_xLogicInstanceResetConfig;
+
+#define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_CODE
+#include "Mcl_MemMap.h"
+
+/* DMA IRQ Handlers */
+/* Register definitions */
+
+ISR(Dma0_Ch0_IRQHandler);
+ISR(Dma0_Ch1_IRQHandler);
+ISR(Dma0_Ch2_IRQHandler);
+ISR(Dma0_Ch3_IRQHandler);
+ISR(Dma0_Ch4_IRQHandler);
+ISR(Dma0_Ch5_IRQHandler);
+ISR(Dma0_Ch6_IRQHandler);
+ISR(Dma0_Ch7_IRQHandler);
+ISR(Dma0_Ch8_IRQHandler);
+ISR(Dma0_Ch9_IRQHandler);
+ISR(Dma0_Ch10_IRQHandler);
+ISR(Dma0_Ch11_IRQHandler);
+ISR(Dma0_Ch12_IRQHandler);
+ISR(Dma0_Ch13_IRQHandler);
+ISR(Dma0_Ch14_IRQHandler);
+ISR(Dma0_Ch15_IRQHandler);
+
+/* DMA Error IRQ Handlers */
+ISR(Dma0_Error_IrqHandler);
+
+#define MCL_STOP_SEC_CODE
+#include "Mcl_MemMap.h"
+
 #ifdef __cplusplus
 }
 #endif

@@ -159,10 +159,17 @@ extern "C"{
 */
 #define ADC_CTU_HW_TRIGGER_OPTIMIZATION     (STD_OFF)
 
+/**
+* @brief           Active DMA.
+*/
+#define ADC_DMA_SUPPORTED
+
 
 /**
 * @brief           Active DMA transfer notification.
 */
+
+#define ADC_UNIT_0_DMA_TRANSFER_USED
 
 /**
  * @brief   Define the number of maximum hardware unit configured
@@ -257,8 +264,6 @@ extern "C"{
 /**
 * @brief End Of Chain Notification
 */
-
-#define ADC_UNIT_0_END_CONVERSION_NOTIF_USED
 
 /**
 * @brief           max queue depth configured across all configset.

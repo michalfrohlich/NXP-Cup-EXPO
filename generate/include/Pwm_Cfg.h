@@ -171,7 +171,7 @@ extern "C"{
 * @brief        Switch to indicate that Pwm_ForceOutputToZero API is supported
 * @note         In current implementation, this option is not supported
 */
-#define PWM_FORCE_OUTPUT_TO_ZERO_API            (STD_OFF)
+#define PWM_FORCE_OUTPUT_TO_ZERO_API            (STD_ON)
 
 /** @brief        Switch to indicate that Pwm_SetDutyPhaseShift API is supported */
 #define PWM_SET_DUTY_PHASE_SHIFT_API            (STD_OFF)

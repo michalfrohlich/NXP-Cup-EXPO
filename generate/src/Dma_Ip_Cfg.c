@@ -110,6 +110,112 @@ extern "C"
 * @page misra_violations MISRA-C:2012 violations
 **/
 
+#define MCL_START_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+/* DMA Logic Instance Reset Configuration */
+const Dma_Ip_LogicInstanceConfigType Dma_Ip_xLogicInstanceResetConfig =
+{
+    {
+        /* uint32 logicInstId; */ 0U,
+        /* uint8 hwVersId;     */ DMA_IP_HARDWARE_VERSION_2,
+        /* uint8 hwInst;       */ 0U,
+    },
+    /* boolean EnDebug; */                 (boolean)FALSE,
+    /* boolean EnRoundRobin; */            (boolean)FALSE,
+    /* boolean EnHaltAfterError; */        (boolean)FALSE,
+    /* boolean EnChLinking; */             (boolean)FALSE,
+    /* boolean EnGlMasterIdReplication; */ (boolean)FALSE,
+};
+
+#define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+
+#define MCL_START_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
+/* DMA Logic Channel Reset Configuration */
+const Dma_Ip_GlobalConfigType GlobalResetConfig =
+{
+    {
+        /* boolean EnMasterIdReplication; */ (boolean)FALSE,
+        /* boolean EnBufferedWrites; */      (boolean)FALSE,
+    }, /* Control */
+    {
+        /* boolean EnRequest; */             (boolean)FALSE,
+    }, /* Request */
+    {
+        /* boolean EnErrorInt; */            (boolean)FALSE,
+    }, /* Interrupt */
+    {
+        /* uint8 SwapSize; */                0U,
+    }, /* Swap */
+    {
+        /* uint8 Group; */                   0U,
+        /* uint8 Level; */                   0U,
+        /* boolean EnPreemption; */          (boolean)FALSE,
+        /* boolean DisPreempt; */            (boolean)FALSE,
+    }, /* Priority */
+};
+
+const Dma_Ip_TransferConfigType TransferResetConfig =
+{
+    {
+        /* uint32 ScatterGatherAddr; */      0U,
+        /* uint32 DestinationStoreAddr; */   0,
+        /* uint8 BandwidthControl; */        0,
+        /* uint8 TransferModeControl; */     0,
+        /* boolean EnStart; */               (boolean)FALSE,
+        /* boolean EnMajorInt; */            (boolean)FALSE,
+        /* boolean EnHalfMajorInt; */        (boolean)FALSE,
+        /* boolean DisAutoHwRequest; */      (boolean)FALSE,
+        /* boolean EnEndOfPacketSignal; */   (boolean)FALSE,
+    }, /* Control */
+    {
+        /* uint32 Addr; */         0U,
+        /* sint32 LastAddrAdj; */  0,
+        /* sint16 SignedOffset; */ 0,
+        /* uint8 TransferSize; */  0U,
+        /* uint8 Modulo; */        0U,
+    }, /* Source */
+    {
+        /* uint32 Addr; */         0U,
+        /* sint32 LastAddrAdj; */  0,
+        /* sint16 SignedOffset; */ 0,
+        /* uint8 TransferSize; */  0U,
+        /* uint8 Modulo; */        0U,
+    }, /* Destination */
+    {
+        /* uint32 Size; */         0U,
+        /* sint32 Offset; */       0,
+        /* uint8 LogicLinkCh; */   0U,
+        /* boolean EnLink; */      (boolean)FALSE,
+        /* boolean EnSrcOffset; */ (boolean)FALSE,
+        /* boolean EnDstOffset; */ (boolean)FALSE,
+    }, /* MinorLoop */
+    {
+        /* uint16 Count; */        0U,
+        /* uint8 LogicLinkCh; */   0U,
+        /* boolean EnLink; */      (boolean)FALSE,
+    }, /* MajorLoop */
+};
+const Dma_Ip_LogicChannelConfigType Dma_Ip_xLogicChannelResetConfig =
+{
+    {
+        /* uint32 logicChId; */               0U,
+        /* uint8 hwVersId; */                 DMA_IP_HARDWARE_VERSION_2,
+        /* uint8 hwInst; */                   0U,
+        /* uint8 hwChId; */                   0U,
+        /* Dma_Ip_Callback IntCallback; */    NULL_PTR,
+        /* Dma_Ip_Callback ErrIntCallback; */ NULL_PTR,
+    }, /* Dma_Ip_LogicChannelIdType */
+    &GlobalResetConfig,
+    &TransferResetConfig,
+    NULL_PTR,
+
+};
+
+#define MCL_STOP_SEC_CONFIG_DATA_UNSPECIFIED
+#include "Mcl_MemMap.h"
 #ifdef __cplusplus
 }
 #endif

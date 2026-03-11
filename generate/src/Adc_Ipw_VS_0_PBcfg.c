@@ -43,6 +43,9 @@ extern "C"{
 #include "Adc_Ipw_VS_0_PBcfg.h"
 #include "Adc_Ip_VS_0_PBcfg.h"
 #include "Pdb_Adc_Ip_VS_0_PBcfg.h"
+#ifdef ADC_DMA_SUPPORTED
+#include "Dma_Ip_Cfg.h"
+#endif /* ADC_DMA_SUPPORTED */
 
 
 /*==================================================================================================
@@ -145,6 +148,16 @@ extern "C"{
   #error "Software Version Numbers of Adc_Ipw_VS_0_PBcfg.c and Pdb_Adc_Ip_VS_0_PBcfg.h are different"
 #endif
 
+#ifndef DISABLE_MCAL_INTERMODULE_ASR_CHECK
+#ifdef ADC_DMA_SUPPORTED
+/* Check if Adc_Ipw_VS_0_PBcfg.c file and Dma_Ip_Cfg.h file are of the same Autosar version */
+#if ((ADC_IPW_AR_RELEASE_MAJOR_VERSION_VS_0_PBCFG_C != DMA_IP_CFG_AR_RELEASE_MAJOR_VERSION) || \
+     (ADC_IPW_AR_RELEASE_MINOR_VERSION_VS_0_PBCFG_C != DMA_IP_CFG_AR_RELEASE_MINOR_VERSION)    \
+    )
+    #error "AutoSar Version Numbers of Adc_Ipw_VS_0_PBcfg.c and Dma_Ip_Cfg.h are different"
+#endif
+#endif /* ADC_DMA_SUPPORTED */
+#endif /* DISABLE_MCAL_INTERMODULE_ASR_CHECK */
 
 /*==================================================================================================
 *                                   GLOBAL FUNCTION PROTOTYPES
@@ -187,7 +200,7 @@ extern "C"{
 */
 static const uint16 Adc_GroupChannelDelays0_VS_0[] =
 {
-    12U
+    0U
 };
 
 
@@ -217,12 +230,12 @@ const Adc_Ipw_Config AdcIpwCfg_VS_0 =
 #endif /* (ADC_ENABLE_LIMIT_CHECK == STD_ON) */
     /* Mapping */
     {
-        { ADC_INTERRUPT, ADC_IPW_INVALID_TRANSFER_TYPE /* Unit not used */ }, /* AdcDmaInterruptSoftware */
+        { ADC_DMA, ADC_IPW_INVALID_TRANSFER_TYPE /* Unit not used */ }, /* AdcDmaInterruptSoftware */
         /**< @brief number of groups per hw unit > */
         { 2U, 0U }, /* AdcGroups */
         /**< @brief number of channels per hw unit > */
         { 2U, 0U }, /* AdcChannels */
-        { ADC_IPW_INVALID_DMA_CHANNEL_ID, ADC_IPW_INVALID_DMA_CHANNEL_ID }, /* AdcDmaChannelLogicId */
+        { DMA_LOGIC_CH_0, ADC_IPW_INVALID_DMA_CHANNEL_ID }, /* AdcDmaChannelLogicId */
 #if (STD_ON == ADC_OPTIMIZE_DMA_STREAMING_GROUPS) || (ADC_ENABLE_GROUP_STREAMING_RESULTS_REORDER == STD_ON)
         { ADC_IPW_INVALID_DMA_CHANNEL_ID, ADC_IPW_INVALID_DMA_CHANNEL_ID }, /* AdcCountingDmaChanLogicId */
 #endif /* (STD_ON == ADC_OPTIMIZE_DMA_STREAMING_GROUPS) || (ADC_ENABLE_GROUP_STREAMING_RESULTS_REORDER == STD_ON) */

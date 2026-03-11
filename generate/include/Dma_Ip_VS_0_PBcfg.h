@@ -76,6 +76,13 @@ extern "C"{
 *                                    FUNCTION PROTOTYPES
 ==================================================================================================*/
 
+#define MCL_START_SEC_CODE
+#include "Mcl_MemMap.h"
+
+void Adc_Ipw_Adc0DmaTransferCompleteNotification(void);
+
+#define MCL_STOP_SEC_CODE
+#include "Mcl_MemMap.h"
 
 #ifdef __cplusplus
 }

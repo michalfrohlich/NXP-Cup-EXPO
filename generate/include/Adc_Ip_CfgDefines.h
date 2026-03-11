@@ -103,7 +103,7 @@ extern "C"{
 #define ADC_IP_DEV_ERROR_DETECT                (STD_OFF)
 #define ADC_IP_TIMEOUT_TYPE                    (OSIF_COUNTER_DUMMY)
 #define ADC_IP_TIMEOUT_VAL                     (10000UL)
-#define ADC_IP_AIEN_INTERRUPT_ENABLE           (STD_ON)
+#define ADC_IP_AIEN_INTERRUPT_ENABLE           (STD_OFF)
 #define ADC_IP_ENABLE_USER_MODE_SUPPORT        (STD_OFF)
 #define ADC_IP_SUPPLY_MONITORING_ENABLED       (STD_OFF)
 #define ADC_IP_ENABLE_SIM_SOURCE_SELECTION     (STD_OFF)

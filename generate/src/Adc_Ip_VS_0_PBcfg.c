@@ -149,7 +149,7 @@ const Adc_Ip_ConfigType AdcIpConfig_0_VS_0 =
     0U, /* NumChannels */
     AdcIpChansConfig_0_VS_0, /* ChannelConfigs */
 #if (ADC_IP_AIEN_INTERRUPT_ENABLE == STD_ON)
-    Adc_Ipw_Adc0EndConversionNotification /* ConversionCompleteNotification */
+    NULL_PTR /* ConversionCompleteNotification */
 #endif /* (ADC_IP_AIEN_INTERRUPT_ENABLE == STD_ON) */
 };
 

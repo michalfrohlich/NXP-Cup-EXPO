@@ -20,39 +20,68 @@ typedef struct
 
 typedef enum
 {
-    LINEAR_CAMERA_IDLE = 0,
-    LINEAR_CAMERA_CAPTURING,
-    LINEAR_CAMERA_READY
+    LINEAR_CAMERA_STATUS_IDLE = 0,
+    LINEAR_CAMERA_STATUS_ARMED,
+    LINEAR_CAMERA_STATUS_CAPTURING
 } LinearCameraStatus;
 
 typedef struct
 {
-    Pwm_ChannelType ClkPwmChannel;
-    Gpt_ChannelType ShutterGptChannel;   /* kept for compatibility, used as inter-frame delay timer */
-    Adc_GroupType InputAdcGroup;
-    Dio_ChannelType ShutterDioChannel;   /* kept for compatibility, actually used as SI */
+    volatile uint32 ExposureIsrCount;
+    volatile uint32 ClockEdgeCbCount;
+    volatile uint32 BurstStopCbCount;
+    volatile uint32 DmaDoneCbCount;
+    volatile uint32 PublishedFrameCount;
+    volatile uint32 CopyLatestFrameCount;
+    volatile uint32 ArmNextExposureCount;
+    volatile uint32 AbortCount;
+    volatile uint32 LastStatus;
+    volatile uint32 LastPhase;
+    volatile uint32 LastReadyIndex;
+    volatile uint32 LastWriteIndex;
+} LinearCameraDebugCounters;
 
-    volatile uint16 CurrentIndex;
-    volatile LinearCameraStatus Status;
+void LinearCamera_Init(Pwm_ChannelType clkPwmChannel,
+                       Gpt_ChannelType exposureGptChannel,
+                       Gpt_ChannelType burstStopGptChannel,
+                       Adc_GroupType adcGroup,
+                       Dio_ChannelType siDioChannel);
 
-    LinearCameraFrame *BufferReference;
-} LinearCamera;
+/* Start continuous acquisition.
+ * The exposure GPT remains one-shot, but is re-armed internally after each frame.
+ */
+boolean LinearCamera_StartStreaming(uint32 exposureUs);
 
-void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
-                      Gpt_ChannelType ShutterGptChannel,
-                      Adc_GroupType InputAdcGroup,
-                      Dio_ChannelType ShutterDioChannel);
+/* Stop continuous acquisition immediately. */
+void LinearCamera_StopStreaming(void);
 
-/* Stage A non-blocking API */
-boolean LinearCameraStartCapture(LinearCameraFrame *Frame, uint32 exposureTicks);
-LinearCameraStatus LinearCameraGetStatus(void);
-boolean LinearCameraIsBusy(void);
-boolean LinearCameraIsFrameReady(void);
-boolean LinearCameraConsumeFrame(void);
-void LinearCameraAbort(void);
+/* Update exposure for the next re-armed cycle. */
+void LinearCamera_SetExposureUs(uint32 exposureUs);
 
-/* Backward-compatible blocking wrapper */
-void LinearCameraGetFrame(LinearCameraFrame *Frame, uint32 exposureTicks);
+/* Returns TRUE if at least one completed frame is waiting. */
+boolean LinearCamera_IsFrameReady(void);
+
+/* Copy the latest completed frame into caller-owned storage.
+ * Returns FALSE if no frame is available.
+ */
+boolean LinearCamera_CopyLatestFrame(LinearCameraFrame *dst);
+
+LinearCameraStatus LinearCamera_GetStatus(void);
+boolean LinearCamera_IsBusy(void);
+void LinearCamera_Abort(void);
+
+/* Debug helpers */
+void LinearCamera_DebugResetCounters(void);
+const LinearCameraDebugCounters *LinearCamera_DebugGetCounters(void);
+
+/*
+ * Callbacks referenced by Config Tools / generated code
+ * Keep these exact names if the .mex refers to them.
+ */
+void NewCameraFrame(void);
+void CameraClock(void);
+void CameraBurstStop(void);
+void CameraDmaFinished(void);
 
 #ifdef __cplusplus
 }

@@ -485,11 +485,6 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
-            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data>true</data>
-               </feature>
-            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -3082,7 +3077,7 @@
                                     <setting name="0" value="PWM_FIXED_PERIOD"/>
                                  </array>
                                  <setting name="PwmPeriodInTicks" value="true"/>
-                                 <setting name="PwmPeriodDefault" value="1000"/>
+                                 <setting name="PwmPeriodDefault" value="16"/>
                                  <setting name="PwmDutycycleDefault" value="16384"/>
                                  <setting name="PwmPolarity" value="PWM_HIGH"/>
                                  <setting name="PwmIdleState" value="PWM_LOW"/>
@@ -3100,7 +3095,7 @@
                                     <setting name="0" value="PWM_FIXED_PERIOD"/>
                                  </array>
                                  <setting name="PwmPeriodInTicks" value="true"/>
-                                 <setting name="PwmPeriodDefault" value="1000"/>
+                                 <setting name="PwmPeriodDefault" value="16"/>
                                  <setting name="PwmDutycycleDefault" value="16384"/>
                                  <setting name="PwmPolarity" value="PWM_HIGH"/>
                                  <setting name="PwmIdleState" value="PWM_LOW"/>
@@ -3448,7 +3443,7 @@
                            <setting name="PwmSetPeriodAndDuty_NoUpdate" value="false"/>
                            <setting name="PwmSetDutyPhaseShift" value="false"/>
                            <setting name="PwmSetChannelDeadTime" value="false"/>
-                           <setting name="PwmForceOutputToZeroApi" value="true"/>
+                           <setting name="PwmForceOutputToZeroApi" value="false"/>
                            <setting name="PwmEnableTrigger" value="false"/>
                            <setting name="PwmDisableTrigger" value="false"/>
                            <setting name="PwmResetCounter" value="false"/>

@@ -85,6 +85,7 @@ extern void FTM_1_CH_2_CH_3_ISR(void);
 extern void LPIT_0_CH_0_ISR(void);
 extern void LPIT_0_CH_1_ISR(void);
 extern void LPIT_0_CH_2_ISR(void);
+extern void LPIT_0_CH_3_ISR(void);
 
 #define PLATFORM_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Platform_MemMap.h"

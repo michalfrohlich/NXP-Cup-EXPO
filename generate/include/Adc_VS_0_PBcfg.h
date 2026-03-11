@@ -113,7 +113,7 @@ extern "C"{
 * @details       ADC Notification functions defined by user.
 *
 */
-void CameraAdcFinished(void);
+void CameraDmaFinished(void);
 
 #define ADC_STOP_SEC_CODE
 #include "Adc_MemMap.h"

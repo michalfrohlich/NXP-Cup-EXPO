@@ -116,7 +116,7 @@ const Lpit_Gpt_Ip_InstanceConfigType LPIT_0_InitConfig_PB_VS_0 =
     (boolean)(FALSE) /* enable/disable Freeze Bit */
 }; 
 
-const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[3U] =
+const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[4U] =
 {
     /**@brief LPIT_0_CH_0 */ 
     {
@@ -166,6 +166,26 @@ const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[3U] =
         &Gpt_ProcessCommonInterrupt,
         /** @brief Lpit callbackparam  */
         (uint8)3U,
+ #if (LPIT_GPT_IP_ENABLE_EXT_TRIGGERS == STD_ON)
+    /** @brief LPIT External/Internal Trigger Configuration */
+      (uint32)0U | \
+      (uint32)((uint32)1U << LPIT_TMR_TCTRL_TRG_SRC_SHIFT) | \
+      (uint32)((uint32)0U << LPIT_TMR_TCTRL_TROT_SHIFT) | \
+      (uint32)((uint32)0U << LPIT_TMR_TCTRL_TSOI_SHIFT) | \
+      (uint32)((uint32)0U  << LPIT_TMR_TCTRL_TSOT_SHIFT),
+ #endif
+        /** @brief Lpit channel mode  */
+        LPIT_GPT_IP_CH_MODE_ONESHOT,
+    }
+,
+    /**@brief LPIT_0_CH_3 */ 
+    {
+        /** @brief Lpit Channel Id */
+        3U,
+        /** @brief Lpit callback name */
+        &Gpt_ProcessCommonInterrupt,
+        /** @brief Lpit callbackparam  */
+        (uint8)4U,
  #if (LPIT_GPT_IP_ENABLE_EXT_TRIGGERS == STD_ON)
     /** @brief LPIT External/Internal Trigger Configuration */
       (uint32)0U | \

@@ -475,21 +475,6 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.driver.pdb_adc" description="pdb_adc is not found in the toolchain/IDE project. The project will not compile!" problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data type="Boolean">true</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.driver.pdb_adc" description="An unsupported version of the pdb_adc in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. The project might not compile correctly." problem_level="1" source="Peripherals">
-               <feature name="version" evaluation="equivalent">
-                  <data type="Version">1.0.0</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data>true</data>
-               </feature>
-            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -1900,7 +1885,7 @@
                                        <setting name="AdcDelayNextPdb" value="0"/>
                                        <setting name="AdcPdbPeriodContinuousMode" value="1000"/>
                                        <array name="AdcChannelDelay">
-                                          <setting name="0" value="0"/>
+                                          <setting name="0" value="12"/>
                                        </array>
                                        <struct name="AdcGroupConversionConfiguration">
                                           <setting name="Name" value="AdcGroupConversionConfiguration"/>
@@ -2365,7 +2350,7 @@
                                  <setting name="Name" value="trgmuxLogicGroup_1"/>
                                  <setting name="trgmuxLogicGroupHardwareInstance" value="TRGMUX_IP_HW_INST_0"/>
                                  <setting name="trgmuxLogicGroup_Name" value="TRGMUX_IP_PDB0"/>
-                                 <setting name="trgmuxLogicGroup_Lock" value="true"/>
+                                 <setting name="trgmuxLogicGroup_Lock" value="false"/>
                                  <array name="trgmuxLogicTrigger">
                                     <struct name="0">
                                        <setting name="Name" value="trgmuxLogicTrigger_0"/>
@@ -3082,7 +3067,7 @@
                                     <setting name="0" value="PWM_FIXED_PERIOD"/>
                                  </array>
                                  <setting name="PwmPeriodInTicks" value="true"/>
-                                 <setting name="PwmPeriodDefault" value="1000"/>
+                                 <setting name="PwmPeriodDefault" value="16"/>
                                  <setting name="PwmDutycycleDefault" value="16384"/>
                                  <setting name="PwmPolarity" value="PWM_HIGH"/>
                                  <setting name="PwmIdleState" value="PWM_LOW"/>
@@ -3096,11 +3081,9 @@
                                  <setting name="Name" value="LinearCamera_SampleTrig"/>
                                  <setting name="PwmChannelId" value="5"/>
                                  <setting name="PwmHwChannel" value="/Pwm/Pwm/PwmChannelConfigSet/Ftm_Instance_2/PwmFtmCh_1"/>
-                                 <array name="PwmChannelClass">
-                                    <setting name="0" value="PWM_FIXED_PERIOD"/>
-                                 </array>
+                                 <array name="PwmChannelClass"/>
                                  <setting name="PwmPeriodInTicks" value="true"/>
-                                 <setting name="PwmPeriodDefault" value="1000"/>
+                                 <setting name="PwmPeriodDefault" value="16"/>
                                  <setting name="PwmDutycycleDefault" value="16384"/>
                                  <setting name="PwmPolarity" value="PWM_HIGH"/>
                                  <setting name="PwmIdleState" value="PWM_LOW"/>
@@ -3358,7 +3341,7 @@
                                  <struct name="PwmFtmSyncCfg">
                                     <setting name="Name" value="PwmFtmSyncCfg"/>
                                     <setting name="PwmFtmSyncMode" value="Software_sync_trigger"/>
-                                    <setting name="PwmFtmHwTrig0" value="true"/>
+                                    <setting name="PwmFtmHwTrig0" value="false"/>
                                     <setting name="PwmFtmHwTrig1" value="false"/>
                                     <setting name="PwmFtmHwTrig2" value="false"/>
                                     <setting name="PwmFtmAutoHwTrig" value="false"/>
@@ -3448,7 +3431,7 @@
                            <setting name="PwmSetPeriodAndDuty_NoUpdate" value="false"/>
                            <setting name="PwmSetDutyPhaseShift" value="false"/>
                            <setting name="PwmSetChannelDeadTime" value="false"/>
-                           <setting name="PwmForceOutputToZeroApi" value="true"/>
+                           <setting name="PwmForceOutputToZeroApi" value="false"/>
                            <setting name="PwmEnableTrigger" value="false"/>
                            <setting name="PwmDisableTrigger" value="false"/>
                            <setting name="PwmResetCounter" value="false"/>
@@ -3634,48 +3617,6 @@
                                  </struct>
                               </array>
                               <array name="PlatformNvicEcucPartitionRef"/>
-                           </struct>
-                        </array>
-                     </config_set>
-                  </instance>
-                  <instance name="Pdb_Adc_Ip" uuid="712d0041-afbd-40cc-a5a6-626dde6fa588" type="Pdb_Adc_Ip" type_id="Pdb_Adc_Ip" mode="ip" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
-                     <config_set name="Pdb_Adc_Ip">
-                        <setting name="Name" value="Pdb_Adc_Ip"/>
-                        <struct name="PdbAdcGeneral">
-                           <setting name="Name" value="PdbAdcGeneral"/>
-                           <setting name="PdbIpDevErrorDetect" value="false"/>
-                           <setting name="PdbEnableUserModeSupport" value="false"/>
-                           <setting name="PdbEnableSIMBackToBackModeSupport" value="false"/>
-                        </struct>
-                        <array name="PdbHwUnit">
-                           <struct name="0">
-                              <setting name="Name" value="PdbHwUnit_0"/>
-                              <setting name="PdbHwUnitId" value="PDB0"/>
-                              <setting name="PdbLoadValueMode" value="LOAD_VAL_IMMEDIATELY"/>
-                              <setting name="PdbClkPreDiv" value="CLK_PREDIV_BY_1"/>
-                              <setting name="PdbClkPreMultFactor" value="CLK_PREMULT_FACT_AS_1"/>
-                              <setting name="PdbTriggerSource" value="TRIGGER_IN0"/>
-                              <setting name="PdbContinuousModeEnable" value="false"/>
-                              <setting name="PdbDmaEnable" value="false"/>
-                              <setting name="PdbCounterPeriod" value="65535"/>
-                              <setting name="PdbInstBackToBackEnable" value="false"/>
-                              <setting name="PdbErrorNotification" value="NULL_PTR"/>
-                              <array name="PdbChannel">
-                                 <struct name="0">
-                                    <setting name="Name" value="PdbChannel_0"/>
-                                    <setting name="PdbChannelIdx" value="0"/>
-                                    <array name="PdbControl">
-                                       <struct name="0">
-                                          <setting name="Name" value="ChnIdx_0"/>
-                                          <setting name="ChannelIdx" value="0"/>
-                                          <setting name="PreTriggerEn" value="true"/>
-                                          <setting name="PreTriggerOut" value="true"/>
-                                          <setting name="PreTriggerBB" value="false"/>
-                                          <setting name="DelayValue" value="10"/>
-                                       </struct>
-                                    </array>
-                                 </struct>
-                              </array>
                            </struct>
                         </array>
                      </config_set>

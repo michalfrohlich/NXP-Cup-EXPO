@@ -83,12 +83,13 @@ extern "C"
 /*-----------------------------------------------/
 /  DMA IP SUPPORT                                /
 /-----------------------------------------------*/
-#define DMA_IP_IS_AVAILABLE                              STD_OFF
+#define DMA_IP_IS_AVAILABLE           STD_ON
 
-#define DMA_IP_DMACRC_IS_AVAILABLE                       STD_OFF
+#define DMA_IP_DMACRC_IS_AVAILABLE    STD_OFF
 
-#define DMA_IP_MULTICORE_IS_AVAILABLE                    STD_OFF
+#define DMA_IP_VIRTUAL_ADDRESS_MAPPING_IS_AVAILABLE      STD_OFF
 
+#define DMA_IP_MULTICORE_IS_AVAILABLE STD_OFF
 #define DMA_IP_MASTER_ID_REPLICATION_IS_AVAILABLE        STD_OFF
 
 #define DMA_IP_TRANSACTIONS_TYPE_IS_AVAILABLE            STD_OFF
@@ -103,13 +104,13 @@ extern "C"
 
 #define DMA_IP_END_OF_PACKET_SIGNAL_IS_AVAILABLE         STD_OFF
 
-#define DMA_IP_BANDWIDTH_CONTROL_IS_AVAILABLE            STD_OFF
+#define DMA_IP_BANDWIDTH_CONTROL_IS_AVAILABLE            STD_ON
 
 #define DMA_IP_TRANSFER_MODE_CONTROL_IS_AVAILABLE        STD_OFF
 
-#define DMA_IP_PREEMPTION_IS_AVAILABLE                   STD_OFF
+#define DMA_IP_PREEMPTION_IS_AVAILABLE                   STD_ON
 
-#define DMA_IP_DISABLE_PREEMPT_IS_AVAILABLE              STD_OFF
+#define DMA_IP_DISABLE_PREEMPT_IS_AVAILABLE              STD_ON
 
 #define DMA_IP_GROUP_PRIORITY_IS_AVAILABLE               STD_OFF
 

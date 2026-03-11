@@ -129,7 +129,7 @@ const Trgmux_Ip_LogicTriggerType Trgmux_Ip_LogicTrigger1ConfigPB_VS_0 =
     /* uint8 Output; */         TRGMUX_IP_OUTPUT_PDB0_TRIGGER_IN0,
     /* uint8 Input; */          TRGMUX_IP_INPUT_FTM2_EXT_TRIG,
     /* uint8 HwInstId; */       TRGMUX_IP_HW_INST_0,
-    /* boolean Lock; */         (boolean)FALSE,
+    /* boolean Lock; */         (boolean)TRUE,
 };
 
 /* TRGMUX Initialization Structure */

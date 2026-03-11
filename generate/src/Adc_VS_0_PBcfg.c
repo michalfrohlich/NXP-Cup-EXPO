@@ -177,7 +177,7 @@ static const Adc_GroupConfigurationType Adc_GroupsCfg_VS_0[] =
 #endif /* (STD_ON == ADC_HW_TRIGGER_API) */
 #if (STD_ON == ADC_GRP_NOTIF_CAPABILITY)
         /**< @brief Notification function */
-        CameraAdcFinished, /* Notification */
+        CameraDmaFinished, /* Notification */
 #endif /* (STD_ON == ADC_GRP_NOTIF_CAPABILITY) */
 #if (ADC_ENABLE_INITIAL_NOTIFICATION == STD_ON)
         /**< @brief Extra notification function */

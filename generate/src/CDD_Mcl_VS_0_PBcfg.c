@@ -103,7 +103,7 @@ extern "C"
 
 const Mcl_ConfigType Mcl_Config =
 {
-	NULL_PTR,
+	&Dma_Ip_xDmaInitPB_VS_0,
 	&Trgmux_Ip_xTrgmuxInitPB_VS_0,
 	&Flexio_Ip_xFlexioInit_VS_0,
 };

@@ -42,7 +42,8 @@ extern "C" {
 	#define EXPOSURE_SCAN_TEST 0 /* Vision linear with adjustable exposure test*/
 	#define VISION_V2_SPLIT_TEST 0 /* Vision linear v2 - complex algorithm module*/
 	#define VISION_V2_DEBUG 0 //full vision debug module used
-	#define VISION_REFACTOR_DEBUG1 1 //after changing to raw 12-bit values and non-blocking driver
+	#define VISION_REFACTOR_DEBUG1 0 //after changing to raw 12-bit values and non-blocking driver
+	#define RAW_CAMERA_DEBUG_TEST    1 //after chaning the whole architecture
 
 #define CAR_MAIN         0   /* Line-following car main code that will run the whole car*/
 
@@ -90,12 +91,13 @@ static void System_Init(void)
 	/*Parameter: Should the driver rotate the fontmap before printing. You should leave this to 1U unless you have a special use case*/
 	DisplayInit(0U, STD_ON);
 
-	/*Initialize linear camera driver*/
-	/*First parameter: The Pwm channel that was configured in Peripherals tool for the clock sent to the camera*/
-	/*Second parameter: The Gpt channel that was configured in Peripherals tool for determining the length of the shutter signal*/
-	/*Third parameter: The Adc group that was configured in Peripherals tool for sampling the analog signal output of the camera*/
-	/*Fourth parameter: The Pcr of the pin used for sending the shutter signal to the camera*/
-	LinearCameraInit(4U, 1U, 0U, 97U);
+	/* Initialize linear camera driver */
+	/* First parameter: PWM channel configured in the Peripherals tool that generates the camera pixel clock (FTM2 -> 500 kHz CLK).*/
+	/* Second parameter: GPT channel configured in the Peripherals tool that schedules the frame start / exposure timing (SI pulse timing).*/
+	/* Third parameter: GPT channel configured in the Peripherals tool that stops the camera clock burst after 129 cycles (~258 µs at 500 kHz). This is the new burst-stop timer added during the refactor. */
+	/* Fourth parameter: ADC group configured in the Peripherals tool that samples the analog output (AO) of the TSL1401R sensor. */
+	/* Fifth parameter: PCR/DIO identifier of the pin used to generate the SI signal (serial input / shutter) to the camera. */
+	LinearCamera_Init(4U, 1U, 4U, 0U, 97U);
 
 	/*Initialize Pixy2 camera driver (optional)*/
 	/*Pixy2Init(0x54, 0U);*/
@@ -333,6 +335,96 @@ int main(void)
 ==================================================================================================*/
 #if TESTS_ENABLE
 
+#if RAW_CAMERA_DEBUG_TEST
+
+int main(void)
+{
+    static LinearCameraFrame frame;
+    uint32 lastDisplayMs = 0U;
+    uint32 lastFrameSeenMs = 0U;
+    uint32 frameCount = 0U;
+
+    const uint32 TEST_EXPOSURE_US = 10U;
+
+    System_Init();
+
+    DisplayClear();
+    DisplayText(0U, "CAM RAW DBG", 11U, 0U);
+    DisplayText(1U, "BOOT OK", 7U, 0U);
+    DisplayRefresh();
+
+    /* Do not leave LED off during bring-up */
+    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });
+
+    LinearCamera_DebugResetCounters();
+    (void)LinearCamera_StartStreaming(TEST_EXPOSURE_US);
+
+    lastFrameSeenMs = Timebase_GetMs();
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+        const LinearCameraDebugCounters *dbg = LinearCamera_DebugGetCounters();
+
+        Buttons_Update();
+
+        if (LinearCamera_CopyLatestFrame(&frame) == TRUE)
+        {
+            frameCount++;
+            lastFrameSeenMs = nowMs;
+
+            /* Blue = frames are arriving */
+            RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+        }
+
+        /* No frame for 100 ms: show error and restart stream */
+        if ((uint32)(nowMs - lastFrameSeenMs) >= 100U)
+        {
+            RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+
+            LinearCamera_StopStreaming();
+            LinearCamera_DebugResetCounters();
+            (void)LinearCamera_StartStreaming(TEST_EXPOSURE_US);
+
+            lastFrameSeenMs = nowMs;
+        }
+
+        if ((uint32)(nowMs - lastDisplayMs) >= 50U)
+        {
+            char line0[17];
+            char line1[17];
+            char line2[17];
+
+            lastDisplayMs = nowMs;
+
+            DisplayClear();
+
+            (void)snprintf(line0, sizeof(line0), "F:%5lu P:%5lu",
+                           (unsigned long)(frameCount % 100000UL),
+                           (unsigned long)(dbg->PublishedFrameCount % 100000UL));
+            DisplayText(0U, line0, 16U, 0U);
+
+            (void)snprintf(line1, sizeof(line1), "E%3lu C%3lu B%3lu",
+                           (unsigned long)(dbg->ExposureIsrCount % 1000UL),
+                           (unsigned long)(dbg->ClockEdgeCbCount % 1000UL),
+                           (unsigned long)(dbg->BurstStopCbCount % 1000UL));
+            DisplayText(1U, line1, 16U, 0U);
+
+            (void)snprintf(line2, sizeof(line2), "D%3lu S%1lu P%1lu",
+                           (unsigned long)(dbg->DmaDoneCbCount % 1000UL),
+                           (unsigned long)dbg->LastStatus,
+                           (unsigned long)dbg->LastPhase);
+            DisplayText(2U, line2, 16U, 0U);
+
+            DisplayBarGraph(3U, frame.Values, 128U, 1U);
+
+            DisplayRefresh();
+        }
+    }
+}
+
+#endif /* RAW_CAMERA_DEBUG_TEST */
+
 #if VISION_REFACTOR_DEBUG1
 
 int main(void)
@@ -349,22 +441,22 @@ int main(void)
     VisionLinear_DebugOut_t dbg;
     static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
 
-    const uint32 LOOP_PERIOD_MS     = 5U;
-    const uint32 DISPLAY_PERIOD_MS  = 20U;
-    const uint32 DISPLAY_TICKS      = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
-    const uint32 POT_PERIOD_MS      = 20U;
-    const uint32 POT_TICKS          = (POT_PERIOD_MS / LOOP_PERIOD_MS);
+    const uint32 LOOP_PERIOD_MS    = 5U;
+    const uint32 DISPLAY_PERIOD_MS = 20U;
+    const uint32 DISPLAY_TICKS     = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
+    const uint32 POT_PERIOD_MS     = 20U;
+    const uint32 POT_TICKS         = (POT_PERIOD_MS / LOOP_PERIOD_MS);
 
     uint32 nextTickMs = Timebase_GetMs();
     uint32 tickCount  = 0U;
 
     boolean haveValidVision = FALSE;
+    uint32 currentExposure  = 1000U;
 
-    /* Exposure used for the NEXT capture */
-    uint32 currentExposure = 37440U;
-
-    /* Initial capture */
-    (void)LinearCameraStartCapture(&frame, currentExposure);
+    /* Start continuous acquisition once.
+     * The driver will re-arm the one-shot GPT internally after each frame.
+     */
+    (void)LinearCamera_StartStreaming(currentExposure);
 
     for (;;)
     {
@@ -378,8 +470,6 @@ int main(void)
         nextTickMs += LOOP_PERIOD_MS;
         tickCount++;
 
-        /* --- 5ms tasks start --- */
-
         Buttons_Update();
 
         {
@@ -389,18 +479,18 @@ int main(void)
             VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
         }
 
-        RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
-
 #if 0
-        /* ---- READ POT EVERY 20 ms ---- */
         if ((POT_TICKS != 0U) && ((tickCount % POT_TICKS) == 0U))
         {
-            uint8 potLevel = OnboardPot_ReadLevelFiltered();   /* 0..255 */
+            uint8 potLevel = OnboardPot_ReadLevelFiltered();
             currentExposure = 80000U + (((uint32)potLevel * (4000000U - 80000U)) / 255U);
+
+            /* Applies to the next driver-rearmed cycle */
+            LinearCamera_SetExposureUs(currentExposure);
         }
 #endif
-        /* ---- PROCESS FRAME WHEN READY ---- */
-        if (LinearCameraIsFrameReady() == TRUE)
+
+        if (LinearCamera_CopyLatestFrame(&frame) == TRUE)
         {
             dbg.mask      = (uint32)VLIN_DBG_NONE;
             dbg.smoothOut = (uint16*)0;
@@ -410,19 +500,10 @@ int main(void)
                 VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
             }
 
-            RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
-
             VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
-
             haveValidVision = TRUE;
-
-            (void)LinearCameraConsumeFrame();
-
-            /* Apply latest exposure to the next capture */
-            (void)LinearCameraStartCapture(&frame, currentExposure);
         }
 
-        /* ---- DISPLAY EVERY 20 ms USING LAST RESULT ---- */
         if ((DISPLAY_TICKS != 0U) &&
             ((tickCount % DISPLAY_TICKS) == 0U) &&
             (haveValidVision == TRUE))
@@ -435,13 +516,8 @@ int main(void)
 
             VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
         }
-
-        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
-
-        /* --- 5ms tasks end --- */
     }
 }
-
 #endif
 
 #if VISION_V2_DEBUG

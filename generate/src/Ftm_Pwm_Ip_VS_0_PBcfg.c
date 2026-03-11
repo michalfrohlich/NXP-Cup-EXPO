@@ -411,7 +411,7 @@ const Ftm_Pwm_Ip_UserCfgType Ftm_Pwm_Ip_VS_0_UserCfg3 =
 const Ftm_Pwm_Ip_SyncCfgType Ftm_Pwm_Ip_VS_0_SyncCfg2 =
 {
     /* SyncMode */                   FTM_PWM_IP_SYNC_SWTRIGGER,
-    /* HwSync0 */                    (boolean)FALSE,
+    /* HwSync0 */                    (boolean)TRUE,
     /* HwSync1 */                    (boolean)FALSE,
     /* HwSync2 */                    (boolean)FALSE,
     /* HwTriggerAutoClear */         (boolean)FALSE,
@@ -455,7 +455,7 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg2 =
     /* WriteProtection */       (boolean)FALSE,
     /* InitTriggerEn */         (boolean)FALSE,
     /* InitTrigMode */          FTM_PWM_IP_INIT_TRIGG_RELOAD_POINT,
-    /* PwmPeriod */             16U,
+    /* PwmPeriod */             1000U,
 #if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
     /* PwmPeriodDither */       0U,
 #endif
@@ -494,7 +494,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch0 =
 #if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
-    /* DutyCycle */             8U,
+    /* DutyCycle */             500U,
 #if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
     /* DutyCycleDither */       0U,
 #endif
@@ -520,7 +520,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch1 =
 #if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
-    /* DutyCycle */             8U,
+    /* DutyCycle */             500U,
 #if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
     /* DutyCycleDither */       0U,
 #endif

@@ -89,7 +89,6 @@ extern "C"{
 #define ADC_START_SEC_CODE
 #include "Adc_MemMap.h"
 
-void Adc_Ipw_Adc0EndConversionNotification(const uint8 ControlChanIdx);
 
 #define ADC_STOP_SEC_CODE
 #include "Adc_MemMap.h"
