@@ -12,6 +12,8 @@ extern "C" {
 #include "Platform_Types.h"
 
 #define LINEAR_CAMERA_PIXEL_COUNT (128U)
+#define LINEAR_CAMERA_SHUTTER_HIGH_TIME_TICKS (100U)
+#define LINEAR_CAMERA_DEFAULT_SHUTTER_FREQUENCY_TICKS (100U)
 
 typedef struct
 {
@@ -21,8 +23,7 @@ typedef struct
 typedef enum
 {
     LINEAR_CAMERA_IDLE = 0,
-    LINEAR_CAMERA_CAPTURING,
-    LINEAR_CAMERA_READY
+    LINEAR_CAMERA_CAPTURING
 } LinearCameraStatus;
 
 typedef struct
@@ -43,16 +44,14 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel);
 
-/* Stage A non-blocking API */
-boolean LinearCameraStartCapture(LinearCameraFrame *Frame, uint32 exposureTicks);
+/* Streaming API (single buffer) */
+boolean LinearCameraStartStream(LinearCameraFrame *Frame);
+void LinearCameraStopStream(void);
+void LinearCameraSetShutterFrequencyTicks(uint32 shutterFrequencyTicks);
+boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame);
+
 LinearCameraStatus LinearCameraGetStatus(void);
 boolean LinearCameraIsBusy(void);
-boolean LinearCameraIsFrameReady(void);
-boolean LinearCameraConsumeFrame(void);
-void LinearCameraAbort(void);
-
-/* Backward-compatible blocking wrapper */
-void LinearCameraGetFrame(LinearCameraFrame *Frame, uint32 exposureTicks);
 
 #ifdef __cplusplus
 }

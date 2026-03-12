@@ -1,6 +1,7 @@
 #include "app_modes.h"
 #include "main_types.h"
 #include "car_config.h"
+#include <string.h>
 
 /* Hardware */
 #include "main_functions.h"
@@ -159,10 +160,12 @@ typedef struct
     SteeringLinearState_t ctrl;
 
     LinearCameraFrame frame;
+    LinearCameraFrame processedFrame;
     VisionLinear_ResultType result;
 
     VisionLinear_DebugOut_t dbg;
-    uint8 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+    uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+    boolean haveValidVision;
 
     sint16 steerRaw;
     sint16 steerFilt;
@@ -193,6 +196,11 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
+    if (LinearCameraIsBusy() == TRUE)
+    {
+        LinearCameraStopStream();
+    }
+
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
     VisionLinear_InitV2();
 
@@ -204,10 +212,14 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     st->steerRaw = 0;
     st->steerFilt = 0;
     st->steerOut = 0;
+    st->haveValidVision = FALSE;
 
     st->nextTickMs = nowMs;
     st->nextSteerMs = nowMs + STEER_UPDATE_MS;
     st->tickCount = 0u;
+
+    LinearCameraSetShutterFrequencyTicks((uint32)V2_TEST_EXPOSURE_TICKS);
+    (void)LinearCameraStartStream(&st->frame);
 }
 
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
@@ -226,19 +238,28 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     /* SW2 allowed, SW3 NOT passed here (reserved for switching modes) */
     VisionDebug_OnTick(&st->vdbg, sw2, FALSE);
 
-    LinearCameraGetFrame(&st->frame, (uint32)V2_TEST_EXPOSURE_TICKS);
-
     boolean doDisplay = ((DISP_TICKS != 0U) && ((st->tickCount % DISP_TICKS) == 0U));
 
-    st->dbg.mask      = 0u;
-    st->dbg.smoothOut = (uint8*)0;
-
-    if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE))
     {
-        VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->smoothBuf);
-    }
+        const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
 
-    VisionLinear_ProcessFrameEx(st->frame.Values, &st->result, &st->dbg);
+        if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
+        {
+            st->dbg.mask = (uint32)VLIN_DBG_NONE;
+            st->dbg.smoothOut = (uint16*)0;
+
+            if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE))
+            {
+                VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->smoothBuf);
+            }
+
+            (void)memcpy(st->processedFrame.Values,
+                         latestFrame->Values,
+                         sizeof(st->processedFrame.Values));
+            VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
+            st->haveValidVision = TRUE;
+        }
+    }
 
     if (time_reached(nowMs, st->nextSteerMs))
     {
@@ -268,11 +289,13 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
         Steer((int)st->steerOut);
     }
 
-    if (doDisplay == TRUE)
+    if ((doDisplay == TRUE) && (st->haveValidVision == TRUE))
     {
-        const uint8 *pSmooth = (st->dbg.smoothOut != (uint8*)0) ? st->smoothBuf : (const uint8*)0;
-        const VisionLinear_DebugOut_t *pDbg = (st->dbg.mask != 0u) ? &st->dbg : (const VisionLinear_DebugOut_t*)0;
-        VisionDebug_Draw(&st->vdbg, st->frame.Values, pSmooth, &st->result, pDbg);
+        const uint16 *pSmooth = (st->dbg.smoothOut != (uint16*)0) ? st->smoothBuf : (const uint16*)0;
+        const VisionLinear_DebugOut_t *pDbg =
+            (st->dbg.mask != (uint32)VLIN_DBG_NONE) ? &st->dbg : (const VisionLinear_DebugOut_t*)0;
+
+        VisionDebug_Draw(&st->vdbg, st->processedFrame.Values, pSmooth, &st->result, pDbg);
     }
 }
 
@@ -337,6 +360,7 @@ static void mode_final_dummy(void)
             {
                 /* stop steering */
                 SteerStraight();
+                LinearCameraStopStream();
 
                 esc_enter(&escSt);
                 state = DUMMY_ESC;

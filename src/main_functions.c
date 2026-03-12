@@ -239,10 +239,25 @@ void ServoTest() {
 
 void LinearCameraTest(){
     LinearCameraFrame FrameBuffer;
+    uint8 GraphValues[LINEAR_CAMERA_PIXEL_COUNT];
+
+    LinearCameraSetShutterFrequencyTicks(100U);
+    (void)LinearCameraStartStream(&FrameBuffer);
+
     while(1){
-        LinearCameraGetFrame(&FrameBuffer, 100U);
-        DisplayGraph(0U, FrameBuffer.Values, 128U, 4U);
-        DisplayRefresh();
+        const LinearCameraFrame *LatestFrame = (const LinearCameraFrame*)0;
+
+        if (LinearCameraGetLatestFrame(&LatestFrame) == TRUE)
+        {
+            for(uint16 i = 0U; i < LINEAR_CAMERA_PIXEL_COUNT; i++)
+            {
+                uint32 scaled = ((uint32)LatestFrame->Values[i] * 100U) / 4095U;
+                GraphValues[i] = (scaled > 100U) ? 100U : (uint8)scaled;
+            }
+
+            DisplayGraph(0U, GraphValues, LINEAR_CAMERA_PIXEL_COUNT, 4U);
+            DisplayRefresh();
+        }
     }
 }
 

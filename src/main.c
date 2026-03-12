@@ -344,14 +344,15 @@ int main(void)
     VisionDebug_Init(&vdbg, 3200U);
 
     static LinearCameraFrame frame;
+    static LinearCameraFrame processedFrame;
     VisionLinear_ResultType result;
 
     VisionLinear_DebugOut_t dbg;
     static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
 
-    const uint32 TEST_EXPOSURE = 100U;
+    const uint32 TEST_SHUTTER_FREQUENCY = 100U;
 
-    const uint32 LOOP_PERIOD_MS    = 1U;
+    const uint32 LOOP_PERIOD_MS    = 5U;
     const uint32 DISPLAY_PERIOD_MS = 20U;
     const uint32 DISPLAY_TICKS     = (DISPLAY_PERIOD_MS / LOOP_PERIOD_MS);
 
@@ -361,7 +362,8 @@ int main(void)
     /* NEW: track if we ever processed a frame */
     boolean haveValidVision = FALSE;
 
-    (void)LinearCameraStartCapture(&frame, TEST_EXPOSURE);
+    LinearCameraSetShutterFrequencyTicks(TEST_SHUTTER_FREQUENCY);
+    (void)LinearCameraStartStream(&frame);
 
     for (;;)
     {
@@ -390,24 +392,26 @@ int main(void)
 
         /* ---- PROCESS FRAME WHEN READY ---- */
 
-        if (LinearCameraIsFrameReady() == TRUE)
         {
-            dbg.mask      = (uint32)VLIN_DBG_NONE;
-            dbg.smoothOut = (uint16*)0;
+            const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
 
-            if (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE)
+            if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
             {
-                VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
+                dbg.mask      = (uint32)VLIN_DBG_NONE;
+                dbg.smoothOut = (uint16*)0;
+
+                if (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE)
+                {
+                    VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
+                }
+
+                RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+
+                (void)memcpy(processedFrame.Values, latestFrame->Values, sizeof(processedFrame.Values));
+                VisionLinear_ProcessFrameEx(processedFrame.Values, &result, &dbg);
+
+                haveValidVision = TRUE;
             }
-
-            RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
-
-            VisionLinear_ProcessFrameEx(frame.Values, &result, &dbg);
-
-            haveValidVision = TRUE;
-
-            (void)LinearCameraConsumeFrame();
-            (void)LinearCameraStartCapture(&frame, TEST_EXPOSURE);
         }
 
         /* ---- DISPLAY EVERY 20ms USING LAST RESULT ---- */
@@ -422,7 +426,7 @@ int main(void)
             const VisionLinear_DebugOut_t *pDbg =
                 (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
 
-            VisionDebug_Draw(&vdbg, frame.Values, pSmooth, &result, pDbg);
+            VisionDebug_Draw(&vdbg, processedFrame.Values, pSmooth, &result, pDbg);
         }
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
@@ -625,10 +629,10 @@ int main(void)
     				uint16 potRaw = OnboardPot_ReadLevelFiltered();
 
     		        /* 2. Map to 10 - 130k range */
-    		        uint32 exposureTicks = (uint32)(potRaw * potRaw) + 10U;
+    		        uint32 shutterHighTimeTicks = (uint32)(potRaw * potRaw) + 10U;
 
     		        /* 3. Capture */
-    		        LinearCameraGetFrameEx(&frame, exposureTicks);
+    		        LinearCameraGetFrameEx(&frame, shutterHighTimeTicks);
     		        //LinearCameraGetFrame(&frame);
 
     		        /* 4. Vision Process */
@@ -638,9 +642,9 @@ int main(void)
     		        DisplayClear();
 
     		        /* Format Line 0: Exposure only */
-    		        /* Using %u because exposureTicks is uint32 (small enough for %u) */
+    		        /* Using %u because shutterHighTimeTicks is uint32 (small enough for %u) */
     		        memset(debugLine, 0, sizeof(debugLine));
-    		        snprintf(debugLine, sizeof(debugLine), "Exp: %u", (unsigned int)exposureTicks);
+    		        snprintf(debugLine, sizeof(debugLine), "Exp: %u", (unsigned int)shutterHighTimeTicks);
     		        DisplayText(0U, debugLine, 16U, 0U);
 
     		        /* Format Line 1: Left and Right Indices */
