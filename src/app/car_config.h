@@ -86,6 +86,8 @@
 #define CAM_SHUTTER_GPT_CH                1U
 #define CAM_ADC_GROUP                     0U
 #define CAM_SHUTTER_PCR                   97U
+#define CAM_SHUTTER_HIGH_TIME_TICKS       100U
+#define CAM_FRAME_INTERVAL_TICKS          100000U
 
 #define CAM_N_PIXELS                      128u
 #define CAM_CENTER_PX                     63

@@ -343,14 +343,11 @@ int main(void)
     VisionDebug_State_t vdbg;
     VisionDebug_Init(&vdbg, 3200U);
 
-    static LinearCameraFrame frame;
     static LinearCameraFrame processedFrame;
     VisionLinear_ResultType result;
 
     VisionLinear_DebugOut_t dbg;
     static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
-
-    const uint32 TEST_SHUTTER_FREQUENCY = 100U;
 
     const uint32 LOOP_PERIOD_MS    = 5U;
     const uint32 DISPLAY_PERIOD_MS = 20U;
@@ -362,8 +359,7 @@ int main(void)
     /* NEW: track if we ever processed a frame */
     boolean haveValidVision = FALSE;
 
-    LinearCameraSetShutterFrequencyTicks(TEST_SHUTTER_FREQUENCY);
-    (void)LinearCameraStartStream(&frame);
+    (void)LinearCameraStartStream();
 
     for (;;)
     {

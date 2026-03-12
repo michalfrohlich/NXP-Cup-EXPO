@@ -238,11 +238,9 @@ void ServoTest() {
 }
 
 void LinearCameraTest(){
-    LinearCameraFrame FrameBuffer;
     uint8 GraphValues[LINEAR_CAMERA_PIXEL_COUNT];
 
-    LinearCameraSetShutterFrequencyTicks(100U);
-    (void)LinearCameraStartStream(&FrameBuffer);
+    (void)LinearCameraStartStream();
 
     while(1){
         const LinearCameraFrame *LatestFrame = (const LinearCameraFrame*)0;

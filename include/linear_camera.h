@@ -12,8 +12,18 @@ extern "C" {
 #include "Platform_Types.h"
 
 #define LINEAR_CAMERA_PIXEL_COUNT (128U)
-#define LINEAR_CAMERA_SHUTTER_HIGH_TIME_TICKS (100U)
-#define LINEAR_CAMERA_DEFAULT_SHUTTER_FREQUENCY_TICKS (100U)
+
+/*
+ * Timing values below describe the currently generated peripheral setup:
+ * - camera clock PWM runs from an 8 MHz source with period 1000 ticks
+ * - shutter GPT runs from an 8 MHz source
+ *
+ * Keeping these as named constants makes the effective frame timing explicit
+ * and prevents the driver from relying on hidden clock assumptions.
+ */
+#define LINEAR_CAMERA_PWM_CLOCK_HZ              (8000000UL)
+#define LINEAR_CAMERA_PWM_PERIOD_TICKS          (1000UL)
+#define LINEAR_CAMERA_GPT_CLOCK_HZ              (8000000UL)
 
 typedef struct
 {
@@ -35,8 +45,6 @@ typedef struct
 
     volatile uint16 CurrentIndex;
     volatile LinearCameraStatus Status;
-
-    LinearCameraFrame *BufferReference;
 } LinearCamera;
 
 void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
@@ -44,14 +52,19 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel);
 
-/* Streaming API (single buffer) */
-boolean LinearCameraStartStream(LinearCameraFrame *Frame);
+/* Starts free-running capture into internal ping-pong buffers. */
+boolean LinearCameraStartStream(void);
 void LinearCameraStopStream(void);
 void LinearCameraSetShutterFrequencyTicks(uint32 shutterFrequencyTicks);
 boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame);
 
 LinearCameraStatus LinearCameraGetStatus(void);
 boolean LinearCameraIsBusy(void);
+
+/* Timing/debug helpers */
+uint32 LinearCameraGetPixelClockHz(void);
+uint32 LinearCameraGetFrameReadoutUs(void);
+uint32 LinearCameraGetDroppedFrameCount(void);
 
 #ifdef __cplusplus
 }

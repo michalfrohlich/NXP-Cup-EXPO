@@ -218,8 +218,7 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     st->nextSteerMs = nowMs + STEER_UPDATE_MS;
     st->tickCount = 0u;
 
-    LinearCameraSetShutterFrequencyTicks((uint32)V2_TEST_EXPOSURE_TICKS);
-    (void)LinearCameraStartStream(&st->frame);
+    (void)LinearCameraStartStream();
 }
 
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)

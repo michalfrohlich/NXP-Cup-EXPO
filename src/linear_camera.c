@@ -3,6 +3,7 @@ extern "C" {
 #endif
 
 #include "linear_camera.h"
+#include "app/car_config.h"
 #include "Adc_Types.h"
 
 static volatile LinearCamera LinearCameraInstance;
@@ -14,10 +15,20 @@ typedef enum
     LINEAR_CAMERA_TIMER_PHASE_SHUTTER_HIGH
 } LinearCameraTimerPhase;
 
-static volatile uint32 LinearCameraShutterFrequencyTicks = LINEAR_CAMERA_DEFAULT_SHUTTER_FREQUENCY_TICKS;
+#define LINEAR_CAMERA_BUFFER_COUNT  (2U)
+#define LINEAR_CAMERA_INVALID_INDEX (0xFFU)
+
+static LinearCameraFrame LinearCameraBuffers[LINEAR_CAMERA_BUFFER_COUNT];
+
+static volatile uint32 LinearCameraShutterFrequencyTicks =
+    CAM_FRAME_INTERVAL_TICKS;
+static volatile uint32 LinearCameraDroppedFrameCount = 0U;
 static volatile boolean LinearCameraStreamEnabled = FALSE;
 static volatile boolean LinearCameraLatestFrameReady = FALSE;
-static volatile LinearCameraTimerPhase LinearCameraTimerPhaseState = LINEAR_CAMERA_TIMER_PHASE_SHUTTER_HIGH;
+static volatile uint8 LinearCameraWriteBufferIndex = 0U;
+static volatile uint8 LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+static volatile LinearCameraTimerPhase LinearCameraTimerPhaseState =
+    LINEAR_CAMERA_TIMER_PHASE_SHUTTER_HIGH;
 
 static void LinearCamera_StopCaptureHw(void)
 {
@@ -35,7 +46,7 @@ static void LinearCamera_StartShutterHighPulse(void)
     LinearCameraTimerPhaseState = LINEAR_CAMERA_TIMER_PHASE_SHUTTER_HIGH;
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_HIGH);
     Gpt_EnableNotification(LinearCameraInstance.ShutterGptChannel);
-    Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, LINEAR_CAMERA_SHUTTER_HIGH_TIME_TICKS);
+    Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, CAM_SHUTTER_HIGH_TIME_TICKS);
 }
 
 static void LinearCamera_ScheduleNextFrame(void)
@@ -91,11 +102,23 @@ void CameraClock(void)
     }
     else
     {
+        uint8 completedIndex = LinearCameraWriteBufferIndex;
+
         /* Frame readout finished */
         Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0U);
         Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
 
+        if (LinearCameraLatestFrameReady == TRUE)
+        {
+            LinearCameraDroppedFrameCount++;
+        }
+
+        LinearCameraReadyBufferIndex = completedIndex;
         LinearCameraLatestFrameReady = TRUE;
+
+        /* Switch writer to the other internal buffer before starting next frame. */
+        LinearCameraWriteBufferIndex =
+            (uint8)((LinearCameraWriteBufferIndex + 1U) % LINEAR_CAMERA_BUFFER_COUNT);
 
         /* Free-running: wait, then start next frame */
         LinearCameraInstance.CurrentIndex = 0U;
@@ -112,11 +135,10 @@ void CameraAdcFinished(void)
         return;
     }
 
-    if ((LinearCameraInstance.BufferReference != (LinearCameraFrame *)0) &&
-        (LinearCameraInstance.CurrentIndex < LINEAR_CAMERA_PIXEL_COUNT))
+    if (LinearCameraInstance.CurrentIndex < LINEAR_CAMERA_PIXEL_COUNT)
     {
-        LinearCameraInstance.BufferReference->Values[LinearCameraInstance.CurrentIndex] =
-            (uint16)AdcResultBuffer;
+        LinearCameraBuffers[LinearCameraWriteBufferIndex]
+            .Values[LinearCameraInstance.CurrentIndex] = (uint16)AdcResultBuffer;
 
         LinearCameraInstance.CurrentIndex++;
     }
@@ -133,12 +155,14 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     LinearCameraInstance.ShutterDioChannel = ShutterDioChannel;
     LinearCameraInstance.CurrentIndex = 0U;
     LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
-    LinearCameraInstance.BufferReference = (LinearCameraFrame *)0;
 
     LinearCameraStreamEnabled = FALSE;
     LinearCameraLatestFrameReady = FALSE;
+    LinearCameraWriteBufferIndex = 0U;
+    LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+    LinearCameraDroppedFrameCount = 0U;
     LinearCameraTimerPhaseState = LINEAR_CAMERA_TIMER_PHASE_SHUTTER_HIGH;
-    LinearCameraShutterFrequencyTicks = LINEAR_CAMERA_DEFAULT_SHUTTER_FREQUENCY_TICKS;
+    LinearCameraShutterFrequencyTicks = CAM_FRAME_INTERVAL_TICKS;
 
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
 
@@ -150,23 +174,20 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
 }
 
-boolean LinearCameraStartStream(LinearCameraFrame *Frame)
+boolean LinearCameraStartStream(void)
 {
-    if (Frame == (LinearCameraFrame *)0)
-    {
-        return FALSE;
-    }
-
     if (LinearCameraInstance.Status != LINEAR_CAMERA_IDLE)
     {
         return FALSE;
     }
 
-    LinearCameraInstance.BufferReference = Frame;
     LinearCameraInstance.CurrentIndex = 0U;
     LinearCameraInstance.Status = LINEAR_CAMERA_CAPTURING;
 
     LinearCameraLatestFrameReady = FALSE;
+    LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+    LinearCameraWriteBufferIndex = 0U;
+    LinearCameraDroppedFrameCount = 0U;
     LinearCameraStreamEnabled = TRUE;
 
     LinearCamera_StartShutterHighPulse();
@@ -180,13 +201,14 @@ void LinearCameraStopStream(void)
     LinearCamera_StopCaptureHw();
     LinearCameraInstance.CurrentIndex = 0U;
     LinearCameraLatestFrameReady = FALSE;
+    LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+    LinearCameraWriteBufferIndex = 0U;
     LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
 }
 
 void LinearCameraSetShutterFrequencyTicks(uint32 shutterFrequencyTicks)
 {
-    if ((shutterFrequencyTicks != 0U) &&
-        (LinearCameraInstance.Status == LINEAR_CAMERA_IDLE))
+    if (LinearCameraInstance.Status == LINEAR_CAMERA_IDLE)
     {
         LinearCameraShutterFrequencyTicks = shutterFrequencyTicks;
     }
@@ -200,9 +222,9 @@ boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame)
     }
 
     if ((LinearCameraLatestFrameReady == TRUE) &&
-        (LinearCameraInstance.BufferReference != (LinearCameraFrame *)0))
+        (LinearCameraReadyBufferIndex != LINEAR_CAMERA_INVALID_INDEX))
     {
-        *Frame = LinearCameraInstance.BufferReference;
+        *Frame = &LinearCameraBuffers[LinearCameraReadyBufferIndex];
         LinearCameraLatestFrameReady = FALSE;
         return TRUE;
     }
@@ -218,6 +240,34 @@ LinearCameraStatus LinearCameraGetStatus(void)
 boolean LinearCameraIsBusy(void)
 {
     return (LinearCameraInstance.Status == LINEAR_CAMERA_CAPTURING) ? TRUE : FALSE;
+}
+
+uint32 LinearCameraGetPixelClockHz(void)
+{
+    if (LINEAR_CAMERA_PWM_PERIOD_TICKS == 0UL)
+    {
+        return 0UL;
+    }
+
+    return (LINEAR_CAMERA_PWM_CLOCK_HZ / LINEAR_CAMERA_PWM_PERIOD_TICKS);
+}
+
+uint32 LinearCameraGetFrameReadoutUs(void)
+{
+    uint32 pixelClockHz = LinearCameraGetPixelClockHz();
+    uint32 clockCount = (uint32)LINEAR_CAMERA_PIXEL_COUNT + 1UL;
+
+    if (pixelClockHz == 0UL)
+    {
+        return 0UL;
+    }
+
+    return (clockCount * 1000000UL) / pixelClockHz;
+}
+
+uint32 LinearCameraGetDroppedFrameCount(void)
+{
+    return LinearCameraDroppedFrameCount;
 }
 
 #ifdef __cplusplus
