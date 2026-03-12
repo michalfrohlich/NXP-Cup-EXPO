@@ -10,6 +10,7 @@
 ========================================================= */
 #define APP_TEST_SERVO_ONLY               0
 #define APP_TEST_ESC_ONLY_WORKING         0
+#define APP_TEST_VISION_REFACTOR_DEBUG    0
 #define APP_TEST_VISION_V2_DEBUG          0
 #define APP_TEST_CAMERA_SERVO_V2          0
 #define APP_TEST_FULL_CAR_V2              0
@@ -20,6 +21,7 @@
 #define APP_MODE_COUNT ( \
     (APP_TEST_SERVO_ONLY) + \
     (APP_TEST_ESC_ONLY_WORKING) + \
+    (APP_TEST_VISION_REFACTOR_DEBUG) + \
     (APP_TEST_VISION_V2_DEBUG) + \
     (APP_TEST_CAMERA_SERVO_V2) + \
     (APP_TEST_FULL_CAR_V2) + \

@@ -20,7 +20,7 @@ typedef enum
 
 static LinearCameraFrame LinearCameraBuffers[LINEAR_CAMERA_BUFFER_COUNT];
 
-static volatile uint32 LinearCameraShutterFrequencyTicks =
+static volatile uint32 LinearCameraFrameIntervalTicks =
     CAM_FRAME_INTERVAL_TICKS;
 static volatile uint32 LinearCameraDroppedFrameCount = 0U;
 static volatile boolean LinearCameraStreamEnabled = FALSE;
@@ -51,7 +51,7 @@ static void LinearCamera_StartShutterHighPulse(void)
 
 static void LinearCamera_ScheduleNextFrame(void)
 {
-    if (LinearCameraShutterFrequencyTicks == 0U)
+    if (LinearCameraFrameIntervalTicks == 0U)
     {
         LinearCamera_StartShutterHighPulse();
     }
@@ -60,7 +60,7 @@ static void LinearCamera_ScheduleNextFrame(void)
         LinearCameraTimerPhaseState = LINEAR_CAMERA_TIMER_PHASE_FRAME_WAIT;
         Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
         Gpt_EnableNotification(LinearCameraInstance.ShutterGptChannel);
-        Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, LinearCameraShutterFrequencyTicks);
+        Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, LinearCameraFrameIntervalTicks);
     }
 }
 
@@ -162,7 +162,7 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
     LinearCameraDroppedFrameCount = 0U;
     LinearCameraTimerPhaseState = LINEAR_CAMERA_TIMER_PHASE_SHUTTER_HIGH;
-    LinearCameraShutterFrequencyTicks = CAM_FRAME_INTERVAL_TICKS;
+    LinearCameraFrameIntervalTicks = CAM_FRAME_INTERVAL_TICKS;
 
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
 
@@ -206,11 +206,11 @@ void LinearCameraStopStream(void)
     LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
 }
 
-void LinearCameraSetShutterFrequencyTicks(uint32 shutterFrequencyTicks)
+void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks)
 {
     if (LinearCameraInstance.Status == LINEAR_CAMERA_IDLE)
     {
-        LinearCameraShutterFrequencyTicks = shutterFrequencyTicks;
+        LinearCameraFrameIntervalTicks = frameIntervalTicks;
     }
 }
 
@@ -244,12 +244,13 @@ boolean LinearCameraIsBusy(void)
 
 uint32 LinearCameraGetPixelClockHz(void)
 {
-    if (LINEAR_CAMERA_PWM_PERIOD_TICKS == 0UL)
+    if (LINEAR_CAMERA_TIMING_PWM_PERIOD_TICKS == 0UL)
     {
         return 0UL;
     }
 
-    return (LINEAR_CAMERA_PWM_CLOCK_HZ / LINEAR_CAMERA_PWM_PERIOD_TICKS);
+    return (LINEAR_CAMERA_TIMING_PWM_SOURCE_CLOCK_HZ /
+            LINEAR_CAMERA_TIMING_PWM_PERIOD_TICKS);
 }
 
 uint32 LinearCameraGetFrameReadoutUs(void)

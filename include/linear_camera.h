@@ -14,16 +14,13 @@ extern "C" {
 #define LINEAR_CAMERA_PIXEL_COUNT (128U)
 
 /*
- * Timing values below describe the currently generated peripheral setup:
- * - camera clock PWM runs from an 8 MHz source with period 1000 ticks
- * - shutter GPT runs from an 8 MHz source
- *
- * Keeping these as named constants makes the effective frame timing explicit
- * and prevents the driver from relying on hidden clock assumptions.
+ * Timing helper values below are used only for driver-side calculations such
+ * as reporting effective pixel clock and frame readout time. They document the
+ * currently generated peripheral setup, but they do not configure hardware.
  */
-#define LINEAR_CAMERA_PWM_CLOCK_HZ              (8000000UL)
-#define LINEAR_CAMERA_PWM_PERIOD_TICKS          (1000UL)
-#define LINEAR_CAMERA_GPT_CLOCK_HZ              (8000000UL)
+#define LINEAR_CAMERA_TIMING_PWM_SOURCE_CLOCK_HZ   (8000000UL)
+#define LINEAR_CAMERA_TIMING_PWM_PERIOD_TICKS      (1000UL)
+#define LINEAR_CAMERA_TIMING_GPT_SOURCE_CLOCK_HZ   (8000000UL)
 
 typedef struct
 {
@@ -55,7 +52,7 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
 /* Starts free-running capture into internal ping-pong buffers. */
 boolean LinearCameraStartStream(void);
 void LinearCameraStopStream(void);
-void LinearCameraSetShutterFrequencyTicks(uint32 shutterFrequencyTicks);
+void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks);
 boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame);
 
 LinearCameraStatus LinearCameraGetStatus(void);

@@ -26,6 +26,28 @@
 /* =========================================================
    Helpers
 ========================================================= */
+static void App_SystemInit(void)
+{
+    DriversInit();
+    Timebase_Init();
+    OnboardPot_Init();
+    Ultrasonic_Init();
+
+    EscInit(0U, 1638U, 2457U, 3276U);
+    ServoInit(1U, 3300U, 1700U, 2500U);
+
+    DisplayInit(0U, STD_ON);
+    LinearCameraInit(4U, 1U, 0U, 97U);
+
+    RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+    for (volatile uint32 i = 0; i < 700000u; i++) { }
+    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });
+    for (volatile uint32 i = 0; i < 600000u; i++) { }
+    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+    for (volatile uint32 i = 0; i < 500000u; i++) { }
+    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
+}
+
 static boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
     return ((uint32)(nowMs - dueMs) < 0x80000000u) ? TRUE : FALSE;
@@ -304,6 +326,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
    - POT mode: FULL RANGE manual (-100..+100)
    - CAM mode: explicit forward speed command capped to FULL_AUTO_SPEED_PCT with ramp
 ========================================================= */
+#if APP_TEST_FINAL_DUMMY
 static void mode_final_dummy(void)
 {
     typedef enum { DUMMY_ESC = 0, DUMMY_CAM = 1 } DummyState_t;
@@ -407,6 +430,93 @@ static void mode_final_dummy(void)
         }
     }
 }
+#endif
+
+static void mode_vision_refactor_debug(void)
+{
+    VisionDebug_State_t vdbg;
+    static LinearCameraFrame processedFrame;
+    VisionLinear_ResultType result;
+    VisionLinear_DebugOut_t dbg;
+    static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+    const uint32 loopPeriodMs = 5U;
+    const uint32 displayPeriodMs = 20U;
+    const uint32 displayTicks = (displayPeriodMs / loopPeriodMs);
+    uint32 nextTickMs;
+    uint32 tickCount = 0U;
+    boolean haveValidVision = FALSE;
+
+    App_SystemInit();
+    VisionLinear_InitV2();
+    VisionDebug_Init(&vdbg, 3200U);
+
+    nextTickMs = Timebase_GetMs();
+
+    (void)LinearCameraStartStream();
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+
+        if ((uint32)(nowMs - nextTickMs) < loopPeriodMs)
+        {
+            continue;
+        }
+
+        nextTickMs += loopPeriodMs;
+        tickCount++;
+
+        Buttons_Update();
+
+        {
+            boolean screenTogglePressed = Buttons_WasPressed(BUTTON_ID_SW2);
+            boolean modeNextPressed = Buttons_WasPressed(BUTTON_ID_SW3);
+
+            VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
+        }
+
+        RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
+
+        {
+            const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
+
+            if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
+            {
+                dbg.mask = (uint32)VLIN_DBG_NONE;
+                dbg.smoothOut = (uint16*)0;
+
+                if (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE)
+                {
+                    VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
+                }
+
+                RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
+
+                (void)memcpy(processedFrame.Values,
+                             latestFrame->Values,
+                             sizeof(processedFrame.Values));
+                VisionLinear_ProcessFrameEx(processedFrame.Values, &result, &dbg);
+
+                haveValidVision = TRUE;
+            }
+        }
+
+        if ((displayTicks != 0U) &&
+            ((tickCount % displayTicks) == 0U) &&
+            (haveValidVision == TRUE))
+        {
+            const uint16 *pSmooth =
+                (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
+
+            const VisionLinear_DebugOut_t *pDbg =
+                (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
+
+            VisionDebug_Draw(&vdbg, processedFrame.Values, pSmooth, &result, pDbg);
+        }
+
+        RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
+    }
+}
 
 /* =========================================================
    Dispatcher
@@ -418,6 +528,8 @@ void App_RunSelectedMode(void)
 {
 #if APP_TEST_FINAL_DUMMY
     mode_final_dummy();
+#elif APP_TEST_VISION_REFACTOR_DEBUG
+    mode_vision_refactor_debug();
 #elif APP_TEST_ESC_ONLY_WORKING
     while (1) { }
 #elif APP_TEST_CAMERA_SERVO_V2
