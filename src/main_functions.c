@@ -21,19 +21,6 @@ extern "C" {
  * 3) internal and external interfaces from this unit
 ==================================================================================================*/
 #include "main_functions.h"
-#include "Mcu.h"
-#include "Mcl.h"
-#include "Platform.h"
-#include "Port.h"
-#include "CDD_I2c.h"
-#include "Pwm.h"
-#include "Icu.h"
-#include "Gpt.h"
-#include "Adc.h"
-#include "Mcal.h"
-#include "Dio.h" //temporary for the switch
-#include "Dio_Cfg.h" //temporary for the switch
-#include "OsIf.h"
 
 #include "display.h"
 #include "receiver.h"
@@ -79,60 +66,6 @@ extern "C" {
 /*==================================================================================================
  *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
-void DriversInit(void){
-    uint8 Index;
-    /* Init system clock */
-#if (MCU_PRECOMPILE_SUPPORT == STD_ON)
-    Mcu_Init(NULL_PTR);
-#elif (MCU_PRECOMPILE_SUPPORT == STD_OFF)
-    Mcu_Init(&Mcu_Config_VS_0);
-#endif
-
-    /* Initialize the clock tree and apply PLL as system clock */
-    Mcu_InitClock(McuClockSettingConfig_0);
-    #if (MCU_NO_PLL == STD_OFF)
-    while (MCU_PLL_LOCKED != Mcu_GetPllStatus())
-        {
-            /* Busy wait until the System PLL is locked */
-        }
-    Mcu_DistributePllClock();
-    #endif
-    Mcu_SetMode(McuModeSettingConf_0);
-
-    /* Initialize Platform driver */
-    Platform_Init(NULL_PTR);
-
-    /* Initialize Port driver */
-    Port_Init(NULL_PTR);
-
-    /* Initialize Mcl */
-    Mcl_Init(NULL_PTR);
-
-    /* Init i2c instances */
-    I2c_Init(NULL_PTR);
-
-    /* Initialize the Icu driver */
-    Icu_Init(NULL_PTR);
-
-    /*Init gpt driver*/
-    Gpt_Init(NULL_PTR);
-
-    /*Init adc driver*/
-    Adc_Init(NULL_PTR);
-    Adc_CalibrationStatusType CalibStatus;
-    for(Index = 0; Index <= 5; Index++)
-    {
-        Adc_Calibrate(0U, &CalibStatus);
-        if(CalibStatus.AdcUnitSelfTestStatus == E_OK)
-        {
-            break;
-        }
-    }
-
-    /*Init pwm driver*/
-    Pwm_Init(NULL_PTR);
-}
-
 Vector NormalizePixyVector(Vector PixyVector){
     Vector NormalizedVector;
     NormalizedVector.VectorIndex = PixyVector.VectorIndex;

@@ -1,10 +1,10 @@
 #include "app_modes.h"
 #include "main_types.h"
 #include "car_config.h"
+#include "board_init.h"
 #include <string.h>
 
 /* Hardware */
-#include "main_functions.h"
 #include "timebase.h"
 #include "buttons.h"
 #include "onboard_pot.h"
@@ -26,28 +26,6 @@
 /* =========================================================
    Helpers
 ========================================================= */
-static void App_SystemInit(void)
-{
-    DriversInit();
-    Timebase_Init();
-    OnboardPot_Init();
-    Ultrasonic_Init();
-
-    EscInit(0U, 1638U, 2457U, 3276U);
-    ServoInit(1U, 3300U, 1700U, 2500U);
-
-    DisplayInit(0U, STD_ON);
-    LinearCameraInit(4U, 1U, 0U, 97U);
-
-    RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
-    for (volatile uint32 i = 0; i < 700000u; i++) { }
-    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });
-    for (volatile uint32 i = 0; i < 600000u; i++) { }
-    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
-    for (volatile uint32 i = 0; i < 500000u; i++) { }
-    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
-}
-
 #if APP_TEST_FINAL_DUMMY
 static boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
@@ -347,7 +325,7 @@ static void mode_final_dummy(void)
     sint32 autoSpeedPct = 0;
     uint32 nextAutoSpeedMs = 0u;
 
-    DriversInit();
+    Board_InitDrivers();
     Timebase_Init();
     OnboardPot_Init();
 
@@ -458,7 +436,7 @@ static void mode_vision_refactor_debug(void)
     uint32 tickCount = 0U;
     boolean haveValidVision = FALSE;
 
-    App_SystemInit();
+    Board_InitCommonApp();
     VisionLinear_InitV2();
     VisionDebug_Init(&vdbg, 3200U);
 

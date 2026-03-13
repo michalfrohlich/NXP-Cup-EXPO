@@ -79,7 +79,7 @@ volatile boolean g_UsTimerElapsed = FALSE;
 
 
 /* Initialise UsTimer flag. Does NOT touch GPT hardware state.
- * DriversInit() has already called Gpt_Init() using the generated config.
+ * Board_InitDrivers() has already called Gpt_Init() using the generated config.
  */
 void UsTimer_Init(void)
 {

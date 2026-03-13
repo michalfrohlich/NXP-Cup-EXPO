@@ -58,7 +58,6 @@ extern "C" {
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
-void DriversInit(void);
 Vector NormalizePixyVector(Vector PixyVector);
 void DisplayTest(void);
 void ReceiverTest(void);
