@@ -8,6 +8,7 @@
 #include "timebase.h"
 #include "buttons.h"
 #include "onboard_pot.h"
+#include "receiver.h"
 #include "servo.h"
 #include "esc.h"
 #include "linear_camera.h"
@@ -26,6 +27,97 @@
 /* =========================================================
    Helpers
 ========================================================= */
+static void busy_delay(volatile uint32 ticks)
+{
+    while (ticks != 0U)
+    {
+        ticks--;
+    }
+}
+
+static void mode_receiver_test(void)
+{
+    int receiverChannels[8];
+    uint8 displayValueOffset;
+
+    Board_InitDrivers();
+    DisplayInit(0U, STD_ON);
+
+    /* Historical receiver setup from the first commit:
+       ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U).
+       The receiver has not been physically connected in this project yet,
+       so these values are preserved as a starting point only and must be
+       revalidated when the hardware is wired and the ICU/GPT path is tested. */
+    ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U);
+
+    DisplayText(0U, "Ch0:    Ch1:", 12U, 0U);
+    DisplayText(1U, "Ch2:    Ch3:", 12U, 0U);
+    DisplayText(2U, "Ch4:    Ch5:", 12U, 0U);
+    DisplayText(3U, "Ch6:    Ch7:", 12U, 0U);
+
+    for (;;)
+    {
+        for (uint8 i = 0U; i < 8U; i++)
+        {
+            receiverChannels[i] = GetReceiverChannel(i);
+            displayValueOffset = (uint8)(4U + 8U * (i % 2U));
+            DisplayValue(i / 2U, receiverChannels[i], 4U, displayValueOffset);
+        }
+        DisplayRefresh();
+    }
+}
+
+static void mode_servo_test(void)
+{
+    Board_InitDrivers();
+    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+
+    for (;;)
+    {
+        SteerRight();
+        busy_delay(5000000U);
+        SteerStraight();
+        busy_delay(5000000U);
+        SteerLeft();
+        busy_delay(5000000U);
+
+        for (int steerStrength = -100; steerStrength <= 100; steerStrength++)
+        {
+            busy_delay(100000U);
+            Steer(steerStrength);
+        }
+    }
+}
+
+static void mode_esc_test(void)
+{
+    Board_InitDrivers();
+    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+
+    for (;;)
+    {
+        for (int speed = 0; speed <= 100; speed++)
+        {
+            busy_delay(500000U);
+            EscSetSpeed(speed);
+        }
+        EscSetBrake(1U);
+        EscSetSpeed(0);
+        busy_delay(5000000U);
+        EscSetBrake(0U);
+
+        for (int speed = 0; speed >= -100; speed--)
+        {
+            busy_delay(500000U);
+            EscSetSpeed(speed);
+        }
+        EscSetBrake(1U);
+        EscSetSpeed(0);
+        busy_delay(5000000U);
+        EscSetBrake(0U);
+    }
+}
+
 #if APP_TEST_FINAL_DUMMY
 static boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
@@ -422,7 +514,7 @@ static void mode_final_dummy(void)
 #endif
 #endif
 
-static void mode_vision_refactor_debug(void)
+static void mode_linear_camera_test(void)
 {
     VisionDebug_State_t vdbg;
     static LinearCameraFrame processedFrame;
@@ -515,8 +607,14 @@ void App_RunSelectedMode(void)
 {
 #if APP_TEST_FINAL_DUMMY
     mode_final_dummy();
-#elif APP_TEST_VISION_REFACTOR_DEBUG
-    mode_vision_refactor_debug();
+#elif APP_TEST_LINEAR_CAMERA_TEST
+    mode_linear_camera_test();
+#elif APP_TEST_RECEIVER_TEST
+    mode_receiver_test();
+#elif APP_TEST_SERVO_TEST
+    mode_servo_test();
+#elif APP_TEST_ESC_TEST
+    mode_esc_test();
 #else
     while (1) { }
 #endif
