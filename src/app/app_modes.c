@@ -48,6 +48,7 @@ static void App_SystemInit(void)
     RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
 }
 
+#if APP_TEST_FINAL_DUMMY
 static boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
     return ((uint32)(nowMs - dueMs) < 0x80000000u) ? TRUE : FALSE;
@@ -86,14 +87,12 @@ typedef struct
 {
     CarMode_t mode;
     uint32 startGoMs;
-    boolean enabled;
 } EscRunState_t;
 
 static void esc_enter(EscRunState_t *st)
 {
     st->mode = CAR_IDLE;
     st->startGoMs = 0u;
-    st->enabled = FALSE;
 
     /* Init + arm exactly like working mode */
     EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
@@ -120,7 +119,6 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
     if (sw3)
     {
         st->mode = CAR_IDLE;
-        st->enabled = FALSE;
         Esc_StopNeutral();
         return;
     }
@@ -129,7 +127,6 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
     if ((st->mode == CAR_IDLE) && sw2)
     {
         st->mode = CAR_ARMING;
-        st->enabled = TRUE;
         st->startGoMs = nowMs + START_DELAY_MS;
 
         EscSetSpeed(0);
@@ -181,7 +178,6 @@ typedef struct
     VisionDebug_State_t vdbg;
     SteeringLinearState_t ctrl;
 
-    LinearCameraFrame frame;
     LinearCameraFrame processedFrame;
     VisionLinear_ResultType result;
 
@@ -224,12 +220,18 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     }
 
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
+    LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
     VisionLinear_InitV2();
 
     VisionDebug_Init(&st->vdbg, (uint8)V2_WHITE_SAT_U8);
 
     SteeringLinear_Init(&st->ctrl);
     SteeringLinear_Reset(&st->ctrl);
+
+    (void)memset(&st->processedFrame, 0, sizeof(st->processedFrame));
+    (void)memset(&st->result, 0, sizeof(st->result));
+    (void)memset(&st->dbg, 0, sizeof(st->dbg));
+    (void)memset(st->smoothBuf, 0, sizeof(st->smoothBuf));
 
     st->steerRaw = 0;
     st->steerFilt = 0;
@@ -285,6 +287,15 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     if (time_reached(nowMs, st->nextSteerMs))
     {
         st->nextSteerMs += STEER_UPDATE_MS;
+
+        if (st->haveValidVision != TRUE)
+        {
+            st->steerRaw = 0;
+            st->steerFilt = 0;
+            st->steerOut = 0;
+            SteerStraight();
+            return;
+        }
 
         const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
         const uint8 fakeSpeed = 20U;
@@ -431,6 +442,7 @@ static void mode_final_dummy(void)
     }
 }
 #endif
+#endif
 
 static void mode_vision_refactor_debug(void)
 {
@@ -520,9 +532,6 @@ static void mode_vision_refactor_debug(void)
 
 /* =========================================================
    Dispatcher
-
-
-  I deleted the other modes From the dispatcher for debugging, but they can be added anytime now
 ========================================================= */
 void App_RunSelectedMode(void)
 {
@@ -530,10 +539,6 @@ void App_RunSelectedMode(void)
     mode_final_dummy();
 #elif APP_TEST_VISION_REFACTOR_DEBUG
     mode_vision_refactor_debug();
-#elif APP_TEST_ESC_ONLY_WORKING
-    while (1) { }
-#elif APP_TEST_CAMERA_SERVO_V2
-    while (1) { }
 #else
     while (1) { }
 #endif

@@ -6,25 +6,13 @@
 */
 
 /* =========================================================
-   BUILD MODE FLAGS (Enable EXACTLY ONE)
+   BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_SERVO_ONLY               0
-#define APP_TEST_ESC_ONLY_WORKING         0
 #define APP_TEST_VISION_REFACTOR_DEBUG    0
-#define APP_TEST_VISION_V2_DEBUG          0
-#define APP_TEST_CAMERA_SERVO_V2          0
-#define APP_TEST_FULL_CAR_V2              0
-
-/* NEW: combined dummy final (ESC-only + Camera+Servo) *///Which for some reason happens to work Unlike the Full Car v2 (for now)
 #define APP_TEST_FINAL_DUMMY              1
 
 #define APP_MODE_COUNT ( \
-    (APP_TEST_SERVO_ONLY) + \
-    (APP_TEST_ESC_ONLY_WORKING) + \
     (APP_TEST_VISION_REFACTOR_DEBUG) + \
-    (APP_TEST_VISION_V2_DEBUG) + \
-    (APP_TEST_CAMERA_SERVO_V2) + \
-    (APP_TEST_FULL_CAR_V2) + \
     (APP_TEST_FINAL_DUMMY) \
 )
 
