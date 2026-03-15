@@ -23,7 +23,6 @@ extern "C" {
 * 3) internal and external interfaces from this unit
 ==================================================================================================*/
 #include "PlatformTypes.h"
-#include "main_types.h"
 #include "CDD_I2c.h"
 
 /*==================================================================================================
@@ -68,7 +67,6 @@ void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, u
 void DisplayOverlayVerticalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 x); //for camera testing
 void DisplayOverlayHorizontalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx); //for camera testing
 void DisplayOverlayHorizontalSegment(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx, uint8 x0, uint8 x1); //for camera testing
-void DisplayVector(Vector VectorCoordinates);
 void DisplayClear(void);
 void RotateFontmap(void);
 void DisplayInit(uint8 I2cChannel, uint8 FontmapRotation);

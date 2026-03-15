@@ -6,12 +6,6 @@
 /* Free-running millisecond tick */
 volatile uint32 g_SystemMs = 0u;
 
-/* Used by camera emulator logic (existing behavior) */
-volatile boolean g_EmuNewFrameFlag = FALSE;
-
-/* Internal sub-counter for 1-second frame flag */
-static uint16 EmuTicks = 0u;
-
 /* GPT channel ID used for the ms tick (matches your Gpt config) */
 #define MS_TIMER_CHANNEL   ((Gpt_ChannelType)2u)
 
@@ -33,14 +27,7 @@ void Timebase_Init(void)
  */
 void EmuTimer_Notification(void)
 {
-    EmuTicks++;
     g_SystemMs++;   /* increments on every GPT tick (configured for 1 ms period) */
-
-    if (EmuTicks >= 1000u)
-    {
-        g_EmuNewFrameFlag = TRUE;  /* tell main loop: "new frame" every 1 s */
-        EmuTicks = 0u;
-    }
 }
 
 /* Return current ms tick */

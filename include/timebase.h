@@ -8,9 +8,6 @@
 /* Global millisecond counter, incremented by GPT callback */
 extern volatile uint32 g_SystemMs;
 
-/* Flag used by the camera emulator: set every 1000 ms */
-extern volatile boolean g_EmuNewFrameFlag;
-
 /* Initialize GPT-based ms timebase (start timer and enable notification) */
 void Timebase_Init(void);
 

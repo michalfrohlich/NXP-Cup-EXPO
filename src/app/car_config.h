@@ -8,11 +8,11 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       0
+#define APP_TEST_LINEAR_CAMERA_TEST       1
 #define APP_TEST_RECEIVER_TEST            0
 #define APP_TEST_SERVO_TEST               0
 #define APP_TEST_ESC_TEST                 0
-#define APP_TEST_FINAL_DUMMY              1
+#define APP_TEST_FINAL_DUMMY              0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \

@@ -35,7 +35,6 @@ extern "C" {
 #include "Port.h"
 #include "CDD_I2c.h"
 #include "display.h"
-#include "main_types.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -464,67 +463,6 @@ void DisplayOverlayHorizontalSegment(uint8 DisplayLine, uint8 LinesSpan, uint8 y
 void DisplayClear(){
     for(uint16 Index = 1U; Index < CharacterRows * 8U * CharacterColumns + 1U; Index++){
         AllDataBuffer[Index] = 0U;
-    }
-}
-
-void DisplayVector(Vector VectorCoordinates){
-    volatile uint16 HorizontalIndexStart, HorizontalIndexEnd, VerticalIndexStart, VerticalIndexEnd, HorizontalIndex, VerticalIndex;
-    /*scale the coordinates from -100 100 to display dimensions*/
-    VectorCoordinates.x0 = VectorCoordinates.x0 * (CharacterColumns * 8U - 1U) / 100U;
-    VectorCoordinates.x1 = VectorCoordinates.x1 * (CharacterColumns * 8U - 1U) / 100U;
-    VectorCoordinates.y0 = VectorCoordinates.y0 * (CharacterRows * 8U - 1U) / 100U;
-    VectorCoordinates.y1 = VectorCoordinates.y1 * (CharacterRows * 8U - 1U) / 100U;
-    /*printing the horizontal points along the vector*/
-    if(VectorCoordinates.x0 <= VectorCoordinates.x1){
-        HorizontalIndexStart = VectorCoordinates.x0;
-        HorizontalIndexEnd = VectorCoordinates.x1;
-        VerticalIndexStart = VectorCoordinates.y0;
-        VerticalIndexEnd = VectorCoordinates.y1;
-    }
-    else{
-        HorizontalIndexStart = VectorCoordinates.x1;
-        HorizontalIndexEnd = VectorCoordinates.x0;
-        VerticalIndexStart = VectorCoordinates.y1;
-        VerticalIndexEnd = VectorCoordinates.y0;
-    }
-    if(VerticalIndexStart <= VerticalIndexEnd){
-        for(HorizontalIndex = HorizontalIndexStart; HorizontalIndex < HorizontalIndexEnd; HorizontalIndex++){
-            VerticalIndex = VerticalIndexStart + ((HorizontalIndex - HorizontalIndexStart) * (VerticalIndexEnd - VerticalIndexStart) / (HorizontalIndexEnd - HorizontalIndexStart));
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U)* 128U + 1U] |= 1 << (VerticalIndex % 8U);
-        }
-    }
-    else if(VerticalIndexStart > VerticalIndexEnd)
-    {
-        for(HorizontalIndex = HorizontalIndexStart; HorizontalIndex < HorizontalIndexEnd; HorizontalIndex++){
-            VerticalIndex = VerticalIndexStart - ((HorizontalIndex - HorizontalIndexStart) * (VerticalIndexStart - VerticalIndexEnd) / (HorizontalIndexEnd - HorizontalIndexStart));
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U)* 128U + 1U] |= 1 << (VerticalIndex % 8U);
-        }
-    }
-    /*printing the vertical points along the vector*/
-    if(VectorCoordinates.y0 <= VectorCoordinates.y1){
-        HorizontalIndexStart = VectorCoordinates.x0;
-        HorizontalIndexEnd = VectorCoordinates.x1;
-        VerticalIndexStart = VectorCoordinates.y0;
-        VerticalIndexEnd = VectorCoordinates.y1;
-    }
-    else{
-        HorizontalIndexStart = VectorCoordinates.x1;
-        HorizontalIndexEnd = VectorCoordinates.x0;
-        VerticalIndexStart = VectorCoordinates.y1;
-        VerticalIndexEnd = VectorCoordinates.y0;
-    }
-    if(HorizontalIndexStart <= HorizontalIndexEnd){
-        for(VerticalIndex = VerticalIndexStart; VerticalIndex < VerticalIndexEnd; VerticalIndex++){
-            /*put the value in the buffer*/
-            HorizontalIndex = HorizontalIndexStart + ((VerticalIndex - VerticalIndexStart) * (HorizontalIndexEnd - HorizontalIndexStart)) / (VerticalIndexEnd - VerticalIndexStart);
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U) * 128U + 1U] |= (uint8)(1 << (VerticalIndex % 8U));
-        }
-    }
-    else if (HorizontalIndexStart > HorizontalIndexEnd){
-        for(VerticalIndex = VerticalIndexStart; VerticalIndex < VerticalIndexEnd; VerticalIndex++){
-            HorizontalIndex = HorizontalIndexStart - ((VerticalIndex - VerticalIndexStart)* (HorizontalIndexStart - HorizontalIndexEnd)) / (VerticalIndexEnd - VerticalIndexStart);
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U) * 128U + 1U] |= (uint8)(1 << (VerticalIndex % 8U));
-        }
     }
 }
 
