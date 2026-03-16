@@ -27,12 +27,92 @@
 /* =========================================================
    Helpers
 ========================================================= */
+#define VDBG_WHITE_MAX_FULL_SCALE     (4095U)
+#define VDBG_WHITE_MAX_MIN_ZOOM       (400U)
+#define SW2_PAUSE_HOLD_MS             (1000U)
+
 static void busy_delay(volatile uint32 ticks)
 {
     while (ticks != 0U)
     {
         ticks--;
     }
+}
+
+static uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel)
+{
+    uint32 range = (uint32)VDBG_WHITE_MAX_FULL_SCALE - (uint32)VDBG_WHITE_MAX_MIN_ZOOM;
+    uint32 scaled = ((uint32)potLevel * range) / 255U;
+    uint32 whiteMax = (uint32)VDBG_WHITE_MAX_FULL_SCALE - scaled;
+
+    if (whiteMax < (uint32)VDBG_WHITE_MAX_MIN_ZOOM)
+    {
+        whiteMax = (uint32)VDBG_WHITE_MAX_MIN_ZOOM;
+    }
+    if (whiteMax > (uint32)VDBG_WHITE_MAX_FULL_SCALE)
+    {
+        whiteMax = (uint32)VDBG_WHITE_MAX_FULL_SCALE;
+    }
+
+    return (uint16)whiteMax;
+}
+
+typedef enum
+{
+    SW2_ACTION_NONE = 0,
+    SW2_ACTION_CLICK,
+    SW2_ACTION_HOLD
+} Sw2Action_t;
+
+typedef struct
+{
+    boolean wasPressed;
+    boolean holdHandled;
+    uint32 pressedSinceMs;
+} Sw2Tracker_t;
+
+static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
+{
+    boolean pressedNow;
+
+    if (st == NULL)
+    {
+        return SW2_ACTION_NONE;
+    }
+
+    pressedNow = Buttons_IsPressed(BUTTON_ID_SW2);
+
+    if ((pressedNow == TRUE) && (st->wasPressed != TRUE))
+    {
+        st->wasPressed = TRUE;
+        st->holdHandled = FALSE;
+        st->pressedSinceMs = nowMs;
+    }
+
+    if ((pressedNow == TRUE) && (st->holdHandled != TRUE))
+    {
+        if ((uint32)(nowMs - st->pressedSinceMs) >= SW2_PAUSE_HOLD_MS)
+        {
+            st->holdHandled = TRUE;
+            return SW2_ACTION_HOLD;
+        }
+    }
+
+    if ((pressedNow != TRUE) && (st->wasPressed == TRUE))
+    {
+        boolean wasHoldHandled = st->holdHandled;
+
+        st->wasPressed = FALSE;
+        st->holdHandled = FALSE;
+        st->pressedSinceMs = 0U;
+
+        if (wasHoldHandled != TRUE)
+        {
+            return SW2_ACTION_CLICK;
+        }
+    }
+
+    return SW2_ACTION_NONE;
 }
 
 static void mode_receiver_test(void)
@@ -252,7 +332,8 @@ typedef struct
     VisionLinear_ResultType result;
 
     VisionLinear_DebugOut_t dbg;
-    uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+    uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
+    sint16 gradientBuf[VISION_LINEAR_BUFFER_SIZE];
     boolean haveValidVision;
 
     sint16 steerRaw;
@@ -301,7 +382,8 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     (void)memset(&st->processedFrame, 0, sizeof(st->processedFrame));
     (void)memset(&st->result, 0, sizeof(st->result));
     (void)memset(&st->dbg, 0, sizeof(st->dbg));
-    (void)memset(st->smoothBuf, 0, sizeof(st->smoothBuf));
+    (void)memset(st->filteredBuf, 0, sizeof(st->filteredBuf));
+    (void)memset(st->gradientBuf, 0, sizeof(st->gradientBuf));
 
     st->steerRaw = 0;
     st->steerFilt = 0;
@@ -320,6 +402,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     const uint32 LOOP_MS    = (uint32)V2_LOOP_PERIOD_MS;
     const uint32 DISP_MS    = (uint32)DISPLAY_PERIOD_MS;
     const uint32 DISP_TICKS = (DISP_MS / LOOP_MS);
+    boolean doDisplay;
 
     if ((uint32)(nowMs - st->nextTickMs) < LOOP_MS)
     {
@@ -328,10 +411,10 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     st->nextTickMs += LOOP_MS;
     st->tickCount++;
 
+    doDisplay = ((DISP_TICKS != 0U) && ((st->tickCount % DISP_TICKS) == 0U));
+
     /* SW2 allowed, SW3 NOT passed here (reserved for switching modes) */
     VisionDebug_OnTick(&st->vdbg, sw2, FALSE);
-
-    boolean doDisplay = ((DISP_TICKS != 0U) && ((st->tickCount % DISP_TICKS) == 0U));
 
     {
         const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
@@ -339,11 +422,12 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
         if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
         {
             st->dbg.mask = (uint32)VLIN_DBG_NONE;
-            st->dbg.smoothOut = (uint16*)0;
+            st->dbg.filteredOut = (uint16*)0;
+            st->dbg.gradientOut = (sint16*)0;
 
             if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE))
             {
-                VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->smoothBuf);
+                VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->filteredBuf, st->gradientBuf);
             }
 
             (void)memcpy(st->processedFrame.Values,
@@ -393,11 +477,12 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 
     if ((doDisplay == TRUE) && (st->haveValidVision == TRUE))
     {
-        const uint16 *pSmooth = (st->dbg.smoothOut != (uint16*)0) ? st->smoothBuf : (const uint16*)0;
+        const uint16 *pFiltered = (st->dbg.filteredOut != (uint16*)0) ? st->filteredBuf : (const uint16*)0;
+        const sint16 *pGradient = (st->dbg.gradientOut != (sint16*)0) ? st->gradientBuf : (const sint16*)0;
         const VisionLinear_DebugOut_t *pDbg =
             (st->dbg.mask != (uint32)VLIN_DBG_NONE) ? &st->dbg : (const VisionLinear_DebugOut_t*)0;
 
-        VisionDebug_Draw(&st->vdbg, st->processedFrame.Values, pSmooth, &st->result, pDbg);
+        VisionDebug_Draw(&st->vdbg, st->processedFrame.Values, pFiltered, pGradient, &st->result, pDbg);
     }
 }
 
@@ -517,16 +602,19 @@ static void mode_final_dummy(void)
 static void mode_linear_camera_test(void)
 {
     VisionDebug_State_t vdbg;
+    Sw2Tracker_t sw2Tracker = { FALSE, FALSE, 0U };
     static LinearCameraFrame processedFrame;
     VisionLinear_ResultType result;
     VisionLinear_DebugOut_t dbg;
-    static uint16 smoothBuf[VISION_LINEAR_BUFFER_SIZE];
+    static uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
+    static sint16 gradientBuf[VISION_LINEAR_BUFFER_SIZE];
     const uint32 loopPeriodMs = 5U;
     const uint32 displayPeriodMs = 20U;
     const uint32 displayTicks = (displayPeriodMs / loopPeriodMs);
     uint32 nextTickMs;
     uint32 tickCount = 0U;
     boolean haveValidVision = FALSE;
+    boolean paused = FALSE;
 
     Board_InitCommonApp();
     VisionLinear_InitV2();
@@ -539,6 +627,9 @@ static void mode_linear_camera_test(void)
     for (;;)
     {
         uint32 nowMs = Timebase_GetMs();
+        Sw2Action_t sw2Action;
+        boolean modeNextPressed;
+        boolean sw2ClickHandled = FALSE;
 
         if ((uint32)(nowMs - nextTickMs) < loopPeriodMs)
         {
@@ -549,27 +640,54 @@ static void mode_linear_camera_test(void)
         tickCount++;
 
         Buttons_Update();
+        sw2Action = Sw2Tracker_Update(&sw2Tracker, nowMs);
+        modeNextPressed = Buttons_WasPressed(BUTTON_ID_SW3);
 
+        if ((sw2Action == SW2_ACTION_HOLD) && (paused != TRUE))
         {
-            boolean screenTogglePressed = Buttons_WasPressed(BUTTON_ID_SW2);
-            boolean modeNextPressed = Buttons_WasPressed(BUTTON_ID_SW3);
-
-            VisionDebug_OnTick(&vdbg, screenTogglePressed, modeNextPressed);
+            if (LinearCameraIsBusy() == TRUE)
+            {
+                LinearCameraStopStream();
+            }
+            paused = TRUE;
+            vdbg.cfg.paused = TRUE;
         }
+        else if ((sw2Action == SW2_ACTION_CLICK) && (paused == TRUE))
+        {
+            paused = FALSE;
+            vdbg.cfg.paused = FALSE;
+            vdbg.screen = vdbg.debugEntryScreen;
+            (void)LinearCameraStartStream();
+            sw2ClickHandled = TRUE;
+        }
+
+        if (paused == TRUE)
+        {
+            uint8 potLevel = OnboardPot_ReadLevelFiltered();
+            vdbg.cfg.whiteSat = VisionDebug_WhiteMaxFromPot(potLevel);
+        }
+
+        VisionDebug_OnTick(&vdbg,
+                           (boolean)((sw2Action == SW2_ACTION_CLICK) &&
+                                     (sw2ClickHandled != TRUE) &&
+                                     (paused != TRUE)),
+                           modeNextPressed);
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
 
+        if (paused != TRUE)
         {
             const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
 
             if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
             {
                 dbg.mask = (uint32)VLIN_DBG_NONE;
-                dbg.smoothOut = (uint16*)0;
+                dbg.filteredOut = (uint16*)0;
+                dbg.gradientOut = (sint16*)0;
 
                 if (VisionDebug_WantsVisionDebugData(&vdbg) == TRUE)
                 {
-                    VisionDebug_PrepareVisionDbg(&vdbg, &dbg, smoothBuf);
+                    VisionDebug_PrepareVisionDbg(&vdbg, &dbg, filteredBuf, gradientBuf);
                 }
 
                 RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
@@ -587,13 +705,15 @@ static void mode_linear_camera_test(void)
             ((tickCount % displayTicks) == 0U) &&
             (haveValidVision == TRUE))
         {
-            const uint16 *pSmooth =
-                (dbg.smoothOut != (uint16*)0) ? smoothBuf : (const uint16*)0;
+            const uint16 *pFiltered =
+                (dbg.filteredOut != (uint16*)0) ? filteredBuf : (const uint16*)0;
+            const sint16 *pGradient =
+                (dbg.gradientOut != (sint16*)0) ? gradientBuf : (const sint16*)0;
 
             const VisionLinear_DebugOut_t *pDbg =
                 (dbg.mask != (uint32)VLIN_DBG_NONE) ? &dbg : (const VisionLinear_DebugOut_t*)0;
 
-            VisionDebug_Draw(&vdbg, processedFrame.Values, pSmooth, &result, pDbg);
+            VisionDebug_Draw(&vdbg, processedFrame.Values, pFiltered, pGradient, &result, pDbg);
         }
 
         RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });

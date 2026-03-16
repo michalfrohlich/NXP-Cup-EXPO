@@ -83,7 +83,7 @@
 #define CAM_ADC_GROUP                     0U
 #define CAM_SHUTTER_PCR                   97U
 #define CAM_SHUTTER_HIGH_TIME_TICKS       100U
-#define CAM_FRAME_INTERVAL_TICKS          100000U
+#define CAM_FRAME_INTERVAL_TICKS          50000U
 
 #define CAM_N_PIXELS                      128u
 #define CAM_CENTER_PX                     63
@@ -144,3 +144,39 @@
 #define V2_LOOP_PERIOD_MS                 5u
 #define V2_TEST_EXPOSURE_TICKS            100u
 #define V2_WHITE_SAT_U8                   220u
+
+/* =========================================================
+   Vision V2 line-detection tuning
+========================================================= */
+/* Minimum filtered brightness span in one frame.
+   Raise this to ignore weak/flat scenes more aggressively.
+   Lower it if the detector drops the line in dim lighting. */
+#define VISION_LINEAR_MIN_CONTRAST        320U
+
+/* Minimum accepted weak edge magnitude.
+   Raise this to reject noise and tiny reflections.
+   Lower it if real line edges are too often missed. */
+#define VISION_LINEAR_MIN_WEAK_EDGE       40U
+
+/* Minimum accepted strong edge magnitude.
+   This is the floor for the hysteresis "strong edge" threshold.
+   Raise it to demand cleaner edges, lower it for weaker signals. */
+#define VISION_LINEAR_MIN_STRONG_EDGE     60U
+
+/* Strong edge threshold as percent of the strongest gradient in the frame.
+   Higher = fewer edge candidates.
+   Lower = more edge candidates. */
+#define VISION_LINEAR_EDGE_HIGH_PCT       40U
+
+/* Weak edge threshold as percent of the strong threshold.
+   Higher = only candidates close to strong edges survive.
+   Lower = hysteresis becomes more permissive. */
+#define VISION_LINEAR_EDGE_LOW_PCT        60U
+
+/* Expected distance between the two detected inner track edges in pixels.
+   Used to estimate track center when only one edge is visible. */
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH  100U
+
+/* Keep the dynamic left/right split point away from the extreme image edges.
+   Raise this if the edge pixels are unreliable or noisy. */
+#define VISION_LINEAR_SPLIT_MARGIN_PX     10U

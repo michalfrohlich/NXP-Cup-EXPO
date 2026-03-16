@@ -1,11 +1,12 @@
 #include "vision_debug.h"
 #include "display.h"
 #include <stdio.h>
+#include <stdarg.h>
+
+#define VDBG_SENSOR_MAX_U12    (4095U)
 
 /* --- Internal helpers --- */
 
-/* DisplayGraph() expects 0..100 and becomes unsafe at 0% for full 32px height.
-   We clamp to 1..100 to avoid shift-by-32 UB in the driver. */
 static uint8 clampPct_1_100(uint8 pct)
 {
     if (pct == 0U)  { return 1U; }
@@ -13,12 +14,12 @@ static uint8 clampPct_1_100(uint8 pct)
     return pct;
 }
 
-/* FIXED scaling: 0..whiteSat -> 1..100 */
 static void ScaleFixed_U16_ToPct(uint8 *dstPct, const uint16 *srcU16, uint8 n, uint16 whiteSat)
 {
     uint32 denom = (whiteSat == 0U) ? 1U : (uint32)whiteSat;
+    uint8 i;
 
-    for (uint8 i = 0U; i < n; i++)
+    for (i = 0U; i < n; i++)
     {
         uint32 pct32 = ((uint32)srcU16[i] * 100U) / denom;
         uint8 pct = (pct32 > 100U) ? 100U : (uint8)pct32;
@@ -26,32 +27,32 @@ static void ScaleFixed_U16_ToPct(uint8 *dstPct, const uint16 *srcU16, uint8 n, u
     }
 }
 
-/* AUTO scaling: mn..mx -> 1..100 */
 static void ScaleAuto_U16_ToPct(uint8 *dstPct, const uint16 *srcU16, uint8 n, uint16 *outMin, uint16 *outMax)
 {
     uint16 mn = 0xFFFFU;
     uint16 mx = 0U;
+    uint8 i;
 
-    for (uint8 i = 0U; i < n; i++)
+    for (i = 0U; i < n; i++)
     {
         uint16 v = srcU16[i];
         if (v < mn) { mn = v; }
         if (v > mx) { mx = v; }
     }
 
-    if (outMin) { *outMin = mn; }
-    if (outMax) { *outMax = mx; }
+    if (outMin != (uint16*)0) { *outMin = mn; }
+    if (outMax != (uint16*)0) { *outMax = mx; }
 
     if (mx <= mn)
     {
-        for (uint8 i = 0U; i < n; i++) { dstPct[i] = 100U; }
+        for (i = 0U; i < n; i++) { dstPct[i] = 100U; }
         return;
     }
 
     {
         uint32 range = (uint32)(mx - mn);
 
-        for (uint8 i = 0U; i < n; i++)
+        for (i = 0U; i < n; i++)
         {
             uint16 v = srcU16[i];
 
@@ -66,38 +67,146 @@ static void ScaleAuto_U16_ToPct(uint8 *dstPct, const uint16 *srcU16, uint8 n, ui
     }
 }
 
-/* Convert scalar to pct using FIXED scale */
-static uint8 ScalarFixed_ToPct(uint16 vU16, uint16 whiteSat)
+static uint16 VisionDebug_AbsU16(sint16 value)
 {
-    uint32 denom = (whiteSat == 0U) ? 1U : (uint32)whiteSat;
-    uint32 pct32 = ((uint32)vU16 * 100U) / denom;
-    uint8 pct = (pct32 > 100U) ? 100U : (uint8)pct32;
-    return clampPct_1_100(pct);
+    return (value < 0) ? (uint16)(-value) : (uint16)value;
 }
 
-/* Convert scalar to pct using AUTO mn/mx */
-static uint8 ScalarAuto_ToPct(uint16 vU16, uint16 mn, uint16 mx)
+static void ScaleAuto_AbsS16_ToPct(uint8 *dstPct,
+                                   const sint16 *srcS16,
+                                   uint8 n,
+                                   uint16 *outMin,
+                                   uint16 *outMax)
 {
-    if (mx <= mn) { return 100U; }
-    if (vU16 <= mn) { return 1U; }
-    if (vU16 >= mx) { return 100U; }
+    uint16 mn = 0xFFFFU;
+    uint16 mx = 0U;
+    uint8 i;
+
+    for (i = 0U; i < n; i++)
+    {
+        uint16 v = VisionDebug_AbsU16(srcS16[i]);
+        if (v < mn) { mn = v; }
+        if (v > mx) { mx = v; }
+    }
+
+    if (outMin != (uint16*)0) { *outMin = mn; }
+    if (outMax != (uint16*)0) { *outMax = mx; }
+
+    if (mx <= mn)
+    {
+        for (i = 0U; i < n; i++) { dstPct[i] = 1U; }
+        return;
+    }
 
     {
         uint32 range = (uint32)(mx - mn);
-        uint32 num   = (uint32)(vU16 - mn) * 100U;
+
+        for (i = 0U; i < n; i++)
+        {
+            uint16 v = VisionDebug_AbsU16(srcS16[i]);
+
+            if (v <= mn)      { dstPct[i] = 1U; }
+            else if (v >= mx) { dstPct[i] = 100U; }
+            else
+            {
+                uint32 num = (uint32)(v - mn) * 100U;
+                dstPct[i] = clampPct_1_100((uint8)(num / range));
+            }
+        }
+    }
+}
+
+static uint8 ScalarAutoU16_ToPct(uint16 value, uint16 mn, uint16 mx)
+{
+    if (mx <= mn) { return 100U; }
+    if (value <= mn) { return 1U; }
+    if (value >= mx) { return 100U; }
+
+    {
+        uint32 range = (uint32)(mx - mn);
+        uint32 num = (uint32)(value - mn) * 100U;
         return clampPct_1_100((uint8)(num / range));
     }
 }
 
-/* DisplayGraph y mapping (y=0 top) */
 static uint8 Pct_ToYPx(uint8 pct, uint8 heightPx)
 {
-    pct = clampPct_1_100(pct);
+    uint32 y;
 
-    uint32 y = ((uint32)(100U - pct) * (uint32)heightPx) / 100U;
+    pct = clampPct_1_100(pct);
+    y = ((uint32)(100U - pct) * (uint32)heightPx) / 100U;
+
     if (heightPx == 0U) { return 0U; }
     if (y >= (uint32)heightPx) { y = (uint32)(heightPx - 1U); }
     return (uint8)y;
+}
+
+static uint8 VisionDebug_SignedThresholdToYPx(uint16 threshold,
+                                              uint16 scaleAbs,
+                                              uint8 heightPx,
+                                              boolean positive)
+{
+    uint8 baselinePx;
+    uint32 offset;
+    uint32 y;
+
+    if (heightPx == 0U)
+    {
+        return 0U;
+    }
+
+    baselinePx = (uint8)(heightPx / 2U);
+    if (scaleAbs == 0U)
+    {
+        scaleAbs = 1U;
+    }
+    if (threshold > scaleAbs)
+    {
+        threshold = scaleAbs;
+    }
+
+    offset = ((uint32)threshold * (uint32)baselinePx) / (uint32)scaleAbs;
+    y = (positive == TRUE)
+        ? ((uint32)baselinePx - offset)
+        : ((uint32)baselinePx + offset);
+
+    if (y >= (uint32)heightPx)
+    {
+        y = (uint32)(heightPx - 1U);
+    }
+
+    return (uint8)y;
+}
+
+static void VisionDebug_FormatLine(char line[17], const char *fmt, ...)
+{
+    va_list args;
+    int len;
+
+    if (line == NULL)
+    {
+        return;
+    }
+
+    va_start(args, fmt);
+    len = vsnprintf(line, 17U, fmt, args);
+    va_end(args);
+
+    if (len < 0)
+    {
+        len = 0;
+    }
+    if (len > 16)
+    {
+        len = 16;
+    }
+
+    while (len < 16)
+    {
+        line[len] = ' ';
+        len++;
+    }
+    line[16] = '\0';
 }
 
 /* --- Public API --- */
@@ -110,6 +219,7 @@ void VisionDebug_Init(VisionDebug_State_t *st, uint16 whiteSat_default)
     st->debugEntryScreen = VDBG_SCREEN_DEBUG_FIXED;
     st->mainTextMode = 0U;
     st->cfg.whiteSat = (whiteSat_default == 0U) ? 1U : whiteSat_default;
+    st->cfg.paused = FALSE;
 }
 
 void VisionDebug_OnTick(VisionDebug_State_t *st,
@@ -118,7 +228,6 @@ void VisionDebug_OnTick(VisionDebug_State_t *st,
 {
     if (st == NULL) { return; }
 
-    /* SW2: MAIN <-> DEBUG (always enter FIXED first) */
     if (screenTogglePressed == TRUE)
     {
         if (st->screen == VDBG_SCREEN_MAIN)
@@ -131,27 +240,21 @@ void VisionDebug_OnTick(VisionDebug_State_t *st,
         }
     }
 
-    	/* SW3 behavior depends on current screen */
-        if (modeNextPressed == TRUE)
+    if (modeNextPressed == TRUE)
+    {
+        if (st->screen == VDBG_SCREEN_MAIN)
         {
-            if (st->screen == VDBG_SCREEN_MAIN)
-            {
-                /* Toggle MAIN text layout */
-                st->mainTextMode = (st->mainTextMode == 0U) ? 1U : 0U;
-            }
-            else
-            {
-                /* Cycle DEBUG modes */
-                if (st->screen == VDBG_SCREEN_DEBUG_FIXED)
-                {
-                    st->screen = VDBG_SCREEN_DEBUG_AUTO;
-                }
-                else
-                {
-                    st->screen = VDBG_SCREEN_DEBUG_FIXED;
-                }
-            }
+            st->mainTextMode = (st->mainTextMode == 0U) ? 1U : 0U;
         }
+        else if (st->screen == VDBG_SCREEN_DEBUG_FIXED)
+        {
+            st->screen = VDBG_SCREEN_DEBUG_AUTO;
+        }
+        else
+        {
+            st->screen = VDBG_SCREEN_DEBUG_FIXED;
+        }
+    }
 }
 
 boolean VisionDebug_WantsVisionDebugData(const VisionDebug_State_t *st)
@@ -163,18 +266,19 @@ boolean VisionDebug_WantsVisionDebugData(const VisionDebug_State_t *st)
         return TRUE;
     }
 
-    /* MAIN stats mode also needs debug scalars */
     return (st->mainTextMode != 0U) ? TRUE : FALSE;
 }
 
 void VisionDebug_PrepareVisionDbg(const VisionDebug_State_t *st,
                                   VisionLinear_DebugOut_t *dbg,
-                                  uint16 *smoothOutBuf)
+                                  uint16 *filteredOutBuf,
+                                  sint16 *gradientOutBuf)
 {
     if ((st == NULL) || (dbg == NULL)) { return; }
 
     dbg->mask = (uint32)VLIN_DBG_NONE;
-    dbg->smoothOut = (uint16*)0;
+    dbg->filteredOut = (uint16*)0;
+    dbg->gradientOut = (sint16*)0;
 
     if (st->screen == VDBG_SCREEN_MAIN)
     {
@@ -185,40 +289,45 @@ void VisionDebug_PrepareVisionDbg(const VisionDebug_State_t *st,
     }
     else
     {
-        dbg->mask = (uint32)(VLIN_DBG_SMOOTH | VLIN_DBG_STATS | VLIN_DBG_BLOBS);
-        dbg->smoothOut = smoothOutBuf;
+        dbg->mask = (uint32)(VLIN_DBG_FILTERED | VLIN_DBG_GRADIENT | VLIN_DBG_STATS | VLIN_DBG_EDGES);
+        dbg->filteredOut = filteredOutBuf;
+        dbg->gradientOut = gradientOutBuf;
     }
 }
 
 void VisionDebug_Draw(const VisionDebug_State_t *st,
                       const uint16 *rawU16,
-                      const uint16 *smoothU16,
+                      const uint16 *filteredU16,
+                      const sint16 *gradientS16,
                       const VisionLinear_ResultType *result,
                       const VisionLinear_DebugOut_t *dbg)
 {
-    if ((st == NULL) || (rawU16 == NULL) || (result == NULL)) { return; }
-
-    /* OLED is 128x32 => 4 pages, 32 px max */
     static uint8 plotPct[VISION_LINEAR_BUFFER_SIZE];
+
+    if ((st == NULL) || (rawU16 == NULL) || (result == NULL)) { return; }
 
     DisplayClear();
 
-    if (st->screen == VDBG_SCREEN_MAIN)
+    if (st->cfg.paused == TRUE)
     {
-        /* MAIN: 2 lines text + raw graph (2 pages) */
         char line0[17];
         char line1[17];
-        uint8 i;
+
+        VisionDebug_FormatLine(line0, "PAUSED");
+        VisionDebug_FormatLine(line1, "whiteMax: %4u",
+                               (unsigned)st->cfg.whiteSat);
+        DisplayText(0U, line0, 16U, 0U);
+        DisplayText(1U, line1, 16U, 0U);
+        DisplayRefresh();
+        return;
+    }
+
+    if (st->screen == VDBG_SCREEN_MAIN)
+    {
+        char line0[17];
+        char line1[17];
         const char *statusStr;
         sint16 errPct = (sint16)(result->Error * 100.0f);
-
-        for (i = 0U; i < 16U; i++)
-        {
-            line0[i] = ' ';
-            line1[i] = ' ';
-        }
-        line0[16] = '\0';
-        line1[16] = '\0';
 
         switch (result->Status)
         {
@@ -230,44 +339,35 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
 
         if (st->mainTextMode == 0U)
         {
-            /* Screen 1:
-               row1: Status, Confidence, Error
-               row2: L, R
-            */
-            (void)snprintf(line0, sizeof(line0), "S:%s C:%3u E:%+3d",
-                           statusStr,
-                           (unsigned)result->Confidence,
-                           (int)errPct);
+            VisionDebug_FormatLine(line0, "S:%s C:%3u E:%+3d",
+                                   statusStr,
+                                   (unsigned)result->Confidence,
+                                   (int)errPct);
 
-            (void)snprintf(line1, sizeof(line1), "L:%03u R:%03u",
-                           (unsigned)result->LeftLineIdx,
-                           (unsigned)result->RightLineIdx);
+            VisionDebug_FormatLine(line1, "L:%03u R:%03u",
+                                   (unsigned)result->LeftLineIdx,
+                                   (unsigned)result->RightLineIdx);
         }
         else if (dbg != NULL)
         {
-            /* Screen 2:
-               row1: Contrast, Point
-               row2: Min, Max
-            */
-            (void)snprintf(line0, sizeof(line0), "C:%3u P:%3u",
-                           (unsigned)dbg->contrast,
-                           (unsigned)dbg->splitPoint);
+            VisionDebug_FormatLine(line0, "C:%4u G:%4u",
+                                   (unsigned)dbg->contrast,
+                                   (unsigned)dbg->maxAbsGradient);
 
-            (void)snprintf(line1, sizeof(line1), "N:%4u X:%4u",
-                           (unsigned)dbg->minVal,
-                           (unsigned)dbg->maxVal);
+            VisionDebug_FormatLine(line1, "Hi:%3u Lo:%3u",
+                                   (unsigned)dbg->edgeHighThreshold,
+                                   (unsigned)dbg->edgeLowThreshold);
         }
         else
         {
-            (void)snprintf(line0, sizeof(line0), "NO DBG          ");
-            (void)snprintf(line1, sizeof(line1), "                ");
+            VisionDebug_FormatLine(line0, "NO DBG");
+            VisionDebug_FormatLine(line1, "");
         }
 
         DisplayText(0U, line0, 16U, 0U);
         DisplayText(1U, line1, 16U, 0U);
 
-        /* Scale raw for DisplayGraph() */
-        ScaleFixed_U16_ToPct(plotPct, rawU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
+        ScaleFixed_U16_ToPct(plotPct, rawU16, VISION_LINEAR_BUFFER_SIZE, VDBG_SENSOR_MAX_U12);
         DisplayGraph(2U, plotPct, VISION_LINEAR_BUFFER_SIZE, 2U);
 
         if (result->LeftLineIdx != VISION_LINEAR_INVALID_IDX)
@@ -283,10 +383,8 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
         return;
     }
 
-    /* DEBUG: full height graph (4 pages), overlays at bottom */
-    if ((smoothU16 == NULL) || (dbg == NULL))
+    if ((filteredU16 == NULL) || (gradientS16 == NULL) || (dbg == NULL))
     {
-        /* Fallback: plot raw only */
         ScaleFixed_U16_ToPct(plotPct, rawU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
         DisplayGraph(0U, plotPct, VISION_LINEAR_BUFFER_SIZE, 4U);
         DisplayRefresh();
@@ -294,59 +392,78 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
     }
 
     {
-        const uint8 graphStartLine = 0U;
-        const uint8 graphLinesSpan = 4U;
-        const uint8 graphHeightPx  = 32U;
-
-        uint16 autoMin = 0U, autoMax = 0U;
+        uint8 graphStartLine = 0U;
+        uint8 graphLinesSpan = 4U;
+        uint8 graphHeightPx = 32U;
+        uint8 b;
 
         if (st->screen == VDBG_SCREEN_DEBUG_FIXED)
         {
-            ScaleFixed_U16_ToPct(plotPct, smoothU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
+            char line0[17];
+
+            VisionDebug_FormatLine(line0, "FILT %4u",
+                                   (unsigned)st->cfg.whiteSat);
+            DisplayText(0U, line0, 16U, 0U);
+            graphStartLine = 1U;
+            graphLinesSpan = 3U;
+            graphHeightPx = 24U;
+
+            ScaleFixed_U16_ToPct(plotPct, filteredU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
+            DisplayGraph(graphStartLine, plotPct, VISION_LINEAR_BUFFER_SIZE, graphLinesSpan);
         }
-        else /* AUTO */
+        else
         {
-            ScaleAuto_U16_ToPct(plotPct, smoothU16, VISION_LINEAR_BUFFER_SIZE, &autoMin, &autoMax);
+            uint16 scaleAbs = dbg->maxAbsGradient;
+            uint8 yWeakPos;
+            uint8 yWeakNeg;
+            uint8 yStrongPos;
+            uint8 yStrongNeg;
+
+            DisplaySignedGraph(graphStartLine,
+                               gradientS16,
+                               VISION_LINEAR_BUFFER_SIZE,
+                               graphLinesSpan,
+                               scaleAbs);
+
+            yWeakPos = VisionDebug_SignedThresholdToYPx(dbg->edgeLowThreshold,
+                                                        scaleAbs,
+                                                        graphHeightPx,
+                                                        TRUE);
+            yWeakNeg = VisionDebug_SignedThresholdToYPx(dbg->edgeLowThreshold,
+                                                        scaleAbs,
+                                                        graphHeightPx,
+                                                        FALSE);
+            yStrongPos = VisionDebug_SignedThresholdToYPx(dbg->edgeHighThreshold,
+                                                          scaleAbs,
+                                                          graphHeightPx,
+                                                          TRUE);
+            yStrongNeg = VisionDebug_SignedThresholdToYPx(dbg->edgeHighThreshold,
+                                                          scaleAbs,
+                                                          graphHeightPx,
+                                                          FALSE);
+
+            DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yWeakPos);
+            DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yWeakNeg);
+            DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yStrongPos);
+            DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yStrongNeg);
         }
 
-        DisplayGraph(graphStartLine, plotPct, VISION_LINEAR_BUFFER_SIZE, graphLinesSpan);
-
-        /* Threshold line */
+        for (b = 0U; b < dbg->edgeCount; b++)
         {
-            uint8 thrPct;
-            uint8 yThresh;
-
-            if (st->screen == VDBG_SCREEN_DEBUG_FIXED)
-            {
-                thrPct = ScalarFixed_ToPct(dbg->threshold, st->cfg.whiteSat);
-            }
-            else
-            {
-                thrPct = ScalarAuto_ToPct(dbg->threshold, autoMin, autoMax);
-            }
-
-            yThresh = Pct_ToYPx(thrPct, graphHeightPx);
-            DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yThresh);
+            DisplayOverlayHorizontalSegment(graphStartLine,
+                                            graphLinesSpan,
+                                            (uint8)(graphHeightPx - 1U),
+                                            dbg->edges[b].idx,
+                                            dbg->edges[b].idx);
         }
 
-        /* Blob segments along the bottom row */
-        for (uint8 b = 0U; b < dbg->blobCount; b++)
+        if (dbg->leftInnerEdgeIdx != VISION_LINEAR_INVALID_IDX)
         {
-            uint8 x0 = dbg->blobs[b].start;
-            uint8 x1 = dbg->blobs[b].end;
-            uint8 y  = (uint8)(graphHeightPx - 1U);
-
-            DisplayOverlayHorizontalSegment(graphStartLine, graphLinesSpan, x0, x1, y);
+            DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, dbg->leftInnerEdgeIdx);
         }
-
-        /* Final chosen line markers */
-        if (result->LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+        if (dbg->rightInnerEdgeIdx != VISION_LINEAR_INVALID_IDX)
         {
-            DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, result->LeftLineIdx);
-        }
-        if (result->RightLineIdx != VISION_LINEAR_INVALID_IDX)
-        {
-            DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, result->RightLineIdx);
+            DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, dbg->rightInnerEdgeIdx);
         }
 
         DisplayRefresh();

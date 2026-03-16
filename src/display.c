@@ -330,6 +330,120 @@ void DisplayGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint
     }
 }
 
+void DisplaySignedGraph(uint8 DisplayLine,
+                        const sint16 *Values,
+                        uint16 ValuesCount,
+                        uint8 LinesSpan,
+                        uint16 MaxAbsValue)
+{
+    uint8 totalPixels;
+    uint8 baselinePx;
+    uint16 scaleAbs = MaxAbsValue;
+    uint16 columnIndex;
+    uint8 rowIndex;
+    uint32 baselineMask = 0U;
+    uint8 prevYPx;
+
+    if ((Values == NULL) || (ValuesCount == 0U) || (LinesSpan == 0U))
+    {
+        return;
+    }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows)
+    {
+        return;
+    }
+
+    totalPixels = (uint8)(LinesSpan * 8U);
+    if (totalPixels == 0U)
+    {
+        return;
+    }
+
+    baselinePx = (uint8)(totalPixels / 2U);
+    if (baselinePx >= totalPixels)
+    {
+        baselinePx = (uint8)(totalPixels - 1U);
+    }
+
+    if (scaleAbs == 0U)
+    {
+        for (columnIndex = 0U; columnIndex < ValuesCount; columnIndex++)
+        {
+            uint16 absValue = (Values[columnIndex] < 0) ? (uint16)(-Values[columnIndex]) : (uint16)Values[columnIndex];
+            if (absValue > scaleAbs)
+            {
+                scaleAbs = absValue;
+            }
+        }
+    }
+    if (scaleAbs == 0U)
+    {
+        scaleAbs = 1U;
+    }
+
+    baselineMask = (uint32)1UL << baselinePx;
+
+    {
+        sint32 clamped = Values[0];
+        sint32 yOffset;
+        uint8 currentYPx;
+        uint32 columnPixels;
+
+        if (clamped > (sint32)scaleAbs) { clamped = (sint32)scaleAbs; }
+        if (clamped < -((sint32)scaleAbs)) { clamped = -((sint32)scaleAbs); }
+
+        yOffset = (clamped * (sint32)(baselinePx)) / (sint32)scaleAbs;
+        currentYPx = (uint8)((sint32)baselinePx - yOffset);
+        columnPixels = baselineMask | ((uint32)1UL << currentYPx);
+
+        for (rowIndex = DisplayLine; rowIndex < (uint8)(DisplayLine + LinesSpan); rowIndex++)
+        {
+            uint8 currentPixels = (uint8)(columnPixels >> (8U * (rowIndex - DisplayLine)));
+            AllDataBuffer[rowIndex * 128U + 1U] = currentPixels;
+        }
+
+        prevYPx = currentYPx;
+    }
+
+    for (columnIndex = 1U; columnIndex < ValuesCount; columnIndex++)
+    {
+        sint32 clamped = Values[columnIndex];
+        sint32 yOffset;
+        uint8 currentYPx;
+        uint8 yMin;
+        uint8 yMax;
+        uint32 columnPixels;
+
+        if (clamped > (sint32)scaleAbs) { clamped = (sint32)scaleAbs; }
+        if (clamped < -((sint32)scaleAbs)) { clamped = -((sint32)scaleAbs); }
+
+        yOffset = (clamped * (sint32)(baselinePx)) / (sint32)scaleAbs;
+        currentYPx = (uint8)((sint32)baselinePx - yOffset);
+
+        yMin = (currentYPx < prevYPx) ? currentYPx : prevYPx;
+        yMax = (currentYPx > prevYPx) ? currentYPx : prevYPx;
+
+        columnPixels = baselineMask;
+        while (yMin <= yMax)
+        {
+            columnPixels |= ((uint32)1UL << yMin);
+            if (yMin == 31U)
+            {
+                break;
+            }
+            yMin++;
+        }
+
+        for (rowIndex = DisplayLine; rowIndex < (uint8)(DisplayLine + LinesSpan); rowIndex++)
+        {
+            uint8 currentPixels = (uint8)(columnPixels >> (8U * (rowIndex - DisplayLine)));
+            AllDataBuffer[rowIndex * 128U + columnIndex + 1U] = currentPixels;
+        }
+
+        prevYPx = currentYPx;
+    }
+}
+
 void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan)
 {
     uint32 ColumnPixels;
