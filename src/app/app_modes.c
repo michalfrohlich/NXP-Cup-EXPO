@@ -29,8 +29,6 @@
 ========================================================= */
 #define VDBG_WHITE_MAX_FULL_SCALE     (4095U)
 #define VDBG_WHITE_MAX_MIN_ZOOM       (400U)
-#define SW2_PAUSE_HOLD_MS             (1000U)
-
 static void busy_delay(volatile uint32 ticks)
 {
     while (ticks != 0U)
@@ -91,7 +89,7 @@ static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
 
     if ((pressedNow == TRUE) && (st->holdHandled != TRUE))
     {
-        if ((uint32)(nowMs - st->pressedSinceMs) >= SW2_PAUSE_HOLD_MS)
+        if ((uint32)(nowMs - st->pressedSinceMs) >= CAM_DEBUG_PAUSE_HOLD_MS)
         {
             st->holdHandled = TRUE;
             return SW2_ACTION_HOLD;
@@ -431,8 +429,8 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
             }
 
             (void)memcpy(st->processedFrame.Values,
-                         latestFrame->Values,
-                         sizeof(st->processedFrame.Values));
+                         &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                         ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
             VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
             st->haveValidVision = TRUE;
         }
@@ -693,8 +691,8 @@ static void mode_linear_camera_test(void)
                 RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
 
                 (void)memcpy(processedFrame.Values,
-                             latestFrame->Values,
-                             sizeof(processedFrame.Values));
+                             &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                             ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(processedFrame.Values[0])));
                 VisionLinear_ProcessFrameEx(processedFrame.Values, &result, &dbg);
 
                 haveValidVision = TRUE;

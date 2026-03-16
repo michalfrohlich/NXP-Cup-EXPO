@@ -27,120 +27,6 @@ static void ScaleFixed_U16_ToPct(uint8 *dstPct, const uint16 *srcU16, uint8 n, u
     }
 }
 
-static void ScaleAuto_U16_ToPct(uint8 *dstPct, const uint16 *srcU16, uint8 n, uint16 *outMin, uint16 *outMax)
-{
-    uint16 mn = 0xFFFFU;
-    uint16 mx = 0U;
-    uint8 i;
-
-    for (i = 0U; i < n; i++)
-    {
-        uint16 v = srcU16[i];
-        if (v < mn) { mn = v; }
-        if (v > mx) { mx = v; }
-    }
-
-    if (outMin != (uint16*)0) { *outMin = mn; }
-    if (outMax != (uint16*)0) { *outMax = mx; }
-
-    if (mx <= mn)
-    {
-        for (i = 0U; i < n; i++) { dstPct[i] = 100U; }
-        return;
-    }
-
-    {
-        uint32 range = (uint32)(mx - mn);
-
-        for (i = 0U; i < n; i++)
-        {
-            uint16 v = srcU16[i];
-
-            if (v <= mn)      { dstPct[i] = 1U; }
-            else if (v >= mx) { dstPct[i] = 100U; }
-            else
-            {
-                uint32 num = (uint32)(v - mn) * 100U;
-                dstPct[i] = clampPct_1_100((uint8)(num / range));
-            }
-        }
-    }
-}
-
-static uint16 VisionDebug_AbsU16(sint16 value)
-{
-    return (value < 0) ? (uint16)(-value) : (uint16)value;
-}
-
-static void ScaleAuto_AbsS16_ToPct(uint8 *dstPct,
-                                   const sint16 *srcS16,
-                                   uint8 n,
-                                   uint16 *outMin,
-                                   uint16 *outMax)
-{
-    uint16 mn = 0xFFFFU;
-    uint16 mx = 0U;
-    uint8 i;
-
-    for (i = 0U; i < n; i++)
-    {
-        uint16 v = VisionDebug_AbsU16(srcS16[i]);
-        if (v < mn) { mn = v; }
-        if (v > mx) { mx = v; }
-    }
-
-    if (outMin != (uint16*)0) { *outMin = mn; }
-    if (outMax != (uint16*)0) { *outMax = mx; }
-
-    if (mx <= mn)
-    {
-        for (i = 0U; i < n; i++) { dstPct[i] = 1U; }
-        return;
-    }
-
-    {
-        uint32 range = (uint32)(mx - mn);
-
-        for (i = 0U; i < n; i++)
-        {
-            uint16 v = VisionDebug_AbsU16(srcS16[i]);
-
-            if (v <= mn)      { dstPct[i] = 1U; }
-            else if (v >= mx) { dstPct[i] = 100U; }
-            else
-            {
-                uint32 num = (uint32)(v - mn) * 100U;
-                dstPct[i] = clampPct_1_100((uint8)(num / range));
-            }
-        }
-    }
-}
-
-static uint8 ScalarAutoU16_ToPct(uint16 value, uint16 mn, uint16 mx)
-{
-    if (mx <= mn) { return 100U; }
-    if (value <= mn) { return 1U; }
-    if (value >= mx) { return 100U; }
-
-    {
-        uint32 range = (uint32)(mx - mn);
-        uint32 num = (uint32)(value - mn) * 100U;
-        return clampPct_1_100((uint8)(num / range));
-    }
-}
-
-static uint8 Pct_ToYPx(uint8 pct, uint8 heightPx)
-{
-    uint32 y;
-
-    pct = clampPct_1_100(pct);
-    y = ((uint32)(100U - pct) * (uint32)heightPx) / 100U;
-
-    if (heightPx == 0U) { return 0U; }
-    if (y >= (uint32)heightPx) { y = (uint32)(heightPx - 1U); }
-    return (uint8)y;
-}
-
 static uint8 VisionDebug_SignedThresholdToYPx(uint16 threshold,
                                               uint16 scaleAbs,
                                               uint8 heightPx,
@@ -249,6 +135,10 @@ void VisionDebug_OnTick(VisionDebug_State_t *st,
         else if (st->screen == VDBG_SCREEN_DEBUG_FIXED)
         {
             st->screen = VDBG_SCREEN_DEBUG_AUTO;
+        }
+        else if (st->screen == VDBG_SCREEN_DEBUG_AUTO)
+        {
+            st->screen = VDBG_SCREEN_DEBUG_FINISH;
         }
         else
         {
@@ -411,7 +301,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
             ScaleFixed_U16_ToPct(plotPct, filteredU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
             DisplayGraph(graphStartLine, plotPct, VISION_LINEAR_BUFFER_SIZE, graphLinesSpan);
         }
-        else
+        else if (st->screen == VDBG_SCREEN_DEBUG_AUTO)
         {
             uint16 scaleAbs = dbg->maxAbsGradient;
             uint8 yWeakPos;
@@ -447,14 +337,67 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
             DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yStrongPos);
             DisplayOverlayHorizontalLine(graphStartLine, graphLinesSpan, yStrongNeg);
         }
-
-        for (b = 0U; b < dbg->edgeCount; b++)
+        else
         {
-            DisplayOverlayHorizontalSegment(graphStartLine,
-                                            graphLinesSpan,
-                                            (uint8)(graphHeightPx - 1U),
-                                            dbg->edges[b].idx,
-                                            dbg->edges[b].idx);
+            char line0[17];
+            char line1[17];
+            uint8 yAllRegions;
+            uint8 yFinishRegions;
+            uint8 r;
+
+            VisionDebug_FormatLine(line0, "FIN:%c W:%03u G:%02u",
+                                   (result->Feature == VISION_LINEAR_FEATURE_FINISH_LINE) ? 'Y' : 'N',
+                                   (unsigned)dbg->laneWidth,
+                                   (unsigned)dbg->measuredFinishGap);
+            VisionDebug_FormatLine(line1, "EG:%02u R:%u %02u",
+                                   (unsigned)dbg->expectedFinishGap,
+                                   (unsigned)dbg->finishRegionCount,
+                                   (unsigned)dbg->finishRegionWidths[0]);
+            DisplayText(0U, line0, 16U, 0U);
+            DisplayText(1U, line1, 16U, 0U);
+
+            graphStartLine = 2U;
+            graphLinesSpan = 2U;
+            graphHeightPx = 16U;
+
+            ScaleFixed_U16_ToPct(plotPct, filteredU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
+            DisplayGraph(graphStartLine, plotPct, VISION_LINEAR_BUFFER_SIZE, graphLinesSpan);
+
+            yAllRegions = (uint8)(graphHeightPx - 1U);
+            yFinishRegions = (uint8)(graphHeightPx - 2U);
+
+            for (r = 0U; r < dbg->regionCount; r++)
+            {
+                if (dbg->regions[r].isInsideLane != 0U)
+                {
+                    DisplayOverlayHorizontalSegment(graphStartLine,
+                                                    graphLinesSpan,
+                                                    yAllRegions,
+                                                    dbg->regions[r].start,
+                                                    dbg->regions[r].end);
+
+                    if (dbg->regions[r].isFinishMatch != 0U)
+                    {
+                        DisplayOverlayHorizontalSegment(graphStartLine,
+                                                        graphLinesSpan,
+                                                        yFinishRegions,
+                                                        dbg->regions[r].start,
+                                                        dbg->regions[r].end);
+                    }
+                }
+            }
+        }
+
+        if (st->screen != VDBG_SCREEN_DEBUG_FINISH)
+        {
+            for (b = 0U; b < dbg->edgeCount; b++)
+            {
+                DisplayOverlayHorizontalSegment(graphStartLine,
+                                                graphLinesSpan,
+                                                (uint8)(graphHeightPx - 1U),
+                                                dbg->edges[b].idx,
+                                                dbg->edges[b].idx);
+            }
         }
 
         if (dbg->leftInnerEdgeIdx != VISION_LINEAR_INVALID_IDX)

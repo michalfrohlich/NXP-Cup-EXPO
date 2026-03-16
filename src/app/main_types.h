@@ -53,8 +53,8 @@ typedef struct
     sint16 left_edge_px;
     sint16 right_edge_px;
 
-    /* Where we think the middle of the lane is (0..127)
-       Goal is: lane_center_px == CAM_CENTER_PX (63) */
+    /* Where we think the middle of the lane is in the effective vision window.
+       Goal is: lane_center_px == CAM_CENTER_PX. */
     sint16 lane_center_px;
 
     /* Error from center:

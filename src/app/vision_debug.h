@@ -13,7 +13,8 @@ typedef enum
 {
     VDBG_SCREEN_MAIN = 0,
     VDBG_SCREEN_DEBUG_FIXED = 1,
-    VDBG_SCREEN_DEBUG_AUTO  = 2
+    VDBG_SCREEN_DEBUG_AUTO  = 2,
+    VDBG_SCREEN_DEBUG_FINISH = 3
 } VisionDebug_Screen_t;
 
 typedef struct

@@ -78,19 +78,83 @@
 /* =========================================================
    Linear camera
 ========================================================= */
+/* Hardware routing for the line scan camera. */
 #define CAM_CLK_PWM_CH                    4U
 #define CAM_SHUTTER_GPT_CH                1U
 #define CAM_ADC_GROUP                     0U
 #define CAM_SHUTTER_PCR                   97U
+
+/* Camera timing.
+   CAM_SHUTTER_HIGH_TIME_TICKS controls the SI pulse width.
+   CAM_FRAME_INTERVAL_TICKS controls the time between frame readouts. */
 #define CAM_SHUTTER_HIGH_TIME_TICKS       100U
 #define CAM_FRAME_INTERVAL_TICKS          50000U
 
+/* Sensor geometry.
+   The camera still captures all 128 physical pixels, but vision/debug use a
+   symmetric centered window and ignore a couple of pixels on both edges. */
 #define CAM_N_PIXELS                      128u
-#define CAM_CENTER_PX                     63
+#define CAM_TRIM_LEFT_PX                  2u
+#define CAM_TRIM_RIGHT_PX                 2u
+#define CAM_EFFECTIVE_PIXELS             (CAM_N_PIXELS - CAM_TRIM_LEFT_PX - CAM_TRIM_RIGHT_PX)
+#define CAM_CENTER_PX                    ((CAM_EFFECTIVE_PIXELS - 1u) / 2u)
 
+/* Legacy threshold path; not used by the current V2 edge detector. */
 #define BLACK_THRESHOLD_DEFAULT           40u
 #define USE_POT_FOR_THRESHOLD             0
 #define EXPECTED_TRACK_WIDTH_PX           88
+
+/* Camera test / debug loop settings. */
+#define V2_LOOP_PERIOD_MS                 5u
+#define V2_TEST_EXPOSURE_TICKS            100u
+#define V2_WHITE_SAT_U8                   220u
+#define CAM_DEBUG_PAUSE_HOLD_MS           1000U
+
+/* Line detector candidate buffer sizes.
+   Increase if the scene can legitimately contain more edge/region candidates. */
+#define VLIN_MAX_EDGE_CANDIDATES          12U
+#define VLIN_MAX_BLACK_REGIONS            6U
+
+/* Vision V2 line-detection tuning. */
+/* Minimum filtered brightness span in one frame.
+   Raise this to ignore weak/flat scenes more aggressively.
+   Lower it if the detector drops the line in dim lighting. */
+#define VISION_LINEAR_MIN_CONTRAST        320U
+
+/* Minimum accepted weak edge magnitude.
+   Raise this to reject noise and tiny reflections.
+   Lower it if real line edges are too often missed. */
+#define VISION_LINEAR_MIN_WEAK_EDGE       32U
+
+/* Minimum accepted strong edge magnitude.
+   This is the floor for the hysteresis "strong edge" threshold.
+   Raise it to demand cleaner edges, lower it for weaker signals. */
+#define VISION_LINEAR_MIN_STRONG_EDGE     50U
+
+/* Strong edge threshold as percent of the strongest gradient in the frame.
+   Higher = fewer edge candidates.
+   Lower = more edge candidates. */
+#define VISION_LINEAR_EDGE_HIGH_PCT       42U
+
+/* Weak edge threshold as percent of the strong threshold.
+   Higher = only candidates close to strong edges survive.
+   Lower = hysteresis becomes more permissive. */
+#define VISION_LINEAR_EDGE_LOW_PCT        55U
+
+/* Expected distance between the two detected inner track edges in pixels.
+   Used to estimate track center when only one edge is visible. */
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH  88U
+
+/* Keep the dynamic left/right split point away from the extreme image edges.
+   Raise this if the edge pixels are unreliable or noisy. */
+#define VISION_LINEAR_SPLIT_MARGIN_PX     10U
+
+/* Finish-line detector.
+   The expected black-bar width is derived from current laneWidth / 5.
+   A bar is accepted if its measured width lies within:
+     expected * MIN_PCT / 100  ..  expected * MAX_PCT / 100 */
+#define VISION_FINISH_WIDTH_MIN_PCT       50U
+#define VISION_FINISH_WIDTH_MAX_PCT       150U
 
 /* =========================================================
    Full car safety
@@ -137,46 +201,3 @@
 #define FULL_AUTO_SPEED_PCT               25   /* was effectively: 100 (uncapped) */
 #define FULL_AUTO_RAMP_STEP_PCT           2    /* was: (none) */
 #define FULL_AUTO_RAMP_PERIOD_MS          20u  /* was: (none) */
-
-/* =========================================================
-   Vision V2 debug settings
-========================================================= */
-#define V2_LOOP_PERIOD_MS                 5u
-#define V2_TEST_EXPOSURE_TICKS            100u
-#define V2_WHITE_SAT_U8                   220u
-
-/* =========================================================
-   Vision V2 line-detection tuning
-========================================================= */
-/* Minimum filtered brightness span in one frame.
-   Raise this to ignore weak/flat scenes more aggressively.
-   Lower it if the detector drops the line in dim lighting. */
-#define VISION_LINEAR_MIN_CONTRAST        320U
-
-/* Minimum accepted weak edge magnitude.
-   Raise this to reject noise and tiny reflections.
-   Lower it if real line edges are too often missed. */
-#define VISION_LINEAR_MIN_WEAK_EDGE       40U
-
-/* Minimum accepted strong edge magnitude.
-   This is the floor for the hysteresis "strong edge" threshold.
-   Raise it to demand cleaner edges, lower it for weaker signals. */
-#define VISION_LINEAR_MIN_STRONG_EDGE     60U
-
-/* Strong edge threshold as percent of the strongest gradient in the frame.
-   Higher = fewer edge candidates.
-   Lower = more edge candidates. */
-#define VISION_LINEAR_EDGE_HIGH_PCT       40U
-
-/* Weak edge threshold as percent of the strong threshold.
-   Higher = only candidates close to strong edges survive.
-   Lower = hysteresis becomes more permissive. */
-#define VISION_LINEAR_EDGE_LOW_PCT        60U
-
-/* Expected distance between the two detected inner track edges in pixels.
-   Used to estimate track center when only one edge is visible. */
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH  100U
-
-/* Keep the dynamic left/right split point away from the extreme image edges.
-   Raise this if the edge pixels are unreliable or noisy. */
-#define VISION_LINEAR_SPLIT_MARGIN_PX     10U
