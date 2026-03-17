@@ -61,6 +61,18 @@ extern "C" {
 #define VISION_FINISH_WIDTH_MAX_PCT          (150U)
 #endif
 
+#ifndef VISION_FINISH_INNER_WIDTH_MM
+#define VISION_FINISH_INNER_WIDTH_MM         (510U)
+#endif
+
+#ifndef VISION_FINISH_BAR_WIDTH_MM
+#define VISION_FINISH_BAR_WIDTH_MM           (94U)
+#endif
+
+#ifndef VISION_FINISH_CENTER_GAP_MM
+#define VISION_FINISH_CENTER_GAP_MM          (74U)
+#endif
+
 #define VISION_LINEAR_INVALID_IDX            (255U)
 
 #ifndef VLIN_MAX_EDGE_CANDIDATES
@@ -140,6 +152,8 @@ typedef struct
     uint8 splitPoint;
     uint8 leftInnerEdgeIdx;
     uint8 rightInnerEdgeIdx;
+    uint8 finishGapLeftEdgeIdx;
+    uint8 finishGapRightEdgeIdx;
     uint8 laneWidth;
     uint8 expectedFinishWidth;
     uint8 expectedFinishGap;

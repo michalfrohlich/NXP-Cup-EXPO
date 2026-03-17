@@ -408,6 +408,16 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
         {
             DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, dbg->rightInnerEdgeIdx);
         }
+        if ((st->screen == VDBG_SCREEN_DEBUG_FINISH) &&
+            (dbg->finishGapLeftEdgeIdx != VISION_LINEAR_INVALID_IDX))
+        {
+            DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, dbg->finishGapLeftEdgeIdx);
+        }
+        if ((st->screen == VDBG_SCREEN_DEBUG_FINISH) &&
+            (dbg->finishGapRightEdgeIdx != VISION_LINEAR_INVALID_IDX))
+        {
+            DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, dbg->finishGapRightEdgeIdx);
+        }
 
         DisplayRefresh();
     }

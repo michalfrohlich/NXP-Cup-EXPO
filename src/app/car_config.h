@@ -8,11 +8,11 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       1
+#define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_RECEIVER_TEST            0
 #define APP_TEST_SERVO_TEST               0
 #define APP_TEST_ESC_TEST                 0
-#define APP_TEST_FINAL_DUMMY              0
+#define APP_TEST_FINAL_DUMMY              1
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
@@ -102,7 +102,7 @@
 /* Legacy threshold path; not used by the current V2 edge detector. */
 #define BLACK_THRESHOLD_DEFAULT           40u
 #define USE_POT_FOR_THRESHOLD             0
-#define EXPECTED_TRACK_WIDTH_PX           88
+#define EXPECTED_TRACK_WIDTH_PX           82 //important to adjust when camera height is changed
 
 /* Camera test / debug loop settings. */
 #define V2_LOOP_PERIOD_MS                 5u
@@ -150,8 +150,19 @@
 #define VISION_LINEAR_SPLIT_MARGIN_PX     10U
 
 /* Finish-line detector.
-   The expected black-bar width is derived from current laneWidth / 5.
-   A bar is accepted if its measured width lies within:
+   Geometry is referenced to the inner lane width between the two detected
+   black lane borders, measured approximately through the middle of the 20 mm
+   border stripes:
+     10 mm + 124 mm + 94 mm + 74 mm + 94 mm + 124 mm + 10 mm
+   = 530 mm effective width.
+   Expected finish dimensions are scaled from the currently detected lane width. */
+#define VISION_FINISH_INNER_WIDTH_MM      530U
+#define VISION_FINISH_BAR_WIDTH_MM         94U
+#define VISION_FINISH_CENTER_GAP_MM        74U
+
+/* Finish-line detector tolerance.
+   Expected bar width and center gap are scaled from the current detected lane
+   width using the geometry above. A measured width/gap is accepted if it lies within:
      expected * MIN_PCT / 100  ..  expected * MAX_PCT / 100 */
 #define VISION_FINISH_WIDTH_MIN_PCT       50U
 #define VISION_FINISH_WIDTH_MAX_PCT       150U

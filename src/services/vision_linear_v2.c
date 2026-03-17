@@ -177,6 +177,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     uint8 expectedFinishWidth = 0U;
     uint8 expectedFinishGap = 0U;
     uint8 measuredFinishGap = 0U;
+    uint8 finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
+    uint8 finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
     uint8 finishRegionCount = 0U;
     uint8 finishDetected = 0U;
     uint8 finishWidths[2] = { 0U, 0U };
@@ -235,6 +237,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             dbg->splitPoint = splitPoint;
             dbg->leftInnerEdgeIdx = VISION_LINEAR_INVALID_IDX;
             dbg->rightInnerEdgeIdx = VISION_LINEAR_INVALID_IDX;
+            dbg->finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
+            dbg->finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
             dbg->laneWidth = 0U;
             dbg->expectedFinishWidth = 0U;
             dbg->expectedFinishGap = 0U;
@@ -445,12 +449,14 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             uint8 r;
 
             laneWidth = (uint8)(bestRightIdx - bestLeftIdx);
-            expectedFinishWidth = (uint8)(laneWidth / 5U);
+            expectedFinishWidth = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_BAR_WIDTH_MM) /
+                                          (uint16)VISION_FINISH_INNER_WIDTH_MM);
             if (expectedFinishWidth < 1U)
             {
                 expectedFinishWidth = 1U;
             }
-            expectedFinishGap = (uint8)(laneWidth / 10U);
+            expectedFinishGap = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_CENTER_GAP_MM) /
+                                        (uint16)VISION_FINISH_INNER_WIDTH_MM);
             if (expectedFinishGap < 1U)
             {
                 expectedFinishGap = 1U;
@@ -480,6 +486,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                         finishWidths[1] = regionLocal[r + 1U].width;
                         finishRegionCount = 2U;
                         measuredFinishGap = gap;
+                        finishGapLeftEdgeIdx = regionLocal[r].end;
+                        finishGapRightEdgeIdx = regionLocal[r + 1U].start;
                         finishDetected = 1U;
                         out->Feature = VISION_LINEAR_FEATURE_FINISH_LINE;
                         break;
@@ -502,6 +510,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         dbg->expectedFinishWidth = expectedFinishWidth;
         dbg->expectedFinishGap = expectedFinishGap;
         dbg->measuredFinishGap = measuredFinishGap;
+        dbg->finishGapLeftEdgeIdx = finishGapLeftEdgeIdx;
+        dbg->finishGapRightEdgeIdx = finishGapRightEdgeIdx;
         dbg->finishDetected = finishDetected;
     }
 
