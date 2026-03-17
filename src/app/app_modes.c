@@ -327,7 +327,7 @@ typedef struct
     SteeringLinearState_t ctrl;
 
     LinearCameraFrame processedFrame;
-    VisionLinear_ResultType result;
+    VisionOutput_t result;
 
     VisionLinear_DebugOut_t dbg;
     uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
@@ -602,7 +602,7 @@ static void mode_linear_camera_test(void)
     VisionDebug_State_t vdbg;
     Sw2Tracker_t sw2Tracker = { FALSE, FALSE, 0U };
     static LinearCameraFrame processedFrame;
-    VisionLinear_ResultType result;
+    VisionOutput_t result;
     VisionLinear_DebugOut_t dbg;
     static uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
     static sint16 gradientBuf[VISION_LINEAR_BUFFER_SIZE];

@@ -189,7 +189,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
                       const uint16 *rawU16,
                       const uint16 *filteredU16,
                       const sint16 *gradientS16,
-                      const VisionLinear_ResultType *result,
+                      const VisionOutput_t *result,
                       const VisionLinear_DebugOut_t *dbg)
 {
     static uint8 plotPct[VISION_LINEAR_BUFFER_SIZE];
@@ -217,13 +217,17 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
         char line0[17];
         char line1[17];
         const char *statusStr;
-        sint16 errPct = (sint16)(result->Error * 100.0f);
+        sint16 errPct = (sint16)(result->error * 100.0f);
 
-        switch (result->Status)
+        if (result->feature == VISION_FEATURE_FINISH_LINE)
         {
-            case VISION_LINEAR_TRACK_BOTH:  statusStr = "B"; break;
-            case VISION_LINEAR_TRACK_LEFT:  statusStr = "L"; break;
-            case VISION_LINEAR_TRACK_RIGHT: statusStr = "R"; break;
+            statusStr = "F";
+        }
+        else switch (result->status)
+        {
+            case VISION_TRACK_BOTH:  statusStr = "B"; break;
+            case VISION_TRACK_LEFT:  statusStr = "L"; break;
+            case VISION_TRACK_RIGHT: statusStr = "R"; break;
             default:                        statusStr = "X"; break;
         }
 
@@ -231,12 +235,12 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
         {
             VisionDebug_FormatLine(line0, "S:%s C:%3u E:%+3d",
                                    statusStr,
-                                   (unsigned)result->Confidence,
+                                   (unsigned)result->confidence,
                                    (int)errPct);
 
             VisionDebug_FormatLine(line1, "L:%03u R:%03u",
-                                   (unsigned)result->LeftLineIdx,
-                                   (unsigned)result->RightLineIdx);
+                                   (unsigned)result->leftLineIdx,
+                                   (unsigned)result->rightLineIdx);
         }
         else if (dbg != NULL)
         {
@@ -260,13 +264,21 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
         ScaleFixed_U16_ToPct(plotPct, rawU16, VISION_LINEAR_BUFFER_SIZE, VDBG_SENSOR_MAX_U12);
         DisplayGraph(2U, plotPct, VISION_LINEAR_BUFFER_SIZE, 2U);
 
-        if (result->LeftLineIdx != VISION_LINEAR_INVALID_IDX)
+        if (result->leftLineIdx != VISION_LINEAR_INVALID_IDX)
         {
-            DisplayOverlayVerticalLine(2U, 2U, result->LeftLineIdx);
+            DisplayOverlayVerticalLine(2U, 2U, result->leftLineIdx);
         }
-        if (result->RightLineIdx != VISION_LINEAR_INVALID_IDX)
+        if (result->rightLineIdx != VISION_LINEAR_INVALID_IDX)
         {
-            DisplayOverlayVerticalLine(2U, 2U, result->RightLineIdx);
+            DisplayOverlayVerticalLine(2U, 2U, result->rightLineIdx);
+        }
+        if ((dbg != NULL) && (dbg->finishGapLeftEdgeIdx != VISION_LINEAR_INVALID_IDX))
+        {
+            DisplayOverlayVerticalLine(2U, 2U, dbg->finishGapLeftEdgeIdx);
+        }
+        if ((dbg != NULL) && (dbg->finishGapRightEdgeIdx != VISION_LINEAR_INVALID_IDX))
+        {
+            DisplayOverlayVerticalLine(2U, 2U, dbg->finishGapRightEdgeIdx);
         }
 
         DisplayRefresh();
@@ -341,18 +353,15 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
         {
             char line0[17];
             char line1[17];
-            uint8 yAllRegions;
-            uint8 yFinishRegions;
-            uint8 r;
 
             VisionDebug_FormatLine(line0, "FIN:%c W:%03u G:%02u",
-                                   (result->Feature == VISION_LINEAR_FEATURE_FINISH_LINE) ? 'Y' : 'N',
+                                   (result->feature == VISION_FEATURE_FINISH_LINE) ? 'Y' : 'N',
                                    (unsigned)dbg->laneWidth,
                                    (unsigned)dbg->measuredFinishGap);
-            VisionDebug_FormatLine(line1, "EG:%02u R:%u %02u",
+            VisionDebug_FormatLine(line1, "EG:%02u L:%03u %03u",
                                    (unsigned)dbg->expectedFinishGap,
-                                   (unsigned)dbg->finishRegionCount,
-                                   (unsigned)dbg->finishRegionWidths[0]);
+                                   (unsigned)dbg->finishGapLeftEdgeIdx,
+                                   (unsigned)dbg->finishGapRightEdgeIdx);
             DisplayText(0U, line0, 16U, 0U);
             DisplayText(1U, line1, 16U, 0U);
 
@@ -362,30 +371,6 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
 
             ScaleFixed_U16_ToPct(plotPct, filteredU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
             DisplayGraph(graphStartLine, plotPct, VISION_LINEAR_BUFFER_SIZE, graphLinesSpan);
-
-            yAllRegions = (uint8)(graphHeightPx - 1U);
-            yFinishRegions = (uint8)(graphHeightPx - 2U);
-
-            for (r = 0U; r < dbg->regionCount; r++)
-            {
-                if (dbg->regions[r].isInsideLane != 0U)
-                {
-                    DisplayOverlayHorizontalSegment(graphStartLine,
-                                                    graphLinesSpan,
-                                                    yAllRegions,
-                                                    dbg->regions[r].start,
-                                                    dbg->regions[r].end);
-
-                    if (dbg->regions[r].isFinishMatch != 0U)
-                    {
-                        DisplayOverlayHorizontalSegment(graphStartLine,
-                                                        graphLinesSpan,
-                                                        yFinishRegions,
-                                                        dbg->regions[r].start,
-                                                        dbg->regions[r].end);
-                    }
-                }
-            }
         }
 
         if (st->screen != VDBG_SCREEN_DEBUG_FINISH)

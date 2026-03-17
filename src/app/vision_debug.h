@@ -45,7 +45,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
                       const uint16 *rawU16,
                       const uint16 *filteredU16,
                       const sint16 *gradientS16,
-                      const VisionLinear_ResultType *result,
+                      const VisionOutput_t *result,
                       const VisionLinear_DebugOut_t *dbg);
 
 #ifdef __cplusplus

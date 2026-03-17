@@ -49,7 +49,7 @@ void Timebase_DelayMs(uint32 delayMs)
 }
 
 
-/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */ // <-----might not be a correct comment
+/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */
 
 /* GPT channel ID used for the microsecond one-shot LPIT timer.
  * In ConfigTools:
@@ -57,7 +57,7 @@ void Timebase_DelayMs(uint32 delayMs)
  *  - GptChannelId:  3
  *  - HW IP:         LPIT_0 / CH_2 (UsTimerChannel)
  *  - Mode:          GPT_CH_MODE_ONESHOT
- *  - Tick freq:     48 MHz (GptChannelTickFrequency = 48000000)
+ *  - Tick freq:     8 MHz (LPIT0 clock from generated config)
  */
 #define US_TIMER_CHANNEL   ((Gpt_ChannelType)3u)
 
@@ -88,7 +88,7 @@ void UsTimer_Init(void)
  */
 void UsTimer_Start(uint32 delayUs)
 {
-    const uint32 ticksPerUs  = 8u;          /* 48 MHz → 48 ticks per µs */
+    const uint32 ticksPerUs  = 8u;          /* 8 MHz -> 8 ticks per us */
     const uint32 periodTicks = delayUs * ticksPerUs;
 
     /* Prepare state */

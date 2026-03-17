@@ -8,11 +8,11 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       0
+#define APP_TEST_LINEAR_CAMERA_TEST       1
 #define APP_TEST_RECEIVER_TEST            0
 #define APP_TEST_SERVO_TEST               0
 #define APP_TEST_ESC_TEST                 0
-#define APP_TEST_FINAL_DUMMY              1
+#define APP_TEST_FINAL_DUMMY              0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
@@ -47,9 +47,9 @@
    Servo
 ========================================================= */
 #define SERVO_PWM_CH                      1U
-#define SERVO_DUTY_MIN                    1000U
-#define SERVO_DUTY_MED                    1500U
-#define SERVO_DUTY_MAX                    2000U
+#define SERVO_DUTY_MIN                    1650U
+#define SERVO_DUTY_MED                    2700U
+#define SERVO_DUTY_MAX                    3550U
 
 #define STEER_SIGN                        (+1)
 #define STEER_CMD_CLAMP                   140
@@ -99,11 +99,6 @@
 #define CAM_EFFECTIVE_PIXELS             (CAM_N_PIXELS - CAM_TRIM_LEFT_PX - CAM_TRIM_RIGHT_PX)
 #define CAM_CENTER_PX                    ((CAM_EFFECTIVE_PIXELS - 1u) / 2u)
 
-/* Legacy threshold path; not used by the current V2 edge detector. */
-#define BLACK_THRESHOLD_DEFAULT           40u
-#define USE_POT_FOR_THRESHOLD             0
-#define EXPECTED_TRACK_WIDTH_PX           82 //important to adjust when camera height is changed
-
 /* Camera test / debug loop settings. */
 #define V2_LOOP_PERIOD_MS                 5u
 #define V2_TEST_EXPOSURE_TICKS            100u
@@ -113,13 +108,12 @@
 /* Line detector candidate buffer sizes.
    Increase if the scene can legitimately contain more edge/region candidates. */
 #define VLIN_MAX_EDGE_CANDIDATES          12U
-#define VLIN_MAX_BLACK_REGIONS            6U
 
 /* Vision V2 line-detection tuning. */
 /* Minimum filtered brightness span in one frame.
    Raise this to ignore weak/flat scenes more aggressively.
    Lower it if the detector drops the line in dim lighting. */
-#define VISION_LINEAR_MIN_CONTRAST        320U
+#define VISION_LINEAR_MIN_CONTRAST        650U
 
 /* Minimum accepted weak edge magnitude.
    Raise this to reject noise and tiny reflections.
@@ -129,12 +123,12 @@
 /* Minimum accepted strong edge magnitude.
    This is the floor for the hysteresis "strong edge" threshold.
    Raise it to demand cleaner edges, lower it for weaker signals. */
-#define VISION_LINEAR_MIN_STRONG_EDGE     50U
+#define VISION_LINEAR_MIN_STRONG_EDGE     40U
 
 /* Strong edge threshold as percent of the strongest gradient in the frame.
    Higher = fewer edge candidates.
    Lower = more edge candidates. */
-#define VISION_LINEAR_EDGE_HIGH_PCT       42U
+#define VISION_LINEAR_EDGE_HIGH_PCT       40U
 
 /* Weak edge threshold as percent of the strong threshold.
    Higher = only candidates close to strong edges survive.
@@ -142,8 +136,14 @@
 #define VISION_LINEAR_EDGE_LOW_PCT        55U
 
 /* Expected distance between the two detected inner track edges in pixels.
-   Used to estimate track center when only one edge is visible. */
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH  88U
+   Used both for lane-pair selection and to estimate track center when only
+   one edge is visible. Tune this when camera height changes. */
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH  90U
+
+/* Allowed lane-width deviation around VISION_LINEAR_NOMINAL_LANE_WIDTH.
+   Candidate left/right edge pairs outside this percentage window are rejected
+   outright instead of being considered as a valid lane. */
+#define VISION_LINEAR_LANE_WIDTH_TOL_PCT  20U
 
 /* Keep the dynamic left/right split point away from the extreme image edges.
    Raise this if the edge pixels are unreliable or noisy. */

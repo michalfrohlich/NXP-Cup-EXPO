@@ -145,10 +145,23 @@ static uint8 VisionLinear_WidthMatchesFinish(uint8 width, uint8 expectedWidth)
     return (((uint16)width >= minWidth) && ((uint16)width <= maxWidth)) ? 1U : 0U;
 }
 
+static uint8 VisionLinear_WidthMatchesLane(uint8 width)
+{
+    uint16 minWidth;
+    uint16 maxWidth;
+
+    minWidth = ((uint16)VISION_LINEAR_NOMINAL_LANE_WIDTH *
+                (uint16)(100U - VISION_LINEAR_LANE_WIDTH_TOL_PCT)) / 100U;
+    maxWidth = ((uint16)VISION_LINEAR_NOMINAL_LANE_WIDTH *
+                (uint16)(100U + VISION_LINEAR_LANE_WIDTH_TOL_PCT)) / 100U;
+
+    return (((uint16)width >= minWidth) && ((uint16)width <= maxWidth)) ? 1U : 0U;
+}
+
 /* ----------------------------- Internal Implementation ----------------------------- */
 
 static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
-                                          VisionLinear_ResultType *out,
+                                          VisionOutput_t *out,
                                           VisionLinear_DebugOut_t *dbg)
 {
     uint16 filteredLocal[VISION_LINEAR_BUFFER_SIZE];
@@ -167,22 +180,22 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     uint8 bestRightIdx = VISION_LINEAR_INVALID_IDX;
     uint16 bestLeftDist = 255U;
     uint16 bestRightDist = 255U;
+    uint8 edgeCandidateIdx[VLIN_MAX_EDGE_CANDIDATES];
+    sint8 edgeCandidatePolarity[VLIN_MAX_EDGE_CANDIDATES];
+    uint8 edgeCandidateCount = 0U;
     uint8 leftCandidates[VLIN_MAX_EDGE_CANDIDATES];
+    uint16 leftCandidateStrengths[VLIN_MAX_EDGE_CANDIDATES];
     uint8 rightCandidates[VLIN_MAX_EDGE_CANDIDATES];
+    uint16 rightCandidateStrengths[VLIN_MAX_EDGE_CANDIDATES];
     uint8 leftCandidateCount = 0U;
     uint8 rightCandidateCount = 0U;
-    uint8 pendingRegionStart = VISION_LINEAR_INVALID_IDX;
-    uint8 regionCount = 0U;
     uint8 laneWidth = 0U;
     uint8 expectedFinishWidth = 0U;
     uint8 expectedFinishGap = 0U;
     uint8 measuredFinishGap = 0U;
     uint8 finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
     uint8 finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
-    uint8 finishRegionCount = 0U;
     uint8 finishDetected = 0U;
-    uint8 finishWidths[2] = { 0U, 0U };
-    VisionLinear_DebugRegion_t regionLocal[VLIN_MAX_BLACK_REGIONS];
 
     if ((dbg != (VisionLinear_DebugOut_t*)0) &&
         ((dbg->mask & (uint32)VLIN_DBG_FILTERED) != 0u) &&
@@ -249,21 +262,17 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         if ((dbg->mask & (uint32)VLIN_DBG_EDGES) != 0u)
         {
             dbg->edgeCount = 0U;
-            dbg->regionCount = 0U;
-            dbg->finishRegionCount = 0U;
-            dbg->finishRegionWidths[0] = 0U;
-            dbg->finishRegionWidths[1] = 0U;
         }
     }
 
     if ((contrast < VISION_LINEAR_MIN_CONTRAST) || (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE))
     {
-        out->Error = 0.0f;
-        out->Status = VISION_LINEAR_LOST;
-        out->Feature = VISION_LINEAR_FEATURE_NONE;
-        out->Confidence = 0U;
-        out->LeftLineIdx = VISION_LINEAR_INVALID_IDX;
-        out->RightLineIdx = VISION_LINEAR_INVALID_IDX;
+        out->error = 0.0f;
+        out->status = VISION_TRACK_LOST;
+        out->feature = VISION_FEATURE_NONE;
+        out->confidence = 0U;
+        out->leftLineIdx = VISION_LINEAR_INVALID_IDX;
+        out->rightLineIdx = VISION_LINEAR_INVALID_IDX;
         s_isLocked = 0U;
         return;
     }
@@ -305,21 +314,11 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 dbg->edgeCount++;
             }
 
-            if (polarity < 0)
+            if (edgeCandidateCount < VLIN_MAX_EDGE_CANDIDATES)
             {
-                pendingRegionStart = (uint8)i;
-            }
-            else if ((pendingRegionStart != VISION_LINEAR_INVALID_IDX) &&
-                     (regionCount < VLIN_MAX_BLACK_REGIONS) &&
-                     ((uint8)i > pendingRegionStart))
-            {
-                regionLocal[regionCount].start = pendingRegionStart;
-                regionLocal[regionCount].end = (uint8)i;
-                regionLocal[regionCount].width = (uint8)((uint8)i - pendingRegionStart);
-                regionLocal[regionCount].isInsideLane = 0U;
-                regionLocal[regionCount].isFinishMatch = 0U;
-                regionCount++;
-                pendingRegionStart = VISION_LINEAR_INVALID_IDX;
+                edgeCandidateIdx[edgeCandidateCount] = (uint8)i;
+                edgeCandidatePolarity[edgeCandidateCount] = polarity;
+                edgeCandidateCount++;
             }
 
             if ((polarity > 0) && ((uint8)i <= splitPoint))
@@ -329,6 +328,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 if (leftCandidateCount < VLIN_MAX_EDGE_CANDIDATES)
                 {
                     leftCandidates[leftCandidateCount] = (uint8)i;
+                    leftCandidateStrengths[leftCandidateCount] = strength;
                     leftCandidateCount++;
                 }
 
@@ -345,6 +345,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 if (rightCandidateCount < VLIN_MAX_EDGE_CANDIDATES)
                 {
                     rightCandidates[rightCandidateCount] = (uint8)i;
+                    rightCandidateStrengths[rightCandidateCount] = strength;
                     rightCandidateCount++;
                 }
 
@@ -361,7 +362,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     {
         uint8 li;
         uint8 ri;
-        uint32 bestPairScore = 0xFFFFFFFFUL;
+        sint32 bestPairScore = 2147483647L;
         uint8 pairLeft = bestLeftIdx;
         uint8 pairRight = bestRightIdx;
 
@@ -376,29 +377,35 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 {
                     uint8 width = (uint8)(rightIdx - leftIdx);
                     uint8 center = (uint8)((leftIdx + rightIdx) / 2U);
-                    uint16 widthErr = VisionLinear_AbsDiffU8(width, (uint8)VISION_LINEAR_NOMINAL_LANE_WIDTH);
-                    uint16 centerErr = VisionLinear_AbsDiffU8(center, splitPoint);
-                    uint32 score = ((uint32)widthErr * 8UL) + (uint32)centerErr;
-
-                    if (score < bestPairScore)
+                    if (VisionLinear_WidthMatchesLane(width) != 0U)
                     {
-                        bestPairScore = score;
-                        pairLeft = leftIdx;
-                        pairRight = rightIdx;
+                        uint16 widthErr = VisionLinear_AbsDiffU8(width, (uint8)VISION_LINEAR_NOMINAL_LANE_WIDTH);
+                        uint16 centerErr = VisionLinear_AbsDiffU8(center, splitPoint);
+                        uint16 strengthSum = (uint16)(leftCandidateStrengths[li] + rightCandidateStrengths[ri]);
+                        sint32 score = (sint32)((uint32)widthErr * 8UL) +
+                                       (sint32)centerErr -
+                                       (sint32)(strengthSum / 16U);
+
+                        if (score < bestPairScore)
+                        {
+                            bestPairScore = score;
+                            pairLeft = leftIdx;
+                            pairRight = rightIdx;
+                        }
                     }
                 }
             }
         }
 
-        if (bestPairScore != 0xFFFFFFFFUL)
+        if (bestPairScore != 2147483647L)
         {
             bestLeftIdx = pairLeft;
             bestRightIdx = pairRight;
         }
     }
 
-    out->LeftLineIdx = bestLeftIdx;
-    out->RightLineIdx = bestRightIdx;
+    out->leftLineIdx = bestLeftIdx;
+    out->rightLineIdx = bestRightIdx;
 
     if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
     {
@@ -412,41 +419,42 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
 
         if ((bestLeftIdx != VISION_LINEAR_INVALID_IDX) && (bestRightIdx != VISION_LINEAR_INVALID_IDX))
         {
-            out->Status = VISION_LINEAR_TRACK_BOTH;
-            out->Confidence = 100U;
+            out->status = VISION_TRACK_BOTH;
+            out->confidence = 100U;
             trackCenter = ((float)bestLeftIdx + (float)bestRightIdx) / 2.0f;
         }
         else if (bestLeftIdx != VISION_LINEAR_INVALID_IDX)
         {
             float simulatedRight = (float)bestLeftIdx + (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
-            out->Status = VISION_LINEAR_TRACK_LEFT;
-            out->Confidence = 60U;
+            out->status = VISION_TRACK_LEFT;
+            out->confidence = 60U;
             trackCenter = ((float)bestLeftIdx + simulatedRight) / 2.0f;
         }
         else if (bestRightIdx != VISION_LINEAR_INVALID_IDX)
         {
             float simulatedLeft = (float)bestRightIdx - (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
-            out->Status = VISION_LINEAR_TRACK_RIGHT;
-            out->Confidence = 60U;
+            out->status = VISION_TRACK_RIGHT;
+            out->confidence = 60U;
             trackCenter = (simulatedLeft + (float)bestRightIdx) / 2.0f;
         }
         else
         {
-            out->Error = 0.0f;
-            out->Status = VISION_LINEAR_LOST;
-            out->Feature = VISION_LINEAR_FEATURE_NONE;
-            out->Confidence = 0U;
+            out->error = 0.0f;
+            out->status = VISION_TRACK_LOST;
+            out->feature = VISION_FEATURE_NONE;
+            out->confidence = 0U;
             s_isLocked = 0U;
             return;
         }
 
-        out->Feature = VISION_LINEAR_FEATURE_NONE;
+        out->feature = VISION_FEATURE_NONE;
 
         if ((bestLeftIdx != VISION_LINEAR_INVALID_IDX) &&
             (bestRightIdx != VISION_LINEAR_INVALID_IDX) &&
             (bestRightIdx > bestLeftIdx))
         {
-            uint8 r;
+            uint8 e;
+            uint16 bestGapError = 0xFFFFU;
 
             laneWidth = (uint8)(bestRightIdx - bestLeftIdx);
             expectedFinishWidth = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_BAR_WIDTH_MM) /
@@ -462,43 +470,41 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 expectedFinishGap = 1U;
             }
 
-            for (r = 0U; r < regionCount; r++)
+            for (e = 0U; e + 1U < edgeCandidateCount; e++)
             {
-                uint8 insideLane =
-                    (regionLocal[r].start > bestLeftIdx) &&
-                    (regionLocal[r].end < bestRightIdx);
-                regionLocal[r].isInsideLane = insideLane;
-            }
+                uint8 leftGapEdge = edgeCandidateIdx[e];
+                uint8 rightGapEdge = edgeCandidateIdx[e + 1U];
+                sint8 leftGapPolarity = edgeCandidatePolarity[e];
+                sint8 rightGapPolarity = edgeCandidatePolarity[e + 1U];
 
-            for (r = 0U; r + 1U < regionCount; r++)
-            {
-                if ((regionLocal[r].isInsideLane != 0U) &&
-                    (regionLocal[r + 1U].isInsideLane != 0U))
+                if ((leftGapPolarity > 0) &&
+                    (rightGapPolarity < 0) &&
+                    (leftGapEdge > bestLeftIdx) &&
+                    (rightGapEdge < bestRightIdx) &&
+                    (rightGapEdge > leftGapEdge))
                 {
-                    uint8 gap = (uint8)(regionLocal[r + 1U].start - regionLocal[r].end);
+                    uint8 gap = (uint8)(rightGapEdge - leftGapEdge);
+                    uint16 gapError = VisionLinear_AbsDiffU8(gap, expectedFinishGap);
 
                     if ((gap > 0U) &&
-                        (VisionLinear_WidthMatchesFinish(gap, expectedFinishGap) != 0U))
+                        (VisionLinear_WidthMatchesFinish(gap, expectedFinishGap) != 0U) &&
+                        (gapError < bestGapError))
                     {
-                        regionLocal[r].isFinishMatch = 1U;
-                        regionLocal[r + 1U].isFinishMatch = 1U;
-                        finishWidths[0] = regionLocal[r].width;
-                        finishWidths[1] = regionLocal[r + 1U].width;
-                        finishRegionCount = 2U;
+                        bestGapError = gapError;
                         measuredFinishGap = gap;
-                        finishGapLeftEdgeIdx = regionLocal[r].end;
-                        finishGapRightEdgeIdx = regionLocal[r + 1U].start;
+                        finishGapLeftEdgeIdx = leftGapEdge;
+                        finishGapRightEdgeIdx = rightGapEdge;
                         finishDetected = 1U;
-                        out->Feature = VISION_LINEAR_FEATURE_FINISH_LINE;
-                        break;
+                        out->feature = VISION_FEATURE_FINISH_LINE;
                     }
                 }
             }
+
         }
 
-        out->Error = (trackCenter - midF) / midF;
-        if (out->Error < -1.0f) { out->Error = -1.0f; }
-        if (out->Error > 1.0f)  { out->Error = 1.0f; }
+        out->error = (trackCenter - midF) / midF;
+        if (out->error < -1.0f) { out->error = -1.0f; }
+        if (out->error > 1.0f)  { out->error = 1.0f; }
 
         s_lastTrackCenter = trackCenter;
         s_isLocked = 1U;
@@ -515,20 +521,6 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         dbg->finishDetected = finishDetected;
     }
 
-    if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_EDGES) != 0u))
-    {
-        uint8 r;
-
-        dbg->regionCount = regionCount;
-        dbg->finishRegionCount = finishRegionCount;
-        dbg->finishRegionWidths[0] = finishWidths[0];
-        dbg->finishRegionWidths[1] = finishWidths[1];
-
-        for (r = 0U; r < regionCount; r++)
-        {
-            dbg->regions[r] = regionLocal[r];
-        }
-    }
 }
 
 /* ----------------------------- Public API ----------------------------- */
@@ -539,13 +531,13 @@ void VisionLinear_InitV2(void)
     s_isLocked = 0U;
 }
 
-void VisionLinear_ProcessFrame(const uint16 *pixels, VisionLinear_ResultType *out)
+void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out)
 {
     VisionLinear_ProcessFrameImpl(pixels, out, (VisionLinear_DebugOut_t*)0);
 }
 
 void VisionLinear_ProcessFrameEx(const uint16 *pixels,
-                                 VisionLinear_ResultType *out,
+                                 VisionOutput_t *out,
                                  VisionLinear_DebugOut_t *dbg)
 {
     VisionLinear_ProcessFrameImpl(pixels, out, dbg);

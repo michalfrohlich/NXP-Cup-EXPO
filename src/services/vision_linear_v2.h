@@ -17,6 +17,7 @@ extern "C" {
 #endif
 
 #include "Platform_Types.h"
+#include "../app/main_types.h"
 #include "../app/car_config.h"
 
 /* ----------------------------- Tunables ----------------------------- */
@@ -46,7 +47,11 @@ extern "C" {
 #endif
 
 #ifndef VISION_LINEAR_NOMINAL_LANE_WIDTH
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (100U)
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (82U)
+#endif
+
+#ifndef VISION_LINEAR_LANE_WIDTH_TOL_PCT
+#define VISION_LINEAR_LANE_WIDTH_TOL_PCT     (20U)
 #endif
 
 #ifndef VISION_LINEAR_SPLIT_MARGIN_PX
@@ -79,35 +84,7 @@ extern "C" {
 #define VLIN_MAX_EDGE_CANDIDATES             (12U)
 #endif
 
-#ifndef VLIN_MAX_BLACK_REGIONS
-#define VLIN_MAX_BLACK_REGIONS               (6U)
-#endif
-
 /* ----------------------------- Output types ----------------------------- */
-
-typedef enum
-{
-    VISION_LINEAR_LOST        = 0U,
-    VISION_LINEAR_TRACK_BOTH  = 1U,
-    VISION_LINEAR_TRACK_LEFT  = 2U,
-    VISION_LINEAR_TRACK_RIGHT = 3U
-} VisionLinear_StatusType;
-
-typedef enum
-{
-    VISION_LINEAR_FEATURE_NONE        = 0U,
-    VISION_LINEAR_FEATURE_FINISH_LINE = 1U
-} VisionLinear_FeatureType;
-
-typedef struct
-{
-    float Error;
-    VisionLinear_StatusType Status;
-    VisionLinear_FeatureType Feature;
-    uint8 Confidence;
-    uint8 LeftLineIdx;
-    uint8 RightLineIdx;
-} VisionLinear_ResultType;
 
 typedef struct
 {
@@ -115,15 +92,6 @@ typedef struct
     sint8 polarity; /* +1 rising, -1 falling */
     uint16 strength;
 } VisionLinear_DebugEdge_t;
-
-typedef struct
-{
-    uint8 start;
-    uint8 end;
-    uint8 width;
-    uint8 isInsideLane;
-    uint8 isFinishMatch;
-} VisionLinear_DebugRegion_t;
 
 typedef enum
 {
@@ -163,18 +131,14 @@ typedef struct
     /* Edge candidates (valid if VLIN_DBG_EDGES) */
     uint8 edgeCount;
     VisionLinear_DebugEdge_t edges[VLIN_MAX_EDGE_CANDIDATES];
-    uint8 regionCount;
-    VisionLinear_DebugRegion_t regions[VLIN_MAX_BLACK_REGIONS];
-    uint8 finishRegionCount;
-    uint8 finishRegionWidths[2];
 } VisionLinear_DebugOut_t;
 
 /* ----------------------------- API ----------------------------- */
 
 void VisionLinear_InitV2(void);
-void VisionLinear_ProcessFrame(const uint16 *pixels, VisionLinear_ResultType *out);
+void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out);
 void VisionLinear_ProcessFrameEx(const uint16 *pixels,
-                                 VisionLinear_ResultType *out,
+                                 VisionOutput_t *out,
                                  VisionLinear_DebugOut_t *dbg);
 
 #ifdef __cplusplus
