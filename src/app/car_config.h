@@ -8,18 +8,22 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       1
+#define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_RECEIVER_TEST            0
 #define APP_TEST_SERVO_TEST               0
 #define APP_TEST_ESC_TEST                 0
 #define APP_TEST_FINAL_DUMMY              0
+#define APP_TEST_HONOR_LAP                1
+#define APP_TEST_NXP_CUP_TESTS            0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
     (APP_TEST_RECEIVER_TEST) + \
     (APP_TEST_SERVO_TEST) + \
     (APP_TEST_ESC_TEST) + \
-    (APP_TEST_FINAL_DUMMY) \
+    (APP_TEST_FINAL_DUMMY) + \
+    (APP_TEST_HONOR_LAP) + \
+    (APP_TEST_NXP_CUP_TESTS) \
 )
 
 #if (APP_MODE_COUNT != 1)
@@ -164,8 +168,13 @@
    Expected bar width and center gap are scaled from the current detected lane
    width using the geometry above. A measured width/gap is accepted if it lies within:
      expected * MIN_PCT / 100  ..  expected * MAX_PCT / 100 */
-#define VISION_FINISH_WIDTH_MIN_PCT       50U
-#define VISION_FINISH_WIDTH_MAX_PCT       150U
+#define VISION_FINISH_WIDTH_MIN_PCT       70U
+#define VISION_FINISH_WIDTH_MAX_PCT       130U
+
+/* Maximum allowed offset of the detected finish-gap midpoint from the lane
+   midpoint, expressed as a percent of the current lane width.
+   Lower values reduce false positives from off-center gaps. */
+#define VISION_FINISH_CENTER_TOL_PCT      15U
 
 /* =========================================================
    Full car safety
@@ -212,3 +221,25 @@
 #define FULL_AUTO_SPEED_PCT               25   /* was effectively: 100 (uncapped) */
 #define FULL_AUTO_RAMP_STEP_PCT           2    /* was: (none) */
 #define FULL_AUTO_RAMP_PERIOD_MS          20u  /* was: (none) */
+
+/* =========================================================
+   Honor Lap mode
+========================================================= */
+#define HONOR_BASE_SPEED_PCT              10
+#define HONOR_SLOW1_SPEED_PCT             5
+#define HONOR_SLOW2_SPEED_PCT             3
+#define HONOR_STOP_SPEED_PCT              0
+
+#define HONOR_ULTRA_TRIGGER_PERIOD_MS     60u
+#define HONOR_SLOW1_DISTANCE_CM           30.0f
+#define HONOR_SLOW2_DISTANCE_CM           15.0f
+#define HONOR_STOP_DISTANCE_CM             8.0f
+
+/* =========================================================
+   Honor Lap PID
+========================================================= */
+#define HONOR_KP                          3.6f
+#define HONOR_KD                          1.5f
+#define HONOR_KI                          0.02f
+#define HONOR_STEER_SCALE                 1.00f
+#define HONOR_FAKE_SPEED                  10U
