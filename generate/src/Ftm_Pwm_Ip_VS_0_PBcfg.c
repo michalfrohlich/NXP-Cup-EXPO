@@ -455,7 +455,7 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg2 =
     /* WriteProtection */       (boolean)FALSE,
     /* InitTriggerEn */         (boolean)FALSE,
     /* InitTrigMode */          FTM_PWM_IP_INIT_TRIGG_RELOAD_POINT,
-    /* PwmPeriod */             1000U,
+    /* PwmPeriod */             800U,
 #if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
     /* PwmPeriodDither */       0U,
 #endif
@@ -473,6 +473,20 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg2 =
 
 /* Ftm instance 2 paired channels initialization configuration */
 
+/* Ftm channel pair 0 configuration */
+const Ftm_Pwm_Ip_PairCfgType Ftm_Pwm_Ip_VS_0_I2_ChPair0 =
+{
+    /* PairId */                0U,
+    /* DeadtimeEn */            (boolean)FALSE,
+    /* ComplementaryModeEn */   (boolean)FALSE,
+    /* PairChPolarity */        FTM_PWM_IP_MAIN_INVERTED,
+    /* PairExtTrigEn */         (boolean)TRUE,
+    /* PairSyncEn */            (boolean)FALSE,
+    /* PhaseShiftValue */       12U,
+#if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
+    /* DitherEdge */            FTM_PWM_IP_DITHER_LEADING_EDGE
+#endif
+};
 
 
 /* Ftm instance 2 channels initialization configuration */
@@ -500,7 +514,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch0 =
 #endif
     /* InitOut */               FTM_PWM_IP_OUTPUT_STATE_LOW,
     /* Polarity */              FTM_PWM_IP_POLARITY_HIGH,
-    /* PairCfg */               NULL_PTR
+    /* PairCfg */               &Ftm_Pwm_Ip_VS_0_I2_ChPair0
 };
 
 

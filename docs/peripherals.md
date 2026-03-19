@@ -21,6 +21,7 @@ Notes:
 Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
+- Handwritten camera timing now targets a 10 kHz pixel clock with about 50 fps once the FTM2 PWM period is regenerated from 1000 to 800 ticks.
 
 ## Timers / capture
 | Purpose | Driver/module | Key files |

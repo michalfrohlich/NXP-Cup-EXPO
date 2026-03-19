@@ -51,16 +51,16 @@
 | --- | --- | --- |
 | `Esc_Pwm` | FTM3 CH6, period 40000, clk 8 MHz / div 4 | 50 Hz |
 | `Servo_Pwm` | FTM3 CH7, period 40000, clk 8 MHz / div 4 | 50 Hz |
-| `LinearCamera_Clk` | FTM2 CH0, period 1000, clk 8 MHz / div 1 | 8 kHz |
+| `LinearCamera_Clk` | FTM2 CH0, currently generated as period 1000, clk 8 MHz / div 1 | 8 kHz now; regenerate PWM to period 800 for 10 kHz |
 
 ## Confirmed app-side timing assumptions
 | Item | Source | Value |
 | --- | --- | --- |
 | Main clock init config | `board_init.c` + generated MCU clock config | `McuClockSettingConfig_0` |
 | Camera shutter GPT logical channel | `src/app/car_config.h` | 1 |
-| Camera frame interval ticks | `src/app/car_config.h` | 50000 |
+| Camera frame interval ticks | `src/app/car_config.h` | 56700 |
 | Camera shutter high ticks | `src/app/car_config.h` | 100 |
-| Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 1000 |
+| Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 800 (10 kHz target after PWM regen) |
 | EmuTimer period | `src/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
 | UsTimer period base | generated GPT + LPIT config, `src/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |
 
