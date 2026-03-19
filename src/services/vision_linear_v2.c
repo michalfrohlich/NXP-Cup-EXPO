@@ -191,7 +191,6 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     uint8 leftCandidateCount = 0U;
     uint8 rightCandidateCount = 0U;
     uint8 laneWidth = 0U;
-    uint8 expectedFinishWidth = 0U;
     uint8 expectedFinishGap = 0U;
     uint8 measuredFinishGap = 0U;
     uint8 finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
@@ -254,7 +253,6 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             dbg->finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
             dbg->finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
             dbg->laneWidth = 0U;
-            dbg->expectedFinishWidth = 0U;
             dbg->expectedFinishGap = 0U;
             dbg->measuredFinishGap = 0U;
             dbg->finishDetected = 0U;
@@ -477,12 +475,6 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             uint16 bestGapError = 0xFFFFU;
 
             laneWidth = (uint8)(bestRightIdx - bestLeftIdx);
-            expectedFinishWidth = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_BAR_WIDTH_MM) /
-                                          (uint16)VISION_FINISH_INNER_WIDTH_MM);
-            if (expectedFinishWidth < 1U)
-            {
-                expectedFinishWidth = 1U;
-            }
             expectedFinishGap = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_CENTER_GAP_MM) /
                                         (uint16)VISION_FINISH_INNER_WIDTH_MM);
             if (expectedFinishGap < 1U)
@@ -504,9 +496,14 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                     (rightGapEdge > leftGapEdge))
                 {
                     uint8 gap = (uint8)(rightGapEdge - leftGapEdge);
+                    uint8 gapCenter = (uint8)((leftGapEdge + rightGapEdge) / 2U);
+                    uint8 laneCenter = (uint8)((bestLeftIdx + bestRightIdx) / 2U);
                     uint16 gapError = VisionLinear_AbsDiffU8(gap, expectedFinishGap);
+                    uint16 centerError = VisionLinear_AbsDiffU8(gapCenter, laneCenter);
+                    uint16 maxCenterError = ((uint16)laneWidth * (uint16)VISION_FINISH_CENTER_TOL_PCT) / 100U;
 
                     if ((gap > 0U) &&
+                        (centerError <= maxCenterError) &&
                         (VisionLinear_WidthMatchesFinish(gap, expectedFinishGap) != 0U) &&
                         (gapError < bestGapError))
                     {
@@ -533,7 +530,6 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
     {
         dbg->laneWidth = laneWidth;
-        dbg->expectedFinishWidth = expectedFinishWidth;
         dbg->expectedFinishGap = expectedFinishGap;
         dbg->measuredFinishGap = measuredFinishGap;
         dbg->finishGapLeftEdgeIdx = finishGapLeftEdgeIdx;

@@ -5,18 +5,38 @@
 
 ## Main entry points
 - `src/main.c`: process entry; calls `App_RunSelectedMode()`.
-- `src/app/app_modes.c`: top-level mode dispatcher and main loops.
+- `src/app/app_modes.c`: compile-time mode dispatcher plus the `APP_TEST_NXP_CUP_TESTS` runtime test menu.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up and common hardware init.
-- `src/app/car_config.h`: compile-time mode selection and main tuning constants.
+- `src/app/car_config.h`: compile-time mode selection and main tuning constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
 
-## Current mode selection
+## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
-- Current repository state selects `APP_TEST_FINAL_DUMMY = 1`.
+- Current repository state selects `APP_TEST_RACE_MODE = 1`.
+- `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
+- `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
+- `APP_TEST_NXP_CUP_TESTS` is the compile-time mode for the rest of the interactive test screens.
+- `APP_TEST_FINAL_DUMMY` remains a standalone compile-time mode and is not included in the runtime test menu.
+- `APP_TEST_HONOR_LAP` is available as a standalone compile-time mode for automatic line following with ultrasonic obstacle slowing/stopping.
+- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Ultra+ESC`, and `Receiver - x`.
+- In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules
 - App orchestration: `src/app/app_modes.c`, `src/app/user_interface.c`, `src/app/vision_debug.c`
 - Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/braking.c`
 - Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`, `src/hbridge.c`
+
+## Vision V2 snapshot
+- Shared output packet: `VisionOutput_t` in `src/app/main_types.h`
+- Processing pipeline in `src/services/vision_linear_v2.c`:
+  - filtered signal
+  - signed gradient
+  - edge candidates
+  - lane selection
+  - finish-gap detection
+- Single-edge recovery keeps estimating lane center, but confidence is reduced after a configurable streak limit.
+- Finish-line acceptance is constrained by expected gap width and by gap midpoint staying close to the lane midpoint.
+- Debug screens in `src/app/vision_debug.c`: `MAIN`, `FILT`, `GRAD`, `FINISH`
+- `MAIN` and graph/debug screens can overlay finish-gap edge markers when the detector finds them.
 
 ## Confirmed peripheral usage
 - ADC: onboard potentiometer and linear camera sampling
@@ -43,4 +63,4 @@
 ## Unknowns to verify manually
 - Exact physical wiring for each logical channel beyond what is named in code/config
 - Whether all present modules are wired on the current hardware build (`receiver.c` notes the receiver path is not physically connected yet)
-- Whether the current `APP_TEST_FINAL_DUMMY` mode is the intended default for future work
+- Whether `swPcb` active/on corresponds to a high or low logic level on the assembled board; current handwritten code assumes active-high

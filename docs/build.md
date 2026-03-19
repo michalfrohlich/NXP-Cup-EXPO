@@ -10,6 +10,18 @@
 - Linker script referenced by `.cproject`:
   - `Project_Settings/Linker_Files/linker_flash_s32k144.ld`
 
+## CLI build
+- Use `mingw32-make`, not plain `make`.
+- Verified build command:
+  - `C:\msys64\ucrt64\bin\mingw32-make.exe -C Debug_FLASH all`
+- If `arm-none-eabi-gcc` is not found, add this toolchain directory to `PATH`:
+  - `C:\NXP\S32DS.3.6.3\S32DS\build_tools\gcc_v10.2\gcc-10.2-arm32-eabi\bin`
+- The shell may also need these MSYS directories on `PATH`:
+  - `C:\msys64\usr\bin`
+  - `C:\msys64\ucrt64\bin`
+- Output ELF:
+  - `Debug_FLASH/EXPO_03_Nxp_Cup_project.elf`
+
 ## Important project files
 - `.cproject`, `.project`: IDE/build metadata
 - `Project_Settings/Startup_Code/`: startup, vector table, system init

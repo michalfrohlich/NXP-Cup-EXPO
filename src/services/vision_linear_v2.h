@@ -74,12 +74,12 @@ extern "C" {
 #define VISION_FINISH_WIDTH_MAX_PCT          (150U)
 #endif
 
-#ifndef VISION_FINISH_INNER_WIDTH_MM
-#define VISION_FINISH_INNER_WIDTH_MM         (510U)
+#ifndef VISION_FINISH_CENTER_TOL_PCT
+#define VISION_FINISH_CENTER_TOL_PCT         (15U)
 #endif
 
-#ifndef VISION_FINISH_BAR_WIDTH_MM
-#define VISION_FINISH_BAR_WIDTH_MM           (94U)
+#ifndef VISION_FINISH_INNER_WIDTH_MM
+#define VISION_FINISH_INNER_WIDTH_MM         (510U)
 #endif
 
 #ifndef VISION_FINISH_CENTER_GAP_MM
@@ -131,7 +131,6 @@ typedef struct
     uint8 finishGapLeftEdgeIdx;
     uint8 finishGapRightEdgeIdx;
     uint8 laneWidth;
-    uint8 expectedFinishWidth;
     uint8 expectedFinishGap;
     uint8 measuredFinishGap;
     uint8 finishDetected;
