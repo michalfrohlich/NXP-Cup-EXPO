@@ -48,10 +48,12 @@ Notes:
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
 | OLED display writes | `CDD_I2c` | `src/display.c`, `include/display.h`, `src/app/board_init.c` |
+| OLED display non-blocking transport (optional) | `CDD_I2c` async state machine | `src/display_async.c`, `include/display_async.h` |
 
 Notes:
 - `display.c` uses I2C address `0x3C`.
 - The display code is written for a 128x32 SSD1306-style display.
+- `display_async.c` adds double-buffered non-blocking refresh (`I2c_AsyncTransmit` + `I2c_GetStatus`) with latest-frame-wins queuing.
 - In `APP_TEST_RACE_MODE`, OLED initialization is allowed only during the ESC-arm phase. After that, `swPcb` can only enable refreshes on an already-initialized display, so the blocking display bring-up cannot stall the active race loop.
 
 ## DIO / GPIO
