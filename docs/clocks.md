@@ -17,12 +17,12 @@
 ## Key generated clock outputs
 | Clock | Value |
 | --- | --- |
-| CORE_CLK | 48 MHz |
-| SYS_CLK | 48 MHz |
-| BUS_CLK | 48 MHz |
-| FLASH_CLK | 12 MHz |
-| SPLLDIV1_CLK | 48 MHz |
-| SPLLDIV2_CLK | 24 MHz |
+| CORE_CLK | 80 MHz |
+| SYS_CLK | 80 MHz |
+| BUS_CLK | 40 MHz |
+| FLASH_CLK | 20 MHz |
+| SPLLDIV1_CLK | 80 MHz |
+| SPLLDIV2_CLK | 40 MHz |
 | SIRCOUT | 8 MHz |
 | SOSCOUT | 8 MHz |
 

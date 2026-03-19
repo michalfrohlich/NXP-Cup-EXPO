@@ -265,7 +265,7 @@ extern "C"{
 /**
 * @brief            This parameter shall be set True, if the H/W does not have a PLL or the PLL circuitry is enabled after the power on without S/W intervention.
 */
-#define MCU_NO_PLL   (STD_ON)
+#define MCU_NO_PLL   (STD_OFF)
 /**
 * @brief            Support for Low Power mode.
 */
