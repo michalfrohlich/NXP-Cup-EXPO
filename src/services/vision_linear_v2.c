@@ -11,6 +11,7 @@
 
 static float s_lastTrackCenter = (float)(VISION_LINEAR_BUFFER_SIZE / 2U);
 static uint8 s_isLocked = 0U;
+static uint8 s_singleEdgeStreak = 0U;
 
 /* ----------------------------- Helpers ----------------------------- */
 
@@ -274,6 +275,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         out->leftLineIdx = VISION_LINEAR_INVALID_IDX;
         out->rightLineIdx = VISION_LINEAR_INVALID_IDX;
         s_isLocked = 0U;
+        s_singleEdgeStreak = 0U;
         return;
     }
 
@@ -422,6 +424,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             out->status = VISION_TRACK_BOTH;
             out->confidence = 100U;
             trackCenter = ((float)bestLeftIdx + (float)bestRightIdx) / 2.0f;
+            s_singleEdgeStreak = 0U;
         }
         else if (bestLeftIdx != VISION_LINEAR_INVALID_IDX)
         {
@@ -429,6 +432,14 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             out->status = VISION_TRACK_LEFT;
             out->confidence = 60U;
             trackCenter = ((float)bestLeftIdx + simulatedRight) / 2.0f;
+            if (s_singleEdgeStreak < 255U)
+            {
+                s_singleEdgeStreak++;
+            }
+            if (s_singleEdgeStreak > VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT)
+            {
+                out->confidence = VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE;
+            }
         }
         else if (bestRightIdx != VISION_LINEAR_INVALID_IDX)
         {
@@ -436,6 +447,14 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             out->status = VISION_TRACK_RIGHT;
             out->confidence = 60U;
             trackCenter = (simulatedLeft + (float)bestRightIdx) / 2.0f;
+            if (s_singleEdgeStreak < 255U)
+            {
+                s_singleEdgeStreak++;
+            }
+            if (s_singleEdgeStreak > VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT)
+            {
+                out->confidence = VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE;
+            }
         }
         else
         {
@@ -444,6 +463,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             out->feature = VISION_FEATURE_NONE;
             out->confidence = 0U;
             s_isLocked = 0U;
+            s_singleEdgeStreak = 0U;
             return;
         }
 
@@ -529,6 +549,7 @@ void VisionLinear_InitV2(void)
 {
     s_lastTrackCenter = (float)(VISION_LINEAR_BUFFER_SIZE / 2U);
     s_isLocked = 0U;
+    s_singleEdgeStreak = 0U;
 }
 
 void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out)

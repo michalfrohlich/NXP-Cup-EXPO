@@ -149,6 +149,16 @@
    outright instead of being considered as a valid lane. */
 #define VISION_LINEAR_LANE_WIDTH_TOL_PCT  20U
 
+/* Single-edge recovery confidence handling.
+   If only one lane edge is visible for a few consecutive frames, keep the
+   current geometry estimate but reduce confidence to indicate degraded track
+   quality. This does not change the estimated lane center by itself.
+   - STREAK_LIMIT: number of consecutive TRACK_LEFT/RIGHT frames allowed before
+     confidence is stepped down.
+   - LOW_CONFIDENCE: confidence reported once the streak limit is exceeded. */
+#define VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT   3U
+#define VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE 35U
+
 /* Keep the dynamic left/right split point away from the extreme image edges.
    Raise this if the edge pixels are unreliable or noisy. */
 #define VISION_LINEAR_SPLIT_MARGIN_PX     10U
