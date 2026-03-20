@@ -23,6 +23,7 @@
 #define VDBG_WHITE_MAX_MIN_ZOOM       (400U)
 
 #define RECEIVER_REFRESH_MS           (50U)
+#define ULTRASONIC_TEST_PERIOD_MS     (500U)
 #define TESTS_MENU_VISIBLE_LINES      (3U)
 #define TESTS_MENU_POT_STABLE_MS      (90U)
 #define TESTS_MENU_POT_HYSTERESIS     (6U)
@@ -30,9 +31,7 @@
 typedef enum
 {
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
-    APP_BUILD_MODE_RECEIVER_TEST,
-    APP_BUILD_MODE_SERVO_TEST,
-    APP_BUILD_MODE_ESC_TEST,
+    APP_BUILD_MODE_RACE_MODE,
     APP_BUILD_MODE_FINAL_DUMMY,
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_NXP_CUP_TESTS
@@ -41,10 +40,12 @@ typedef enum
 typedef enum
 {
     RUNTIME_TEST_LINEAR_CAMERA = 0,
-    RUNTIME_TEST_RECEIVER,
-    RUNTIME_TEST_SERVO,
     RUNTIME_TEST_ESC,
+    RUNTIME_TEST_SERVO,
+    RUNTIME_TEST_ULTRASONIC,
     RUNTIME_TEST_CAMSERVO,
+    RUNTIME_TEST_ULTRA_ESC,
+    RUNTIME_TEST_RECEIVER,
     RUNTIME_TEST_COUNT
 } RuntimeTestId_t;
 
@@ -69,6 +70,24 @@ typedef struct
 
 typedef struct
 {
+    uint32 lastTrigMs;
+    uint32 nextDisplayMs;
+    float lastDistanceCm;
+} UltrasonicTestState_t;
+
+typedef struct
+{
+    uint32 armDoneMs;
+    uint32 nextUltraTrigMs;
+    uint32 nextDisplayMs;
+    uint32 lastDistanceMs;
+    float lastDistanceCm;
+    sint32 commandedSpeedPct;
+    boolean hasValidDistance;
+} UltrasonicEscTestState_t;
+
+typedef struct
+{
     uint32 nextDisplayMs;
     uint8 potLevel;
     sint16 steerCmd;
@@ -90,8 +109,10 @@ typedef struct
     sint16 steerOut;
     uint32 nextTickMs;
     uint32 nextSteerMs;
+    uint32 nextDisplayMs;
     uint32 tickCount;
     boolean haveValidVision;
+    boolean displayDirty;
     boolean paused;
     boolean servoEnabled;
     uint8 steeringBaseSpeed;
@@ -122,7 +143,9 @@ typedef struct
     sint16 steerOut;
     uint32 nextTickMs;
     uint32 nextSteerMs;
+    uint32 nextDisplayMs;
     uint32 tickCount;
+    boolean displayDirty;
 } CamServoState_t;
 
 typedef enum
@@ -159,21 +182,63 @@ typedef struct
     boolean hasValidDistance;
 } HonorLapState_t;
 
+typedef enum
+{
+    RACE_PHASE_ESC_ARM = 0,
+    RACE_PHASE_SPEED_RUN,
+    RACE_PHASE_HONOR_RUN,
+    RACE_PHASE_STOPPED,
+    RACE_PHASE_FAULT
+} RacePhase_t;
+
+typedef struct
+{
+    RacePhase_t phase;
+    SteeringLinearState_t ctrl;
+    LinearCameraFrame processedFrame;
+    VisionOutput_t result;
+    uint32 nextVisionMs;
+    uint32 nextControlMs;
+    uint32 nextSpeedRampMs;
+    uint32 nextUltraTrigMs;
+    uint32 nextDisplayMs;
+    uint32 armDoneMs;
+    uint32 lostSinceMs;
+    uint32 lastDistanceMs;
+    float lastDistanceCm;
+    sint16 steerRaw;
+    sint16 steerFilt;
+    sint16 steerOut;
+    sint32 targetSpeedPct;
+    sint32 currentSpeedPct;
+    uint8 finishStreak;
+    boolean haveValidVision;
+    boolean haveValidDistance;
+    boolean ultraError;
+    boolean displayInitialized;
+    boolean displayWasOn;
+} RaceModeState_t;
+
 static ReceiverTestState_t g_receiverTest;
+static UltrasonicTestState_t g_ultrasonicTest;
+static UltrasonicEscTestState_t g_ultrasonicEscTest;
 static ServoTestState_t g_servoTest;
 static EscRunState_t g_escTest;
 static LinearCameraTestState_t g_linearCameraTest;
 static FinalDummyState_t g_finalDummy;
 static TestsMenuState_t g_testsMenu;
 static HonorLapState_t g_honorLap;
+static RaceModeState_t g_raceMode;
 
 static const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
 {
-    "Camera Debug   ",
-    "Receiver       ",
-    "Servo          ",
+    "Camera         ",
     "ESC            ",
-    "Cam Servo      "
+    "Servo          ",
+    "Ultrasonic     ",
+    "Cam+Servo      ",
+    "Ultra+ESC      ",
+    "Receiver - x   "
 };
 
 static boolean time_reached(uint32 nowMs, uint32 dueMs);
@@ -181,14 +246,24 @@ static uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel);
 static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs);
 static void StatusLed_Blue(void);
 static void StatusLed_Green(void);
+static void StatusLed_Cyan(void);
+static void StatusLed_Yellow(void);
+static void StatusLed_Red(void);
 static void StatusLed_Off(void);
 static void Esc_StopNeutral(void);
+static void App_InitRuntimeCore(void);
 static void App_InitRuntimeCommon(void);
 static AppBuildMode_t App_GetSelectedBuildMode(void);
 static void DisplayTextPadded(uint16 displayLine, const char *text);
 static void receiver_test_enter(uint32 nowMs);
 static void receiver_test_update(uint32 nowMs);
 static void receiver_test_exit(void);
+static void ultrasonic_test_enter(uint32 nowMs);
+static void ultrasonic_test_update(uint32 nowMs);
+static void ultrasonic_test_exit(void);
+static void ultrasonic_esc_test_enter(uint32 nowMs);
+static void ultrasonic_esc_test_update(uint32 nowMs);
+static void ultrasonic_esc_test_exit(void);
 static void servo_test_enter(uint32 nowMs);
 static void servo_test_update(uint32 nowMs, uint8 potLevel);
 static void servo_test_exit(void);
@@ -198,6 +273,7 @@ static void esc_test_exit(void);
 static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled);
 static void linear_camera_test_enter(uint32 nowMs);
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
+static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st);
 static void linear_camera_test_exit(void);
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs);
 static void runtime_test_update(RuntimeTestId_t testId,
@@ -221,13 +297,19 @@ static uint8 tests_menu_map_pot_to_index(uint8 pot, uint8 nItems);
 static void tests_menu_select_index(TestsMenuState_t *st, uint8 pot);
 static void tests_menu_draw(const TestsMenuState_t *st);
 static void mode_nxp_cup_tests(void);
-static void mode_single_runtime_test(RuntimeTestId_t testId);
 static void mode_final_dummy(void);
 static sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 static void honor_lap_draw_overlay(void);
 static void honor_lap_enter(uint32 nowMs);
 static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
 static void mode_honor_lap(void);
+static void race_mode_enter(uint32 nowMs);
+static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs);
+static void race_mode_update_ultrasonic(RaceModeState_t *st, uint32 nowMs);
+static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean stopPressed);
+static void race_mode_ensure_display_ready(RaceModeState_t *st);
+static void race_mode_draw(const RaceModeState_t *st);
+static void mode_race_mode(void);
 
 static boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
@@ -315,6 +397,21 @@ static void StatusLed_Green(void)
     RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = true, .b = false });
 }
 
+static void StatusLed_Cyan(void)
+{
+    RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = true, .b = true });
+}
+
+static void StatusLed_Yellow(void)
+{
+    RgbLed_ChangeColor((RgbLed_Color){ .r = true, .g = true, .b = false });
+}
+
+static void StatusLed_Red(void)
+{
+    RgbLed_ChangeColor((RgbLed_Color){ .r = true, .g = false, .b = false });
+}
+
 static void StatusLed_Off(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = false });
@@ -326,17 +423,21 @@ static void Esc_StopNeutral(void)
     EscSetSpeed(0);
 }
 
-static void App_InitRuntimeCommon(void)
+static void App_InitRuntimeCore(void)
 {
     Board_InitDrivers();
     Timebase_Init();
     OnboardPot_Init();
+    StatusLed_Off();
+}
 
+static void App_InitRuntimeCommon(void)
+{
+    App_InitRuntimeCore();
     display_power_stabilize_delay();
     DisplayInit(0U, STD_ON);
     DisplayClear();
     DisplayRefresh();
-    StatusLed_Off();
 }
 
 static void DisplayTextPadded(uint16 displayLine, const char *text)
@@ -362,18 +463,12 @@ static AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_NXP_CUP_TESTS;
 #elif APP_TEST_HONOR_LAP
     return APP_BUILD_MODE_HONOR_LAP;
-#elif APP_TEST_FINAL_DUMMY
-    return APP_BUILD_MODE_FINAL_DUMMY;
+#elif APP_TEST_RACE_MODE
+    return APP_BUILD_MODE_RACE_MODE;
 #elif APP_TEST_LINEAR_CAMERA_TEST
     return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
-#elif APP_TEST_RECEIVER_TEST
-    return APP_BUILD_MODE_RECEIVER_TEST;
-#elif APP_TEST_SERVO_TEST
-    return APP_BUILD_MODE_SERVO_TEST;
-#elif APP_TEST_ESC_TEST
-    return APP_BUILD_MODE_ESC_TEST;
 #else
-    return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
+    return APP_BUILD_MODE_FINAL_DUMMY;
 #endif
 }
 
@@ -382,6 +477,7 @@ static void receiver_test_enter(uint32 nowMs)
     (void)memset(&g_receiverTest, 0, sizeof(g_receiverTest));
 
     ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U);
+    StatusLed_Blue();
 
     DisplayClear();
     DisplayTextPadded(0U, "Ch0:    Ch1:");
@@ -419,6 +515,233 @@ static void receiver_test_exit(void)
 {
 }
 
+static void ultrasonic_test_enter(uint32 nowMs)
+{
+    (void)memset(&g_ultrasonicTest, 0, sizeof(g_ultrasonicTest));
+
+    Ultrasonic_Init();
+    g_ultrasonicTest.lastTrigMs = nowMs;
+    g_ultrasonicTest.nextDisplayMs = nowMs;
+    g_ultrasonicTest.lastDistanceCm = 0.0f;
+
+    DisplayTextPadded(0U, "ULTRA 500MS");
+    DisplayTextPadded(1U, "S:     I:");
+    DisplayTextPadded(2U, "cm:    x:");
+    DisplayTextPadded(3U, "t:     a:");
+    DisplayRefresh();
+    StatusLed_Blue();
+}
+
+static void ultrasonic_test_update(uint32 nowMs)
+{
+    Ultrasonic_StatusType st;
+    float distanceCm;
+
+    if ((uint32)(nowMs - g_ultrasonicTest.lastTrigMs) >= ULTRASONIC_TEST_PERIOD_MS)
+    {
+        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+        {
+            g_ultrasonicTest.lastTrigMs = nowMs;
+            Ultrasonic_StartMeasurement();
+        }
+    }
+
+    Ultrasonic_Task();
+    st = Ultrasonic_GetStatus();
+
+    if (Ultrasonic_GetDistanceCm(&distanceCm) == TRUE)
+    {
+        g_ultrasonicTest.lastDistanceCm = distanceCm;
+        st = ULTRA_STATUS_NEW_DATA;
+    }
+    else if (st == ULTRA_STATUS_ERROR)
+    {
+        g_ultrasonicTest.lastDistanceCm = ULTRA_MAX_DISTANCE_CM + 1.0f;
+    }
+
+    if (time_reached(nowMs, g_ultrasonicTest.nextDisplayMs) != TRUE)
+    {
+        return;
+    }
+
+    g_ultrasonicTest.nextDisplayMs = nowMs + DISPLAY_PERIOD_MS;
+
+    DisplayTextPadded(0U, "ULTRA 500MS");
+    DisplayTextPadded(1U, "S:     I:");
+    DisplayTextPadded(2U, "cm:    x:");
+    DisplayTextPadded(3U, "t:     a:");
+
+    if (st == ULTRA_STATUS_NEW_DATA)
+    {
+        DisplayText(1U, "NEW  ", 5U, 2U);
+    }
+    else if (st == ULTRA_STATUS_BUSY)
+    {
+        DisplayText(1U, "BUSY ", 5U, 2U);
+    }
+    else if (st == ULTRA_STATUS_ERROR)
+    {
+        DisplayText(1U, "ERR  ", 5U, 2U);
+    }
+    else
+    {
+        DisplayText(1U, "IDLE ", 5U, 2U);
+    }
+
+    DisplayValue(1U, (int)Ultrasonic_GetIrqCount(), 6U, 10U);
+    DisplayValue(2U, (int)(g_ultrasonicTest.lastDistanceCm + 0.5f), 4U, 3U);
+    DisplayValue(2U, (int)Ultrasonic_GetTsIndex(), 6U, 10U);
+    DisplayValue(3U, (int)Ultrasonic_GetLastHighTicks(), 5U, 2U);
+    DisplayValue(3U, (int)(nowMs - g_ultrasonicTest.lastTrigMs), 6U, 10U);
+    DisplayRefresh();
+
+    if (st == ULTRA_STATUS_ERROR)
+    {
+        StatusLed_Red();
+    }
+    else if (st == ULTRA_STATUS_NEW_DATA)
+    {
+        StatusLed_Green();
+    }
+    else
+    {
+        StatusLed_Blue();
+    }
+}
+
+static void ultrasonic_test_exit(void)
+{
+}
+
+static void ultrasonic_esc_test_enter(uint32 nowMs)
+{
+    (void)memset(&g_ultrasonicEscTest, 0, sizeof(g_ultrasonicEscTest));
+
+    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_StopNeutral();
+
+    Ultrasonic_Init();
+    g_ultrasonicEscTest.armDoneMs = nowMs + ESC_ARM_TIME_MS;
+    g_ultrasonicEscTest.nextUltraTrigMs = nowMs;
+    g_ultrasonicEscTest.nextDisplayMs = nowMs;
+    g_ultrasonicEscTest.lastDistanceMs = nowMs;
+    g_ultrasonicEscTest.lastDistanceCm = 0.0f;
+    g_ultrasonicEscTest.commandedSpeedPct = 0;
+
+    DisplayTextPadded(0U, "ULTRA+ESC TEST");
+    DisplayTextPadded(1U, "ARM  D: ---cm");
+    DisplayTextPadded(2U, "SPD:   0%");
+    DisplayTextPadded(3U, "TRIG:  AGE:");
+    DisplayRefresh();
+    StatusLed_Blue();
+}
+
+static void ultrasonic_esc_test_update(uint32 nowMs)
+{
+    const uint32 ultraStaleMs =
+        ((uint32)HONOR_ULTRA_TRIGGER_PERIOD_MS * 2U) + (uint32)ULTRA_TIMEOUT_MS;
+    Ultrasonic_StatusType st;
+    float distanceCm = 0.0f;
+    const char *modeText = "RUN ";
+
+    Ultrasonic_Task();
+
+    if (time_reached(nowMs, g_ultrasonicEscTest.nextUltraTrigMs) == TRUE)
+    {
+        g_ultrasonicEscTest.nextUltraTrigMs = nowMs + HONOR_ULTRA_TRIGGER_PERIOD_MS;
+
+        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+        {
+            Ultrasonic_StartMeasurement();
+        }
+    }
+
+    st = Ultrasonic_GetStatus();
+
+    if (Ultrasonic_GetDistanceCm(&distanceCm) == TRUE)
+    {
+        g_ultrasonicEscTest.lastDistanceCm = distanceCm;
+        g_ultrasonicEscTest.lastDistanceMs = nowMs;
+        g_ultrasonicEscTest.hasValidDistance = TRUE;
+        st = ULTRA_STATUS_NEW_DATA;
+    }
+    else if (st == ULTRA_STATUS_ERROR)
+    {
+        g_ultrasonicEscTest.hasValidDistance = FALSE;
+    }
+    else if ((g_ultrasonicEscTest.hasValidDistance == TRUE) &&
+             ((uint32)(nowMs - g_ultrasonicEscTest.lastDistanceMs) > ultraStaleMs))
+    {
+        g_ultrasonicEscTest.hasValidDistance = FALSE;
+    }
+
+    if (time_reached(nowMs, g_ultrasonicEscTest.armDoneMs) != TRUE)
+    {
+        g_ultrasonicEscTest.commandedSpeedPct = 0;
+        Esc_StopNeutral();
+        modeText = "ARM ";
+    }
+    else
+    {
+        g_ultrasonicEscTest.commandedSpeedPct =
+            honor_speed_from_distance(g_ultrasonicEscTest.hasValidDistance,
+                                      g_ultrasonicEscTest.lastDistanceCm);
+        EscSetBrake(0U);
+        EscSetSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct));
+    }
+
+    if (time_reached(nowMs, g_ultrasonicEscTest.nextDisplayMs) != TRUE)
+    {
+        return;
+    }
+
+    g_ultrasonicEscTest.nextDisplayMs = nowMs + DISPLAY_PERIOD_MS;
+
+    DisplayTextPadded(0U, "ULTRA+ESC TEST");
+    DisplayTextPadded(1U, "    D: ---cm");
+    DisplayText(1U, modeText, 4U, 0U);
+    if (g_ultrasonicEscTest.hasValidDistance == TRUE)
+    {
+        DisplayValue(1U, (int)(g_ultrasonicEscTest.lastDistanceCm + 0.5f), 3U, 8U);
+        DisplayText(1U, "cm", 2U, 11U);
+    }
+    else if (st == ULTRA_STATUS_ERROR)
+    {
+        DisplayText(1U, "ERR", 3U, 8U);
+    }
+
+    DisplayTextPadded(2U, "SPD:   0%");
+    DisplayValue(2U, (int)g_ultrasonicEscTest.commandedSpeedPct, 3U, 4U);
+    DisplayText(2U, "%", 1U, 7U);
+
+    DisplayTextPadded(3U, "TRIG:  AGE:");
+    DisplayValue(3U, (int)HONOR_ULTRA_TRIGGER_PERIOD_MS, 3U, 5U);
+    DisplayValue(3U, (int)(nowMs - g_ultrasonicEscTest.lastDistanceMs), 4U, 12U);
+    DisplayRefresh();
+
+    if (time_reached(nowMs, g_ultrasonicEscTest.armDoneMs) != TRUE)
+    {
+        StatusLed_Blue();
+    }
+    else if (st == ULTRA_STATUS_ERROR)
+    {
+        StatusLed_Red();
+    }
+    else if (g_ultrasonicEscTest.hasValidDistance == TRUE)
+    {
+        StatusLed_Green();
+    }
+    else
+    {
+        StatusLed_Yellow();
+    }
+}
+
+static void ultrasonic_esc_test_exit(void)
+{
+    Esc_StopNeutral();
+}
+
 static void servo_test_enter(uint32 nowMs)
 {
     (void)memset(&g_servoTest, 0, sizeof(g_servoTest));
@@ -433,6 +756,7 @@ static void servo_test_enter(uint32 nowMs)
     DisplayTextPadded(2U, "STEER:");
     DisplayTextPadded(3U, "PWM:");
     DisplayRefresh();
+    StatusLed_Blue();
 }
 
 static void servo_test_update(uint32 nowMs, uint8 potLevel)
@@ -504,6 +828,8 @@ static void servo_test_update(uint32 nowMs, uint8 potLevel)
 
         DisplayRefresh();
     }
+
+    StatusLed_Blue();
 }
 
 static void servo_test_exit(void)
@@ -547,6 +873,7 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
 
     g_linearCameraTest.nextTickMs = nowMs;
     g_linearCameraTest.nextSteerMs = nowMs + STEER_UPDATE_MS;
+    g_linearCameraTest.nextDisplayMs = nowMs;
 
     if (servoEnabled == TRUE)
     {
@@ -557,6 +884,7 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
     }
 
     (void)LinearCameraStartStream();
+    linear_camera_test_draw_waiting(&g_linearCameraTest);
 }
 
 static void linear_camera_test_enter(uint32 nowMs)
@@ -564,12 +892,34 @@ static void linear_camera_test_enter(uint32 nowMs)
     linear_camera_test_enter_common(nowMs, FALSE);
 }
 
+static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    DisplayTextPadded(0U, "CAM WAIT FRAME");
+    DisplayTextPadded(1U, "Req:    SI:    ");
+    DisplayTextPadded(2U, "DMA:    ADC:   ");
+    DisplayTextPadded(3U, "Drop:   P: B:  ");
+
+    DisplayValue(1U, (int)LinearCameraGetFrameRequestCount(), 4U, 4U);
+    DisplayValue(1U, (int)LinearCameraGetSiPulseCount(), 4U, 11U);
+    DisplayValue(2U, (int)LinearCameraGetDmaFrameCount(), 4U, 4U);
+    DisplayValue(2U, (int)LinearCameraGetAdcCallbackCount(), 4U, 11U);
+    DisplayValue(3U, (int)LinearCameraGetDroppedFrameCount(), 4U, 5U);
+    DisplayText(3U, (st->paused == TRUE) ? "Y" : "N", 1U, 12U);
+    DisplayText(3U, (LinearCameraIsBusy() == TRUE) ? "Y" : "N", 1U, 15U);
+    DisplayRefresh();
+}
+
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel)
 {
     const uint32 loopPeriodMs = 5U;
-    const uint32 displayTicks = ((uint32)DISPLAY_PERIOD_MS / loopPeriodMs);
     Sw2Action_t sw2Action;
     boolean sw2ClickHandled = FALSE;
+    boolean screenTogglePressed;
 
     if ((uint32)(nowMs - g_linearCameraTest.nextTickMs) < loopPeriodMs)
     {
@@ -602,15 +952,20 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
     if (g_linearCameraTest.paused == TRUE)
     {
         g_linearCameraTest.vdbg.cfg.whiteSat = VisionDebug_WhiteMaxFromPot(potLevel);
+        g_linearCameraTest.displayDirty = TRUE;
     }
 
+    screenTogglePressed = (boolean)((sw2Action == SW2_ACTION_CLICK) &&
+                                    (sw2ClickHandled != TRUE) &&
+                                    (g_linearCameraTest.paused != TRUE));
     VisionDebug_OnTick(&g_linearCameraTest.vdbg,
-                       (boolean)((sw2Action == SW2_ACTION_CLICK) &&
-                                 (sw2ClickHandled != TRUE) &&
-                                 (g_linearCameraTest.paused != TRUE)),
+                       screenTogglePressed,
                        modeNextPressed);
 
-    RgbLed_ChangeColor((RgbLed_Color){ .r = true, .g = false, .b = false });
+    if ((screenTogglePressed == TRUE) || (modeNextPressed == TRUE))
+    {
+        g_linearCameraTest.displayDirty = TRUE;
+    }
 
     if (g_linearCameraTest.paused != TRUE)
     {
@@ -630,8 +985,6 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
                                              g_linearCameraTest.gradientBuf);
             }
 
-            RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = true });
-
             (void)memcpy(g_linearCameraTest.processedFrame.Values,
                          &latestFrame->Values[CAM_TRIM_LEFT_PX],
                          ((size_t)VISION_LINEAR_BUFFER_SIZE *
@@ -641,6 +994,7 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
                                         &g_linearCameraTest.dbg);
 
             g_linearCameraTest.haveValidVision = TRUE;
+            g_linearCameraTest.displayDirty = TRUE;
         }
     }
 
@@ -692,26 +1046,55 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
         }
     }
 
-    if ((displayTicks != 0U) &&
-        ((g_linearCameraTest.tickCount % displayTicks) == 0U) &&
-        (g_linearCameraTest.haveValidVision == TRUE))
+    if (((g_linearCameraTest.displayDirty == TRUE) ||
+         (g_linearCameraTest.haveValidVision != TRUE)) &&
+        (time_reached(nowMs, g_linearCameraTest.nextDisplayMs) == TRUE))
     {
-        const uint16 *pFiltered =
-            (g_linearCameraTest.dbg.filteredOut != NULL_PTR) ? g_linearCameraTest.filteredBuf : NULL_PTR;
-        const sint16 *pGradient =
-            (g_linearCameraTest.dbg.gradientOut != NULL_PTR) ? g_linearCameraTest.gradientBuf : NULL_PTR;
-        const VisionLinear_DebugOut_t *pDbg =
-            (g_linearCameraTest.dbg.mask != (uint32)VLIN_DBG_NONE) ? &g_linearCameraTest.dbg : NULL_PTR;
+        g_linearCameraTest.nextDisplayMs = nowMs + CAM_DEBUG_DISPLAY_PERIOD_MS;
 
-        VisionDebug_Draw(&g_linearCameraTest.vdbg,
-                         g_linearCameraTest.processedFrame.Values,
-                         pFiltered,
-                         pGradient,
-                         &g_linearCameraTest.result,
-                         pDbg);
+        if (g_linearCameraTest.haveValidVision == TRUE)
+        {
+            const uint16 *pFiltered =
+                (g_linearCameraTest.dbg.filteredOut != NULL_PTR) ? g_linearCameraTest.filteredBuf : NULL_PTR;
+            const sint16 *pGradient =
+                (g_linearCameraTest.dbg.gradientOut != NULL_PTR) ? g_linearCameraTest.gradientBuf : NULL_PTR;
+            const VisionLinear_DebugOut_t *pDbg =
+                (g_linearCameraTest.dbg.mask != (uint32)VLIN_DBG_NONE) ? &g_linearCameraTest.dbg : NULL_PTR;
+
+            g_linearCameraTest.displayDirty = FALSE;
+            VisionDebug_Draw(&g_linearCameraTest.vdbg,
+                             g_linearCameraTest.processedFrame.Values,
+                             pFiltered,
+                             pGradient,
+                             &g_linearCameraTest.result,
+                             pDbg);
+        }
+        else
+        {
+            linear_camera_test_draw_waiting(&g_linearCameraTest);
+        }
     }
 
-    StatusLed_Off();
+    if (g_linearCameraTest.paused == TRUE)
+    {
+        StatusLed_Yellow();
+    }
+    else if (g_linearCameraTest.haveValidVision != TRUE)
+    {
+        StatusLed_Blue();
+    }
+    else if (g_linearCameraTest.result.status == VISION_TRACK_LOST)
+    {
+        StatusLed_Yellow();
+    }
+    else if (g_linearCameraTest.servoEnabled == TRUE)
+    {
+        StatusLed_Cyan();
+    }
+    else
+    {
+        StatusLed_Green();
+    }
 }
 
 static void linear_camera_test_exit(void)
@@ -726,27 +1109,35 @@ static void linear_camera_test_exit(void)
         LinearCameraStopStream();
     }
 
-    StatusLed_Off();
+    StatusLed_Blue();
 }
 
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
 {
     switch (testId)
     {
-        case RUNTIME_TEST_RECEIVER:
-            receiver_test_enter(nowMs);
+        case RUNTIME_TEST_ESC:
+            esc_test_enter(nowMs);
             break;
 
         case RUNTIME_TEST_SERVO:
             servo_test_enter(nowMs);
             break;
 
-        case RUNTIME_TEST_ESC:
-            esc_test_enter(nowMs);
+        case RUNTIME_TEST_ULTRASONIC:
+            ultrasonic_test_enter(nowMs);
             break;
 
         case RUNTIME_TEST_CAMSERVO:
             linear_camera_test_enter_common(nowMs, TRUE);
+            break;
+
+        case RUNTIME_TEST_ULTRA_ESC:
+            ultrasonic_esc_test_enter(nowMs);
+            break;
+
+        case RUNTIME_TEST_RECEIVER:
+            receiver_test_enter(nowMs);
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:
@@ -764,20 +1155,28 @@ static void runtime_test_update(RuntimeTestId_t testId,
 {
     switch (testId)
     {
-        case RUNTIME_TEST_RECEIVER:
-            receiver_test_update(nowMs);
+        case RUNTIME_TEST_ESC:
+            esc_test_update(nowMs, sw2Pressed, modeNextPressed, potLevel);
             break;
 
         case RUNTIME_TEST_SERVO:
             servo_test_update(nowMs, potLevel);
             break;
 
-        case RUNTIME_TEST_ESC:
-            esc_test_update(nowMs, sw2Pressed, modeNextPressed, potLevel);
+        case RUNTIME_TEST_ULTRASONIC:
+            ultrasonic_test_update(nowMs);
             break;
 
         case RUNTIME_TEST_CAMSERVO:
             linear_camera_test_update(nowMs, FALSE, potLevel);
+            break;
+
+        case RUNTIME_TEST_ULTRA_ESC:
+            ultrasonic_esc_test_update(nowMs);
+            break;
+
+        case RUNTIME_TEST_RECEIVER:
+            receiver_test_update(nowMs);
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:
@@ -791,20 +1190,28 @@ static void runtime_test_exit(RuntimeTestId_t testId)
 {
     switch (testId)
     {
-        case RUNTIME_TEST_RECEIVER:
-            receiver_test_exit();
+        case RUNTIME_TEST_ESC:
+            esc_test_exit();
             break;
 
         case RUNTIME_TEST_SERVO:
             servo_test_exit();
             break;
 
-        case RUNTIME_TEST_ESC:
-            esc_test_exit();
+        case RUNTIME_TEST_ULTRASONIC:
+            ultrasonic_test_exit();
             break;
 
         case RUNTIME_TEST_CAMSERVO:
             linear_camera_test_exit();
+            break;
+
+        case RUNTIME_TEST_ULTRA_ESC:
+            ultrasonic_esc_test_exit();
+            break;
+
+        case RUNTIME_TEST_RECEIVER:
+            receiver_test_exit();
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:
@@ -835,6 +1242,7 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
     {
         st->currentCmdPct = 0;
         Esc_StopNeutral();
+        StatusLed_Blue();
         return;
     }
 
@@ -848,6 +1256,7 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         st->mode = CAR_IDLE;
         st->currentCmdPct = 0;
         Esc_StopNeutral();
+        StatusLed_Blue();
         return;
     }
 
@@ -906,6 +1315,23 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         st->currentCmdPct = (sint16)cmdPct;
         EscSetBrake(0U);
         EscSetSpeed((int)cmdPct);
+    }
+
+    if (st->mode == CAR_RUN)
+    {
+        StatusLed_Green();
+    }
+    else if (st->mode == CAR_ARMING)
+    {
+        StatusLed_Cyan();
+    }
+    else if (st->mode == CAR_ERROR)
+    {
+        StatusLed_Red();
+    }
+    else
+    {
+        StatusLed_Blue();
     }
 }
 
@@ -1022,6 +1448,7 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     st->haveValidVision = FALSE;
     st->nextTickMs = nowMs;
     st->nextSteerMs = nowMs + STEER_UPDATE_MS;
+    st->nextDisplayMs = nowMs;
     st->tickCount = 0u;
 
     (void)LinearCameraStartStream();
@@ -1030,8 +1457,6 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 {
     const uint32 loopMs = (uint32)V2_LOOP_PERIOD_MS;
-    const uint32 displayTicks = ((uint32)DISPLAY_PERIOD_MS / loopMs);
-    boolean doDisplay;
     const LinearCameraFrame *latestFrame = NULL_PTR;
 
     if ((uint32)(nowMs - st->nextTickMs) < loopMs)
@@ -1042,9 +1467,11 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     st->nextTickMs += loopMs;
     st->tickCount++;
 
-    doDisplay = ((displayTicks != 0U) && ((st->tickCount % displayTicks) == 0U));
-
     VisionDebug_OnTick(&st->vdbg, sw2, FALSE);
+    if (sw2 == TRUE)
+    {
+        st->displayDirty = TRUE;
+    }
 
     if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
     {
@@ -1052,7 +1479,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
         st->dbg.filteredOut = NULL_PTR;
         st->dbg.gradientOut = NULL_PTR;
 
-        if ((doDisplay == TRUE) && (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE))
+        if (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE)
         {
             VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->filteredBuf, st->gradientBuf);
         }
@@ -1062,6 +1489,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
                      ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
         VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
         st->haveValidVision = TRUE;
+        st->displayDirty = TRUE;
     }
 
     if (time_reached(nowMs, st->nextSteerMs) == TRUE)
@@ -1107,13 +1535,17 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
         Steer((int)st->steerOut);
     }
 
-    if ((doDisplay == TRUE) && (st->haveValidVision == TRUE))
+    if ((st->haveValidVision == TRUE) &&
+        (st->displayDirty == TRUE) &&
+        (time_reached(nowMs, st->nextDisplayMs) == TRUE))
     {
         const uint16 *pFiltered = (st->dbg.filteredOut != NULL_PTR) ? st->filteredBuf : NULL_PTR;
         const sint16 *pGradient = (st->dbg.gradientOut != NULL_PTR) ? st->gradientBuf : NULL_PTR;
         const VisionLinear_DebugOut_t *pDbg =
             (st->dbg.mask != (uint32)VLIN_DBG_NONE) ? &st->dbg : NULL_PTR;
 
+        st->nextDisplayMs = nowMs + CAM_DEBUG_DISPLAY_PERIOD_MS;
+        st->displayDirty = FALSE;
         VisionDebug_Draw(&st->vdbg, st->processedFrame.Values, pFiltered, pGradient, &st->result, pDbg);
     }
 }
@@ -1146,7 +1578,7 @@ static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pres
             Esc_StopNeutral();
             camservo_enter(&g_finalDummy.camSt, nowMs);
             g_finalDummy.state = DUMMY_CAM;
-            StatusLed_Green();
+            StatusLed_Cyan();
 
             g_finalDummy.autoSpeedPct = 0;
             g_finalDummy.nextAutoSpeedMs = nowMs;
@@ -1199,6 +1631,16 @@ static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pres
 
             EscSetBrake(0U);
             EscSetSpeed((int)(-g_finalDummy.autoSpeedPct));
+        }
+
+        if ((g_finalDummy.camSt.haveValidVision == TRUE) &&
+            (g_finalDummy.camSt.result.status != VISION_TRACK_LOST))
+        {
+            StatusLed_Cyan();
+        }
+        else
+        {
+            StatusLed_Yellow();
         }
     }
 }
@@ -1287,6 +1729,7 @@ static void tests_menu_draw(const TestsMenuState_t *st)
     }
 
     DisplayRefresh();
+    StatusLed_Blue();
 }
 
 static void mode_nxp_cup_tests(void)
@@ -1347,20 +1790,19 @@ static void mode_nxp_cup_tests(void)
     }
 }
 
-static void mode_single_runtime_test(RuntimeTestId_t testId)
+static void mode_linear_camera_test(void)
 {
     uint32 nextButtonsMs;
 
     App_InitRuntimeCommon();
-    runtime_test_enter(testId, Timebase_GetMs());
+    runtime_test_enter(RUNTIME_TEST_LINEAR_CAMERA, Timebase_GetMs());
 
     nextButtonsMs = Timebase_GetMs();
 
     for (;;)
     {
         uint32 nowMs = Timebase_GetMs();
-        boolean sw2Pressed = FALSE;
-        boolean sw3Pressed = FALSE;
+        boolean sw3Pressed;
         uint8 potLevel;
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
@@ -1369,27 +1811,11 @@ static void mode_single_runtime_test(RuntimeTestId_t testId)
             nextButtonsMs += BUTTONS_PERIOD_MS;
         }
 
+        sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
+        (void)Buttons_WasPressed(BUTTON_ID_SW2);
         potLevel = OnboardPot_ReadLevelFiltered();
 
-        if ((testId == RUNTIME_TEST_LINEAR_CAMERA) || (testId == RUNTIME_TEST_ESC))
-        {
-            sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
-        }
-        else
-        {
-            (void)Buttons_WasPressed(BUTTON_ID_SW3);
-        }
-
-        if (testId == RUNTIME_TEST_ESC)
-        {
-            sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-        }
-        else
-        {
-            (void)Buttons_WasPressed(BUTTON_ID_SW2);
-        }
-
-        runtime_test_update(testId, nowMs, sw2Pressed, sw3Pressed, potLevel);
+        runtime_test_update(RUNTIME_TEST_LINEAR_CAMERA, nowMs, FALSE, sw3Pressed, potLevel);
     }
 }
 
@@ -1495,7 +1921,7 @@ static void honor_lap_enter(uint32 nowMs)
     g_honorLap.nextDisplayMs = nowMs;
     g_honorLap.commandedSpeedPct = 0;
 
-    StatusLed_Green();
+    StatusLed_Cyan();
 }
 
 static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel)
@@ -1556,7 +1982,21 @@ static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLev
         honor_lap_draw_overlay();
     }
 
-    StatusLed_Green();
+    if (ultraStatus == ULTRA_STATUS_ERROR)
+    {
+        StatusLed_Red();
+    }
+    else if ((g_linearCameraTest.haveValidVision != TRUE) ||
+        (g_linearCameraTest.paused == TRUE) ||
+        (g_linearCameraTest.result.status == VISION_TRACK_LOST) ||
+        (g_honorLap.hasValidDistance != TRUE))
+    {
+        StatusLed_Yellow();
+    }
+    else
+    {
+        StatusLed_Cyan();
+    }
 }
 
 static void mode_honor_lap(void)
@@ -1588,20 +2028,462 @@ static void mode_honor_lap(void)
     }
 }
 
+static void race_mode_enter(uint32 nowMs)
+{
+    (void)memset(&g_raceMode, 0, sizeof(g_raceMode));
+
+    /* Race mode owns all actuators directly. Initialize them once, then keep
+       the runtime loop strictly ordered: vision -> ultrasonic -> control. */
+    g_raceMode.phase = RACE_PHASE_ESC_ARM;
+    g_raceMode.nextVisionMs = nowMs;
+    g_raceMode.nextControlMs = nowMs;
+    g_raceMode.nextSpeedRampMs = nowMs;
+    g_raceMode.nextUltraTrigMs = nowMs;
+    g_raceMode.nextDisplayMs = nowMs;
+    g_raceMode.armDoneMs = nowMs + ESC_ARM_TIME_MS;
+    g_raceMode.lastDistanceMs = nowMs;
+
+    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_StopNeutral();
+
+    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    SteerStraight();
+
+    if (LinearCameraIsBusy() == TRUE)
+    {
+        LinearCameraStopStream();
+    }
+
+    LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
+    LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
+    VisionLinear_InitV2();
+
+    SteeringLinear_Init(&g_raceMode.ctrl);
+    SteeringLinear_Reset(&g_raceMode.ctrl);
+
+    Ultrasonic_Init();
+
+    (void)LinearCameraStartStream();
+    StatusLed_Blue();
+}
+
+static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
+{
+    const LinearCameraFrame *latestFrame = NULL_PTR;
+
+    if ((st == NULL_PTR) || (time_reached(nowMs, st->nextVisionMs) != TRUE))
+    {
+        return;
+    }
+
+    /* At most one vision update is executed per main-loop pass. This avoids
+       catch-up bursts if an optional blocking display refresh was requested. */
+    st->nextVisionMs = nowMs + CAMERA_PERIOD_MS;
+
+    if (LinearCameraGetLatestFrame(&latestFrame) != TRUE)
+    {
+        return;
+    }
+
+    (void)memcpy(st->processedFrame.Values,
+                 &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                 ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
+    VisionLinear_ProcessFrame(st->processedFrame.Values, &st->result);
+    st->haveValidVision = TRUE;
+}
+
+static void race_mode_update_ultrasonic(RaceModeState_t *st, uint32 nowMs)
+{
+    const uint32 ultraStaleMs =
+        ((uint32)HONOR_ULTRA_TRIGGER_PERIOD_MS * 2U) + (uint32)ULTRA_TIMEOUT_MS;
+    float distanceCm = 0.0f;
+    Ultrasonic_StatusType ultraStatus;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    /* Keep ultrasonic service independent from the main control phase. */
+    Ultrasonic_Task();
+
+    if (time_reached(nowMs, st->nextUltraTrigMs) == TRUE)
+    {
+        st->nextUltraTrigMs = nowMs + HONOR_ULTRA_TRIGGER_PERIOD_MS;
+
+        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+        {
+            Ultrasonic_StartMeasurement();
+        }
+    }
+
+    ultraStatus = Ultrasonic_GetStatus();
+
+    if (Ultrasonic_GetDistanceCm(&distanceCm) == TRUE)
+    {
+        st->lastDistanceCm = distanceCm;
+        st->lastDistanceMs = nowMs;
+        st->haveValidDistance = TRUE;
+        st->ultraError = FALSE;
+    }
+    else if (ultraStatus == ULTRA_STATUS_ERROR)
+    {
+        st->haveValidDistance = FALSE;
+        st->ultraError = TRUE;
+    }
+    else if ((st->haveValidDistance == TRUE) &&
+             ((uint32)(nowMs - st->lastDistanceMs) > ultraStaleMs))
+    {
+        st->haveValidDistance = FALSE;
+        st->ultraError = FALSE;
+    }
+    else if (ultraStatus != ULTRA_STATUS_ERROR)
+    {
+        st->ultraError = FALSE;
+    }
+}
+
+static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean stopPressed)
+{
+    uint8 controllerBaseSpeed;
+
+    if ((st == NULL_PTR) || (time_reached(nowMs, st->nextControlMs) != TRUE))
+    {
+        return;
+    }
+
+    st->nextControlMs = nowMs + STEER_UPDATE_MS;
+
+    if (stopPressed == TRUE)
+    {
+        st->phase = RACE_PHASE_STOPPED;
+    }
+
+    if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
+    {
+        st->lostSinceMs = 0U;
+    }
+    else if (st->lostSinceMs == 0U)
+    {
+        st->lostSinceMs = nowMs;
+    }
+    else if ((st->phase == RACE_PHASE_SPEED_RUN) || (st->phase == RACE_PHASE_HONOR_RUN))
+    {
+        if ((uint32)(nowMs - st->lostSinceMs) >= LINE_LOST_COAST_MS)
+        {
+            st->phase = RACE_PHASE_FAULT;
+        }
+    }
+
+    if ((st->phase == RACE_PHASE_ESC_ARM) && (time_reached(nowMs, st->armDoneMs) == TRUE))
+    {
+        st->phase = RACE_PHASE_SPEED_RUN;
+        st->finishStreak = 0U;
+        st->lostSinceMs =
+            ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST)) ? 0U : nowMs;
+    }
+
+    if ((st->phase == RACE_PHASE_SPEED_RUN) &&
+        (st->haveValidVision == TRUE) &&
+        (st->result.feature == VISION_FEATURE_FINISH_LINE) &&
+        (st->result.confidence >= (uint8)RACE_FINISH_MIN_CONFIDENCE))
+    {
+        if (st->finishStreak < 255U)
+        {
+            st->finishStreak++;
+        }
+
+        st->phase = RACE_PHASE_HONOR_RUN;
+    }
+    else if (st->phase == RACE_PHASE_SPEED_RUN)
+    {
+        st->finishStreak = 0U;
+    }
+
+    /* Steering is updated from the latest accepted vision result only inside
+       the active race phases. Other phases stay neutral and centered. */
+    if ((st->phase == RACE_PHASE_SPEED_RUN) || (st->phase == RACE_PHASE_HONOR_RUN))
+    {
+        if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
+        {
+            float dt = ((float)STEER_UPDATE_MS) * 0.001f;
+            SteeringOutput_t out;
+
+            controllerBaseSpeed = (st->currentSpeedPct > 0) ? (uint8)st->currentSpeedPct : FULL_AUTO_SPEED_PCT;
+            out = SteeringLinear_UpdateV2(&st->ctrl, &st->result, dt, controllerBaseSpeed);
+            st->steerRaw = (sint16)out.steer_cmd;
+
+            if (abs_s16(st->steerRaw) <= 2)
+            {
+                st->steerRaw = 0;
+            }
+
+            st->steerFilt = iir_s16(st->steerFilt, st->steerRaw, 0.45f);
+
+            {
+                const sint16 steerRateMax = 8;
+                sint16 delta = (sint16)(st->steerFilt - st->steerOut);
+
+                delta = clamp_s16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
+                st->steerOut = (sint16)(st->steerOut + delta);
+            }
+
+            st->steerOut = clamp_s16(st->steerOut,
+                                     (sint16)(-STEER_CMD_CLAMP),
+                                     (sint16)(+STEER_CMD_CLAMP));
+            Steer((int)st->steerOut);
+        }
+        else
+        {
+            st->steerRaw = 0;
+            st->steerFilt = 0;
+            st->steerOut = 0;
+            SteerStraight();
+        }
+    }
+    else
+    {
+        st->steerRaw = 0;
+        st->steerFilt = 0;
+        st->steerOut = 0;
+        SteerStraight();
+    }
+
+    if (st->phase == RACE_PHASE_SPEED_RUN)
+    {
+        sint32 steerSlowPct = ((sint32)abs_s16(st->steerOut) * (sint32)SPEED_SLOW_PER_STEER) /
+                              (sint32)STEER_CMD_CLAMP;
+
+        st->targetSpeedPct = (sint32)FULL_AUTO_SPEED_PCT - steerSlowPct;
+
+        if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_BOTH))
+        {
+            if (st->targetSpeedPct > (sint32)FULLMODE_SLOW_SPEED_PCT)
+            {
+                st->targetSpeedPct = (sint32)FULLMODE_SLOW_SPEED_PCT;
+            }
+        }
+
+        if ((st->haveValidVision != TRUE) || (st->result.status == VISION_TRACK_LOST))
+        {
+            st->targetSpeedPct = (sint32)SPEED_LOST_LINE;
+        }
+    }
+    else if (st->phase == RACE_PHASE_HONOR_RUN)
+    {
+        st->targetSpeedPct = honor_speed_from_distance(st->haveValidDistance, st->lastDistanceCm);
+
+        if ((st->haveValidVision != TRUE) || (st->result.status == VISION_TRACK_LOST))
+        {
+            st->targetSpeedPct = 0;
+        }
+    }
+    else
+    {
+        st->targetSpeedPct = 0;
+    }
+
+    if (st->targetSpeedPct < 0)
+    {
+        st->targetSpeedPct = 0;
+    }
+    if (st->targetSpeedPct > 100)
+    {
+        st->targetSpeedPct = 100;
+    }
+
+    /* Speed commands are rate-limited to keep ESC updates deterministic. */
+    if (time_reached(nowMs, st->nextSpeedRampMs) == TRUE)
+    {
+        st->nextSpeedRampMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+
+        if (st->currentSpeedPct < st->targetSpeedPct)
+        {
+            st->currentSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
+            if (st->currentSpeedPct > st->targetSpeedPct)
+            {
+                st->currentSpeedPct = st->targetSpeedPct;
+            }
+        }
+        else if (st->currentSpeedPct > st->targetSpeedPct)
+        {
+            st->currentSpeedPct -= (sint32)FULL_AUTO_RAMP_STEP_PCT;
+            if (st->currentSpeedPct < st->targetSpeedPct)
+            {
+                st->currentSpeedPct = st->targetSpeedPct;
+            }
+        }
+
+        if (st->currentSpeedPct <= 0)
+        {
+            st->currentSpeedPct = 0;
+            Esc_StopNeutral();
+        }
+        else
+        {
+            EscSetBrake(0U);
+            EscSetSpeed((int)(-st->currentSpeedPct));
+        }
+    }
+
+    if (st->phase == RACE_PHASE_SPEED_RUN)
+    {
+        StatusLed_Green();
+    }
+    else if (st->phase == RACE_PHASE_HONOR_RUN)
+    {
+        StatusLed_Cyan();
+    }
+    else if ((st->phase == RACE_PHASE_FAULT) || (st->ultraError == TRUE))
+    {
+        StatusLed_Red();
+    }
+    else
+    {
+        StatusLed_Blue();
+    }
+}
+
+static void race_mode_ensure_display_ready(RaceModeState_t *st)
+{
+    if ((st == NULL_PTR) || (st->displayInitialized == TRUE))
+    {
+        return;
+    }
+
+    /* The OLED path is blocking, so race mode keeps it completely out of the
+       hot path until the dedicated debug switch explicitly requests it. */
+    display_power_stabilize_delay();
+    DisplayInit(0U, STD_ON);
+    DisplayClear();
+    DisplayRefresh();
+    st->displayInitialized = TRUE;
+}
+
+static void race_mode_draw(const RaceModeState_t *st)
+{
+    const char *phaseText = "UNKNOWN";
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (st->phase)
+    {
+        case RACE_PHASE_ESC_ARM:
+            phaseText = "ARM";
+            break;
+
+        case RACE_PHASE_SPEED_RUN:
+            phaseText = "RUN";
+            break;
+
+        case RACE_PHASE_HONOR_RUN:
+            phaseText = "HONOR";
+            break;
+
+        case RACE_PHASE_STOPPED:
+            phaseText = "STOP";
+            break;
+
+        case RACE_PHASE_FAULT:
+            phaseText = "FAULT";
+            break;
+
+        default:
+            break;
+    }
+
+    DisplayTextPadded(0U, "RACE MODE");
+    DisplayTextPadded(1U, "State:");
+    DisplayText(1U, phaseText, (uint16)strlen(phaseText), 7U);
+    DisplayTextPadded(2U, "Spd:    D:");
+    DisplayValue(2U, (int)st->currentSpeedPct, 3U, 4U);
+
+    if (st->haveValidDistance == TRUE)
+    {
+        DisplayValue(2U, (int)(st->lastDistanceCm + 0.5f), 3U, 11U);
+    }
+    else
+    {
+        DisplayText(2U, "---", 3U, 11U);
+    }
+
+    DisplayTextPadded(3U, "V:      F:");
+    if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
+    {
+        DisplayValue(3U, (int)st->result.confidence, 3U, 2U);
+    }
+    else
+    {
+        DisplayText(3U, "LST", 3U, 2U);
+    }
+    DisplayValue(3U, (int)st->finishStreak, 2U, 12U);
+    DisplayRefresh();
+}
+
+static void mode_race_mode(void)
+{
+    uint32 nextButtonsMs;
+
+    App_InitRuntimeCore();
+    race_mode_enter(Timebase_GetMs());
+    nextButtonsMs = Timebase_GetMs();
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+        boolean stopPressed;
+        boolean displaySwitchOn;
+
+        while (time_reached(nowMs, nextButtonsMs) == TRUE)
+        {
+            Buttons_Update();
+            nextButtonsMs += BUTTONS_PERIOD_MS;
+        }
+
+        /* SW2 events are drained even though production race mode autostarts
+           after ESC arm. This keeps button latches from accumulating. */
+        (void)Buttons_WasPressed(BUTTON_ID_SW2);
+        stopPressed = Buttons_WasPressed(BUTTON_ID_SW3);
+        displaySwitchOn = Buttons_IsOn(BUTTON_ID_SWPCB);
+
+        race_mode_update_vision(&g_raceMode, nowMs);
+        race_mode_update_ultrasonic(&g_raceMode, nowMs);
+        race_mode_update_control(&g_raceMode, nowMs, stopPressed);
+
+        if ((displaySwitchOn == TRUE) &&
+            (g_raceMode.displayInitialized != TRUE) &&
+            (g_raceMode.phase == RACE_PHASE_ESC_ARM))
+        {
+            race_mode_ensure_display_ready(&g_raceMode);
+            nowMs = Timebase_GetMs();
+            g_raceMode.nextDisplayMs = nowMs;
+        }
+
+        if ((displaySwitchOn == TRUE) &&
+            (g_raceMode.displayInitialized == TRUE) &&
+            ((g_raceMode.displayWasOn != TRUE) || (time_reached(nowMs, g_raceMode.nextDisplayMs) == TRUE)))
+        {
+            g_raceMode.nextDisplayMs = nowMs + RACE_DISPLAY_PERIOD_MS;
+            race_mode_draw(&g_raceMode);
+        }
+
+        g_raceMode.displayWasOn = displaySwitchOn;
+    }
+}
+
 void App_RunSelectedMode(void)
 {
     switch (App_GetSelectedBuildMode())
     {
-        case APP_BUILD_MODE_RECEIVER_TEST:
-            mode_single_runtime_test(RUNTIME_TEST_RECEIVER);
+        case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
+            mode_linear_camera_test();
             break;
 
-        case APP_BUILD_MODE_SERVO_TEST:
-            mode_single_runtime_test(RUNTIME_TEST_SERVO);
-            break;
-
-        case APP_BUILD_MODE_ESC_TEST:
-            mode_single_runtime_test(RUNTIME_TEST_ESC);
+        case APP_BUILD_MODE_RACE_MODE:
+            mode_race_mode();
             break;
 
         case APP_BUILD_MODE_FINAL_DUMMY:
@@ -1616,9 +2498,8 @@ void App_RunSelectedMode(void)
             mode_nxp_cup_tests();
             break;
 
-        case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
         default:
-            mode_single_runtime_test(RUNTIME_TEST_LINEAR_CAMERA);
+            mode_final_dummy();
             break;
     }
 }

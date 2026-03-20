@@ -8,19 +8,15 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       0
-#define APP_TEST_RECEIVER_TEST            0
-#define APP_TEST_SERVO_TEST               0
-#define APP_TEST_ESC_TEST                 0
+#define APP_TEST_LINEAR_CAMERA_TEST       1
+#define APP_TEST_RACE_MODE                0
 #define APP_TEST_FINAL_DUMMY              0
-#define APP_TEST_HONOR_LAP                1
+#define APP_TEST_HONOR_LAP                0
 #define APP_TEST_NXP_CUP_TESTS            0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
-    (APP_TEST_RECEIVER_TEST) + \
-    (APP_TEST_SERVO_TEST) + \
-    (APP_TEST_ESC_TEST) + \
+    (APP_TEST_RACE_MODE) + \
     (APP_TEST_FINAL_DUMMY) + \
     (APP_TEST_HONOR_LAP) + \
     (APP_TEST_NXP_CUP_TESTS) \
@@ -45,7 +41,10 @@
 #define BUTTONS_PERIOD_MS                 5u
 #define CAMERA_PERIOD_MS                  5u
 #define DISPLAY_PERIOD_MS                 20u
+#define CAM_DEBUG_DISPLAY_PERIOD_MS       100u
 #define STEER_UPDATE_MS                   10u
+#define RACE_DISPLAY_PERIOD_MS            200u
+#define RACE_FINISH_MIN_CONFIDENCE        50U
 
 /* =========================================================
    Servo
@@ -169,9 +168,8 @@
    border stripes:
      10 mm + 124 mm + 94 mm + 74 mm + 94 mm + 124 mm + 10 mm
    = 530 mm effective width.
-   Expected finish dimensions are scaled from the currently detected lane width. */
+   Expected finish gap is scaled from the currently detected lane width. */
 #define VISION_FINISH_INNER_WIDTH_MM      530U
-#define VISION_FINISH_BAR_WIDTH_MM         94U
 #define VISION_FINISH_CENTER_GAP_MM        74U
 
 /* Finish-line detector tolerance.
