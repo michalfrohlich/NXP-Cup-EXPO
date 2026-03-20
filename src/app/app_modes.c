@@ -894,21 +894,26 @@ static void linear_camera_test_enter(uint32 nowMs)
 
 static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st)
 {
+    LinearCameraDebugCounters counters;
+
     if (st == NULL_PTR)
     {
         return;
     }
 
+    (void)memset(&counters, 0, sizeof(counters));
+    LinearCameraGetDebugCounters(&counters);
+
     DisplayTextPadded(0U, "CAM WAIT FRAME");
     DisplayTextPadded(1U, "Req:    SI:    ");
-    DisplayTextPadded(2U, "Frm:    ADC:   ");
+    DisplayTextPadded(2U, "Frm:    Evt:   ");
     DisplayTextPadded(3U, "Drop:   P: B:  ");
 
-    DisplayValue(1U, (int)LinearCameraGetFrameRequestCount(), 4U, 4U);
-    DisplayValue(1U, (int)LinearCameraGetSiPulseCount(), 4U, 11U);
-    DisplayValue(2U, (int)LinearCameraGetDmaFrameCount(), 4U, 4U);
-    DisplayValue(2U, (int)LinearCameraGetAdcCallbackCount(), 4U, 11U);
-    DisplayValue(3U, (int)LinearCameraGetDroppedFrameCount(), 4U, 5U);
+    DisplayValue(1U, (int)counters.frameRequestCount, 4U, 4U);
+    DisplayValue(1U, (int)counters.frameStartCount, 4U, 11U);
+    DisplayValue(2U, (int)counters.frameCompleteCount, 4U, 4U);
+    DisplayValue(2U, (int)counters.captureEventCount, 4U, 11U);
+    DisplayValue(3U, (int)counters.droppedFrameCount, 4U, 5U);
     DisplayText(3U, (st->paused == TRUE) ? "Y" : "N", 1U, 12U);
     DisplayText(3U, (LinearCameraIsBusy() == TRUE) ? "Y" : "N", 1U, 15U);
     DisplayRefresh();

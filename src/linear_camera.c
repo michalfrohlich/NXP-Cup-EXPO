@@ -5,7 +5,6 @@ extern "C" {
 #include "linear_camera.h"
 #include "app/car_config.h"
 #include "Adc_Types.h"
-#include "rgb_led.h"
 
 static volatile LinearCamera LinearCameraInstance;
 static Adc_ValueGroupType AdcResultBuffer;
@@ -27,7 +26,6 @@ static volatile uint32 LinearCameraFrameIntervalTicks =
     CAM_FRAME_INTERVAL_TICKS;
 static volatile uint32 LinearCameraDroppedFrameCount = 0U;
 static volatile boolean LinearCameraStreamEnabled = FALSE;
-static volatile boolean LinearCameraAdcDebugLedOn = FALSE;
 static volatile uint32 LinearCameraAdcCallbackCount = 0U;
 static volatile uint32 LinearCameraDmaFrameCount = 0U;
 static volatile uint32 LinearCameraFrameRequestCount = 0U;
@@ -35,6 +33,7 @@ static volatile uint32 LinearCameraSiPulseCount = 0U;
 static volatile boolean LinearCameraLatestFrameReady = FALSE;
 static volatile uint8 LinearCameraWriteBufferIndex = 0U;
 static volatile uint8 LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+static volatile boolean LinearCameraFramePending = FALSE;
 static volatile LinearCameraSyncPhase LinearCameraSyncPhaseState =
     LINEAR_CAMERA_SYNC_IDLE;
 
@@ -53,9 +52,7 @@ static void LinearCamera_StopCaptureHw(void)
 
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
     LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_IDLE;
-    RgbLed_SetChannel(RGB_LED_RED, false);
-    RgbLed_SetChannel(RGB_LED_GREEN, false);
-    LinearCameraAdcDebugLedOn = FALSE;
+    LinearCameraFramePending = FALSE;
 }
 
 static void LinearCamera_StartFrameTimer(void)
@@ -73,14 +70,6 @@ static void LinearCamera_StartFrameTimer(void)
 
 static void LinearCamera_RequestShutterPulse(void)
 {
-    if (LinearCameraSyncPhaseState != LINEAR_CAMERA_SYNC_IDLE)
-    {
-        Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
-        LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_IDLE;
-        LinearCameraInstance.CurrentIndex = 0U;
-        LinearCameraDroppedFrameCount++;
-    }
-
     LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_WAIT_SI_HIGH;
     LinearCameraInstance.CurrentIndex = 0U;
     Pwm_EnableNotification(LinearCameraInstance.ClkPwmChannel, PWM_FALLING_EDGE);
@@ -89,6 +78,7 @@ static void LinearCamera_RequestShutterPulse(void)
 static void LinearCamera_FinishFrame(void)
 {
     uint8 completedIndex = LinearCameraWriteBufferIndex;
+    boolean restartPending = LinearCameraFramePending;
 
     Pwm_DisableNotification(LinearCameraInstance.ClkPwmChannel);
 
@@ -102,10 +92,15 @@ static void LinearCamera_FinishFrame(void)
     LinearCameraWriteBufferIndex =
         (uint8)((LinearCameraWriteBufferIndex + 1U) % LINEAR_CAMERA_BUFFER_COUNT);
     LinearCameraDmaFrameCount++;
+    LinearCameraFramePending = FALSE;
     LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_IDLE;
     LinearCameraInstance.CurrentIndex = 0U;
 
-    RgbLed_SetChannel(RGB_LED_GREEN, true);
+    if (restartPending == TRUE)
+    {
+        LinearCamera_RequestShutterPulse();
+        LinearCamera_StartFrameTimer();
+    }
 }
 
 void NewCameraFrame(void)
@@ -117,9 +112,16 @@ void NewCameraFrame(void)
     }
 
     LinearCameraFrameRequestCount++;
-    RgbLed_SetChannel(RGB_LED_GREEN, false);
-    LinearCamera_RequestShutterPulse();
-    LinearCamera_StartFrameTimer();
+
+    if (LinearCameraSyncPhaseState == LINEAR_CAMERA_SYNC_IDLE)
+    {
+        LinearCamera_RequestShutterPulse();
+        LinearCamera_StartFrameTimer();
+    }
+    else
+    {
+        LinearCameraFramePending = TRUE;
+    }
 }
 
 void CameraClock(void)
@@ -163,8 +165,6 @@ void CameraAdcFinished(void)
     }
 
     LinearCameraAdcCallbackCount++;
-    LinearCameraAdcDebugLedOn = (LinearCameraAdcDebugLedOn == TRUE) ? FALSE : TRUE;
-    RgbLed_SetChannel(RGB_LED_RED, (LinearCameraAdcDebugLedOn == TRUE));
 
     if ((LinearCameraSyncPhaseState == LINEAR_CAMERA_SYNC_CAPTURING) &&
         (LinearCameraInstance.CurrentIndex < LINEAR_CAMERA_PIXEL_COUNT))
@@ -190,7 +190,6 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
 
     LinearCameraStreamEnabled = FALSE;
     LinearCameraDroppedFrameCount = 0U;
-    LinearCameraAdcDebugLedOn = FALSE;
     LinearCameraAdcCallbackCount = 0U;
     LinearCameraDmaFrameCount = 0U;
     LinearCameraFrameRequestCount = 0U;
@@ -198,12 +197,11 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     LinearCameraLatestFrameReady = FALSE;
     LinearCameraWriteBufferIndex = 0U;
     LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+    LinearCameraFramePending = FALSE;
     LinearCameraFrameIntervalTicks = CAM_FRAME_INTERVAL_TICKS;
     LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_IDLE;
 
     Dio_WriteChannel(LinearCameraInstance.ShutterDioChannel, (Dio_LevelType)STD_LOW);
-    RgbLed_SetChannel(RGB_LED_RED, false);
-    RgbLed_SetChannel(RGB_LED_GREEN, false);
 
     Adc_SetupResultBuffer(LinearCameraInstance.InputAdcGroup, &AdcResultBuffer);
     Adc_EnableGroupNotification(LinearCameraInstance.InputAdcGroup);
@@ -224,7 +222,6 @@ boolean LinearCameraStartStream(void)
     LinearCameraInstance.Status = LINEAR_CAMERA_CAPTURING;
 
     LinearCameraDroppedFrameCount = 0U;
-    LinearCameraAdcDebugLedOn = FALSE;
     LinearCameraAdcCallbackCount = 0U;
     LinearCameraDmaFrameCount = 0U;
     LinearCameraFrameRequestCount = 0U;
@@ -233,11 +230,10 @@ boolean LinearCameraStartStream(void)
     LinearCameraWriteBufferIndex = 0U;
     LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
     LinearCameraStreamEnabled = TRUE;
+    LinearCameraFramePending = FALSE;
     LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_IDLE;
 
     Adc_SetupResultBuffer(LinearCameraInstance.InputAdcGroup, &AdcResultBuffer);
-    RgbLed_SetChannel(RGB_LED_RED, false);
-    RgbLed_SetChannel(RGB_LED_GREEN, false);
     Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0x4000U);
     LinearCamera_StartFrameTimer();
 
@@ -312,29 +308,18 @@ uint32 LinearCameraGetFrameReadoutUs(void)
     return (clockCount * 1000000UL) / pixelClockHz;
 }
 
-uint32 LinearCameraGetDroppedFrameCount(void)
+void LinearCameraGetDebugCounters(LinearCameraDebugCounters *counters)
 {
-    return LinearCameraDroppedFrameCount;
-}
+    if (counters == (LinearCameraDebugCounters *)0)
+    {
+        return;
+    }
 
-uint32 LinearCameraGetFrameRequestCount(void)
-{
-    return LinearCameraFrameRequestCount;
-}
-
-uint32 LinearCameraGetSiPulseCount(void)
-{
-    return LinearCameraSiPulseCount;
-}
-
-uint32 LinearCameraGetAdcCallbackCount(void)
-{
-    return LinearCameraAdcCallbackCount;
-}
-
-uint32 LinearCameraGetDmaFrameCount(void)
-{
-    return LinearCameraDmaFrameCount;
+    counters->frameRequestCount = LinearCameraFrameRequestCount;
+    counters->frameStartCount = LinearCameraSiPulseCount;
+    counters->frameCompleteCount = LinearCameraDmaFrameCount;
+    counters->droppedFrameCount = LinearCameraDroppedFrameCount;
+    counters->captureEventCount = LinearCameraAdcCallbackCount;
 }
 
 #ifdef __cplusplus

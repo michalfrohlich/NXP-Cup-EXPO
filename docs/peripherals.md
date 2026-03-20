@@ -11,9 +11,9 @@ Notes:
 - `onboard_pot.c` references generated group `AdcGroup_pot`.
 - The linear camera ADC group is back to a software-triggered one-sample conversion path.
 - The handwritten camera driver starts one ADC conversion on each falling camera clock edge after the SI pulse.
+- If a new GPT frame request arrives before the current frame is done, the driver latches it and starts the next frame only after the current readout completes.
 - Each ADC callback stores one pixel into a handwritten ping-pong frame buffer.
-- Temporary scope debug: red LED toggles on each ADC callback and green LED is asserted once a full frame is published.
-- The OLED waiting screen uses the completed-frame counter plus the raw ADC callback counter to debug the manual sampling cadence.
+- The OLED waiting screen uses a neutral driver debug-counters snapshot instead of exposing ADC/DMA-specific counter getters.
 
 ## PWM
 | Purpose | Driver/module | Key files |

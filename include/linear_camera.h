@@ -26,6 +26,15 @@ typedef struct
     uint16 Values[LINEAR_CAMERA_PIXEL_COUNT];
 } LinearCameraFrame;
 
+typedef struct
+{
+    uint32 frameRequestCount;
+    uint32 frameStartCount;
+    uint32 frameCompleteCount;
+    uint32 droppedFrameCount;
+    uint32 captureEventCount;
+} LinearCameraDebugCounters;
+
 typedef enum
 {
     LINEAR_CAMERA_IDLE = 0,
@@ -60,11 +69,7 @@ boolean LinearCameraIsBusy(void);
 /* Timing/debug helpers */
 uint32 LinearCameraGetPixelClockHz(void);
 uint32 LinearCameraGetFrameReadoutUs(void);
-uint32 LinearCameraGetDroppedFrameCount(void);
-uint32 LinearCameraGetFrameRequestCount(void);
-uint32 LinearCameraGetSiPulseCount(void);
-uint32 LinearCameraGetAdcCallbackCount(void);
-uint32 LinearCameraGetDmaFrameCount(void);
+void LinearCameraGetDebugCounters(LinearCameraDebugCounters *counters);
 
 #ifdef __cplusplus
 }

@@ -88,9 +88,7 @@
 #define CAM_SHUTTER_PCR                   97U
 
 /* Camera timing.
-   CAM_SHUTTER_HIGH_TIME_TICKS controls the SI pulse width.
    CAM_FRAME_INTERVAL_TICKS controls the time between frame readouts. */
-#define CAM_SHUTTER_HIGH_TIME_TICKS       100U
 #define CAM_FRAME_INTERVAL_TICKS          56700U
 
 /* Sensor geometry.

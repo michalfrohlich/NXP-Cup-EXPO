@@ -63,13 +63,13 @@
   - drives shutter and pixel clock
   - requests frame cadence with GPT and aligns the SI pulse to two PWM falling edges
   - keeps the camera clock free-running while FTM falling-edge notifications are enabled only during the active frame window
+  - latches a pending frame request if GPT expires during an active frame, then starts the next frame only after the current one is fully published
   - samples one pixel manually per falling edge with `Adc_StartGroupConversion()`
   - stores each completed sample in `CameraAdcFinished()` into handwritten ping-pong frame buffers
   - publishes the completed `128`-pixel frame on the first falling edge after the last sample callback
-  - temporary scope instrumentation: red LED toggles on every ADC callback, green LED turns on when a full frame is published and is cleared on the next frame request
-  - exposes debug counters for requested frames, completed SI pulses, ADC callbacks, and completed frames
+  - exposes a neutral debug-counters snapshot for requested frames, frame starts, capture events, completed frames, and dropped frames
 - `app_modes.c`
-  - the linear-camera test/update path intentionally does not overwrite the RGB LED, so the camera driver can own red/green scope instrumentation during bring-up
+  - the linear-camera waiting screen consumes the driver debug-counters snapshot instead of several driver-internal counter getters
 - `services/vision_linear_v2.c`
   - filters the frame
   - computes a 1D gradient
