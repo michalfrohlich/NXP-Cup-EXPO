@@ -7,46 +7,112 @@
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
-- Main behavior is implemented as infinite loops inside the selected mode.
+- Standalone compile-time modes still own the top-level loop, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
+- `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
+- `APP_TEST_RACE_MODE` is the standalone production race flow.
+- `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
+- `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
-  - busy waits
+  - periodic state-machine updates
   - interrupt callbacks wired to RTD notifications
+
+## LED conventions in `app_modes.c`
+- Red: error or fault
+- Yellow: degraded / paused / missing valid sensor data
+- Blue: idle, setup, menu, or manual standby
+- Green: primary active run state
+- Cyan: secondary active run state (camera-servo / honor-lap style behavior)
 
 ## Current control flow
 1. `main()`
 2. `App_RunSelectedMode()`
-3. Selected mode initializes required modules
-4. Mode loop runs forever
+3. Exactly one compile-time mode is selected in `car_config.h`
+4. That mode performs common runtime init (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
+5. The selected mode runs forever
+6. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; `APP_TEST_LINEAR_CAMERA_TEST` is the only standalone individual test exception
+7. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
 
-## Current selected mode
-- `APP_TEST_FINAL_DUMMY` is enabled in `src/app/car_config.h`.
-- In `mode_final_dummy()`:
-  - SW3 switches between `DUMMY_ESC` and `DUMMY_CAM`
-  - ESC mode uses the onboard pot for manual speed command
-  - CAM mode runs camera -> vision -> steering and ramps motor speed automatically
+## Runtime-selectable tests mode
+- `APP_TEST_NXP_CUP_TESTS` adds a simple test menu driven by the onboard potentiometer.
+- While that compile-time mode is active:
+  - the pot selects the highlighted test
+  - the dedicated `swPcb` toggle switch enters or leaves the selected test
+  - `swPcb` is treated as a maintained level input, not a click-style button event
+  - the menu includes an `Ultrasonic` runtime test that triggers a measurement every 500 ms and shows status, distance, timing, and debug counters
+  - the menu includes an `Ultra+ESC` runtime test that uses the ultrasonic stopping logic from honor lap without camera or servo
+  - the menu now includes a final `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
+- `APP_TEST_FINAL_DUMMY` and `APP_TEST_HONOR_LAP` remain standalone compile-time modes and are not part of the runtime test menu
+
+## Race mode
+- `APP_TEST_RACE_MODE` is the cleaned-up production successor to `APP_TEST_FINAL_DUMMY`.
+- The mode owns ESC, servo, linear camera, vision, and ultrasonic directly instead of switching between sub-modes.
+- After startup it:
+  - arms the ESC
+  - autostarts line following
+  - runs the normal race speed policy until a confirmed finish-line detection
+  - transitions once into the honor-lap ultrasonic stopping policy
+  - stays stopped on stop/fault conditions
+- The race phase and honor-lap phase are also differentiated on the RGB LED: green in race run, cyan in honor-lap run, red on fault.
+- Finish-line detection switches to honor-lap mode on the first accepted finish-line frame that meets `RACE_FINISH_MIN_CONFIDENCE`.
+- The OLED is intentionally kept out of the hot path. In race mode it may be initialized only during ESC arm, and is refreshed later only if `swPcb` is on and the display was already brought up before the race started.
 
 ## Data flow
 ### Camera steering path
 - `linear_camera.c`
   - drives shutter and pixel clock
-  - samples 128 pixels through ADC
-  - publishes the latest frame through ping-pong buffers
+  - requests frame cadence with GPT and aligns the SI pulse to two PWM falling edges
+  - keeps the camera clock free-running while FTM falling-edge notifications are enabled only during the active frame window
+  - samples one pixel manually per falling edge with `Adc_StartGroupConversion()`
+  - stores each completed sample in `CameraAdcFinished()` into handwritten ping-pong frame buffers
+  - publishes the completed `128`-pixel frame on the first falling edge after the last sample callback
+  - temporary scope instrumentation: red LED toggles on every ADC callback, green LED turns on when a full frame is published and is cleared on the next frame request
+  - exposes debug counters for requested frames, completed SI pulses, ADC callbacks, and completed frames
+- `app_modes.c`
+  - the linear-camera test/update path intentionally does not overwrite the RGB LED, so the camera driver can own red/green scope instrumentation during bring-up
 - `services/vision_linear_v2.c`
   - filters the frame
   - computes a 1D gradient
-  - selects lane edges / track center
+  - selects lane edges / track center from signed edge candidates
+  - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
 - `servo.c`
   - applies steering through PWM
 
+### Honor lap path
+- `app_modes.c`
+  - reuses the linear camera debug/servo path for continuous line following
+  - keeps the OLED active in linear-camera debug mode even before first valid frame by showing camera trigger/DMA/ADC counters
+  - overrides steering tunings with the `HONOR_*` constants from `car_config.h`
+  - arms the ESC at startup, then commands forward speed from the honor-lap distance policy
+- `ultrasonic.c`
+  - provides periodic obstacle distance samples
+  - can reduce commanded speed through the `HONOR_SLOW*` and `HONOR_STOP_*` thresholds
+
+### Race mode path
+- `app_modes.c`
+  - initializes ESC, servo, camera, steering, and ultrasonic once at mode entry
+  - runs a deterministic ordered loop:
+    - fetch/process the newest camera frame
+    - service ultrasonic timing and capture state
+    - update steering and speed commands
+  - rate-limits the ESC command with the existing ramp constants
+  - switches from race-speed policy to honor-lap obstacle-stop policy after confirmed finish detection
+  - only renders OLED telemetry when `swPcb` enables debug display
+
 ### Manual / motor path
 - `onboard_pot.c`
   - samples the potentiometer through ADC
 - `app_modes.c`
-  - maps pot value to speed in ESC mode
-  - ramps speed in camera mode
+  - maps pot value to speed in `FINAL_DUMMY` ESC mode
+  - ramps speed in `FINAL_DUMMY` camera mode
+  - uses the same manual arm/run ESC flow in standalone ESC test mode and in `FINAL_DUMMY` ESC mode
+  - draws an ESC test screen with arm/run state, pot level, and commanded speed in standalone ESC mode
+  - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
+  - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning honor-lap obstacle stopping
+  - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
+  - uses a manual standalone servo test driven by the potentiometer, with on-screen pot, steer, and PWM values
 - `esc.c`
   - applies motor command through PWM and an internal ESC state machine
 
@@ -58,6 +124,7 @@
 ## Interrupt / callback-driven pieces
 - `timebase.c`: `EmuTimer_Notification()`, `UsTimer_Notification()`
 - `linear_camera.c`: `NewCameraFrame()`, `CameraClock()`, `CameraAdcFinished()`
+  - `CameraAdcFinished()` stores one manual ADC sample per clock edge into the current frame buffer
 - `ultrasonic.c`: `Icu_TimestampUltrasonicNotification()`
 - `receiver.c`: `Icu_SignalNotification()`, `Gpt_Notification()`
 - `esc.c`: `Esc_Period_Finished()`
@@ -69,3 +136,8 @@
 - Steering: `src/services/steering_control_linear.c`, `src/servo.c`
 - Motor control: `src/esc.c`, `src/hbridge.c`
 - Sensors / IO: `src/linear_camera.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/buttons.c`, `src/display.c`, `src/rgb_led.c`
+
+## Current vision notes
+- The public vision handoff is `VisionOutput_t` in `src/app/main_types.h`.
+- The current finish detector is gap-based, not region-based.
+- The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.

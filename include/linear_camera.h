@@ -12,7 +12,6 @@ extern "C" {
 #include "Platform_Types.h"
 
 #define LINEAR_CAMERA_PIXEL_COUNT (128U)
-
 /*
  * Timing helper values below are used only for driver-side calculations such
  * as reporting effective pixel clock and frame readout time. They document the
@@ -49,7 +48,7 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel);
 
-/* Starts free-running capture into internal ping-pong buffers. */
+/* Starts free-running camera clock with SI-aligned manual ADC sampling. */
 boolean LinearCameraStartStream(void);
 void LinearCameraStopStream(void);
 void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks);
@@ -62,6 +61,10 @@ boolean LinearCameraIsBusy(void);
 uint32 LinearCameraGetPixelClockHz(void);
 uint32 LinearCameraGetFrameReadoutUs(void);
 uint32 LinearCameraGetDroppedFrameCount(void);
+uint32 LinearCameraGetFrameRequestCount(void);
+uint32 LinearCameraGetSiPulseCount(void);
+uint32 LinearCameraGetAdcCallbackCount(void);
+uint32 LinearCameraGetDmaFrameCount(void);
 
 #ifdef __cplusplus
 }

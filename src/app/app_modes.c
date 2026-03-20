@@ -901,7 +901,7 @@ static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st)
 
     DisplayTextPadded(0U, "CAM WAIT FRAME");
     DisplayTextPadded(1U, "Req:    SI:    ");
-    DisplayTextPadded(2U, "DMA:    ADC:   ");
+    DisplayTextPadded(2U, "Frm:    ADC:   ");
     DisplayTextPadded(3U, "Drop:   P: B:  ");
 
     DisplayValue(1U, (int)LinearCameraGetFrameRequestCount(), 4U, 4U);
@@ -1075,26 +1075,6 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
         }
     }
 
-    if (g_linearCameraTest.paused == TRUE)
-    {
-        StatusLed_Yellow();
-    }
-    else if (g_linearCameraTest.haveValidVision != TRUE)
-    {
-        StatusLed_Blue();
-    }
-    else if (g_linearCameraTest.result.status == VISION_TRACK_LOST)
-    {
-        StatusLed_Yellow();
-    }
-    else if (g_linearCameraTest.servoEnabled == TRUE)
-    {
-        StatusLed_Cyan();
-    }
-    else
-    {
-        StatusLed_Green();
-    }
 }
 
 static void linear_camera_test_exit(void)

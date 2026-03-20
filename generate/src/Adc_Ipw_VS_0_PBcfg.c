@@ -185,8 +185,6 @@ extern "C"{
 * @brief          Group Channel Delays for configuration variant _VS_0.
 *
 */
-
-
 #define ADC_STOP_SEC_CONFIG_DATA_16
 #include "Adc_MemMap.h"
 
