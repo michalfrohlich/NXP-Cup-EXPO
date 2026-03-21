@@ -228,12 +228,32 @@ void DisplayRefresh(void){
     I2c_SyncTransmit(DisplayInstance.I2cChannel, &ThreeByteCommandRequest);
 }
 
-void DisplayText(uint16 DisplayLine, const char Text[16], uint16 TextLength, uint16 TextOffset){
+void DisplayText(uint16 DisplayLine, const char *Text, uint16 TextLength, uint16 TextOffset){
     uint16 StartIndex;
     uint16 StopIndex;
     unsigned char AsciiCharacter;
+
+    if ((Text == NULL) || (DisplayLine >= CharacterRows) || (TextOffset >= CharacterColumns))
+    {
+        return;
+    }
+
+    if ((TextOffset + TextLength) > CharacterColumns)
+    {
+        TextLength = (uint16)(CharacterColumns - TextOffset);
+    }
+
     for(uint8 i = TextOffset; i < 16U; i++){
-        DisplayInstance.ScreenCharBuffer[DisplayLine][i]=Text[i - TextOffset];
+        uint16 textIndex = (uint16)(i - TextOffset);
+
+        if (textIndex < TextLength)
+        {
+            DisplayInstance.ScreenCharBuffer[DisplayLine][i] = Text[textIndex];
+        }
+        else
+        {
+            DisplayInstance.ScreenCharBuffer[DisplayLine][i] = ' ';
+        }
     }
     StartIndex = DisplayLine * 16U + TextOffset;
     StopIndex = DisplayLine * 16U + TextLength + TextOffset;
@@ -298,13 +318,23 @@ void DisplayValue(uint16 DisplayLine, int Number, uint16 TextLength, uint16 Text
     }
 }
 
-void DisplayGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan){
+void DisplayGraph(uint8 DisplayLine, const uint8 *Values, uint16 ValuesCount, uint8 LinesSpan){
     uint8 CurrentBitsShiftPositions;
     uint8 PreviousBitsShiftPositions;
     uint32 CurrentBitsMask;
     uint32 PreviousBitsMask;
     uint32 ColumnPixels;
     uint8 CurrentPixels;
+
+    if ((Values == NULL) || (ValuesCount == 0U) || (LinesSpan == 0U))
+    {
+        return;
+    }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows)
+    {
+        return;
+    }
+
     /*Calculate the position of the pixel on the graph column, build the graph column by shifting and store it*/
     ColumnPixels = 1U << ((100U - (uint32)Values[0]) * (uint32)LinesSpan * 8U / 100U);
     for(uint8 RowIndex = DisplayLine; RowIndex < LinesSpan + DisplayLine; RowIndex++){
@@ -444,10 +474,19 @@ void DisplaySignedGraph(uint8 DisplayLine,
     }
 }
 
-void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan)
+void DisplayBarGraph(uint8 DisplayLine, const uint8 *Values, uint16 ValuesCount, uint8 LinesSpan)
 {
     uint32 ColumnPixels;
     uint8  CurrentPixels;
+
+    if ((Values == NULL) || (ValuesCount == 0U) || (LinesSpan == 0U))
+    {
+        return;
+    }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows)
+    {
+        return;
+    }
 
     /* Total vertical pixels for this graph region */
     uint8 totalPixels      = (uint8)(LinesSpan * 8U);          /* e.g. 3*8 = 24 */

@@ -54,6 +54,7 @@ boolean LinearCameraStartStream(void);
 void LinearCameraStopStream(void);
 void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks);
 boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame);
+boolean LinearCameraCopyLatestFrame(LinearCameraFrame *Frame);
 
 LinearCameraStatus LinearCameraGetStatus(void);
 boolean LinearCameraIsBusy(void);

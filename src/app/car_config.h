@@ -31,7 +31,7 @@
 /* =========================================================
    Ultrasonic default + runtime toggle
 ========================================================= */
-#define ULTRASONIC_DEFAULT_ON             1
+#define ULTRASONIC_DEFAULT_ON             0
 
 /* =========================================================
    Timing
@@ -302,55 +302,55 @@ Ultrasonic testing notes:
 
 
 /* ---------- SUPERFAST ---------- */
-#define NXP_CUP_SUPERFAST_KP              4.0f
-#define NXP_CUP_SUPERFAST_KD              1.6f
+#define NXP_CUP_SUPERFAST_KP              3.40f
+#define NXP_CUP_SUPERFAST_KD              0.88f
 #define NXP_CUP_SUPERFAST_KI              0.02f
-#define NXP_CUP_SUPERFAST_ITERM_CLAMP     0.12f
-#define NXP_CUP_SUPERFAST_STEER_CLAMP     70
-#define NXP_CUP_SUPERFAST_STEER_LPF_ALPHA 0.58f
-#define NXP_CUP_SUPERFAST_STEER_RATE_MAX  32
+#define NXP_CUP_SUPERFAST_ITERM_CLAMP     0.06f
+#define NXP_CUP_SUPERFAST_STEER_CLAMP     60
+#define NXP_CUP_SUPERFAST_STEER_LPF_ALPHA 0.44f
+#define NXP_CUP_SUPERFAST_STEER_RATE_MAX  24
 #define NXP_CUP_SUPERFAST_SPEED_PCT       40
 
 /* ---------- 5050 ---------- */
-#define NXP_CUP_5050_KP                   1.75f
-#define NXP_CUP_5050_KD                   0.95f
+#define NXP_CUP_5050_KP                   1.48f
+#define NXP_CUP_5050_KD                   0.52f
 #define NXP_CUP_5050_KI                   0.00f
-#define NXP_CUP_5050_ITERM_CLAMP          0.04f
-#define NXP_CUP_5050_STEER_CLAMP          70
-#define NXP_CUP_5050_STEER_LPF_ALPHA      0.48f
-#define NXP_CUP_5050_STEER_RATE_MAX       11
+#define NXP_CUP_5050_ITERM_CLAMP          0.02f
+#define NXP_CUP_5050_STEER_CLAMP          60
+#define NXP_CUP_5050_STEER_LPF_ALPHA      0.36f
+#define NXP_CUP_5050_STEER_RATE_MAX       8
 #define NXP_CUP_5050_SPEED_PCT            25
 
 /* ---------- SLOW ---------- */
-#define NXP_CUP_SLOW_KP                   0.85f
-#define NXP_CUP_SLOW_KD                   0.40f
+#define NXP_CUP_SLOW_KP                   0.72f
+#define NXP_CUP_SLOW_KD                   0.22f
 #define NXP_CUP_SLOW_KI                   0.00f
-#define NXP_CUP_SLOW_ITERM_CLAMP          0.06f
-#define NXP_CUP_SLOW_STEER_CLAMP          70
-#define NXP_CUP_SLOW_STEER_LPF_ALPHA      0.50f
+#define NXP_CUP_SLOW_ITERM_CLAMP          0.03f
+#define NXP_CUP_SLOW_STEER_CLAMP          60
+#define NXP_CUP_SLOW_STEER_LPF_ALPHA      0.38f
 /* Lower than the other profiles on purpose so the servo sweeps across its
    range more slowly while you tune the slow mode. */
-#define NXP_CUP_SLOW_STEER_RATE_MAX       8
-#define NXP_CUP_SLOW_SPEED_PCT            14
+#define NXP_CUP_SLOW_STEER_RATE_MAX       6
+#define NXP_CUP_SLOW_SPEED_PCT            16
 
 
 
 
 /* ---------- NXP CUP ultrasonic behavior ----------
    Set to 0 while tuning in a small room with nearby walls. */
-#define NXP_CUP_ULTRASONIC_ENABLE         1
+#define NXP_CUP_ULTRASONIC_ENABLE         0
 /* Lower period = faster re-trigger / faster wall detection. */
-#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   10u
+#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   5u
 
-/* Delay before ultrasonic is allowed to affect the run. */
-#define NXP_ULTRA_ENABLE_AFTER_RUN_MS     1000u
+/* 0 = ultrasonic can affect the run immediately after launch. */
+#define NXP_ULTRA_ENABLE_AFTER_RUN_MS     0u
 
 /* At or below this distance, speed is forced to 0 for NXP_CUP_ULTRA_STOP_HOLD_MS. */
-#define NXP_CUP_ULTRA_STOP_CM             50.0f
-/* At or below this distance, stop ESC and stop issuing steering updates. */
-#define NXP_CUP_ULTRA_CRAWL_STOP_CM       9.0f
+#define NXP_CUP_ULTRA_STOP_CM             60.0f
+/* At or below this distance, stop ESC and keep steering centered. */
+#define NXP_CUP_ULTRA_CRAWL_STOP_CM       10.0f
 /* After the hold, the car resumes at this fixed speed. */
-#define NXP_CUP_ULTRA_CRAWL_SPEED_PCT     5U
+#define NXP_CUP_ULTRA_CRAWL_SPEED_PCT     10U
 /* Hold time at zero speed after the 50 cm trigger. */
 #define NXP_CUP_ULTRA_STOP_HOLD_MS        2000u
 

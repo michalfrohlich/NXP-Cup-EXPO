@@ -689,9 +689,9 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
     VisionDebug_OnTick(&st->vdbg, allowSw2DebugUi, FALSE);
 
     {
-        const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
+        LinearCameraFrame latestFrame;
 
-        if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
+        if (LinearCameraCopyLatestFrame(&latestFrame) == TRUE)
         {
             st->dbg.mask = (uint32)VLIN_DBG_NONE;
             st->dbg.filteredOut = (uint16*)0;
@@ -707,7 +707,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
             }
 
             (void)memcpy(st->processedFrame.Values,
-                         &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                         &latestFrame.Values[CAM_TRIM_LEFT_PX],
                          ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
 
             VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
@@ -772,6 +772,17 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                     st->steerOut = clamp_s16(st->steerOut,
                                              (sint16)(-st->activeTune.steerClamp),
                                              (sint16)(+st->activeTune.steerClamp));
+                }
+                else
+                {
+                    /* A fresh frame reported track-lost/brake. Do not keep
+                       driving the servo with the last non-zero command. */
+                    st->steerRaw = 0;
+                    st->steerFilt = iir_s16(st->steerFilt, 0, st->activeTune.steerLpfAlpha);
+                    st->steerOut = steer_rate_limit_s16(st->steerOut,
+                                                        0,
+                                                        st->activeTune.steerRateMax,
+                                                        st->activeTune.steerClamp);
                 }
             }
 
@@ -1070,7 +1081,8 @@ static void nxp_cup_ultra_enter(NxpCupUltraState_t *st, uint32 nowMs)
     st->enabled = TRUE;
     st->haveValidDistance = FALSE;
     st->lastDistanceCm = 0.0f;
-    st->nextTriggerMs = nowMs + (uint32)NXP_CUP_ULTRA_TRIGGER_PERIOD_MS;
+    /* Start sampling immediately so the sensor already has fresh data by RUN. */
+    st->nextTriggerMs = nowMs;
     st->ultraEnableMs = 0u;
     st->mode = NXP_CUP_ULTRA_CLEAR;
     st->modeUntilMs = 0u;
@@ -1093,9 +1105,11 @@ static void nxp_cup_ultra_arm_for_run(NxpCupUltraState_t *st, uint32 nowMs)
         return;
     }
 
-    st->haveValidDistance = FALSE;
-    st->lastDistanceCm = 0.0f;
+    /* Keep the most recent pre-launch measurement so RUN can react on its
+       first cycle instead of waiting for another fresh frame. */
     st->ultraEnableMs = nowMs + NXP_ULTRA_ENABLE_AFTER_RUN_MS;
+    /* Force an immediate measurement on launch instead of waiting another period. */
+    st->nextTriggerMs = nowMs;
     st->mode = NXP_CUP_ULTRA_CLEAR;
     st->modeUntilMs = 0u;
 }
@@ -1228,7 +1242,14 @@ static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st,
         return FALSE;
     }
 
-    return (st->mode == NXP_CUP_ULTRA_CUTOFF) ? TRUE : FALSE;
+    if ((st->mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+        (st->mode == NXP_CUP_ULTRA_CRAWL) ||
+        (st->mode == NXP_CUP_ULTRA_CUTOFF))
+    {
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st,
@@ -1448,6 +1469,8 @@ static void mode_nxp_cup(void)
 
         if (state == NXP_CUP_STATE_ESC_REARM)
         {
+            nxp_cup_ultra_task(&ultraSt, now);
+
             if (cameraStarted == TRUE)
             {
                 camservo_update(&camSt, now, FALSE);
@@ -1500,10 +1523,30 @@ static void mode_nxp_cup(void)
                 if (autoSpeedPct < 0)   { autoSpeedPct = 0; }
                 if (autoSpeedPct > 100) { autoSpeedPct = 100; }
 
-                nxp_cup_launch_motor((int)(-autoSpeedPct));
-
                 /* Only after launch do we start the ultrasonic enable timer */
                 nxp_cup_ultra_arm_for_run(&ultraSt, now);
+                nxp_cup_ultra_task(&ultraSt, now);
+
+                if ((ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+                    (ultraSt.mode == NXP_CUP_ULTRA_CUTOFF))
+                {
+                    autoSpeedPct = 0;
+                    nxp_cup_obstacle_stop_motor();
+                    steer_center_safe();
+                }
+                else
+                {
+                    sint32 launchSpeedPct =
+                        (sint32)nxp_cup_ultra_target_speed_pct(&ultraSt,
+                                                               now,
+                                                               (uint8)autoSpeedPct);
+
+                    if (launchSpeedPct < 0)   { launchSpeedPct = 0; }
+                    if (launchSpeedPct > 100) { launchSpeedPct = 100; }
+
+                    autoSpeedPct = launchSpeedPct;
+                    nxp_cup_launch_motor((int)(-autoSpeedPct));
+                }
 
                 nextAutoSpeedMs = now + FULL_AUTO_RAMP_PERIOD_MS;
                 state = NXP_CUP_STATE_RUN;
@@ -1517,8 +1560,8 @@ static void mode_nxp_cup(void)
 
         if (cameraStarted == TRUE)
         {
-            /* At cutoff distance, stop issuing new steering commands and keep
-               the steering centered in software. */
+            /* While ultrasonic is handling an obstacle, keep steering pointed
+               straight ahead instead of continuing camera corrections. */
             if (nxp_cup_ultra_should_hold_servo(&ultraSt, now) == TRUE)
             {
                 steer_center_safe();
@@ -1702,9 +1745,9 @@ static void mode_linear_camera_test(void)
 
         if (paused != TRUE)
         {
-            const LinearCameraFrame *latestFrame = (const LinearCameraFrame*)0;
+            LinearCameraFrame latestFrame;
 
-            if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
+            if (LinearCameraCopyLatestFrame(&latestFrame) == TRUE)
             {
                 dbg.mask = (uint32)VLIN_DBG_NONE;
                 dbg.filteredOut = (uint16*)0;
@@ -1718,7 +1761,7 @@ static void mode_linear_camera_test(void)
                 RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = true });
 
                 (void)memcpy(processedFrame.Values,
-                             &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                             &latestFrame.Values[CAM_TRIM_LEFT_PX],
                              ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(processedFrame.Values[0])));
                 VisionLinear_ProcessFrameEx(processedFrame.Values, &result, &dbg);
 

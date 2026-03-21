@@ -5,6 +5,8 @@ extern "C" {
 #include "linear_camera.h"
 #include "app/car_config.h"
 #include "Adc_Types.h"
+#include "OsIf.h"
+#include <string.h>
 
 static volatile LinearCamera LinearCameraInstance;
 static Adc_ValueGroupType AdcResultBuffer;
@@ -230,6 +232,32 @@ boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame)
     }
 
     return FALSE;
+}
+
+boolean LinearCameraCopyLatestFrame(LinearCameraFrame *Frame)
+{
+    boolean hasFrame = FALSE;
+
+    if (Frame == (LinearCameraFrame *)0)
+    {
+        return FALSE;
+    }
+
+    OsIf_SuspendAllInterrupts();
+
+    if ((LinearCameraLatestFrameReady == TRUE) &&
+        (LinearCameraReadyBufferIndex != LINEAR_CAMERA_INVALID_INDEX))
+    {
+        (void)memcpy(Frame,
+                     &LinearCameraBuffers[LinearCameraReadyBufferIndex],
+                     sizeof(*Frame));
+        LinearCameraLatestFrameReady = FALSE;
+        hasFrame = TRUE;
+    }
+
+    OsIf_ResumeAllInterrupts();
+
+    return hasFrame;
 }
 
 LinearCameraStatus LinearCameraGetStatus(void)

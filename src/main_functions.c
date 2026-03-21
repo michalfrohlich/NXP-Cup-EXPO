@@ -44,6 +44,7 @@ extern "C" {
 #include "linear_camera.h"
 #include "buttons.h"
 #include "ultrasonic.h"
+#include <stdio.h>
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -75,6 +76,21 @@ extern "C" {
 /*==================================================================================================
  *                                       LOCAL FUNCTIONS
 ==================================================================================================*/
+static uint8 MainFunctions_ScaleSampleToPct(uint16 sample)
+{
+    uint32 pct = ((uint32)sample * 100U) / 4095U;
+
+    if (pct == 0U)
+    {
+        return 1U;
+    }
+    if (pct > 100U)
+    {
+        return 100U;
+    }
+
+    return (uint8)pct;
+}
 
 /*==================================================================================================
  *                                       GLOBAL FUNCTIONS
@@ -146,13 +162,20 @@ Vector NormalizePixyVector(Vector PixyVector){
 void Pixy2Test(){
     DetectedVectors PixyVectors;
     volatile uint16 Delay = 10000;
+    char line[17];
     Pixy2SetLed(0U,255U,0U);
     while(1){
         DisplayClear();
         Pixy2GetVectors(&PixyVectors);
-        DisplayValue(0U, PixyVectors.NumberOfVectors, 3U, 0U);
-        for(uint8 Index = 0U; Index < PixyVectors.NumberOfVectors; Index++){
-            DisplayVector(NormalizePixyVector(PixyVectors.Vectors[Index]));
+        (void)snprintf(line, sizeof(line), "Vec:%3u", (unsigned)PixyVectors.NumberOfVectors);
+        DisplayText(0U, line, 16U, 0U);
+        if (PixyVectors.NumberOfVectors > 0U)
+        {
+            Vector vec = NormalizePixyVector(PixyVectors.Vectors[0U]);
+            (void)snprintf(line, sizeof(line), "X:%03u-%03u", (unsigned)vec.x0, (unsigned)vec.x1);
+            DisplayText(1U, line, 16U, 0U);
+            (void)snprintf(line, sizeof(line), "Y:%03u-%03u", (unsigned)vec.y0, (unsigned)vec.y1);
+            DisplayText(2U, line, 16U, 0U);
         }
         DisplayRefresh();
         Delay=10000U;
@@ -239,9 +262,19 @@ void ServoTest() {
 
 void LinearCameraTest(){
     LinearCameraFrame FrameBuffer;
+    uint8 GraphValues[LINEAR_CAMERA_PIXEL_COUNT] = {0U};
     while(1){
-        LinearCameraGetFrame(&FrameBuffer);
-        DisplayGraph(0U, FrameBuffer.Values, 128U, 4U);
+        if (LinearCameraCopyLatestFrame(&FrameBuffer) == TRUE)
+        {
+            uint8 Index;
+
+            for (Index = 0U; Index < LINEAR_CAMERA_PIXEL_COUNT; Index++)
+            {
+                GraphValues[Index] = MainFunctions_ScaleSampleToPct(FrameBuffer.Values[Index]);
+            }
+        }
+
+        DisplayGraph(0U, GraphValues, LINEAR_CAMERA_PIXEL_COUNT, 4U);
         DisplayRefresh();
     }
 }
