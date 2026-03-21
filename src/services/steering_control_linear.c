@@ -85,7 +85,7 @@ void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, flo
      - out.brake TRUE if line lost
 ========================================================= */
 SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
-                                        const VisionLinear_ResultType *r,
+                                        const VisionOutput_t *r,
                                         float dt_seconds,
                                         uint8 base_speed)
 {
@@ -96,8 +96,8 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
 
     /* Vision invalid / lost line -> request braking */
     if ((s == (SteeringLinearState_t*)0) ||
-        (r == (const VisionLinear_ResultType*)0) ||
-        (r->Status == VISION_LINEAR_LOST))
+        (r == (const VisionOutput_t*)0) ||
+        (r->status == VISION_TRACK_LOST))
     {
         out.brake = TRUE;
         out.throttle_pct = 0u;
@@ -108,7 +108,7 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
     /* =====================================================
        1) Error from vision
        ===================================================== */
-    float err = r->Error; /* [-1..+1] */
+    float err = r->error; /* [-1..+1] */
 
     /* =====================================================
        2) Derivative term

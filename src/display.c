@@ -35,7 +35,6 @@ extern "C" {
 #include "Port.h"
 #include "CDD_I2c.h"
 #include "display.h"
-#include "main_types.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -331,6 +330,120 @@ void DisplayGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint
     }
 }
 
+void DisplaySignedGraph(uint8 DisplayLine,
+                        const sint16 *Values,
+                        uint16 ValuesCount,
+                        uint8 LinesSpan,
+                        uint16 MaxAbsValue)
+{
+    uint8 totalPixels;
+    uint8 baselinePx;
+    uint16 scaleAbs = MaxAbsValue;
+    uint16 columnIndex;
+    uint8 rowIndex;
+    uint32 baselineMask = 0U;
+    uint8 prevYPx;
+
+    if ((Values == NULL) || (ValuesCount == 0U) || (LinesSpan == 0U))
+    {
+        return;
+    }
+    if ((uint8)(DisplayLine + LinesSpan) > CharacterRows)
+    {
+        return;
+    }
+
+    totalPixels = (uint8)(LinesSpan * 8U);
+    if (totalPixels == 0U)
+    {
+        return;
+    }
+
+    baselinePx = (uint8)(totalPixels / 2U);
+    if (baselinePx >= totalPixels)
+    {
+        baselinePx = (uint8)(totalPixels - 1U);
+    }
+
+    if (scaleAbs == 0U)
+    {
+        for (columnIndex = 0U; columnIndex < ValuesCount; columnIndex++)
+        {
+            uint16 absValue = (Values[columnIndex] < 0) ? (uint16)(-Values[columnIndex]) : (uint16)Values[columnIndex];
+            if (absValue > scaleAbs)
+            {
+                scaleAbs = absValue;
+            }
+        }
+    }
+    if (scaleAbs == 0U)
+    {
+        scaleAbs = 1U;
+    }
+
+    baselineMask = (uint32)1UL << baselinePx;
+
+    {
+        sint32 clamped = Values[0];
+        sint32 yOffset;
+        uint8 currentYPx;
+        uint32 columnPixels;
+
+        if (clamped > (sint32)scaleAbs) { clamped = (sint32)scaleAbs; }
+        if (clamped < -((sint32)scaleAbs)) { clamped = -((sint32)scaleAbs); }
+
+        yOffset = (clamped * (sint32)(baselinePx)) / (sint32)scaleAbs;
+        currentYPx = (uint8)((sint32)baselinePx - yOffset);
+        columnPixels = baselineMask | ((uint32)1UL << currentYPx);
+
+        for (rowIndex = DisplayLine; rowIndex < (uint8)(DisplayLine + LinesSpan); rowIndex++)
+        {
+            uint8 currentPixels = (uint8)(columnPixels >> (8U * (rowIndex - DisplayLine)));
+            AllDataBuffer[rowIndex * 128U + 1U] = currentPixels;
+        }
+
+        prevYPx = currentYPx;
+    }
+
+    for (columnIndex = 1U; columnIndex < ValuesCount; columnIndex++)
+    {
+        sint32 clamped = Values[columnIndex];
+        sint32 yOffset;
+        uint8 currentYPx;
+        uint8 yMin;
+        uint8 yMax;
+        uint32 columnPixels;
+
+        if (clamped > (sint32)scaleAbs) { clamped = (sint32)scaleAbs; }
+        if (clamped < -((sint32)scaleAbs)) { clamped = -((sint32)scaleAbs); }
+
+        yOffset = (clamped * (sint32)(baselinePx)) / (sint32)scaleAbs;
+        currentYPx = (uint8)((sint32)baselinePx - yOffset);
+
+        yMin = (currentYPx < prevYPx) ? currentYPx : prevYPx;
+        yMax = (currentYPx > prevYPx) ? currentYPx : prevYPx;
+
+        columnPixels = baselineMask;
+        while (yMin <= yMax)
+        {
+            columnPixels |= ((uint32)1UL << yMin);
+            if (yMin == 31U)
+            {
+                break;
+            }
+            yMin++;
+        }
+
+        for (rowIndex = DisplayLine; rowIndex < (uint8)(DisplayLine + LinesSpan); rowIndex++)
+        {
+            uint8 currentPixels = (uint8)(columnPixels >> (8U * (rowIndex - DisplayLine)));
+            AllDataBuffer[rowIndex * 128U + columnIndex + 1U] = currentPixels;
+        }
+
+        prevYPx = currentYPx;
+    }
+}
+
 void DisplayBarGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan)
 {
     uint32 ColumnPixels;
@@ -464,67 +577,6 @@ void DisplayOverlayHorizontalSegment(uint8 DisplayLine, uint8 LinesSpan, uint8 y
 void DisplayClear(){
     for(uint16 Index = 1U; Index < CharacterRows * 8U * CharacterColumns + 1U; Index++){
         AllDataBuffer[Index] = 0U;
-    }
-}
-
-void DisplayVector(Vector VectorCoordinates){
-    volatile uint16 HorizontalIndexStart, HorizontalIndexEnd, VerticalIndexStart, VerticalIndexEnd, HorizontalIndex, VerticalIndex;
-    /*scale the coordinates from -100 100 to display dimensions*/
-    VectorCoordinates.x0 = VectorCoordinates.x0 * (CharacterColumns * 8U - 1U) / 100U;
-    VectorCoordinates.x1 = VectorCoordinates.x1 * (CharacterColumns * 8U - 1U) / 100U;
-    VectorCoordinates.y0 = VectorCoordinates.y0 * (CharacterRows * 8U - 1U) / 100U;
-    VectorCoordinates.y1 = VectorCoordinates.y1 * (CharacterRows * 8U - 1U) / 100U;
-    /*printing the horizontal points along the vector*/
-    if(VectorCoordinates.x0 <= VectorCoordinates.x1){
-        HorizontalIndexStart = VectorCoordinates.x0;
-        HorizontalIndexEnd = VectorCoordinates.x1;
-        VerticalIndexStart = VectorCoordinates.y0;
-        VerticalIndexEnd = VectorCoordinates.y1;
-    }
-    else{
-        HorizontalIndexStart = VectorCoordinates.x1;
-        HorizontalIndexEnd = VectorCoordinates.x0;
-        VerticalIndexStart = VectorCoordinates.y1;
-        VerticalIndexEnd = VectorCoordinates.y0;
-    }
-    if(VerticalIndexStart <= VerticalIndexEnd){
-        for(HorizontalIndex = HorizontalIndexStart; HorizontalIndex < HorizontalIndexEnd; HorizontalIndex++){
-            VerticalIndex = VerticalIndexStart + ((HorizontalIndex - HorizontalIndexStart) * (VerticalIndexEnd - VerticalIndexStart) / (HorizontalIndexEnd - HorizontalIndexStart));
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U)* 128U + 1U] |= 1 << (VerticalIndex % 8U);
-        }
-    }
-    else if(VerticalIndexStart > VerticalIndexEnd)
-    {
-        for(HorizontalIndex = HorizontalIndexStart; HorizontalIndex < HorizontalIndexEnd; HorizontalIndex++){
-            VerticalIndex = VerticalIndexStart - ((HorizontalIndex - HorizontalIndexStart) * (VerticalIndexStart - VerticalIndexEnd) / (HorizontalIndexEnd - HorizontalIndexStart));
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U)* 128U + 1U] |= 1 << (VerticalIndex % 8U);
-        }
-    }
-    /*printing the vertical points along the vector*/
-    if(VectorCoordinates.y0 <= VectorCoordinates.y1){
-        HorizontalIndexStart = VectorCoordinates.x0;
-        HorizontalIndexEnd = VectorCoordinates.x1;
-        VerticalIndexStart = VectorCoordinates.y0;
-        VerticalIndexEnd = VectorCoordinates.y1;
-    }
-    else{
-        HorizontalIndexStart = VectorCoordinates.x1;
-        HorizontalIndexEnd = VectorCoordinates.x0;
-        VerticalIndexStart = VectorCoordinates.y1;
-        VerticalIndexEnd = VectorCoordinates.y0;
-    }
-    if(HorizontalIndexStart <= HorizontalIndexEnd){
-        for(VerticalIndex = VerticalIndexStart; VerticalIndex < VerticalIndexEnd; VerticalIndex++){
-            /*put the value in the buffer*/
-            HorizontalIndex = HorizontalIndexStart + ((VerticalIndex - VerticalIndexStart) * (HorizontalIndexEnd - HorizontalIndexStart)) / (VerticalIndexEnd - VerticalIndexStart);
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U) * 128U + 1U] |= (uint8)(1 << (VerticalIndex % 8U));
-        }
-    }
-    else if (HorizontalIndexStart > HorizontalIndexEnd){
-        for(VerticalIndex = VerticalIndexStart; VerticalIndex < VerticalIndexEnd; VerticalIndex++){
-            HorizontalIndex = HorizontalIndexStart - ((VerticalIndex - VerticalIndexStart)* (HorizontalIndexStart - HorizontalIndexEnd)) / (VerticalIndexEnd - VerticalIndexStart);
-            AllDataBuffer[HorizontalIndex + (VerticalIndex / 8U) * 128U + 1U] |= (uint8)(1 << (VerticalIndex % 8U));
-        }
     }
 }
 

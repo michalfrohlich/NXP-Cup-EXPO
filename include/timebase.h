@@ -8,9 +8,6 @@
 /* Global millisecond counter, incremented by GPT callback */
 extern volatile uint32 g_SystemMs;
 
-/* Flag used by the camera emulator: set every 1000 ms */
-extern volatile boolean g_EmuNewFrameFlag;
-
 /* Initialize GPT-based ms timebase (start timer and enable notification) */
 void Timebase_Init(void);
 
@@ -29,7 +26,7 @@ void Timebase_DelayMs(uint32 delayMs);
 /* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */
 
 /* One-shot UsTimer API:
- *  - Call UsTimer_Init() once after DriversInit() to reset internal flag.
+ *  - Call UsTimer_Init() once after Board_InitDrivers() to reset internal flag.
  *  - Call UsTimer_Start(delayUs) to start a one-shot delay.
  *  - When the delay expires, UsTimer_Notification() is called by GPT
  *    (configured in Gpt as the channel's notification).

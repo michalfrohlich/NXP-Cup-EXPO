@@ -1,17 +1,12 @@
 /*==================================================================================================
 * vision_linear_v2.h
 *
-* Linear camera (1x128) vision processing service.
-*
-* Purpose:
-* - Detect Left and Right lane edges independently.
-* - Report tracking status (Left only, Right only, Both, or Lost).
-* - Provide exact line pixel positions for visualization.
-* - Calculate steering error based on whatever lines are visible.
-*
-* Intended usage:
-* - Call VisionLinear_InitV2() once at startup.
-* - Each loop: VisionLinear_ProcessFrame(frame.Values, &result)
+* Stage 1 redesign pipeline for the 1x128 linear camera:
+* - receive raw ADC pixels
+* - spatially filter the signal
+* - compute 1D Sobel derivative
+* - run simple Canny-style hysteresis edge selection
+* - detect the inner track edges (left rising edge, right falling edge)
 *==================================================================================================*/
 
 #ifndef VISION_LINEAR_V2_H
@@ -22,123 +17,129 @@ extern "C" {
 #endif
 
 #include "Platform_Types.h"
+#include "../app/main_types.h"
+#include "../app/car_config.h"
 
 /* ----------------------------- Tunables ----------------------------- */
 
 #ifndef VISION_LINEAR_BUFFER_SIZE
-#define VISION_LINEAR_BUFFER_SIZE            (128U)
+#define VISION_LINEAR_BUFFER_SIZE            (CAM_EFFECTIVE_PIXELS)
 #endif
 
-/* Dynamic threshold = min + (contrast * frac/100) */
-#ifndef VISION_LINEAR_THRESH_FRAC_PCT
-#define VISION_LINEAR_THRESH_FRAC_PCT        (65U) //was 50 originally
-#endif
-
-/* Minimum contrast to consider the frame valid (0-100) */
 #ifndef VISION_LINEAR_MIN_CONTRAST
-#define VISION_LINEAR_MIN_CONTRAST           (10U)
+#define VISION_LINEAR_MIN_CONTRAST           (450U)
 #endif
 
-/* Ignore blobs smaller than this (noise filtering) */
-#ifndef VISION_LINEAR_MIN_BLOB_WIDTH
-#define VISION_LINEAR_MIN_BLOB_WIDTH         (2U)
+#ifndef VISION_LINEAR_MIN_WEAK_EDGE
+#define VISION_LINEAR_MIN_WEAK_EDGE          (80U)
 #endif
 
-#define VLIN_MAX_BLOBS   6u
+#ifndef VISION_LINEAR_MIN_STRONG_EDGE
+#define VISION_LINEAR_MIN_STRONG_EDGE        (140U)
+#endif
 
-/* Nominal lane width in pixels. Used to "guess" the center when only one line is seen.
- * Calibrate this by placing the car in the center of the track and checking (Right - Left).
- */
+#ifndef VISION_LINEAR_EDGE_HIGH_PCT
+#define VISION_LINEAR_EDGE_HIGH_PCT          (45U)
+#endif
+
+#ifndef VISION_LINEAR_EDGE_LOW_PCT
+#define VISION_LINEAR_EDGE_LOW_PCT           (55U)
+#endif
+
 #ifndef VISION_LINEAR_NOMINAL_LANE_WIDTH
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (100U) //<--- this needs to be calibrated (was 70)
+#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (82U)
 #endif
 
-/* Sentinel value for "Line Not Found" */
+#ifndef VISION_LINEAR_LANE_WIDTH_TOL_PCT
+#define VISION_LINEAR_LANE_WIDTH_TOL_PCT     (20U)
+#endif
+
+#ifndef VISION_LINEAR_SPLIT_MARGIN_PX
+#define VISION_LINEAR_SPLIT_MARGIN_PX        (10U)
+#endif
+
+#ifndef VISION_FINISH_WIDTH_MIN_PCT
+#define VISION_FINISH_WIDTH_MIN_PCT          (50U)
+#endif
+
+#ifndef VISION_FINISH_WIDTH_MAX_PCT
+#define VISION_FINISH_WIDTH_MAX_PCT          (150U)
+#endif
+
+#ifndef VISION_FINISH_INNER_WIDTH_MM
+#define VISION_FINISH_INNER_WIDTH_MM         (510U)
+#endif
+
+#ifndef VISION_FINISH_BAR_WIDTH_MM
+#define VISION_FINISH_BAR_WIDTH_MM           (94U)
+#endif
+
+#ifndef VISION_FINISH_CENTER_GAP_MM
+#define VISION_FINISH_CENTER_GAP_MM          (74U)
+#endif
+
 #define VISION_LINEAR_INVALID_IDX            (255U)
+
+#ifndef VLIN_MAX_EDGE_CANDIDATES
+#define VLIN_MAX_EDGE_CANDIDATES             (12U)
+#endif
 
 /* ----------------------------- Output types ----------------------------- */
 
-typedef enum
-{
-    VISION_LINEAR_LOST        = 0U,   /* No lines found */
-    VISION_LINEAR_TRACK_BOTH  = 1U,   /* Both Left and Right lines are visible */
-    VISION_LINEAR_TRACK_LEFT  = 2U,   /* Only Left line is visible */
-    VISION_LINEAR_TRACK_RIGHT = 3U    /* Only Right line is visible */
-} VisionLinear_StatusType;
-
 typedef struct
 {
-    /* Steering Error: -1.0 (Left) .. 0.0 (Center) .. +1.0 (Right) */
-    float Error;
-
-    /* Tracking State */
-    VisionLinear_StatusType Status;
-
-    /* Quality of detection (0-100) */
-    uint8 Confidence;
-
-    /* Pixel Index of the detected lines (0-127).
-     * Set to VISION_LINEAR_INVALID_IDX (255) if that specific line is not seen. */
-    uint8 LeftLineIdx;
-    uint8 RightLineIdx;
-
-} VisionLinear_ResultType;
-
-//-----------
-
-typedef struct
-{
-    uint8 start;
-    uint8 end;
-    uint8 width;
-    uint8 center;
-} VisionLinear_DebugBlob_t;
+    uint8 idx;
+    sint8 polarity; /* +1 rising, -1 falling */
+    uint16 strength;
+} VisionLinear_DebugEdge_t;
 
 typedef enum
 {
-    VLIN_DBG_NONE   = 0u,
-    VLIN_DBG_SMOOTH = 1u << 0,  /* copy smooth[] to caller */
-    VLIN_DBG_STATS  = 1u << 1,  /* min/max/contrast/threshold/split */
-    VLIN_DBG_BLOBS  = 1u << 2   /* blob segments */
+    VLIN_DBG_NONE      = 0u,
+    VLIN_DBG_FILTERED  = 1u << 0,
+    VLIN_DBG_GRADIENT  = 1u << 1,
+    VLIN_DBG_STATS     = 1u << 2,
+    VLIN_DBG_EDGES     = 1u << 3
 } VisionLinear_DebugMask_t;
 
 typedef struct
 {
     uint32 mask;
 
-    /* Optional: caller provides buffer [VISION_LINEAR_BUFFER_SIZE] */
-    uint8* smoothOut;
+    /* Optional caller-owned buffers [VISION_LINEAR_BUFFER_SIZE] */
+    uint16 *filteredOut;
+    sint16 *gradientOut;
 
     /* Scalars (valid if VLIN_DBG_STATS) */
-    uint8 minVal;
-    uint8 maxVal;
-    uint8 contrast;
-    uint8 threshold;
+    uint16 minVal;
+    uint16 maxVal;
+    uint16 contrast;
+    uint16 maxAbsGradient;
+    uint16 edgeHighThreshold;
+    uint16 edgeLowThreshold;
     uint8 splitPoint;
+    uint8 leftInnerEdgeIdx;
+    uint8 rightInnerEdgeIdx;
+    uint8 finishGapLeftEdgeIdx;
+    uint8 finishGapRightEdgeIdx;
+    uint8 laneWidth;
+    uint8 expectedFinishWidth;
+    uint8 expectedFinishGap;
+    uint8 measuredFinishGap;
+    uint8 finishDetected;
 
-    /* Blob segments (valid if VLIN_DBG_BLOBS) */
-    uint8 blobCount;
-    VisionLinear_DebugBlob_t blobs[VLIN_MAX_BLOBS];
-
-    /* Helpful: chosen indices (valid if VLIN_DBG_STATS) */
-    uint8 bestLeftIdx;
-    uint8 bestRightIdx;
+    /* Edge candidates (valid if VLIN_DBG_EDGES) */
+    uint8 edgeCount;
+    VisionLinear_DebugEdge_t edges[VLIN_MAX_EDGE_CANDIDATES];
 } VisionLinear_DebugOut_t;
-
-//-----------
 
 /* ----------------------------- API ----------------------------- */
 
 void VisionLinear_InitV2(void);
-
-/* Process one 128-pixel frame. */
-void VisionLinear_ProcessFrame(const uint8 *pixels, VisionLinear_ResultType *out);
-
-/* New API (recommended): - if it works it will be replaced into VisionLinear_ProcessFrame() */
-void VisionLinear_ProcessFrameEx(const uint8 *pixels,
-                                 VisionLinear_ResultType *out,
+void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out);
+void VisionLinear_ProcessFrameEx(const uint16 *pixels,
+                                 VisionOutput_t *out,
                                  VisionLinear_DebugOut_t *dbg);
-
 
 #ifdef __cplusplus
 }

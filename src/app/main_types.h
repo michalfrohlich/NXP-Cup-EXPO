@@ -40,45 +40,41 @@ typedef enum
 /* =========================================================
    Output from the VISION module (camera -> lane info)
    ---------------------------------------------------------
-   This describes what the camera "sees".
+   Shared packet filled by vision and consumed by steering/app modes.
 ========================================================= */
+typedef enum
+{
+    VISION_TRACK_LOST  = 0U,
+    VISION_TRACK_BOTH  = 1U,
+    VISION_TRACK_LEFT  = 2U,
+    VISION_TRACK_RIGHT = 3U
+} VisionTrackStatus_t;
+
+typedef enum
+{
+    VISION_FEATURE_NONE        = 0U,
+    VISION_FEATURE_FINISH_LINE = 1U
+} VisionFeature_t;
+
 typedef struct
 {
-    /* TRUE = we see a line / lane edges
-       FALSE = we do NOT see it (line lost) */
-    boolean valid;
+    /* Normalized steering error in [-1..+1]. */
+    float error;
 
-    /* Where the lane edges are in pixels (0..127)
-       -1 means "not found" */
-    sint16 left_edge_px;
-    sint16 right_edge_px;
+    /* Track detection state. */
+    VisionTrackStatus_t status;
 
-    /* Where we think the middle of the lane is (0..127)
-       Goal is: lane_center_px == CAM_CENTER_PX (63) */
-    sint16 lane_center_px;
+    /* Optional detected track feature. */
+    VisionFeature_t feature;
 
-    /* Error from center:
-       error_px = lane_center_px - CAM_CENTER_PX
-       negative = lane center is left -> steer left
-       positive = lane center is right -> steer right */
-    sint16 error_px;
-
-    /* How many black "regions" were detected
-       0 = nothing, 1 = only one edge, 2 = both edges, 3+ = likely intersection/noise */
-    uint8 region_count;
-
-    /* How many pixels were black (0..100 %)
-       High number often means intersection or big blob */
-    uint8 black_ratio_pct;
-
-    /* Confidence 0..100
-       Higher = vision is more trustworthy */
+    /* Confidence 0..100 for the current frame. */
     uint8 confidence;
 
-    /* TRUE if it looks like an intersection */
-    boolean intersection_likely;
-
-} LinearVision_t;
+    /* Selected left/right lane edges in the effective vision window.
+       255 means "not found". */
+    uint8 leftLineIdx;
+    uint8 rightLineIdx;
+} VisionOutput_t;
 
 
 /* =========================================================

@@ -6,7 +6,6 @@
 */
 #include "../app/main_types.h"
 
-/* Vision output type (VisionLinear_ResultType) */
 #include "vision_linear_v2.h"
 
 /* =========================================================
@@ -38,6 +37,6 @@ void SteeringLinear_Reset(SteeringLinearState_t *s);
 void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, float steerScale);
 
 SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
-                                        const VisionLinear_ResultType *r,
+                                        const VisionOutput_t *r,
                                         float dt_seconds,
                                         uint8 base_speed);

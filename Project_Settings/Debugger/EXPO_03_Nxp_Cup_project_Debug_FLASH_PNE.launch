@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <launchConfiguration type="com.pemicro.debug.gdbjtag.pne.launchConfigurationType">
+    <booleanAttribute key="com.nxp.s32ds.ext.cdt.debug.svd.ask_before_clean" value="false"/>
+    <booleanAttribute key="com.nxp.s32ds.ext.cdt.debug.svd.clean_watch_view" value="false"/>
     <stringAttribute key="com.nxp.s32ds.ext.cdt.debug.svd.merge_strategy" value="ALL"/>
+    <stringAttribute key="com.nxp.s32ds.ext.cdt.debug.svd.svd_path" value=""/>
+    <booleanAttribute key="com.nxp.s32ds.ext.cdt.debug.svd.use_default" value="true"/>
     <listAttribute key="com.pemicro.debug.gdbjtag.pne.ELVES"/>
+    <listAttribute key="com.pemicro.debug.gdbjtag.pne.ELVES_OFFSET"/>
     <intAttribute key="com.pemicro.debug.gdbjtag.pne.NUMBER_ELVES" value="0"/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.PE.BUSERR" value="true"/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.PE.CHKERR" value="true"/>
@@ -42,7 +47,7 @@
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.CYCLONE_IP" value=""/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.DO_RESET_DELAY" value="false"/>
     <intAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.INTERFACE_PORT" value="0"/>
-    <stringAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.INTERFACE_PORT_STRING" value="COM1"/>
+    <stringAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.INTERFACE_PORT_STRING" value=""/>
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.NETWORK_CARD_IP" value=""/>
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.POWER_DOWN_DELAY" value="250"/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.cyc_ser.POWER_OFF" value="false"/>
@@ -117,11 +122,12 @@
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.preserveMemoryTo2" value="3"/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.preservePartioning" value="false"/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.programtrim" value="false"/>
+    <stringAttribute key="com.pemicro.debug.gdbjtag.pne.pythonpathEnvironmentVariable" value="${S32DS_PYTHON3PATH_WIN64}"/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.sda.ALWAYS_ERASE" value="false"/>
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.sda.CYCLONE_IP" value=""/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.sda.DO_RESET_DELAY" value="false"/>
     <intAttribute key="com.pemicro.debug.gdbjtag.pne.sda.INTERFACE_PORT" value="0"/>
-    <stringAttribute key="com.pemicro.debug.gdbjtag.pne.sda.INTERFACE_PORT_STRING" value=""/>
+    <stringAttribute key="com.pemicro.debug.gdbjtag.pne.sda.INTERFACE_PORT_STRING" value="USB1"/>
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.sda.NETWORK_CARD_IP" value=""/>
     <stringAttribute key="com.pemicro.debug.gdbjtag.pne.sda.POWER_DOWN_DELAY" value=""/>
     <booleanAttribute key="com.pemicro.debug.gdbjtag.pne.sda.POWER_OFF" value="false"/>
@@ -176,6 +182,7 @@
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.imageOffset" value=""/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.ipAddress" value="localhost"/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.jtagDevice" value="GNU ARM PEMicro Interface"/>
+    <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.jtagDeviceId" value="com.pemicro.debug.gdbjtag.pne.jtagdeviceid"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.loadImage" value="true"/>
     <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.loadSymbols" value="true"/>
     <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.pcRegister" value=""/>
@@ -201,7 +208,8 @@
     <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="Debug_FLASH/EXPO_03_Nxp_Cup_project.elf"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="EXPO_03_Nxp_Cup_project"/>
     <booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="false"/>
-    <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value="com.nxp.s32ds.cle.arm.mbs.arm32.bare.gnu.9.2.exe.debug.350931541"/>
+    <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value=""/>
+    <booleanAttribute key="org.eclipse.debug.core.ATTR_FORCE_SYSTEM_CONSOLE_ENCODING" value="false"/>
     <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
         <listEntry value="/EXPO_03_Nxp_Cup_project"/>
     </listAttribute>

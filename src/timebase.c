@@ -6,12 +6,6 @@
 /* Free-running millisecond tick */
 volatile uint32 g_SystemMs = 0u;
 
-/* Used by camera emulator logic (existing behavior) */
-volatile boolean g_EmuNewFrameFlag = FALSE;
-
-/* Internal sub-counter for 1-second frame flag */
-static uint16 EmuTicks = 0u;
-
 /* GPT channel ID used for the ms tick (matches your Gpt config) */
 #define MS_TIMER_CHANNEL   ((Gpt_ChannelType)2u)
 
@@ -33,14 +27,7 @@ void Timebase_Init(void)
  */
 void EmuTimer_Notification(void)
 {
-    EmuTicks++;
     g_SystemMs++;   /* increments on every GPT tick (configured for 1 ms period) */
-
-    if (EmuTicks >= 1000u)
-    {
-        g_EmuNewFrameFlag = TRUE;  /* tell main loop: "new frame" every 1 s */
-        EmuTicks = 0u;
-    }
 }
 
 /* Return current ms tick */
@@ -62,7 +49,7 @@ void Timebase_DelayMs(uint32 delayMs)
 }
 
 
-/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */ // <-----might not be a correct comment
+/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */
 
 /* GPT channel ID used for the microsecond one-shot LPIT timer.
  * In ConfigTools:
@@ -70,7 +57,7 @@ void Timebase_DelayMs(uint32 delayMs)
  *  - GptChannelId:  3
  *  - HW IP:         LPIT_0 / CH_2 (UsTimerChannel)
  *  - Mode:          GPT_CH_MODE_ONESHOT
- *  - Tick freq:     48 MHz (GptChannelTickFrequency = 48000000)
+ *  - Tick freq:     8 MHz (LPIT0 clock from generated config)
  */
 #define US_TIMER_CHANNEL   ((Gpt_ChannelType)3u)
 
@@ -79,7 +66,7 @@ volatile boolean g_UsTimerElapsed = FALSE;
 
 
 /* Initialise UsTimer flag. Does NOT touch GPT hardware state.
- * DriversInit() has already called Gpt_Init() using the generated config.
+ * Board_InitDrivers() has already called Gpt_Init() using the generated config.
  */
 void UsTimer_Init(void)
 {
@@ -101,7 +88,7 @@ void UsTimer_Init(void)
  */
 void UsTimer_Start(uint32 delayUs)
 {
-    const uint32 ticksPerUs  = 8u;          /* 48 MHz → 48 ticks per µs */
+    const uint32 ticksPerUs  = 8u;          /* 8 MHz -> 8 ticks per us */
     const uint32 periodTicks = delayUs * ticksPerUs;
 
     /* Prepare state */

@@ -1,292 +1,526 @@
 /*==================================================================================================
 * vision_linear_v2.c
 *
-* Split-Tracking Algorithm:
-* 1. Smooth & Threshold image to find black blobs.
-* 2. define a "Split Point" (usually the previous frame's center).
-* 3. Search for the best black blob to the Left of the split -> Left Line.
-* 4. Search for the best black blob to the Right of the split -> Right Line.
-* 5. Calculate Error:
-* - If Both: Average of L and R.
-* - If Single: Line Position +/- (NominalWidth / 2).
+* Stage 1 redesign:
+* raw -> filtered -> 1D Sobel derivative -> hysteresis edges -> inner edge selection
 *==================================================================================================*/
 
 #include "vision_linear_v2.h"
 
 /* ----------------------------- Internal State ----------------------------- */
 
-/* We keep track of the last known center to help classify blobs in the next frame */
 static float s_lastTrackCenter = (float)(VISION_LINEAR_BUFFER_SIZE / 2U);
-static uint8 s_isLocked = 0U; /* 0 = searching from scratch, 1 = using history */
+static uint8 s_isLocked = 0U;
 
 /* ----------------------------- Helpers ----------------------------- */
 
-typedef struct
+static uint16 VisionLinear_AbsU16(sint16 value)
 {
-    uint8 start;
-    uint8 end;
-    uint8 width;
-    uint8 center;
-} VisionBlob_t;
+    return (value < 0) ? (uint16)(-value) : (uint16)value;
+}
 
-static uint8 Vision_AbsDiff(uint8 a, uint8 b)
+static uint16 VisionLinear_AbsDiffU8(uint8 a, uint8 b)
 {
-    return (a > b) ? (uint8)(a - b) : (uint8)(b - a);
+    return (a >= b) ? (uint16)(a - b) : (uint16)(b - a);
+}
+
+static uint8 VisionLinear_ClampSplitPoint(float center)
+{
+    uint8 splitPoint = (uint8)center;
+    uint8 minSplit = VISION_LINEAR_SPLIT_MARGIN_PX;
+    uint8 maxSplit = (uint8)(VISION_LINEAR_BUFFER_SIZE - 1U - VISION_LINEAR_SPLIT_MARGIN_PX);
+
+    if (splitPoint < minSplit)
+    {
+        splitPoint = minSplit;
+    }
+    if (splitPoint > maxSplit)
+    {
+        splitPoint = maxSplit;
+    }
+
+    return splitPoint;
+}
+
+static void VisionLinear_FilterSignal(const uint16 *pixels, uint16 *filtered)
+{
+    uint16 i;
+
+    filtered[0] = pixels[0];
+    filtered[1] = (uint16)(((uint32)pixels[0] + ((uint32)pixels[1] * 2U) + (uint32)pixels[2]) / 4U);
+
+    for (i = 2U; i < (VISION_LINEAR_BUFFER_SIZE - 2U); i++)
+    {
+        uint32 value =
+            (uint32)pixels[i - 2U] +
+            ((uint32)pixels[i - 1U] * 4U) +
+            ((uint32)pixels[i] * 6U) +
+            ((uint32)pixels[i + 1U] * 4U) +
+            (uint32)pixels[i + 2U];
+
+        filtered[i] = (uint16)(value / 16U);
+    }
+
+    filtered[VISION_LINEAR_BUFFER_SIZE - 2U] =
+        (uint16)(((uint32)pixels[VISION_LINEAR_BUFFER_SIZE - 3U] +
+                  ((uint32)pixels[VISION_LINEAR_BUFFER_SIZE - 2U] * 2U) +
+                  (uint32)pixels[VISION_LINEAR_BUFFER_SIZE - 1U]) / 4U);
+    filtered[VISION_LINEAR_BUFFER_SIZE - 1U] = pixels[VISION_LINEAR_BUFFER_SIZE - 1U];
+}
+
+static void VisionLinear_ComputeGradient(const uint16 *filtered,
+                                         sint16 *gradient,
+                                         uint16 *maxAbsGradient)
+{
+    uint16 i;
+    uint16 maxGradient = 0U;
+
+    gradient[0] = 0;
+    gradient[1] = 0;
+
+    for (i = 2U; i < (VISION_LINEAR_BUFFER_SIZE - 2U); i++)
+    {
+        sint32 value =
+            -((sint32)filtered[i - 2U]) -
+            ((sint32)filtered[i - 1U] * 2) +
+            ((sint32)filtered[i + 1U] * 2) +
+            (sint32)filtered[i + 2U];
+
+        if (value > 32767)
+        {
+            value = 32767;
+        }
+        else if (value < -32768)
+        {
+            value = -32768;
+        }
+
+        gradient[i] = (sint16)value;
+
+        {
+            uint16 magnitude = VisionLinear_AbsU16(gradient[i]);
+            if (magnitude > maxGradient)
+            {
+                maxGradient = magnitude;
+            }
+        }
+    }
+
+    gradient[VISION_LINEAR_BUFFER_SIZE - 2U] = 0;
+    gradient[VISION_LINEAR_BUFFER_SIZE - 1U] = 0;
+    *maxAbsGradient = maxGradient;
+}
+
+static uint8 VisionLinear_IsLocalMaximum(const sint16 *gradient, uint16 idx)
+{
+    uint16 current = VisionLinear_AbsU16(gradient[idx]);
+    uint16 left = VisionLinear_AbsU16(gradient[idx - 1U]);
+    uint16 right = VisionLinear_AbsU16(gradient[idx + 1U]);
+
+    return ((current >= left) && (current > right)) ? 1U : 0U;
+}
+
+static uint8 VisionLinear_WidthMatchesFinish(uint8 width, uint8 expectedWidth)
+{
+    uint16 minWidth;
+    uint16 maxWidth;
+
+    if (expectedWidth == 0U)
+    {
+        return 0U;
+    }
+
+    minWidth = ((uint16)expectedWidth * (uint16)VISION_FINISH_WIDTH_MIN_PCT) / 100U;
+    if (minWidth < 1U)
+    {
+        minWidth = 1U;
+    }
+
+    maxWidth = ((uint16)expectedWidth * (uint16)VISION_FINISH_WIDTH_MAX_PCT) / 100U;
+    if (maxWidth < (uint16)expectedWidth)
+    {
+        maxWidth = expectedWidth;
+    }
+
+    return (((uint16)width >= minWidth) && ((uint16)width <= maxWidth)) ? 1U : 0U;
+}
+
+static uint8 VisionLinear_WidthMatchesLane(uint8 width)
+{
+    uint16 minWidth;
+    uint16 maxWidth;
+
+    minWidth = ((uint16)VISION_LINEAR_NOMINAL_LANE_WIDTH *
+                (uint16)(100U - VISION_LINEAR_LANE_WIDTH_TOL_PCT)) / 100U;
+    maxWidth = ((uint16)VISION_LINEAR_NOMINAL_LANE_WIDTH *
+                (uint16)(100U + VISION_LINEAR_LANE_WIDTH_TOL_PCT)) / 100U;
+
+    return (((uint16)width >= minWidth) && ((uint16)width <= maxWidth)) ? 1U : 0U;
 }
 
 /* ----------------------------- Internal Implementation ----------------------------- */
 
-/* Single source of truth for both APIs:
- * - If dbg == NULL: behaves like ProcessFrame (no debug outputs).
- * - If dbg != NULL: exports only what dbg->mask requests (and only if buffers are provided).
- */
-static void VisionLinear_ProcessFrameImpl(const uint8 *pixels,
-                                          VisionLinear_ResultType *out,
+static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
+                                          VisionOutput_t *out,
                                           VisionLinear_DebugOut_t *dbg)
 {
-    /* Buffers */
-    uint8 smoothLocal[VISION_LINEAR_BUFFER_SIZE];
-    uint8 *smooth = smoothLocal;
-    VisionBlob_t blobs[8];
-    uint8 blobCount = 0U;
-
-    /* Variables */
-    uint8 i, minVal = 255U, maxVal = 0U;
-    uint8 threshold, contrast;
+    uint16 filteredLocal[VISION_LINEAR_BUFFER_SIZE];
+    sint16 gradientLocal[VISION_LINEAR_BUFFER_SIZE];
+    uint16 *filtered = filteredLocal;
+    sint16 *gradient = gradientLocal;
+    uint16 i;
+    uint16 minVal = 0xFFFFU;
+    uint16 maxVal = 0U;
+    uint16 contrast;
+    uint16 maxAbsGradient = 0U;
+    uint16 edgeHighThreshold;
+    uint16 edgeLowThreshold;
+    uint8 splitPoint;
     uint8 bestLeftIdx = VISION_LINEAR_INVALID_IDX;
     uint8 bestRightIdx = VISION_LINEAR_INVALID_IDX;
+    uint16 bestLeftDist = 255U;
+    uint16 bestRightDist = 255U;
+    uint8 edgeCandidateIdx[VLIN_MAX_EDGE_CANDIDATES];
+    sint8 edgeCandidatePolarity[VLIN_MAX_EDGE_CANDIDATES];
+    uint8 edgeCandidateCount = 0U;
+    uint8 leftCandidates[VLIN_MAX_EDGE_CANDIDATES];
+    uint16 leftCandidateStrengths[VLIN_MAX_EDGE_CANDIDATES];
+    uint8 rightCandidates[VLIN_MAX_EDGE_CANDIDATES];
+    uint16 rightCandidateStrengths[VLIN_MAX_EDGE_CANDIDATES];
+    uint8 leftCandidateCount = 0U;
+    uint8 rightCandidateCount = 0U;
+    uint8 laneWidth = 0U;
+    uint8 expectedFinishWidth = 0U;
+    uint8 expectedFinishGap = 0U;
+    uint8 measuredFinishGap = 0U;
+    uint8 finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
+    uint8 finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
+    uint8 finishDetected = 0U;
 
-    /* 1. Spatial Smoothing (Noise Reduction) - Simple 3-tap weighted average
-     * If debug wants smooth output and provides a buffer, write smoothing directly into it. */
     if ((dbg != (VisionLinear_DebugOut_t*)0) &&
-        ((dbg->mask & (uint32)VLIN_DBG_SMOOTH) != 0u) &&
-        (dbg->smoothOut != (uint8*)0))
+        ((dbg->mask & (uint32)VLIN_DBG_FILTERED) != 0u) &&
+        (dbg->filteredOut != (uint16*)0))
     {
-        smooth = dbg->smoothOut;
+        filtered = dbg->filteredOut;
     }
 
-    /* 1. Spatial Smoothing (Noise Reduction) - Simple 3-tap weighted average */
-    smooth[0] = pixels[0];
-    for (i = 1U; i < (VISION_LINEAR_BUFFER_SIZE - 1U); i++)
+    if ((dbg != (VisionLinear_DebugOut_t*)0) &&
+        ((dbg->mask & (uint32)VLIN_DBG_GRADIENT) != 0u) &&
+        (dbg->gradientOut != (sint16*)0))
     {
-        uint16 val = (uint16)pixels[i-1] + ((uint16)pixels[i] * 2U) + (uint16)pixels[i+1];
-        smooth[i] = (uint8)(val / 4U);
+        gradient = dbg->gradientOut;
     }
-    smooth[VISION_LINEAR_BUFFER_SIZE - 1U] = pixels[VISION_LINEAR_BUFFER_SIZE - 1U];
 
-    /* 2. Dynamic Threshold Calculation */
+    VisionLinear_FilterSignal(pixels, filtered);
+
     for (i = 0U; i < VISION_LINEAR_BUFFER_SIZE; i++)
     {
-        if (smooth[i] < minVal) { minVal = smooth[i]; }
-        if (smooth[i] > maxVal) { maxVal = smooth[i]; }
+        if (filtered[i] < minVal) { minVal = filtered[i]; }
+        if (filtered[i] > maxVal) { maxVal = filtered[i]; }
     }
 
-    contrast = (uint8)(maxVal - minVal);
+    contrast = (uint16)(maxVal - minVal);
+    VisionLinear_ComputeGradient(filtered, gradient, &maxAbsGradient);
 
-    /* If contrast is too low, the image is garbage */
-    if (contrast < VISION_LINEAR_MIN_CONTRAST)
+    edgeHighThreshold = (uint16)(((uint32)maxAbsGradient * VISION_LINEAR_EDGE_HIGH_PCT) / 100U);
+    if (edgeHighThreshold < VISION_LINEAR_MIN_STRONG_EDGE)
     {
-        out->Status = VISION_LINEAR_LOST;
-        out->Confidence = 0U;
-        out->LeftLineIdx = VISION_LINEAR_INVALID_IDX;
-        out->RightLineIdx = VISION_LINEAR_INVALID_IDX;
-        /* Keep previous error to avoid steering snap */
-        s_isLocked = 0U;
+        edgeHighThreshold = VISION_LINEAR_MIN_STRONG_EDGE;
+    }
 
-        /* Debug scalars are still useful here */
-        if (dbg != (VisionLinear_DebugOut_t*)0)
+    edgeLowThreshold = (uint16)(((uint32)edgeHighThreshold * VISION_LINEAR_EDGE_LOW_PCT) / 100U);
+    if (edgeLowThreshold < VISION_LINEAR_MIN_WEAK_EDGE)
+    {
+        edgeLowThreshold = VISION_LINEAR_MIN_WEAK_EDGE;
+    }
+
+    splitPoint = s_isLocked ? VisionLinear_ClampSplitPoint(s_lastTrackCenter)
+                            : (VISION_LINEAR_BUFFER_SIZE / 2U);
+
+    if (dbg != (VisionLinear_DebugOut_t*)0)
+    {
+        if ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u)
         {
-            if ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u)
-            {
-                dbg->minVal       = minVal;
-                dbg->maxVal       = maxVal;
-                dbg->contrast     = contrast;
-                dbg->threshold    = minVal; /* deterministic even when contrast fails */
-                dbg->splitPoint   = 0U;
-                dbg->bestLeftIdx  = VISION_LINEAR_INVALID_IDX;
-                dbg->bestRightIdx = VISION_LINEAR_INVALID_IDX;
-            }
-
-            if ((dbg->mask & (uint32)VLIN_DBG_BLOBS) != 0u)
-            {
-                dbg->blobCount = 0U;
-            }
+            dbg->minVal = minVal;
+            dbg->maxVal = maxVal;
+            dbg->contrast = contrast;
+            dbg->maxAbsGradient = maxAbsGradient;
+            dbg->edgeHighThreshold = edgeHighThreshold;
+            dbg->edgeLowThreshold = edgeLowThreshold;
+            dbg->splitPoint = splitPoint;
+            dbg->leftInnerEdgeIdx = VISION_LINEAR_INVALID_IDX;
+            dbg->rightInnerEdgeIdx = VISION_LINEAR_INVALID_IDX;
+            dbg->finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
+            dbg->finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
+            dbg->laneWidth = 0U;
+            dbg->expectedFinishWidth = 0U;
+            dbg->expectedFinishGap = 0U;
+            dbg->measuredFinishGap = 0U;
+            dbg->finishDetected = 0U;
         }
+
+        if ((dbg->mask & (uint32)VLIN_DBG_EDGES) != 0u)
+        {
+            dbg->edgeCount = 0U;
+        }
+    }
+
+    if ((contrast < VISION_LINEAR_MIN_CONTRAST) || (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE))
+    {
+        out->error = 0.0f;
+        out->status = VISION_TRACK_LOST;
+        out->feature = VISION_FEATURE_NONE;
+        out->confidence = 0U;
+        out->leftLineIdx = VISION_LINEAR_INVALID_IDX;
+        out->rightLineIdx = VISION_LINEAR_INVALID_IDX;
+        s_isLocked = 0U;
         return;
     }
 
-    /* Threshold formula */
-    threshold = minVal + (uint8)(((uint16)contrast * VISION_LINEAR_THRESH_FRAC_PCT) / 100U);
-
-    /* 3. Blob Extraction */
+    for (i = 2U; i < (VISION_LINEAR_BUFFER_SIZE - 2U); i++)
     {
-        uint8 inBlob = 0U;
-        uint8 start = 0U;
+        uint16 strength = VisionLinear_AbsU16(gradient[i]);
+        uint8 isCandidate = 0U;
 
-        for (i = 0U; i < VISION_LINEAR_BUFFER_SIZE; i++)
+        if ((strength >= edgeLowThreshold) && (VisionLinear_IsLocalMaximum(gradient, i) != 0U))
         {
-            uint8 isBlack = (smooth[i] < threshold) ? 1U : 0U;
-
-            if (isBlack)
+            if (strength >= edgeHighThreshold)
             {
-                if (!inBlob) { inBlob = 1U; start = i; }
+                isCandidate = 1U;
             }
             else
             {
-                if (inBlob)
+                uint16 leftStrength = VisionLinear_AbsU16(gradient[i - 1U]);
+                uint16 rightStrength = VisionLinear_AbsU16(gradient[i + 1U]);
+
+                if ((leftStrength >= edgeHighThreshold) || (rightStrength >= edgeHighThreshold))
                 {
-                    /* Blob ended at i-1 */
-                    inBlob = 0U;
-                    uint8 width = (i - start);
-                    if ((width >= VISION_LINEAR_MIN_BLOB_WIDTH) && (blobCount < 8U))
+                    isCandidate = 1U;
+                }
+            }
+        }
+
+        if (isCandidate != 0U)
+        {
+            sint8 polarity = (gradient[i] >= 0) ? 1 : -1;
+
+            if ((dbg != (VisionLinear_DebugOut_t*)0) &&
+                ((dbg->mask & (uint32)VLIN_DBG_EDGES) != 0u) &&
+                (dbg->edgeCount < VLIN_MAX_EDGE_CANDIDATES))
+            {
+                dbg->edges[dbg->edgeCount].idx = (uint8)i;
+                dbg->edges[dbg->edgeCount].polarity = polarity;
+                dbg->edges[dbg->edgeCount].strength = strength;
+                dbg->edgeCount++;
+            }
+
+            if (edgeCandidateCount < VLIN_MAX_EDGE_CANDIDATES)
+            {
+                edgeCandidateIdx[edgeCandidateCount] = (uint8)i;
+                edgeCandidatePolarity[edgeCandidateCount] = polarity;
+                edgeCandidateCount++;
+            }
+
+            if ((polarity > 0) && ((uint8)i <= splitPoint))
+            {
+                uint16 distance = (uint16)(splitPoint - (uint8)i);
+
+                if (leftCandidateCount < VLIN_MAX_EDGE_CANDIDATES)
+                {
+                    leftCandidates[leftCandidateCount] = (uint8)i;
+                    leftCandidateStrengths[leftCandidateCount] = strength;
+                    leftCandidateCount++;
+                }
+
+                if (distance < bestLeftDist)
+                {
+                    bestLeftDist = distance;
+                    bestLeftIdx = (uint8)i;
+                }
+            }
+            else if ((polarity < 0) && ((uint8)i > splitPoint))
+            {
+                uint16 distance = (uint16)((uint8)i - splitPoint);
+
+                if (rightCandidateCount < VLIN_MAX_EDGE_CANDIDATES)
+                {
+                    rightCandidates[rightCandidateCount] = (uint8)i;
+                    rightCandidateStrengths[rightCandidateCount] = strength;
+                    rightCandidateCount++;
+                }
+
+                if (distance < bestRightDist)
+                {
+                    bestRightDist = distance;
+                    bestRightIdx = (uint8)i;
+                }
+            }
+        }
+    }
+
+    if ((leftCandidateCount > 0U) && (rightCandidateCount > 0U))
+    {
+        uint8 li;
+        uint8 ri;
+        sint32 bestPairScore = 2147483647L;
+        uint8 pairLeft = bestLeftIdx;
+        uint8 pairRight = bestRightIdx;
+
+        for (li = 0U; li < leftCandidateCount; li++)
+        {
+            for (ri = 0U; ri < rightCandidateCount; ri++)
+            {
+                uint8 leftIdx = leftCandidates[li];
+                uint8 rightIdx = rightCandidates[ri];
+
+                if (rightIdx > leftIdx)
+                {
+                    uint8 width = (uint8)(rightIdx - leftIdx);
+                    uint8 center = (uint8)((leftIdx + rightIdx) / 2U);
+                    if (VisionLinear_WidthMatchesLane(width) != 0U)
                     {
-                        blobs[blobCount].start = start;
-                        blobs[blobCount].end = (uint8)(i - 1U);
-                        blobs[blobCount].width = width;
-                        blobs[blobCount].center = (start + (i - 1U)) / 2U;
-                        blobCount++;
+                        uint16 widthErr = VisionLinear_AbsDiffU8(width, (uint8)VISION_LINEAR_NOMINAL_LANE_WIDTH);
+                        uint16 centerErr = VisionLinear_AbsDiffU8(center, splitPoint);
+                        uint16 strengthSum = (uint16)(leftCandidateStrengths[li] + rightCandidateStrengths[ri]);
+                        sint32 score = (sint32)((uint32)widthErr * 8UL) +
+                                       (sint32)centerErr -
+                                       (sint32)(strengthSum / 16U);
+
+                        if (score < bestPairScore)
+                        {
+                            bestPairScore = score;
+                            pairLeft = leftIdx;
+                            pairRight = rightIdx;
+                        }
                     }
                 }
             }
         }
 
-        /* Check blob at very end of sensor */
-        if (inBlob && (blobCount < 8U))
+        if (bestPairScore != 2147483647L)
         {
-            uint8 width = (VISION_LINEAR_BUFFER_SIZE - start);
-            if (width >= VISION_LINEAR_MIN_BLOB_WIDTH)
-            {
-                blobs[blobCount].start = start;
-                blobs[blobCount].end = (uint8)(VISION_LINEAR_BUFFER_SIZE - 1U);
-                blobs[blobCount].width = width;
-                blobs[blobCount].center = (start + (VISION_LINEAR_BUFFER_SIZE - 1U)) / 2U;
-                blobCount++;
-            }
+            bestLeftIdx = pairLeft;
+            bestRightIdx = pairRight;
         }
     }
 
-    /* 4. Classify Blobs (Left vs Right) using Split Logic */
-    /* If we are "Lost", split screen in middle (64).
-       If we are "Locked", split screen at last known center. */
+    out->leftLineIdx = bestLeftIdx;
+    out->rightLineIdx = bestRightIdx;
+
+    if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
     {
-        uint8 splitPoint = s_isLocked ? (uint8)s_lastTrackCenter : (VISION_LINEAR_BUFFER_SIZE / 2U);
-
-        /* Clamp split point to avoid edge cases */
-        if (splitPoint < 10U) splitPoint = 10U;
-        if (splitPoint > 118U) splitPoint = 118U;
-
-        uint8 minDistLeft = 255U;
-        uint8 minDistRight = 255U;
-
-        for (i = 0U; i < blobCount; i++)
-        {
-            uint8 c = blobs[i].center;
-
-            if (c <= splitPoint)
-            {
-                /* Candidate for LEFT line: pick the one closest to the split point */
-                uint8 dist = splitPoint - c;
-                if (dist < minDistLeft)
-                {
-                    minDistLeft = dist;
-                    bestLeftIdx = c;
-                }
-            }
-            else
-            {
-                /* Candidate for RIGHT line */
-                uint8 dist = c - splitPoint;
-                if (dist < minDistRight)
-                {
-                    minDistRight = dist;
-                    bestRightIdx = c;
-                }
-            }
-        }
-
-        /* === Debug outputs (cheap): scalars and blob segments === */
-        if (dbg != (VisionLinear_DebugOut_t*)0)
-        {
-            if ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u)
-            {
-                dbg->minVal       = minVal;
-                dbg->maxVal       = maxVal;
-                dbg->contrast     = contrast;
-                dbg->threshold    = threshold;
-                dbg->splitPoint   = splitPoint;
-                dbg->bestLeftIdx  = bestLeftIdx;
-                dbg->bestRightIdx = bestRightIdx;
-            }
-
-            if ((dbg->mask & (uint32)VLIN_DBG_BLOBS) != 0u)
-            {
-                uint8 n = (blobCount > VLIN_MAX_BLOBS) ? (uint8)VLIN_MAX_BLOBS : blobCount;
-                dbg->blobCount = n;
-                for (i = 0U; i < n; i++)
-                {
-                    dbg->blobs[i].start  = blobs[i].start;
-                    dbg->blobs[i].end    = blobs[i].end;
-                    dbg->blobs[i].width  = blobs[i].width;
-                    dbg->blobs[i].center = blobs[i].center;
-                }
-            }
-        }
+        dbg->leftInnerEdgeIdx = bestLeftIdx;
+        dbg->rightInnerEdgeIdx = bestRightIdx;
     }
 
-    /* 5. Determine Status & Error */
     {
         float midF = (float)(VISION_LINEAR_BUFFER_SIZE - 1U) / 2.0f;
-        float currentTrackCenter = midF; /* Default to middle */
+        float trackCenter = midF;
 
-        out->LeftLineIdx = bestLeftIdx;
-        out->RightLineIdx = bestRightIdx;
-
-        /* Case A: Both Lines Found */
         if ((bestLeftIdx != VISION_LINEAR_INVALID_IDX) && (bestRightIdx != VISION_LINEAR_INVALID_IDX))
         {
-            out->Status = VISION_LINEAR_TRACK_BOTH;
-            currentTrackCenter = ((float)bestLeftIdx + (float)bestRightIdx) / 2.0f;
-            out->Confidence = 100U;
+            out->status = VISION_TRACK_BOTH;
+            out->confidence = 100U;
+            trackCenter = ((float)bestLeftIdx + (float)bestRightIdx) / 2.0f;
         }
-        /* Case B: Only Left Found */
         else if (bestLeftIdx != VISION_LINEAR_INVALID_IDX)
         {
-            out->Status = VISION_LINEAR_TRACK_LEFT;
-            /* Guess Right line position based on nominal width */
             float simulatedRight = (float)bestLeftIdx + (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
-            currentTrackCenter = ((float)bestLeftIdx + simulatedRight) / 2.0f;
-            out->Confidence = 70U; /* Lower confidence on single line */
+            out->status = VISION_TRACK_LEFT;
+            out->confidence = 60U;
+            trackCenter = ((float)bestLeftIdx + simulatedRight) / 2.0f;
         }
-        /* Case C: Only Right Found */
         else if (bestRightIdx != VISION_LINEAR_INVALID_IDX)
         {
-            out->Status = VISION_LINEAR_TRACK_RIGHT;
-            /* Guess Left line position */
             float simulatedLeft = (float)bestRightIdx - (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
-            currentTrackCenter = (simulatedLeft + (float)bestRightIdx) / 2.0f;
-            out->Confidence = 70U;
+            out->status = VISION_TRACK_RIGHT;
+            out->confidence = 60U;
+            trackCenter = (simulatedLeft + (float)bestRightIdx) / 2.0f;
         }
-        /* Case D: Lost */
         else
         {
-            out->Status = VISION_LINEAR_LOST;
-            out->Confidence = 0U;
-            /* Don't update s_lastTrackCenter, stick to history */
+            out->error = 0.0f;
+            out->status = VISION_TRACK_LOST;
+            out->feature = VISION_FEATURE_NONE;
+            out->confidence = 0U;
+            s_isLocked = 0U;
             return;
         }
 
-        /* 6. Calculate Normalized Error (-1.0 to 1.0) */
-        /* Error = (TrackCenter - ImageCenter) / ImageCenter */
-        out->Error = (currentTrackCenter - midF) / midF;
+        out->feature = VISION_FEATURE_NONE;
 
-        /* Clamp Error */
-        if (out->Error < -1.0f) out->Error = -1.0f;
-        if (out->Error > 1.0f)  out->Error = 1.0f;
+        if ((bestLeftIdx != VISION_LINEAR_INVALID_IDX) &&
+            (bestRightIdx != VISION_LINEAR_INVALID_IDX) &&
+            (bestRightIdx > bestLeftIdx))
+        {
+            uint8 e;
+            uint16 bestGapError = 0xFFFFU;
 
-        /* Update History */
-        s_lastTrackCenter = currentTrackCenter;
+            laneWidth = (uint8)(bestRightIdx - bestLeftIdx);
+            expectedFinishWidth = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_BAR_WIDTH_MM) /
+                                          (uint16)VISION_FINISH_INNER_WIDTH_MM);
+            if (expectedFinishWidth < 1U)
+            {
+                expectedFinishWidth = 1U;
+            }
+            expectedFinishGap = (uint8)(((uint16)laneWidth * (uint16)VISION_FINISH_CENTER_GAP_MM) /
+                                        (uint16)VISION_FINISH_INNER_WIDTH_MM);
+            if (expectedFinishGap < 1U)
+            {
+                expectedFinishGap = 1U;
+            }
+
+            for (e = 0U; e + 1U < edgeCandidateCount; e++)
+            {
+                uint8 leftGapEdge = edgeCandidateIdx[e];
+                uint8 rightGapEdge = edgeCandidateIdx[e + 1U];
+                sint8 leftGapPolarity = edgeCandidatePolarity[e];
+                sint8 rightGapPolarity = edgeCandidatePolarity[e + 1U];
+
+                if ((leftGapPolarity > 0) &&
+                    (rightGapPolarity < 0) &&
+                    (leftGapEdge > bestLeftIdx) &&
+                    (rightGapEdge < bestRightIdx) &&
+                    (rightGapEdge > leftGapEdge))
+                {
+                    uint8 gap = (uint8)(rightGapEdge - leftGapEdge);
+                    uint16 gapError = VisionLinear_AbsDiffU8(gap, expectedFinishGap);
+
+                    if ((gap > 0U) &&
+                        (VisionLinear_WidthMatchesFinish(gap, expectedFinishGap) != 0U) &&
+                        (gapError < bestGapError))
+                    {
+                        bestGapError = gapError;
+                        measuredFinishGap = gap;
+                        finishGapLeftEdgeIdx = leftGapEdge;
+                        finishGapRightEdgeIdx = rightGapEdge;
+                        finishDetected = 1U;
+                        out->feature = VISION_FEATURE_FINISH_LINE;
+                    }
+                }
+            }
+
+        }
+
+        out->error = (trackCenter - midF) / midF;
+        if (out->error < -1.0f) { out->error = -1.0f; }
+        if (out->error > 1.0f)  { out->error = 1.0f; }
+
+        s_lastTrackCenter = trackCenter;
         s_isLocked = 1U;
     }
+
+    if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
+    {
+        dbg->laneWidth = laneWidth;
+        dbg->expectedFinishWidth = expectedFinishWidth;
+        dbg->expectedFinishGap = expectedFinishGap;
+        dbg->measuredFinishGap = measuredFinishGap;
+        dbg->finishGapLeftEdgeIdx = finishGapLeftEdgeIdx;
+        dbg->finishGapRightEdgeIdx = finishGapRightEdgeIdx;
+        dbg->finishDetected = finishDetected;
+    }
+
 }
 
 /* ----------------------------- Public API ----------------------------- */
@@ -297,13 +531,13 @@ void VisionLinear_InitV2(void)
     s_isLocked = 0U;
 }
 
-void VisionLinear_ProcessFrame(const uint8 *pixels, VisionLinear_ResultType *out)
+void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out)
 {
     VisionLinear_ProcessFrameImpl(pixels, out, (VisionLinear_DebugOut_t*)0);
 }
 
-void VisionLinear_ProcessFrameEx(const uint8 *pixels,
-                                 VisionLinear_ResultType *out,
+void VisionLinear_ProcessFrameEx(const uint16 *pixels,
+                                 VisionOutput_t *out,
                                  VisionLinear_DebugOut_t *dbg)
 {
     VisionLinear_ProcessFrameImpl(pixels, out, dbg);
