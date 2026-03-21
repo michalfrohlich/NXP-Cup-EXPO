@@ -90,7 +90,6 @@ settings:
 - {id: SPLLDIV1.scale, value: '2', locked: true}
 - {id: SPLLDIV2.scale, value: '4', locked: true}
 - {id: SPLL_mul.scale, value: '40', locked: true}
-- {id: SPLLunderMcuControl, value: Disabled}
 - {id: 'VLPR:DIVBUS.scale', value: '1', locked: true}
 - {id: 'VLPR:DIVCORE.scale', value: '8', locked: true}
 - {id: 'VLPR:DIVSLOW.scale', value: '4', locked: true}

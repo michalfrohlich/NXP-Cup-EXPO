@@ -174,9 +174,9 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
         (NULL_PTR),               /* Register data if register value optimization is enabled */
         2U,                       /* ircoscsCount */
         1U,                       /* xoscsCount */
-        0U,                       /* pllsCount */
+        1U,                       /* pllsCount */
         28U,                       /* selectorsCount */
-        18U,                       /* dividersCount */
+        20U,                       /* dividersCount */
         0U,                       /* dividerTriggersCount */
         0U,                       /* fracDivsCount */
         4U,                       /* extClksCount */
@@ -235,30 +235,33 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
 
         /* PLL initialization. */
         {
+
+            #if CLOCK_IP_PLLS_NO > 0U
             {
-                RESERVED_CLK,           /* name */
-                0U,                     /* enable */
-                RESERVED_CLK,           /* inputReference */
+                SPLL_CLK,                /* name */
+                1U,                     /* enable */
+                SOSC_CLK,           /* inputReference */
                 0U,                     /* Bypass */
-                0U,                     /* predivider */
-                0U,                     /* multiplier */
-                0U,                     /* postdivider */
+                1U,                      /* predivider */
+                0U,                      /* multiplier */
+                0U,                      /* postdivider */
                 0U,                     /* numeratorFracLoopDiv */
-                0U,                     /* mulFactorDiv */
+                40U,                   /* mulFactorDiv */
                 0U,                     /* ModulationBypass */
-                0U,                     /* Modulation type: Spread spectrum modulation bypassed */
+                0U,                     /* Modulation type: Spread spectrum modulation bypassed */ 
                 0U,                     /* modulationPeriod */
-                0U,                     /* incrementStep */
+                1U,                     /* incrementStep */
                 0U,                     /* sigmaDelta */
                 0U,                     /* ditherControl */
                 0U,                     /* ditherControlValue */
-                0U,                     /* Monitor type  */
+                CLOCK_IP_HAS_MONITOR_DISABLE,                     /* Monitor type */
                 {                      /* Dividers */
                         0U,
                         0U,
                         0U,
                 },
             },
+            #endif
         },
 
 
@@ -530,7 +533,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
 
             #if CLOCK_IP_DIVIDERS_NO > 6U
             {
-                CORE_RUN_CLK,                    /* name */
+                SPLLDIV1_CLK,                    /* name */
                 2U,                              /* value */
                 {
                     0U,
@@ -540,6 +543,26 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
 
             #if CLOCK_IP_DIVIDERS_NO > 7U
             {
+                SPLLDIV2_CLK,                    /* name */
+                4U,                              /* value */
+                {
+                    0U,
+                }
+            },
+            #endif
+
+            #if CLOCK_IP_DIVIDERS_NO > 8U
+            {
+                CORE_RUN_CLK,                    /* name */
+                2U,                              /* value */
+                {
+                    0U,
+                }
+            },
+            #endif
+
+            #if CLOCK_IP_DIVIDERS_NO > 9U
+            {
                 CORE_VLPR_CLK,                    /* name */
                 8U,                              /* value */
                 {
@@ -548,7 +571,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 8U
+            #if CLOCK_IP_DIVIDERS_NO > 10U
             {
                 CORE_HSRUN_CLK,                    /* name */
                 1U,                              /* value */
@@ -558,7 +581,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 9U
+            #if CLOCK_IP_DIVIDERS_NO > 11U
             {
                 BUS_RUN_CLK,                    /* name */
                 2U,                              /* value */
@@ -568,7 +591,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 10U
+            #if CLOCK_IP_DIVIDERS_NO > 12U
             {
                 BUS_VLPR_CLK,                    /* name */
                 1U,                              /* value */
@@ -578,7 +601,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 11U
+            #if CLOCK_IP_DIVIDERS_NO > 13U
             {
                 BUS_HSRUN_CLK,                    /* name */
                 1U,                              /* value */
@@ -588,7 +611,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 12U
+            #if CLOCK_IP_DIVIDERS_NO > 14U
             {
                 SLOW_RUN_CLK,                    /* name */
                 4U,                              /* value */
@@ -598,7 +621,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 13U
+            #if CLOCK_IP_DIVIDERS_NO > 15U
             {
                 SLOW_VLPR_CLK,                    /* name */
                 4U,                              /* value */
@@ -608,7 +631,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 14U
+            #if CLOCK_IP_DIVIDERS_NO > 16U
             {
                 SLOW_HSRUN_CLK,                    /* name */
                 4U,                              /* value */
@@ -618,7 +641,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 15U
+            #if CLOCK_IP_DIVIDERS_NO > 17U
             {
                 CLKOUT0_CLK,                    /* name */
                 5U,                              /* value */
@@ -628,7 +651,7 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 16U
+            #if CLOCK_IP_DIVIDERS_NO > 18U
             {
                 LPTMR0_CLK,                    /* name */
                 1U,                              /* value */
@@ -638,30 +661,12 @@ const Clock_Ip_ClockConfigType Mcu_aClockConfigPB[1U] = {
             },
             #endif
 
-            #if CLOCK_IP_DIVIDERS_NO > 17U
+            #if CLOCK_IP_DIVIDERS_NO > 19U
             {
                 TRACE_CLK,                    /* name */
                 1U,                              /* value */
                 {
                     1U,
-                }
-            },
-            #endif
-
-            #if CLOCK_IP_DIVIDERS_NO > 18U
-            {
-                RESERVED_CLK,                    /* name */
-                0U,                              /* value */
-                {                    0U,
-                }
-            },
-            #endif
-
-            #if CLOCK_IP_DIVIDERS_NO > 19U
-            {
-                RESERVED_CLK,                    /* name */
-                0U,                              /* value */
-                {                    0U,
                 }
             },
             #endif
