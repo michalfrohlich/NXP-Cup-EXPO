@@ -20,6 +20,28 @@ static sint32 clamp_s32(sint32 x, sint32 lo, sint32 hi)
 
 static sint32 abs_s32(sint32 x) { return (x < 0) ? -x : x; }
 
+static float lpf_f(float y_prev, float x, float alpha)
+{
+    alpha = clamp_f(alpha, 0.0f, 1.0f);
+    return y_prev + alpha * (x - y_prev);
+}
+
+static float deadzone_f(float x, float dz)
+{
+    dz = clamp_f(dz, 0.0f, 0.95f);
+
+    if (x > dz)
+    {
+        return (x - dz) / (1.0f - dz);
+    }
+    if (x < -dz)
+    {
+        return (x + dz) / (1.0f - dz);
+    }
+
+    return 0.0f;
+}
+
 /* =========================================================
    Init / Reset
 ========================================================= */
@@ -30,8 +52,11 @@ void SteeringLinear_Init(SteeringLinearState_t *s)
     /* reset controller memory */
     s->i_term = 0.0f;
     s->prev_error = 0.0f;
+    s->err_filt = 0.0f;
+    s->d_error = 0.0f;
+    s->d_term = 0.0f;
 
-    /* =====================================================
+    /* ====================x|x=================================
        DEFAULTS COME FROM car_config.h (NOT hardcoded here)
        ===================================================== */
     s->kp = (float)KP;
@@ -53,6 +78,9 @@ void SteeringLinear_Reset(SteeringLinearState_t *s)
 
     s->i_term = 0.0f;
     s->prev_error = 0.0f;
+    s->err_filt = 0.0f;
+    s->d_error = 0.0f;
+    s->d_term = 0.0f;
 }
 
 /* =========================================================
@@ -99,6 +127,10 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
         (r == (const VisionOutput_t*)0) ||
         (r->status == VISION_TRACK_LOST))
     {
+        if (s != (SteeringLinearState_t*)0)
+        {
+            SteeringLinear_Reset(s);
+        }
         out.brake = TRUE;
         out.throttle_pct = 0u;
         out.steer_cmd = 0;
@@ -108,17 +140,42 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
     /* =====================================================
        1) Error from vision
        ===================================================== */
-    float err = r->error; /* [-1..+1] */
+    float raw_err = clamp_f(r->error, -1.0f, 1.0f); /* [-1..+1] */
+    float confScale = clamp_f(((float)r->confidence) / 100.0f, 0.20f, 1.0f);
+    float errAlpha = (float)STEER_ERROR_LPF_ALPHA;
+    float err;
+
+    raw_err = deadzone_f(raw_err, (float)STEER_CENTER_ERR_DEADBAND);
+
+    if (r->status != VISION_TRACK_BOTH)
+    {
+        confScale *= 0.75f;
+    }
+
+    errAlpha = clamp_f(errAlpha * confScale, 0.05f, 1.0f);
+    err = lpf_f(s->err_filt, raw_err, errAlpha);
+    s->err_filt = err;
 
     /* =====================================================
        2) Derivative term
        ===================================================== */
     float d = 0.0f;
+    float d_err;
     if (dt_seconds > 0.0001f)
     {
-        d = (err - s->prev_error) / dt_seconds;
+        d_err = lpf_f(s->d_error, err, (float)STEER_D_INPUT_ALPHA);
+        d = (d_err - s->prev_error) / dt_seconds;
+        d = lpf_f(s->d_term, d, (float)STEER_DTERM_LPF_ALPHA);
+        d = clamp_f(d, -(float)STEER_DTERM_CLAMP, (float)STEER_DTERM_CLAMP);
+
+        s->d_error = d_err;
+        s->d_term = d;
+        s->prev_error = d_err;
     }
-    s->prev_error = err;
+    else
+    {
+        s->d_term = 0.0f;
+    }
 
     /* =====================================================
        3) Integral term (NEW)

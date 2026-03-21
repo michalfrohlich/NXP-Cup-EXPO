@@ -163,35 +163,110 @@ static void mode_receiver_test(void)
 
 static void mode_servo_test(void)
 {
+    uint32 nextUpdateMs;
+    sint16 steerRaw = 0;
+    sint16 steerFilt = 0;
+    sint16 steerOut = 0;
+
     Board_InitDrivers();
     Timebase_Init();
     OnboardPot_Init();
     DisplayInit(0U, STD_ON);
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    SteerStraight();
+    nextUpdateMs = Timebase_GetMs();
 
     for (;;)
     {
-        uint8 pot = OnboardPot_ReadLevelFiltered();
-        int steerCmd = ((int)pot * 200 / 255) - 100;
+        uint32 nowMs = Timebase_GetMs();
+        uint8 pot;
+        float filt;
+
+        if ((uint32)(nowMs - nextUpdateMs) < SERVO_TEST_UPDATE_MS)
+        {
+            continue;
+        }
+        nextUpdateMs += SERVO_TEST_UPDATE_MS;
 
         Buttons_Update();
+        pot = OnboardPot_ReadLevelFiltered();
+        steerRaw = (sint16)((((sint32)pot * 200) / 255) - 100);
 
-        DisplayText(0U, "SERVO TEST", 10U, 0U);
-        DisplayText(1U, "POT:", 4U, 0U);
-        DisplayValue(1U, (int)pot, 3U, 5U);
-        DisplayText(2U, "CMD:", 4U, 0U);
-        DisplayValue(2U, steerCmd, 4U, 5U);
-        DisplayText(3U, "SW2=CTR", 7U, 0U);
-        DisplayRefresh();
+        if (steerRaw > (sint16)SERVO_TEST_CMD_CLAMP)
+        {
+            steerRaw = (sint16)SERVO_TEST_CMD_CLAMP;
+        }
+        if (steerRaw < (sint16)(-SERVO_TEST_CMD_CLAMP))
+        {
+            steerRaw = (sint16)(-SERVO_TEST_CMD_CLAMP);
+        }
+
+        if ((steerRaw <= (sint16)SERVO_TEST_DEADBAND) &&
+            (steerRaw >= (sint16)(-SERVO_TEST_DEADBAND)))
+        {
+            steerRaw = 0;
+        }
 
         if (Buttons_WasPressed(BUTTON_ID_SW2))
         {
+            steerRaw = 0;
+            steerFilt = 0;
+            steerOut = 0;
             SteerStraight();
         }
         else
         {
-            Steer(steerCmd);
+            sint16 delta;
+            sint16 rateMax;
+
+            filt = (float)steerFilt +
+                   ((float)SERVO_TEST_LPF_ALPHA * ((float)steerRaw - (float)steerFilt));
+
+            if (filt > 32767.0f)  { filt = 32767.0f; }
+            if (filt < -32768.0f) { filt = -32768.0f; }
+            steerFilt = (sint16)filt;
+
+            delta = (sint16)(steerFilt - steerOut);
+            sint16 absFilt = (steerFilt < 0) ? (sint16)(-steerFilt) : steerFilt;
+
+            rateMax = (sint16)SERVO_TEST_RATE_MAX;
+            rateMax = (sint16)(rateMax + (absFilt / 6));
+            if (rateMax > (sint16)SERVO_TEST_CMD_CLAMP)
+            {
+                rateMax = (sint16)SERVO_TEST_CMD_CLAMP;
+            }
+
+            if (delta > rateMax)
+            {
+                delta = rateMax;
+            }
+            if (delta < (sint16)(-rateMax))
+            {
+                delta = (sint16)(-rateMax);
+            }
+
+            steerOut = (sint16)(steerOut + delta);
+
+            if (steerOut > (sint16)SERVO_TEST_CMD_CLAMP)
+            {
+                steerOut = (sint16)SERVO_TEST_CMD_CLAMP;
+            }
+            if (steerOut < (sint16)(-SERVO_TEST_CMD_CLAMP))
+            {
+                steerOut = (sint16)(-SERVO_TEST_CMD_CLAMP);
+            }
+
+            Steer((int)steerOut);
         }
+
+        DisplayText(0U, "SERVO TEST", 10U, 0U);
+        DisplayText(1U, "RAW:", 4U, 0U);
+        DisplayValue(1U, (int)steerRaw, 4U, 5U);
+        DisplayText(2U, "OUT:", 4U, 0U);
+        DisplayValue(2U, (int)steerOut, 4U, 5U);
+        DisplayText(3U, "LIM:", 4U, 0U);
+        DisplayValue(3U, (int)SERVO_TEST_CMD_CLAMP, 4U, 5U);
+        DisplayRefresh();
     }
 }
 
@@ -459,6 +534,67 @@ static sint16 iir_s16(sint16 y_prev, sint16 x, float alpha)
     return (sint16)y;
 }
 
+static sint16 steer_shape_s16(sint16 cmd, sint16 clamp)
+{
+    sint32 absCmd;
+    sint32 quad;
+    sint32 shaped;
+    sint32 blendPct = (sint32)STEER_CMD_SHAPE_BLEND_PCT;
+
+    if (clamp <= 0)
+    {
+        return 0;
+    }
+
+    absCmd = (sint32)abs_s16(cmd);
+    if (absCmd > (sint32)clamp)
+    {
+        absCmd = (sint32)clamp;
+    }
+
+    quad = (absCmd * absCmd) / (sint32)clamp;
+    shaped = (((100L - blendPct) * absCmd) + (blendPct * quad)) / 100L;
+
+    if (shaped > absCmd)
+    {
+        shaped = absCmd;
+    }
+
+    return (cmd < 0) ? (sint16)(-shaped) : (sint16)shaped;
+}
+
+static sint16 steer_rate_limit_s16(sint16 current,
+                                   sint16 target,
+                                   sint16 baseRateMax,
+                                   sint16 clamp)
+{
+    sint16 boost;
+    sint16 rateMax;
+    sint16 delta;
+
+    if (baseRateMax < 0)
+    {
+        baseRateMax = 0;
+    }
+
+    boost = (sint16)(abs_s16(target) / (sint16)STEER_RATE_BOOST_DIV);
+    if (boost > (sint16)STEER_RATE_BOOST_MAX)
+    {
+        boost = (sint16)STEER_RATE_BOOST_MAX;
+    }
+
+    rateMax = (sint16)(baseRateMax + boost);
+    if (rateMax > clamp)
+    {
+        rateMax = clamp;
+    }
+
+    delta = (sint16)(target - current);
+    delta = clamp_s16(delta, (sint16)(-rateMax), rateMax);
+
+    return (sint16)(current + delta);
+}
+
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile)
 {
     if ((st == NULL) || (profile == NULL))
@@ -589,7 +725,8 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
         st->nextSteerMs += STEER_UPDATE_MS;
         frameHardStale = ((uint32)(nowMs - st->lastFrameMs) > CAM_STEER_HOLD_MS) ? TRUE : FALSE;
 
-        if ((st->haveValidVision != TRUE) || (frameHardStale == TRUE))
+        if ((st->haveValidVision != TRUE) ||
+                 (frameHardStale == TRUE))
         {
             st->steerRaw = 0;
             st->steerFilt = 0;
@@ -609,30 +746,33 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                                               dt,
                                               st->activeTune.baseSpeedPct);
 
-                st->steerRaw = (sint16)out.steer_cmd;
-
-                if (abs_s16(st->steerRaw) <= 2)
+                if (out.brake != TRUE)
                 {
-                    st->steerRaw = 0;
+                    st->steerRaw = (sint16)out.steer_cmd;
+
+                    if (abs_s16(st->steerRaw) <= (sint16)STEER_CMD_DEADBAND)
+                    {
+                        st->steerRaw = 0;
+                    }
+                    else
+                    {
+                        st->steerRaw = steer_shape_s16(st->steerRaw,
+                                                       st->activeTune.steerClamp);
+                    }
+
+                    st->steerFilt = iir_s16(st->steerFilt,
+                                            st->steerRaw,
+                                            st->activeTune.steerLpfAlpha);
+
+                    st->steerOut = steer_rate_limit_s16(st->steerOut,
+                                                        st->steerFilt,
+                                                        st->activeTune.steerRateMax,
+                                                        st->activeTune.steerClamp);
+
+                    st->steerOut = clamp_s16(st->steerOut,
+                                             (sint16)(-st->activeTune.steerClamp),
+                                             (sint16)(+st->activeTune.steerClamp));
                 }
-
-                st->steerFilt = iir_s16(st->steerFilt,
-                                        st->steerRaw,
-                                        st->activeTune.steerLpfAlpha);
-
-                {
-                    sint16 delta = (sint16)(st->steerFilt - st->steerOut);
-
-                    delta = clamp_s16(delta,
-                                      (sint16)(-st->activeTune.steerRateMax),
-                                      (sint16)(+st->activeTune.steerRateMax));
-
-                    st->steerOut = (sint16)(st->steerOut + delta);
-                }
-
-                st->steerOut = clamp_s16(st->steerOut,
-                                         (sint16)(-st->activeTune.steerClamp),
-                                         (sint16)(+st->activeTune.steerClamp));
             }
 
             steer_apply_safe((int)st->steerOut);
@@ -825,6 +965,14 @@ typedef enum
     NXP_CUP_STATE_RUN
 } NxpCupState_t;
 
+typedef enum
+{
+    NXP_CUP_ULTRA_CLEAR = 0,
+    NXP_CUP_ULTRA_STOP_HOLD,
+    NXP_CUP_ULTRA_CRAWL,
+    NXP_CUP_ULTRA_CUTOFF
+} NxpCupUltraMode_t;
+
 typedef struct
 {
     boolean enabled;
@@ -832,6 +980,8 @@ typedef struct
     float   lastDistanceCm;
     uint32  nextTriggerMs;
     uint32  ultraEnableMs;
+    NxpCupUltraMode_t mode;
+    uint32  modeUntilMs;
 } NxpCupUltraState_t;
 
 static const CamTuneProfile_t gNxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
@@ -864,39 +1014,6 @@ static const CamTuneProfile_t gNxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
         (uint8)NXP_CUP_SLOW_SPEED_PCT
     }
 };
-
-static float nxp_cup_profile_ultra_stop_cm(NxpCupProfileId_t profileId)
-{
-    switch (profileId)
-    {
-        case NXP_CUP_PROFILE_SUPERFAST: return (float)NXP_CUP_SUPERFAST_ULTRA_STOP_CM;
-        case NXP_CUP_PROFILE_5050:      return (float)NXP_CUP_5050_ULTRA_STOP_CM;
-        case NXP_CUP_PROFILE_SLOW:      return (float)NXP_CUP_SLOW_ULTRA_STOP_CM;
-        default:                        return (float)NXP_CUP_5050_ULTRA_STOP_CM;
-    }
-}
-
-static float nxp_cup_profile_ultra_slow_cm(NxpCupProfileId_t profileId)
-{
-    switch (profileId)
-    {
-        case NXP_CUP_PROFILE_SUPERFAST: return (float)NXP_CUP_SUPERFAST_ULTRA_SLOW_CM;
-        case NXP_CUP_PROFILE_5050:      return (float)NXP_CUP_5050_ULTRA_SLOW_CM;
-        case NXP_CUP_PROFILE_SLOW:      return (float)NXP_CUP_SLOW_ULTRA_SLOW_CM;
-        default:                        return (float)NXP_CUP_5050_ULTRA_SLOW_CM;
-    }
-}
-
-static uint8 nxp_cup_profile_ultra_slow_speed_pct(NxpCupProfileId_t profileId)
-{
-    switch (profileId)
-    {
-        case NXP_CUP_PROFILE_SUPERFAST: return (uint8)NXP_CUP_SUPERFAST_ULTRA_SLOW_SPEED_PCT;
-        case NXP_CUP_PROFILE_5050:      return (uint8)NXP_CUP_5050_ULTRA_SLOW_SPEED_PCT;
-        case NXP_CUP_PROFILE_SLOW:      return (uint8)NXP_CUP_SLOW_ULTRA_SLOW_SPEED_PCT;
-        default:                        return (uint8)NXP_CUP_5050_ULTRA_SLOW_SPEED_PCT;
-    }
-}
 
 static void nxp_cup_idle_motor(void)
 {
@@ -955,6 +1072,8 @@ static void nxp_cup_ultra_enter(NxpCupUltraState_t *st, uint32 nowMs)
     st->lastDistanceCm = 0.0f;
     st->nextTriggerMs = nowMs + (uint32)NXP_CUP_ULTRA_TRIGGER_PERIOD_MS;
     st->ultraEnableMs = 0u;
+    st->mode = NXP_CUP_ULTRA_CLEAR;
+    st->modeUntilMs = 0u;
     Ultrasonic_Init();
 #else
     st->enabled = FALSE;
@@ -962,6 +1081,8 @@ static void nxp_cup_ultra_enter(NxpCupUltraState_t *st, uint32 nowMs)
     st->lastDistanceCm = 0.0f;
     st->nextTriggerMs = 0u;
     st->ultraEnableMs = 0u;
+    st->mode = NXP_CUP_ULTRA_CLEAR;
+    st->modeUntilMs = 0u;
 #endif
 }
 
@@ -975,6 +1096,8 @@ static void nxp_cup_ultra_arm_for_run(NxpCupUltraState_t *st, uint32 nowMs)
     st->haveValidDistance = FALSE;
     st->lastDistanceCm = 0.0f;
     st->ultraEnableMs = nowMs + NXP_ULTRA_ENABLE_AFTER_RUN_MS;
+    st->mode = NXP_CUP_ULTRA_CLEAR;
+    st->modeUntilMs = 0u;
 }
 
 static boolean nxp_cup_ultra_is_active(const NxpCupUltraState_t *st, uint32 nowMs)
@@ -1025,16 +1148,93 @@ static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs)
             st->haveValidDistance = TRUE;
         }
     }
+
+    if (nxp_cup_ultra_is_active(st, nowMs) != TRUE)
+    {
+        st->mode = NXP_CUP_ULTRA_CLEAR;
+        st->modeUntilMs = 0u;
+        return;
+    }
+
+    /* Sequence:
+       1) <= 50 cm -> stop motor for 2 s
+       2) after hold -> fixed 10% crawl
+       3) <= 8 cm -> latch cutoff for ESC + steering */
+    if (st->mode == NXP_CUP_ULTRA_CUTOFF)
+    {
+        return;
+    }
+
+    if (st->haveValidDistance != TRUE)
+    {
+        return;
+    }
+
+    if (st->lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM)
+    {
+        st->mode = NXP_CUP_ULTRA_CUTOFF;
+        st->modeUntilMs = 0u;
+        return;
+    }
+
+    switch (st->mode)
+    {
+        case NXP_CUP_ULTRA_STOP_HOLD:
+        {
+            if ((st->modeUntilMs != 0u) &&
+                (time_reached(nowMs, st->modeUntilMs) == TRUE))
+            {
+                if (st->lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
+                {
+                    st->mode = NXP_CUP_ULTRA_CRAWL;
+                }
+                else
+                {
+                    st->mode = NXP_CUP_ULTRA_CLEAR;
+                }
+                st->modeUntilMs = 0u;
+            }
+            break;
+        }
+
+        case NXP_CUP_ULTRA_CRAWL:
+        {
+            break;
+        }
+
+        case NXP_CUP_ULTRA_CLEAR:
+        default:
+        {
+            if (st->lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
+            {
+                st->mode = NXP_CUP_ULTRA_STOP_HOLD;
+                st->modeUntilMs = nowMs + (uint32)NXP_CUP_ULTRA_STOP_HOLD_MS;
+            }
+            break;
+        }
+    }
 }
 
-static uint8 nxp_cup_ultra_limit_speed_pct(const NxpCupUltraState_t *st,
-                                           uint32 nowMs,
-                                           uint8 requestedSpeedPct,
-                                           NxpCupProfileId_t profileId)
+static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st,
+                                               uint32 nowMs)
 {
-    float slowCm;
-    uint8 slowSpeedPct;
+    if ((st == NULL) || (st->enabled != TRUE))
+    {
+        return FALSE;
+    }
 
+    if (nxp_cup_ultra_is_active(st, nowMs) != TRUE)
+    {
+        return FALSE;
+    }
+
+    return (st->mode == NXP_CUP_ULTRA_CUTOFF) ? TRUE : FALSE;
+}
+
+static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st,
+                                            uint32 nowMs,
+                                            uint8 requestedSpeedPct)
+{
     if ((st == NULL) || (st->enabled != TRUE))
     {
         return requestedSpeedPct;
@@ -1045,48 +1245,28 @@ static uint8 nxp_cup_ultra_limit_speed_pct(const NxpCupUltraState_t *st,
         return requestedSpeedPct;
     }
 
-    if (st->haveValidDistance != TRUE)
-    {
-        return requestedSpeedPct;
-    }
-
-    if (st->lastDistanceCm <= nxp_cup_profile_ultra_stop_cm(profileId))
+    if (st->mode == NXP_CUP_ULTRA_STOP_HOLD)
     {
         return 0U;
     }
 
-    slowCm = nxp_cup_profile_ultra_slow_cm(profileId);
-    slowSpeedPct = nxp_cup_profile_ultra_slow_speed_pct(profileId);
-
-    if ((st->lastDistanceCm <= slowCm) &&
-        (requestedSpeedPct > slowSpeedPct))
+    /* After the hold, stay at a fixed crawl speed until the cutoff distance. */
+    if ((st->mode == NXP_CUP_ULTRA_CRAWL) &&
+        (st->haveValidDistance == TRUE))
     {
-        return slowSpeedPct;
+        if ((uint8)NXP_CUP_ULTRA_CRAWL_SPEED_PCT > requestedSpeedPct)
+        {
+            return requestedSpeedPct;
+        }
+        return (uint8)NXP_CUP_ULTRA_CRAWL_SPEED_PCT;
+    }
+
+    if (st->mode == NXP_CUP_ULTRA_CUTOFF)
+    {
+        return 0U;
     }
 
     return requestedSpeedPct;
-}
-
-static boolean nxp_cup_ultra_should_force_stop(const NxpCupUltraState_t *st,
-                                               uint32 nowMs,
-                                               NxpCupProfileId_t profileId)
-{
-    if ((st == NULL) || (st->enabled != TRUE))
-    {
-        return FALSE;
-    }
-
-    if (nxp_cup_ultra_is_active(st, nowMs) != TRUE)
-    {
-        return FALSE;
-    }
-
-    if (st->haveValidDistance != TRUE)
-    {
-        return FALSE;
-    }
-
-    return (st->lastDistanceCm <= nxp_cup_profile_ultra_stop_cm(profileId)) ? TRUE : FALSE;
 }
 
 static void mode_nxp_cup(void)
@@ -1134,6 +1314,7 @@ static void mode_nxp_cup(void)
         systemBad = FALSE;
         if ((state == NXP_CUP_STATE_RUN) &&
             (cameraStarted == TRUE) &&
+            (ultraSt.mode != NXP_CUP_ULTRA_CUTOFF) &&
             ((camSt.haveValidVision != TRUE) ||
              ((uint32)(now - camSt.lastFrameMs) > CAM_STEER_HOLD_MS)))
         {
@@ -1331,13 +1512,29 @@ static void mode_nxp_cup(void)
             continue;
         }
 
-        if (cameraStarted == TRUE)
-        {
-            camservo_update(&camSt, now, FALSE);
-        }
-
         /* Ultrasonic only acts after RUN and after the long enable delay */
         nxp_cup_ultra_task(&ultraSt, now);
+
+        if (cameraStarted == TRUE)
+        {
+            /* At cutoff distance, stop issuing new steering commands and keep
+               the steering centered in software. */
+            if (nxp_cup_ultra_should_hold_servo(&ultraSt, now) == TRUE)
+            {
+                steer_center_safe();
+            }
+            else
+            {
+                camservo_update(&camSt, now, FALSE);
+            }
+        }
+
+        if ((ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+            (ultraSt.mode == NXP_CUP_ULTRA_CUTOFF))
+        {
+            autoSpeedPct = 0;
+            nxp_cup_obstacle_stop_motor();
+        }
 
         if (sw2 == TRUE)
         {
@@ -1375,13 +1572,6 @@ static void mode_nxp_cup(void)
             continue;
         }
 
-        if (nxp_cup_ultra_should_force_stop(&ultraSt, now, profileId) == TRUE)
-        {
-            autoSpeedPct = 0;
-            nxp_cup_obstacle_stop_motor();
-            continue;
-        }
-
         if (time_reached(now, nextAutoSpeedMs))
         {
             sint32 targetSpeedPct;
@@ -1390,15 +1580,18 @@ static void mode_nxp_cup(void)
             nextAutoSpeedMs = now + FULL_AUTO_RAMP_PERIOD_MS;
 
             targetSpeedPct =
-                (sint32)nxp_cup_ultra_limit_speed_pct(&ultraSt,
-                                                     now,
-                                                     (uint8)camSt.activeTune.baseSpeedPct,
-                                                     profileId);
+                (sint32)nxp_cup_ultra_target_speed_pct(&ultraSt,
+                                                       now,
+                                                       (uint8)camSt.activeTune.baseSpeedPct);
 
             if (targetSpeedPct < 0)   { targetSpeedPct = 0; }
             if (targetSpeedPct > 100) { targetSpeedPct = 100; }
 
-            if (autoSpeedPct < targetSpeedPct)
+            if (ultraSt.mode == NXP_CUP_ULTRA_CRAWL)
+            {
+                autoSpeedPct = targetSpeedPct;
+            }
+            else if (autoSpeedPct < targetSpeedPct)
             {
                 autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
                 if (autoSpeedPct > targetSpeedPct)

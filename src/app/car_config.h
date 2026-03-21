@@ -63,6 +63,15 @@
    0 = keep servo centered / no steering command applied */
 #define SERVO_OUTPUT_ENABLE               1
 
+/* Servo test mode only.
+   These do NOT affect FINAL_DUMMY / NXP_CUP steering.
+    */
+#define SERVO_TEST_CMD_CLAMP              70
+#define SERVO_TEST_RATE_MAX               8
+#define SERVO_TEST_DEADBAND               3
+#define SERVO_TEST_LPF_ALPHA              0.45f
+#define SERVO_TEST_UPDATE_MS              5u
+
 /* Pot constants (required by ESC-only working mode) */
 #define POT_LEFT_RAW                      0
 #define POT_CENTER_RAW                    128
@@ -135,7 +144,16 @@
 #define KD                                0.5f
 #define KI                                0.00f
 #define ITERM_CLAMP                       0.20f
+#define STEER_CENTER_ERR_DEADBAND         0.07f
 #define STEER_LPF_ALPHA                   0.70f
+#define STEER_ERROR_LPF_ALPHA             0.30f
+#define STEER_D_INPUT_ALPHA               0.55f
+#define STEER_DTERM_LPF_ALPHA             0.35f
+#define STEER_DTERM_CLAMP                 4.0f
+#define STEER_CMD_DEADBAND                6
+#define STEER_CMD_SHAPE_BLEND_PCT         75
+#define STEER_RATE_BOOST_DIV              4
+#define STEER_RATE_BOOST_MAX              10
 
 /* =========================================================
    Speed policy
@@ -168,221 +186,174 @@
    GENERAL TUNING INSTRUCTIONS
 =========================================================
 
-Tune one profile at a time.
-Change only 1 or 2 things at once.
-First make the car survive the track at lower speed.
-Only then push speed up.
+This file has two groups of steering knobs:
 
-Recommended tuning order:
-1) STEER_CLAMP
-2) STEER_RATE_MAX
-3) KP
-4) KD
-5) STEER_LPF_ALPHA
-6) SPEED_PCT
+1) Per-profile knobs:
+   NXP_CUP_*_KP
+   NXP_CUP_*_KD
+   NXP_CUP_*_KI
+   NXP_CUP_*_ITERM_CLAMP
+   NXP_CUP_*_STEER_CLAMP
+   NXP_CUP_*_STEER_LPF_ALPHA
+   NXP_CUP_*_STEER_RATE_MAX
+   NXP_CUP_*_SPEED_PCT
 
----------------------------------------------------------
-WHAT EACH PARAMETER DOES
----------------------------------------------------------
+2) Shared steering shaping / noise knobs:
+   STEER_CENTER_ERR_DEADBAND
+   STEER_ERROR_LPF_ALPHA
+   STEER_D_INPUT_ALPHA
+   STEER_DTERM_LPF_ALPHA
+   STEER_DTERM_CLAMP
+   STEER_CMD_DEADBAND
+   STEER_CMD_SHAPE_BLEND_PCT
+   STEER_RATE_BOOST_DIV
+   STEER_RATE_BOOST_MAX
 
-STEER_CLAMP
-- Max steering authority.
-- Raise it if the car cannot make curves/intersections/loops.
-- Lower it if steering becomes too extreme or snaps too hard.
+Recommended order when a profile is too aggressive:
+1) Lower NXP_CUP_*_STEER_RATE_MAX
+2) Lower NXP_CUP_*_KP
+3) Lower NXP_CUP_*_STEER_LPF_ALPHA
+4) Lower NXP_CUP_*_KD only if D noise is part of the problem
+5) Raise STEER_CENTER_ERR_DEADBAND or STEER_CMD_DEADBAND if straights still twitch
 
-STEER_RATE_MAX
-- Max steering change per control update.
-- Raise it if steering reacts too slowly entering curves.
-- Lower it if steering becomes twitchy or jerky.
+Recommended order when a profile is too weak:
+1) Raise NXP_CUP_*_STEER_RATE_MAX
+2) Raise NXP_CUP_*_KP
+3) Raise NXP_CUP_*_STEER_LPF_ALPHA
+4) Raise NXP_CUP_*_STEER_CLAMP only if it still cannot make the turn
 
-KP
-- Main correction strength.
-- Raise it if the car is lazy and does not correct enough.
-- Lower it if the car wiggles, overreacts, or hunts left-right.
+What each knob does:
 
-KD
-- Damping.
-- Raise it if the car oscillates, bounces, or overshoots after turning.
-- Lower it if the car feels too damped or slow to settle.
+NXP_CUP_*_STEER_RATE_MAX
+- Max steering change per update.
+- Lower it if the car commits too hard, zigzags, or snaps into turns.
+- Raise it if the car reacts too late entering curves.
 
-STEER_LPF_ALPHA
-- In this code: higher alpha = less smoothing = faster response.
-- Lower it if steering is noisy, twitchy, or jittery.
-- Raise it if steering feels too delayed or too soft.
+NXP_CUP_*_KP
+- Main steering strength.
+- Lower it if the car overcorrects or weaves.
+- Raise it if the car stays off-center and does not correct enough.
 
-SPEED_PCT
-- Base motor speed command.
-- Higher speed makes every instability worse.
-- Lower speed makes tuning easier and turns easier to survive.
+NXP_CUP_*_KD
+- Damping and edge anticipation.
+- Lower it if steering reacts too hard to noisy line movement.
+- Raise it if the car oscillates after a turn and needs more settling.
 
----------------------------------------------------------
-DIAGNOSIS RULES
----------------------------------------------------------
+NXP_CUP_*_STEER_LPF_ALPHA
+- Output smoothing.
+- Higher alpha = less smoothing and faster response.
+- Lower it if the servo movement is too sharp or twitchy.
+- Raise it if the car feels delayed and lazy.
 
-If the car does NOT turn enough / misses curves:
-- Raise STEER_CLAMP first.
-- Then raise STEER_RATE_MAX.
-- Then raise KP.
+NXP_CUP_*_STEER_CLAMP
+- Maximum steering authority.
+- Lower it if the car uses too much steering overall.
+- Raise it only if it cannot physically turn enough.
 
-If the car turns, but too slowly:
-- Raise STEER_RATE_MAX.
+NXP_CUP_*_KI and NXP_CUP_*_ITERM_CLAMP
+- Long-term bias correction.
+- Lower them if the car "keeps committing" after the line has already moved back.
+- Raise them only if the car has a steady left/right bias on long straights.
 
-If the car turns enough, but then oscillates or bounces:
-- Raise KD.
+STEER_CENTER_ERR_DEADBAND
+- Ignores tiny camera error near center before PID.
+- Raise it if straights still cause small left-right wiggles.
+- Lower it if the car waits too long before correcting.
 
-If the car wiggles on straights:
-- Lower KP.
-- Or lower STEER_RATE_MAX.
-- Or lower STEER_LPF_ALPHA.
+STEER_ERROR_LPF_ALPHA
+- Smooths the camera error before PID.
+- Lower it for noisier camera motion and calmer steering.
+- Raise it for faster response if the image is already clean.
 
-If the car snaps violently left-right:
-- Lower STEER_RATE_MAX.
-- Lower KP.
-- Possibly lower STEER_LPF_ALPHA.
+STEER_D_INPUT_ALPHA and STEER_DTERM_LPF_ALPHA
+- Smooth the derivative path.
+- Lower them if D feels noisy or the car reacts to tiny line jitter.
+- Raise them only if steering feels too damped and slow.
 
-If the car feels smooth but too weak:
-- Raise STEER_CLAMP before doing huge KP increases.
+STEER_DTERM_CLAMP
+- Hard cap on derivative contribution.
+- Lower it if brief line movement creates big steering spikes.
+- Raise it only if the car overshoots because D is too limited.
 
----------------------------------------------------------
-SPEED EFFECT
----------------------------------------------------------
+STEER_CMD_DEADBAND
+- Small steering commands are forced to zero after PID.
+- Raise it if the servo chatters near center.
+- Lower it if the car needs more tiny corrections on straights.
 
-At HIGHER speed:
-- Usually need more KD.
-- Often need slightly less KP.
-- Often need more STEER_CLAMP.
-- Too much STEER_RATE_MAX becomes unstable fast.
+STEER_CMD_SHAPE_BLEND_PCT
+- Higher values soften small and medium steering commands while keeping large ones available.
+- Raise it if the car commits too much to mild curves or small zigzags.
+- Lower it if the car feels too soft around center.
 
-At LOWER speed:
-- Can usually tolerate more KP.
-- Need less KD.
-- Smoother settings can still work.
+STEER_RATE_BOOST_DIV and STEER_RATE_BOOST_MAX
+- Extra rate allowance for larger steering requests.
+- Lower STEER_RATE_BOOST_MAX if big moves still snap too hard.
+- Raise it only if large corners are too slow even with reasonable RATE_MAX.
 
----------------------------------------------------------
-PRACTICAL METHOD
----------------------------------------------------------
-
-Step 1:
-- Make the car able to do the curve at all.
-
-Step 2:
-- Remove wiggle / oscillation.
-
-Step 3:
-- Increase speed.
-
-Step 4:
-- If higher speed breaks it:
-  do NOT instantly add lots of KP.
-  Usually:
-  - add a bit of KD
-  - maybe reduce KP slightly
-  - maybe raise CLAMP if it still needs authority
-
----------------------------------------------------------
-SAFE TUNING STEPS
----------------------------------------------------------
-
-CLAMP:
-- Move in steps of about 4 to 8.
-
-RATE_MAX:
-- Move in steps of about 1.
-
-KP:
-- Move in steps of about 0.10 to 0.20.
-
-KD:
-- Move in steps of about 0.05 to 0.10.
-
-LPF_ALPHA:
-- Move in steps of about 0.03 to 0.08.
-
-SPEED_PCT:
-- Move in steps of about 2 to 4.
-
----------------------------------------------------------
-IMPORTANT
----------------------------------------------------------
-
-If it currently fails even the FIRST curve:
-- Do NOT start by changing KD.
-- First raise:
-  1) STEER_CLAMP
-  2) STEER_RATE_MAX
-  3) KP
-
-Only once it turns enough, then use KD to clean up bouncing.
+Ultrasonic testing notes:
+- Set NXP_CUP_ULTRASONIC_ENABLE to 0 to disable ultrasonic in all NXP Cup profiles.
+- NXP_ULTRA_ENABLE_AFTER_RUN_MS delays when ultrasonic starts affecting the run.
+- NXP_CUP_ULTRA_STOP_CM is the first trigger distance.
+- NXP_CUP_ULTRA_STOP_HOLD_MS is how long speed stays at 0 after the trigger.
+- NXP_CUP_ULTRA_CRAWL_SPEED_PCT is the fixed speed after the hold.
+- NXP_CUP_ULTRA_CRAWL_STOP_CM is the hard cutoff distance for servo + ESC.
 */
 
 
 
 /* ---------- SUPERFAST ---------- */
-#define NXP_CUP_SUPERFAST_KP              4.5f
-#define NXP_CUP_SUPERFAST_KD              2.0f
-#define NXP_CUP_SUPERFAST_KI              0.03f
-#define NXP_CUP_SUPERFAST_ITERM_CLAMP     0.15f
-#define NXP_CUP_SUPERFAST_STEER_CLAMP     100
-#define NXP_CUP_SUPERFAST_STEER_LPF_ALPHA 0.7f
-#define NXP_CUP_SUPERFAST_STEER_RATE_MAX  80
+#define NXP_CUP_SUPERFAST_KP              4.0f
+#define NXP_CUP_SUPERFAST_KD              1.6f
+#define NXP_CUP_SUPERFAST_KI              0.02f
+#define NXP_CUP_SUPERFAST_ITERM_CLAMP     0.12f
+#define NXP_CUP_SUPERFAST_STEER_CLAMP     70
+#define NXP_CUP_SUPERFAST_STEER_LPF_ALPHA 0.58f
+#define NXP_CUP_SUPERFAST_STEER_RATE_MAX  32
 #define NXP_CUP_SUPERFAST_SPEED_PCT       40
 
 /* ---------- 5050 ---------- */
-#define NXP_CUP_5050_KP                   3.0f
-#define NXP_CUP_5050_KD                   2.4f
-#define NXP_CUP_5050_KI                   0.02f
-#define NXP_CUP_5050_ITERM_CLAMP          0.10f
-#define NXP_CUP_5050_STEER_CLAMP          100
-#define NXP_CUP_5050_STEER_LPF_ALPHA      0.68f
-#define NXP_CUP_5050_STEER_RATE_MAX       40
+#define NXP_CUP_5050_KP                   1.75f
+#define NXP_CUP_5050_KD                   0.95f
+#define NXP_CUP_5050_KI                   0.00f
+#define NXP_CUP_5050_ITERM_CLAMP          0.04f
+#define NXP_CUP_5050_STEER_CLAMP          70
+#define NXP_CUP_5050_STEER_LPF_ALPHA      0.48f
+#define NXP_CUP_5050_STEER_RATE_MAX       11
 #define NXP_CUP_5050_SPEED_PCT            25
 
 /* ---------- SLOW ---------- */
-#define NXP_CUP_SLOW_KP                   1.0f
-#define NXP_CUP_SLOW_KD                   0.5f
-#define NXP_CUP_SLOW_KI                   0.01f
-#define NXP_CUP_SLOW_ITERM_CLAMP          0.08f
-#define NXP_CUP_SLOW_STEER_CLAMP          100
-#define NXP_CUP_SLOW_STEER_LPF_ALPHA      0.6f
-#define NXP_CUP_SLOW_STEER_RATE_MAX       20
+#define NXP_CUP_SLOW_KP                   0.85f
+#define NXP_CUP_SLOW_KD                   0.40f
+#define NXP_CUP_SLOW_KI                   0.00f
+#define NXP_CUP_SLOW_ITERM_CLAMP          0.06f
+#define NXP_CUP_SLOW_STEER_CLAMP          70
+#define NXP_CUP_SLOW_STEER_LPF_ALPHA      0.50f
+/* Lower than the other profiles on purpose so the servo sweeps across its
+   range more slowly while you tune the slow mode. */
+#define NXP_CUP_SLOW_STEER_RATE_MAX       8
 #define NXP_CUP_SLOW_SPEED_PCT            14
 
 
 
 
-/* ---------- NXP CUP ultrasonic behavior (per profile) ---------- */
+/* ---------- NXP CUP ultrasonic behavior ----------
+   Set to 0 while tuning in a small room with nearby walls. */
 #define NXP_CUP_ULTRASONIC_ENABLE         1
-#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   30u
+/* Lower period = faster re-trigger / faster wall detection. */
+#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   10u
 
-/* Ignore ultrasonic briefly after run starts so it does not block launch */
-#define NXP_CUP_ULTRA_START_IGNORE_MS     1000u
-
-/* Additional hard enable delay after launch */
+/* Delay before ultrasonic is allowed to affect the run. */
 #define NXP_ULTRA_ENABLE_AFTER_RUN_MS     1000u
 
-/* ---------- SUPERFAST ultrasonic ---------- */
-#define NXP_CUP_SUPERFAST_ULTRA_SLOW_CM        60.0f
-#define NXP_CUP_SUPERFAST_ULTRA_SLOW_SPEED_PCT 2U
-#define NXP_CUP_SUPERFAST_ULTRA_STOP_CM        18.0f
-#define NXP_CUP_SUPERFAST_ULTRA_STOP_RELEASE_CM 20.0f
+/* At or below this distance, speed is forced to 0 for NXP_CUP_ULTRA_STOP_HOLD_MS. */
+#define NXP_CUP_ULTRA_STOP_CM             50.0f
+/* At or below this distance, stop ESC and stop issuing steering updates. */
+#define NXP_CUP_ULTRA_CRAWL_STOP_CM       9.0f
+/* After the hold, the car resumes at this fixed speed. */
+#define NXP_CUP_ULTRA_CRAWL_SPEED_PCT     5U
+/* Hold time at zero speed after the 50 cm trigger. */
+#define NXP_CUP_ULTRA_STOP_HOLD_MS        2000u
 
-/* ---------- 5050 ultrasonic ---------- */
-#define NXP_CUP_5050_ULTRA_SLOW_CM             40.0f
-#define NXP_CUP_5050_ULTRA_SLOW_SPEED_PCT      2U
-#define NXP_CUP_5050_ULTRA_STOP_CM             10.0f
-#define NXP_CUP_5050_ULTRA_STOP_RELEASE_CM     12.0f
-
-/* ---------- SLOW ultrasonic ---------- */
-#define NXP_CUP_SLOW_ULTRA_SLOW_CM             20.0f
-#define NXP_CUP_SLOW_ULTRA_SLOW_SPEED_PCT      2U
-#define NXP_CUP_SLOW_ULTRA_STOP_CM             10.0f
-#define NXP_CUP_SLOW_ULTRA_STOP_RELEASE_CM     12.0f
-
-/* Shared stop timing */
-#define NXP_CUP_ULTRA_STOP_HOLD_MS        0u
-#define NXP_CUP_ULTRA_STOP_LOCK_MS        2500u
-
-/* Faster ramp-down so slow/stop reacts quickly */
+/* Keep ramp-down effectively immediate when the ultrasonic state machine asks for 0. */
 #define NXP_CUP_RAMP_DOWN_STEP_PCT        100
-
 
