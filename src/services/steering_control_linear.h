@@ -24,6 +24,14 @@ typedef struct
     float kp;
     float ki;
     float kd;
+    float iTermClamp;
+    float centerErrDeadband;
+    float errorLpfAlpha;
+    float dInputAlpha;
+    float dTermLpfAlpha;
+    float dTermClamp;
+    sint16 cmdClamp;
+    boolean confidenceScaleEnable;
 
     /* Extra steering aggressiveness multiplier */
     float steerScale;

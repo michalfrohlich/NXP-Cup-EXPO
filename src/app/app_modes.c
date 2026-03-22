@@ -474,9 +474,21 @@ typedef struct
     float kp;
     float kd;
     float ki;
+    float iTermClamp;
     float steerLpfAlpha;
+    float centerErrDeadband;
+    float errorLpfAlpha;
+    float dInputAlpha;
+    float dTermLpfAlpha;
+    float dTermClamp;
     sint16 steerClamp;
+    sint16 pidCmdClamp;
     sint16 steerRateMax;
+    sint16 cmdDeadband;
+    sint16 cmdShapeBlendPct;
+    sint16 rateBoostDiv;
+    sint16 rateBoostMax;
+    boolean confidenceScaleEnable;
     uint8 baseSpeedPct;
 } CamTuneProfile_t;
 
@@ -534,16 +546,25 @@ static sint16 iir_s16(sint16 y_prev, sint16 x, float alpha)
     return (sint16)y;
 }
 
-static sint16 steer_shape_s16(sint16 cmd, sint16 clamp)
+static sint16 steer_shape_s16(sint16 cmd, sint16 clamp, sint16 blendPctCfg)
 {
     sint32 absCmd;
     sint32 quad;
     sint32 shaped;
-    sint32 blendPct = (sint32)STEER_CMD_SHAPE_BLEND_PCT;
+    sint32 blendPct = (sint32)blendPctCfg;
 
     if (clamp <= 0)
     {
         return 0;
+    }
+
+    if (blendPct < 0)
+    {
+        blendPct = 0;
+    }
+    if (blendPct > 100)
+    {
+        blendPct = 100;
     }
 
     absCmd = (sint32)abs_s16(cmd);
@@ -566,7 +587,9 @@ static sint16 steer_shape_s16(sint16 cmd, sint16 clamp)
 static sint16 steer_rate_limit_s16(sint16 current,
                                    sint16 target,
                                    sint16 baseRateMax,
-                                   sint16 clamp)
+                                   sint16 clamp,
+                                   sint16 rateBoostDiv,
+                                   sint16 rateBoostMax)
 {
     sint16 boost;
     sint16 rateMax;
@@ -577,10 +600,17 @@ static sint16 steer_rate_limit_s16(sint16 current,
         baseRateMax = 0;
     }
 
-    boost = (sint16)(abs_s16(target) / (sint16)STEER_RATE_BOOST_DIV);
-    if (boost > (sint16)STEER_RATE_BOOST_MAX)
+    if ((rateBoostDiv <= 0) || (rateBoostMax <= 0))
     {
-        boost = (sint16)STEER_RATE_BOOST_MAX;
+        boost = 0;
+    }
+    else
+    {
+        boost = (sint16)(abs_s16(target) / rateBoostDiv);
+        if (boost > rateBoostMax)
+        {
+            boost = rateBoostMax;
+        }
     }
 
     rateMax = (sint16)(baseRateMax + boost);
@@ -607,6 +637,14 @@ static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *
     st->ctrl.kp = profile->kp;
     st->ctrl.kd = profile->kd;
     st->ctrl.ki = profile->ki;
+    st->ctrl.iTermClamp = profile->iTermClamp;
+    st->ctrl.centerErrDeadband = profile->centerErrDeadband;
+    st->ctrl.errorLpfAlpha = profile->errorLpfAlpha;
+    st->ctrl.dInputAlpha = profile->dInputAlpha;
+    st->ctrl.dTermLpfAlpha = profile->dTermLpfAlpha;
+    st->ctrl.dTermClamp = profile->dTermClamp;
+    st->ctrl.cmdClamp = profile->pidCmdClamp;
+    st->ctrl.confidenceScaleEnable = profile->confidenceScaleEnable;
     st->ctrl.steerScale = 1.0f;
 
     SteeringLinear_Reset(&st->ctrl);
@@ -750,14 +788,15 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                 {
                     st->steerRaw = (sint16)out.steer_cmd;
 
-                    if (abs_s16(st->steerRaw) <= (sint16)STEER_CMD_DEADBAND)
+                    if (abs_s16(st->steerRaw) <= st->activeTune.cmdDeadband)
                     {
                         st->steerRaw = 0;
                     }
                     else
                     {
                         st->steerRaw = steer_shape_s16(st->steerRaw,
-                                                       st->activeTune.steerClamp);
+                                                       st->activeTune.steerClamp,
+                                                       st->activeTune.cmdShapeBlendPct);
                     }
 
                     st->steerFilt = iir_s16(st->steerFilt,
@@ -767,7 +806,9 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                     st->steerOut = steer_rate_limit_s16(st->steerOut,
                                                         st->steerFilt,
                                                         st->activeTune.steerRateMax,
-                                                        st->activeTune.steerClamp);
+                                                        st->activeTune.steerClamp,
+                                                        st->activeTune.rateBoostDiv,
+                                                        st->activeTune.rateBoostMax);
 
                     st->steerOut = clamp_s16(st->steerOut,
                                              (sint16)(-st->activeTune.steerClamp),
@@ -782,7 +823,9 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                     st->steerOut = steer_rate_limit_s16(st->steerOut,
                                                         0,
                                                         st->activeTune.steerRateMax,
-                                                        st->activeTune.steerClamp);
+                                                        st->activeTune.steerClamp,
+                                                        st->activeTune.rateBoostDiv,
+                                                        st->activeTune.rateBoostMax);
                 }
             }
 
@@ -998,31 +1041,69 @@ typedef struct
 static const CamTuneProfile_t gNxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
 {
     {
-        NXP_CUP_SUPERFAST_KP,
-        NXP_CUP_SUPERFAST_KD,
-        NXP_CUP_SUPERFAST_KI,
-        NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
-        (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP,
-        (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
-        (uint8)NXP_CUP_SUPERFAST_SPEED_PCT
+        .kp = NXP_CUP_SUPERFAST_KP,
+        .kd = NXP_CUP_SUPERFAST_KD,
+        .ki = NXP_CUP_SUPERFAST_KI,
+        .iTermClamp = NXP_CUP_SUPERFAST_ITERM_CLAMP,
+        .steerLpfAlpha = NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
+        .centerErrDeadband = STEER_CENTER_ERR_DEADBAND,
+        .errorLpfAlpha = STEER_ERROR_LPF_ALPHA,
+        .dInputAlpha = STEER_D_INPUT_ALPHA,
+        .dTermLpfAlpha = STEER_DTERM_LPF_ALPHA,
+        .dTermClamp = STEER_DTERM_CLAMP,
+        .steerClamp = (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP,
+        .pidCmdClamp = (sint16)STEER_CMD_CLAMP,
+        .steerRateMax = (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
+        .cmdDeadband = (sint16)STEER_CMD_DEADBAND,
+        .cmdShapeBlendPct = (sint16)STEER_CMD_SHAPE_BLEND_PCT,
+        .rateBoostDiv = (sint16)STEER_RATE_BOOST_DIV,
+        .rateBoostMax = (sint16)STEER_RATE_BOOST_MAX,
+        .confidenceScaleEnable = TRUE,
+        .baseSpeedPct = (uint8)NXP_CUP_SUPERFAST_SPEED_PCT
     },
     {
-        NXP_CUP_5050_KP,
-        NXP_CUP_5050_KD,
-        NXP_CUP_5050_KI,
-        NXP_CUP_5050_STEER_LPF_ALPHA,
-        (sint16)NXP_CUP_5050_STEER_CLAMP,
-        (sint16)NXP_CUP_5050_STEER_RATE_MAX,
-        (uint8)NXP_CUP_5050_SPEED_PCT
+        /* Keep the Feb-2 5050 feel, but pin the extra compatibility knobs here
+           so car_config.h only exposes the main tuning values. */
+        .kp = NXP_CUP_5050_KP,
+        .kd = NXP_CUP_5050_KD,
+        .ki = NXP_CUP_5050_KI,
+        .iTermClamp = NXP_CUP_5050_ITERM_CLAMP,
+        .steerLpfAlpha = NXP_CUP_5050_STEER_LPF_ALPHA,
+        .centerErrDeadband = 0.0f,
+        .errorLpfAlpha = 1.0f,
+        .dInputAlpha = 1.0f,
+        .dTermLpfAlpha = 1.0f,
+        .dTermClamp = 100.0f,
+        .steerClamp = (sint16)NXP_CUP_5050_STEER_CLAMP,
+        .pidCmdClamp = (sint16)NXP_CUP_5050_STEER_CLAMP,
+        .steerRateMax = (sint16)NXP_CUP_5050_STEER_RATE_MAX,
+        .cmdDeadband = 2,
+        .cmdShapeBlendPct = 0,
+        .rateBoostDiv = (sint16)STEER_RATE_BOOST_DIV,
+        .rateBoostMax = 0,
+        .confidenceScaleEnable = FALSE,
+        .baseSpeedPct = (uint8)NXP_CUP_5050_SPEED_PCT
     },
     {
-        NXP_CUP_SLOW_KP,
-        NXP_CUP_SLOW_KD,
-        NXP_CUP_SLOW_KI,
-        NXP_CUP_SLOW_STEER_LPF_ALPHA,
-        (sint16)NXP_CUP_SLOW_STEER_CLAMP,
-        (sint16)NXP_CUP_SLOW_STEER_RATE_MAX,
-        (uint8)NXP_CUP_SLOW_SPEED_PCT
+        .kp = NXP_CUP_SLOW_KP,
+        .kd = NXP_CUP_SLOW_KD,
+        .ki = NXP_CUP_SLOW_KI,
+        .iTermClamp = NXP_CUP_SLOW_ITERM_CLAMP,
+        .steerLpfAlpha = NXP_CUP_SLOW_STEER_LPF_ALPHA,
+        .centerErrDeadband = STEER_CENTER_ERR_DEADBAND,
+        .errorLpfAlpha = STEER_ERROR_LPF_ALPHA,
+        .dInputAlpha = STEER_D_INPUT_ALPHA,
+        .dTermLpfAlpha = STEER_DTERM_LPF_ALPHA,
+        .dTermClamp = STEER_DTERM_CLAMP,
+        .steerClamp = (sint16)NXP_CUP_SLOW_STEER_CLAMP,
+        .pidCmdClamp = (sint16)STEER_CMD_CLAMP,
+        .steerRateMax = (sint16)NXP_CUP_SLOW_STEER_RATE_MAX,
+        .cmdDeadband = (sint16)STEER_CMD_DEADBAND,
+        .cmdShapeBlendPct = (sint16)STEER_CMD_SHAPE_BLEND_PCT,
+        .rateBoostDiv = (sint16)STEER_RATE_BOOST_DIV,
+        .rateBoostMax = (sint16)STEER_RATE_BOOST_MAX,
+        .confidenceScaleEnable = TRUE,
+        .baseSpeedPct = (uint8)NXP_CUP_SLOW_SPEED_PCT
     }
 };
 

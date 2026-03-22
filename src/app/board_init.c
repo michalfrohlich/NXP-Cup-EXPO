@@ -9,6 +9,7 @@
 #include "Icu.h"
 #include "Gpt.h"
 #include "Adc.h"
+#include "S32K144_PCC.h"
 
 #include "timebase.h"
 #include "onboard_pot.h"
@@ -20,6 +21,34 @@
 #include "rgb_led.h"
 
 #include "car_config.h"
+
+static void Board_ForceEnablePortClocks(void)
+{
+    /* The generated MCU clock config is supposed to gate PORTA-E on, but if
+       the clock tool state and generated headers ever drift again, startup can
+       fault immediately on the first PORT/FlexIO/I2C/PWM/ADC access. Keep the
+       PCC gates for the board's early-use peripherals forced on here so init
+       remains robust. */
+    IP_PCC->PCCn[PCC_PORTA_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_PORTB_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_PORTC_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_PORTD_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_PORTE_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_FlexIO_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_LPI2C0_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_FTM0_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_FTM1_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_FTM2_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_FTM3_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_LPIT_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_LPTMR0_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_ADC0_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_ADC1_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_PDB0_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_PDB1_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_DMAMUX_INDEX] |= PCC_PCCn_CGC_MASK;
+    IP_PCC->PCCn[PCC_CRC_INDEX] |= PCC_PCCn_CGC_MASK;
+}
 
 void Board_InitDrivers(void)
 {
@@ -42,6 +71,7 @@ void Board_InitDrivers(void)
     Mcu_SetMode(McuModeSettingConf_0);
 
     Platform_Init(NULL_PTR);
+    Board_ForceEnablePortClocks();
     Port_Init(NULL_PTR);
     Mcl_Init(NULL_PTR);
     I2c_Init(NULL_PTR);

@@ -8,12 +8,12 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       0
+#define APP_TEST_LINEAR_CAMERA_TEST       1
 #define APP_TEST_RECEIVER_TEST            0
 #define APP_TEST_SERVO_TEST               0
 #define APP_TEST_ESC_TEST                 0
 #define APP_TEST_FINAL_DUMMY              0
-#define APP_TEST_NXP_CUP                  1
+#define APP_TEST_NXP_CUP                  0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
@@ -102,7 +102,7 @@
 #define CAM_SHUTTER_PCR                   97U
 
 #define CAM_SHUTTER_HIGH_TIME_TICKS       100U
-#define CAM_FRAME_INTERVAL_TICKS          50000U
+#define CAM_FRAME_INTERVAL_TICKS          56700U
 
 #define CAM_N_PIXELS                      128u
 #define CAM_TRIM_LEFT_PX                  2u
@@ -312,12 +312,17 @@ Ultrasonic testing notes:
 #define NXP_CUP_SUPERFAST_SPEED_PCT       40
 
 /* ---------- 5050 ---------- */
-#define NXP_CUP_5050_KP                   1.48f
-#define NXP_CUP_5050_KD                   0.52f
-#define NXP_CUP_5050_KI                   0.00f
-#define NXP_CUP_5050_ITERM_CLAMP          0.02f
-#define NXP_CUP_5050_STEER_CLAMP          60
-#define NXP_CUP_5050_STEER_LPF_ALPHA      0.36f
+/* Feb 2 old-controller equivalent for 5050:
+   - old global PID: KP 4.5, KD 2.0, KI 0.03, ITERM 0.3
+   - old app path: output LPF 0.45, fixed rate 8, no shape/boost, tiny deadband
+   - the extra legacy-equivalence filters/deadzones are pinned internally in
+     app_modes.c so the tuning surface here stays small. */
+#define NXP_CUP_5050_KP                   4.5f
+#define NXP_CUP_5050_KD                   2.0f
+#define NXP_CUP_5050_KI                   0.03f
+#define NXP_CUP_5050_ITERM_CLAMP          0.30f
+#define NXP_CUP_5050_STEER_CLAMP          100
+#define NXP_CUP_5050_STEER_LPF_ALPHA      0.45f
 #define NXP_CUP_5050_STEER_RATE_MAX       8
 #define NXP_CUP_5050_SPEED_PCT            25
 

@@ -62,6 +62,14 @@ void SteeringLinear_Init(SteeringLinearState_t *s)
     s->kp = (float)KP;
     s->kd = (float)KD;
     s->ki = (float)KI;
+    s->iTermClamp = (float)ITERM_CLAMP;
+    s->centerErrDeadband = (float)STEER_CENTER_ERR_DEADBAND;
+    s->errorLpfAlpha = (float)STEER_ERROR_LPF_ALPHA;
+    s->dInputAlpha = (float)STEER_D_INPUT_ALPHA;
+    s->dTermLpfAlpha = (float)STEER_DTERM_LPF_ALPHA;
+    s->dTermClamp = (float)STEER_DTERM_CLAMP;
+    s->cmdClamp = (sint16)STEER_CMD_CLAMP;
+    s->confidenceScaleEnable = TRUE;
 
     /* If you don’t have STEER_SCALE in car_config.h yet,
        add:  #define STEER_SCALE 1.4f  */
@@ -142,17 +150,25 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
        ===================================================== */
     float raw_err = clamp_f(r->error, -1.0f, 1.0f); /* [-1..+1] */
     float confScale = clamp_f(((float)r->confidence) / 100.0f, 0.20f, 1.0f);
-    float errAlpha = (float)STEER_ERROR_LPF_ALPHA;
+    float errAlpha = s->errorLpfAlpha;
     float err;
 
-    raw_err = deadzone_f(raw_err, (float)STEER_CENTER_ERR_DEADBAND);
+    raw_err = deadzone_f(raw_err, s->centerErrDeadband);
 
-    if (r->status != VISION_TRACK_BOTH)
+    if ((s->confidenceScaleEnable == TRUE) && (r->status != VISION_TRACK_BOTH))
     {
         confScale *= 0.75f;
     }
 
-    errAlpha = clamp_f(errAlpha * confScale, 0.05f, 1.0f);
+    if (s->confidenceScaleEnable == TRUE)
+    {
+        errAlpha = clamp_f(errAlpha * confScale, 0.05f, 1.0f);
+    }
+    else
+    {
+        errAlpha = clamp_f(errAlpha, 0.0f, 1.0f);
+    }
+
     err = lpf_f(s->err_filt, raw_err, errAlpha);
     s->err_filt = err;
 
@@ -163,10 +179,10 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
     float d_err;
     if (dt_seconds > 0.0001f)
     {
-        d_err = lpf_f(s->d_error, err, (float)STEER_D_INPUT_ALPHA);
+        d_err = lpf_f(s->d_error, err, s->dInputAlpha);
         d = (d_err - s->prev_error) / dt_seconds;
-        d = lpf_f(s->d_term, d, (float)STEER_DTERM_LPF_ALPHA);
-        d = clamp_f(d, -(float)STEER_DTERM_CLAMP, (float)STEER_DTERM_CLAMP);
+        d = lpf_f(s->d_term, d, s->dTermLpfAlpha);
+        d = clamp_f(d, -s->dTermClamp, s->dTermClamp);
 
         s->d_error = d_err;
         s->d_term = d;
@@ -190,8 +206,8 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
         s->i_term += err * dt_seconds;
 
         /* wind-up protection */
-        if (s->i_term >  (float)ITERM_CLAMP) s->i_term =  (float)ITERM_CLAMP;
-        if (s->i_term < -(float)ITERM_CLAMP) s->i_term = -(float)ITERM_CLAMP;
+        if (s->i_term >  s->iTermClamp) s->i_term =  s->iTermClamp;
+        if (s->i_term < -s->iTermClamp) s->i_term = -s->iTermClamp;
     }
 
     /* =====================================================
@@ -206,9 +222,9 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
        5) Convert to steer command units + clamp
        ===================================================== */
     {
-        float cmd = u * (float)STEER_CMD_CLAMP;
+        float cmd = u * (float)s->cmdClamp;
 
-        cmd = clamp_f(cmd, (float)(-STEER_CMD_CLAMP), (float)(+STEER_CMD_CLAMP));
+        cmd = clamp_f(cmd, (float)(-s->cmdClamp), (float)(+s->cmdClamp));
 
         /* Apply steering sign */
         cmd *= (float)STEER_SIGN;
