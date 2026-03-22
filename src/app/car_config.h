@@ -8,9 +8,9 @@
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
-#define APP_TEST_LINEAR_CAMERA_TEST       1
+#define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_RECEIVER_TEST            0
-#define APP_TEST_SERVO_TEST               0
+#define APP_TEST_SERVO_TEST               1
 #define APP_TEST_ESC_TEST                 0
 #define APP_TEST_FINAL_DUMMY              0
 #define APP_TEST_NXP_CUP                  0
@@ -316,7 +316,9 @@ Ultrasonic testing notes:
    - old global PID: KP 4.5, KD 2.0, KI 0.03, ITERM 0.3
    - old app path: output LPF 0.45, fixed rate 8, no shape/boost, tiny deadband
    - the extra legacy-equivalence filters/deadzones are pinned internally in
-     app_modes.c so the tuning surface here stays small. */
+     app_modes.c so the tuning surface here stays small.
+   - practical tuning notes for the hidden smoothness values are in
+     src/app/steering_tuning_notes.md */
 #define NXP_CUP_5050_KP                   4.5f
 #define NXP_CUP_5050_KD                   2.0f
 #define NXP_CUP_5050_KI                   0.03f
