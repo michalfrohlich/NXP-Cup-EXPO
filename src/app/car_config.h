@@ -10,7 +10,8 @@
 ========================================================= */
 #define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_RECEIVER_TEST            0
-#define APP_TEST_SERVO_TEST               1
+#define APP_TEST_SERVO_TEST               0
+#define APP_TEST_ULTRASONIC_TEST          1
 #define APP_TEST_ESC_TEST                 0
 #define APP_TEST_FINAL_DUMMY              0
 #define APP_TEST_NXP_CUP                  0
@@ -19,6 +20,7 @@
     (APP_TEST_LINEAR_CAMERA_TEST) + \
     (APP_TEST_RECEIVER_TEST) + \
     (APP_TEST_SERVO_TEST) + \
+    (APP_TEST_ULTRASONIC_TEST) + \
     (APP_TEST_ESC_TEST) + \
     (APP_TEST_FINAL_DUMMY) + \
     (APP_TEST_NXP_CUP) \
@@ -39,9 +41,9 @@
 #define START_DELAY_MS                    1000u
 #define BUTTONS_PERIOD_MS                 5u
 #define CAMERA_PERIOD_MS                  5u
-#define DISPLAY_PERIOD_MS                 20u
-#define STEER_UPDATE_MS                   10u
-#define SERVO_REFRESH_MS                  10u
+#define DISPLAY_PERIOD_MS                 10u
+#define STEER_UPDATE_MS                   5u
+#define SERVO_REFRESH_MS                  5u
 #define CAM_FRAME_STALE_MS                120u
 #define CAM_STEER_HOLD_MS                 350u
 #define CAM_DEBUG_PAUSE_HOLD_MS           1000U
@@ -51,17 +53,21 @@
    Servo
 ========================================================= */
 #define SERVO_PWM_CH                      1U
+/* These are AUTOSAR PWM duty units, not microseconds. */
 #define SERVO_DUTY_MIN                    1650U
 #define SERVO_DUTY_MED                    2700U
 #define SERVO_DUTY_MAX                    3550U
 
 #define STEER_SIGN                        (+1)
-#define STEER_CMD_CLAMP                   70
+#define STEER_CMD_CLAMP                   50
 
 /* Simple compile-time servo enable.
    1 = normal steering output
    0 = keep servo centered / no steering command applied */
 #define SERVO_OUTPUT_ENABLE               1
+/* 0 = bypass live camera steering smoothing in FINAL_DUMMY / NXP_CUP.
+   Servo test still keeps its own RAW / SMOOTH selector. */
+#define LIVE_STEER_SMOOTHING_ENABLE       0
 
 /* Servo test mode only.
    These do NOT affect FINAL_DUMMY / NXP_CUP steering.
@@ -102,7 +108,7 @@
 #define CAM_SHUTTER_PCR                   97U
 
 #define CAM_SHUTTER_HIGH_TIME_TICKS       100U
-#define CAM_FRAME_INTERVAL_TICKS          56700U
+#define CAM_FRAME_INTERVAL_TICKS          50000U
 
 #define CAM_N_PIXELS                      128u
 #define CAM_TRIM_LEFT_PX                  2u
@@ -345,21 +351,24 @@ Ultrasonic testing notes:
 
 /* ---------- NXP CUP ultrasonic behavior ----------
    Set to 0 while tuning in a small room with nearby walls. */
-#define NXP_CUP_ULTRASONIC_ENABLE         0
-/* Lower period = faster re-trigger / faster wall detection. */
-#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   5u
+#define NXP_CUP_ULTRASONIC_ENABLE         1
+/* Lower period = faster re-trigger / faster wall detection.
+   The driver still blocks overlap because it will not start a new ping while
+   the previous one is BUSY. */
+#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   1u
 
-/* 0 = ultrasonic can affect the run immediately after launch. */
-#define NXP_ULTRA_ENABLE_AFTER_RUN_MS     0u
+/* Ultrasonic starts affecting the run 2 s after launch in all NXP Cup profiles. */
+#define NXP_ULTRA_ENABLE_AFTER_RUN_MS     2000u
 
 /* At or below this distance, speed is forced to 0 for NXP_CUP_ULTRA_STOP_HOLD_MS. */
-#define NXP_CUP_ULTRA_STOP_CM             60.0f
+#define NXP_CUP_ULTRA_STOP_CM             35.0f
 /* At or below this distance, stop ESC and keep steering centered. */
 #define NXP_CUP_ULTRA_CRAWL_STOP_CM       10.0f
-/* After the hold, the car resumes at this fixed speed. */
-#define NXP_CUP_ULTRA_CRAWL_SPEED_PCT     10U
-/* Hold time at zero speed after the 50 cm trigger. */
-#define NXP_CUP_ULTRA_STOP_HOLD_MS        2000u
+/* After the hold, the car resumes at this fixed logical speed.
+   12 here becomes physical -18 after ESC_TRUE_NEUTRAL_CMD = -6 is applied. */
+#define NXP_CUP_ULTRA_CRAWL_SPEED_PCT     12U
+/* Hold time at zero speed after the trigger before crawl resumes. */
+#define NXP_CUP_ULTRA_STOP_HOLD_MS        500u
 
 /* Keep ramp-down effectively immediate when the ultrasonic state machine asks for 0. */
 #define NXP_CUP_RAMP_DOWN_STEP_PCT        100

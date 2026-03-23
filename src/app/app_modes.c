@@ -355,7 +355,7 @@ static void mode_esc_test(void)
 /* =========================================================
    Shared runtime helpers for FINAL_DUMMY / NXP_CUP
 ========================================================= */
-#if APP_TEST_FINAL_DUMMY || APP_TEST_NXP_CUP
+#if APP_TEST_FINAL_DUMMY || APP_TEST_NXP_CUP || APP_TEST_ULTRASONIC_TEST
 
 static boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
@@ -376,6 +376,11 @@ static void StatusLed_Blue(void)
 static void StatusLed_Green(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = true, .b = false });
+}
+
+static void StatusLed_Yellow(void)
+{
+    RgbLed_ChangeColor((RgbLed_Color){ .r = true, .g = true, .b = false });
 }
 
 static void StatusLed_Red(void)
@@ -708,6 +713,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                 {
                     st->steerRaw = (sint16)out.steer_cmd;
 
+#if LIVE_STEER_SMOOTHING_ENABLE
                     st->steerRaw = SteeringSmooth_DeadzoneS16(st->steerRaw,
                                                               st->activeTune.cmdDeadband,
                                                               st->activeTune.steerClamp);
@@ -729,12 +735,19 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                     st->steerOut = SteeringSmooth_ClampS16(st->steerOut,
                                                            (sint16)(-st->activeTune.steerClamp),
                                                            (sint16)(+st->activeTune.steerClamp));
+#else
+                    st->steerOut = SteeringSmooth_ClampS16(st->steerRaw,
+                                                           (sint16)(-st->activeTune.steerClamp),
+                                                           (sint16)(+st->activeTune.steerClamp));
+                    st->steerFilt = st->steerOut;
+#endif
                 }
                 else
                 {
                     /* A fresh frame reported track-lost/brake. Do not keep
                        driving the servo with the last non-zero command. */
                     st->steerRaw = 0;
+#if LIVE_STEER_SMOOTHING_ENABLE
                     st->steerFilt = SteeringSmooth_IirS16(st->steerFilt, 0, st->activeTune.steerLpfAlpha);
                     st->steerOut = SteeringSmooth_RateLimitS16(st->steerOut,
                                                                0,
@@ -742,6 +755,10 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
                                                                st->activeTune.steerClamp,
                                                                st->activeTune.rateBoostDiv,
                                                                st->activeTune.rateBoostMax);
+#else
+                    st->steerFilt = 0;
+                    st->steerOut = 0;
+#endif
                 }
             }
 
@@ -917,7 +934,7 @@ static void mode_final_dummy(void)
 /* =========================================================
    NXP CUP
 ========================================================= */
-#if APP_TEST_NXP_CUP
+#if APP_TEST_NXP_CUP || APP_TEST_ULTRASONIC_TEST
 
 typedef enum
 {
@@ -953,6 +970,23 @@ typedef struct
     NxpCupUltraMode_t mode;
     uint32  modeUntilMs;
 } NxpCupUltraState_t;
+
+static boolean nxp_cup_ultra_mode_is_obstacle(const NxpCupUltraState_t *st)
+{
+    if (st == NULL)
+    {
+        return FALSE;
+    }
+
+    if ((st->mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+        (st->mode == NXP_CUP_ULTRA_CRAWL) ||
+        (st->mode == NXP_CUP_ULTRA_CUTOFF))
+    {
+        return TRUE;
+    }
+
+    return FALSE;
+}
 
 static const CamTuneProfile_t gNxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
 {
@@ -1142,15 +1176,6 @@ static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs)
         return;
     }
 
-    if (time_reached(nowMs, st->nextTriggerMs))
-    {
-        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
-        {
-            Ultrasonic_StartMeasurement();
-            st->nextTriggerMs = nowMs + (uint32)NXP_CUP_ULTRA_TRIGGER_PERIOD_MS;
-        }
-    }
-
     Ultrasonic_Task();
 
     if (Ultrasonic_GetDistanceCm(&d) == TRUE)
@@ -1159,6 +1184,18 @@ static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs)
         {
             st->lastDistanceCm = d;
             st->haveValidDistance = TRUE;
+        }
+    }
+
+    /* Consume any completed sample before starting a new ping.
+       Starting first can overwrite ULTRA_STATUS_NEW_DATA and make the distance
+       appear stale even though the sensor already finished a valid echo. */
+    if (time_reached(nowMs, st->nextTriggerMs))
+    {
+        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+        {
+            Ultrasonic_StartMeasurement();
+            st->nextTriggerMs = nowMs + (uint32)NXP_CUP_ULTRA_TRIGGER_PERIOD_MS;
         }
     }
 
@@ -1241,14 +1278,7 @@ static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st,
         return FALSE;
     }
 
-    if ((st->mode == NXP_CUP_ULTRA_STOP_HOLD) ||
-        (st->mode == NXP_CUP_ULTRA_CRAWL) ||
-        (st->mode == NXP_CUP_ULTRA_CUTOFF))
-    {
-        return TRUE;
-    }
-
-    return FALSE;
+    return nxp_cup_ultra_mode_is_obstacle(st);
 }
 
 static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st,
@@ -1287,6 +1317,171 @@ static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st,
     }
 
     return requestedSpeedPct;
+}
+
+static void mode_ultrasonic_test(void)
+{
+    NxpCupUltraState_t ultraSt;
+    uint32 nextDisplayMs;
+    uint32 slowRangeSinceMs = 0u;
+    uint32 stopRangeSinceMs = 0u;
+    const uint32 slowLedConfirmMs = 80u;
+    const uint32 stopLedConfirmMs = 10u;
+
+    Board_InitDrivers();
+    Timebase_Init();
+
+    display_power_stabilize_delay();
+    DisplayInit(0U, STD_ON);
+
+    nxp_cup_ultra_enter(&ultraSt, Timebase_GetMs());
+    nxp_cup_ultra_arm_for_run(&ultraSt, Timebase_GetMs());
+    nextDisplayMs = Timebase_GetMs();
+
+    for (;;)
+    {
+        uint32 now = Timebase_GetMs();
+        Ultrasonic_StatusType driverStatus;
+
+        Buttons_Update();
+
+        if (Buttons_WasPressed(BUTTON_ID_SW2) == TRUE)
+        {
+            /* Reset the test without power-cycling after a cutoff latch. */
+            nxp_cup_ultra_enter(&ultraSt, now);
+            nxp_cup_ultra_arm_for_run(&ultraSt, now);
+            slowRangeSinceMs = 0u;
+            stopRangeSinceMs = 0u;
+        }
+
+        nxp_cup_ultra_task(&ultraSt, now);
+        driverStatus = Ultrasonic_GetStatus();
+
+        if ((nxp_cup_ultra_is_active(&ultraSt, now) == TRUE) &&
+            (ultraSt.haveValidDistance == TRUE))
+        {
+            boolean inStopRange = (ultraSt.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM) ? TRUE : FALSE;
+            boolean inSlowRange = ((ultraSt.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM) &&
+                                   (inStopRange != TRUE)) ? TRUE : FALSE;
+
+            if (inSlowRange == TRUE)
+            {
+                if (slowRangeSinceMs == 0u)
+                {
+                    slowRangeSinceMs = now;
+                }
+            }
+            else
+            {
+                slowRangeSinceMs = 0u;
+            }
+
+            if (inStopRange == TRUE)
+            {
+                if (stopRangeSinceMs == 0u)
+                {
+                    stopRangeSinceMs = now;
+                }
+            }
+            else
+            {
+                stopRangeSinceMs = 0u;
+            }
+
+            if ((stopRangeSinceMs != 0u) &&
+                (((uint32)(now - stopRangeSinceMs)) >= stopLedConfirmMs))
+            {
+                StatusLed_Red();
+            }
+            else if ((slowRangeSinceMs != 0u) &&
+                     (((uint32)(now - slowRangeSinceMs)) >= slowLedConfirmMs))
+            {
+                StatusLed_Yellow();
+            }
+            else
+            {
+                StatusLed_Green();
+            }
+        }
+        else
+        {
+            slowRangeSinceMs = 0u;
+            stopRangeSinceMs = 0u;
+
+            if (driverStatus == ULTRA_STATUS_ERROR)
+            {
+                StatusLed_Red();
+            }
+            else if (nxp_cup_ultra_is_active(&ultraSt, now) == TRUE)
+            {
+                StatusLed_Green();
+            }
+            else
+            {
+                StatusLed_Blue();
+            }
+        }
+
+        if ((uint32)(now - nextDisplayMs) < DISPLAY_PERIOD_MS)
+        {
+            continue;
+        }
+        nextDisplayMs += DISPLAY_PERIOD_MS;
+
+        DisplayClear();
+        DisplayText(0U, "ULTRA TEST", 10U, 0U);
+
+        if (ultraSt.haveValidDistance == TRUE)
+        {
+            DisplayText(1U, "CM:", 3U, 0U);
+            DisplayValue(1U, (int)(ultraSt.lastDistanceCm + 0.5f), 4U, 4U);
+        }
+        else
+        {
+            DisplayText(1U, "CM: ----", 8U, 0U);
+        }
+
+        if (nxp_cup_ultra_is_active(&ultraSt, now) != TRUE)
+        {
+            DisplayText(2U, "MODE: WAIT", 10U, 0U);
+        }
+        else if (ultraSt.haveValidDistance != TRUE)
+        {
+            DisplayText(2U, "MODE: SCAN", 10U, 0U);
+        }
+        else if ((ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+                 (ultraSt.mode == NXP_CUP_ULTRA_CUTOFF))
+        {
+            DisplayText(2U, "MODE: STOP", 10U, 0U);
+        }
+        else if (ultraSt.mode == NXP_CUP_ULTRA_CRAWL)
+        {
+            DisplayText(2U, "MODE: SLOW", 10U, 0U);
+        }
+        else
+        {
+            DisplayText(2U, "MODE: CLEAR", 11U, 0U);
+        }
+
+        switch (driverStatus)
+        {
+            case ULTRA_STATUS_BUSY:
+                DisplayText(3U, "DRV: BUSY", 9U, 0U);
+                break;
+            case ULTRA_STATUS_NEW_DATA:
+                DisplayText(3U, "DRV: NEW", 8U, 0U);
+                break;
+            case ULTRA_STATUS_ERROR:
+                DisplayText(3U, "DRV: ERR", 8U, 0U);
+                break;
+            case ULTRA_STATUS_IDLE:
+            default:
+                DisplayText(3U, "DRV: IDLE", 9U, 0U);
+                break;
+        }
+
+        DisplayRefresh();
+    }
 }
 
 static void mode_nxp_cup(void)
@@ -1346,6 +1541,12 @@ static void mode_nxp_cup(void)
             StatusLed_Red();
             autoSpeedPct = 0;
             nxp_cup_idle_motor();
+        }
+        else if ((state == NXP_CUP_STATE_RUN) &&
+                 (nxp_cup_ultra_is_active(&ultraSt, now) == TRUE) &&
+                 (nxp_cup_ultra_mode_is_obstacle(&ultraSt) == TRUE))
+        {
+            StatusLed_Yellow();
         }
         else if ((state == NXP_CUP_STATE_RUN) || (state == NXP_CUP_STATE_ESC_REARM))
         {
@@ -1661,7 +1862,7 @@ static void mode_nxp_cup(void)
     }
 }
 
-#endif /* APP_TEST_NXP_CUP */
+#endif /* APP_TEST_NXP_CUP || APP_TEST_ULTRASONIC_TEST */
 
 /* =========================================================
    Linear camera test
@@ -1794,6 +1995,8 @@ void App_RunSelectedMode(void)
 {
 #if APP_TEST_NXP_CUP
     mode_nxp_cup();
+#elif APP_TEST_ULTRASONIC_TEST
+    mode_ultrasonic_test();
 #elif APP_TEST_FINAL_DUMMY
     mode_final_dummy();
 #elif APP_TEST_LINEAR_CAMERA_TEST

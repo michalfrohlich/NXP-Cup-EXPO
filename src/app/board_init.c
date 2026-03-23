@@ -101,6 +101,7 @@ void Board_InitCommonApp(void)
     Ultrasonic_Init();
 
     EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    /* Common driving modes were calibrated around this servo center/range. */
     ServoInit(SERVO_PWM_CH, 3300U, 1700U, 2500U);
 
     DisplayInit(0U, STD_ON);

@@ -61,6 +61,14 @@ void Braking_Init(const Braking_ConfigType *cfg)
 void Braking_Task(void)
 {
     uint32 nowMs = Timebase_GetMs();
+    float d;
+
+    Ultrasonic_Task();
+    if (Ultrasonic_GetDistanceCm(&d) == TRUE)
+    {
+        g_lastDistanceCm   = d;
+        g_hasValidDistance = 1u;
+    }
 
     /* 1) Periodic trigger (don’t interrupt BUSY) */
     if ((uint32)(nowMs - g_lastTrigMs) >= g_cfg.triggerPeriodMs)
@@ -81,7 +89,6 @@ void Braking_Task(void)
     g_ultraTicks    = Ultrasonic_GetLastHighTicks();
 
     /* 4) Consume new distance (only when available) */
-    float d;
     if (Ultrasonic_GetDistanceCm(&d) == TRUE)
     {
         g_lastDistanceCm   = d;
