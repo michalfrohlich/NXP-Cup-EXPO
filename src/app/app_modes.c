@@ -883,8 +883,11 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
         SteeringLinear_Reset(&g_linearCameraTest.ctrl);
     }
 
-    (void)LinearCameraStartStream();
+    /* Push the first visible OLED frame before enabling the camera ISR load.
+       The display path is synchronous, while camera start immediately begins
+       GPT/PWM/ADC activity that can disturb the first refresh. */
     linear_camera_test_draw_waiting(&g_linearCameraTest);
+    (void)LinearCameraStartStream();
 }
 
 static void linear_camera_test_enter(uint32 nowMs)

@@ -60,8 +60,8 @@
 | --- | --- | --- |
 | Main clock init config | `board_init.c` + generated MCU clock config | `McuClockSettingConfig_0` |
 | Camera shutter GPT logical channel | `src/app/car_config.h` | 1 |
-| Camera frame interval ticks | `src/app/car_config.h` | 177778 |
-| Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 1000 |
+| Camera frame interval ticks | `src/app/car_config.h` | 160000 |
+| Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 800 |
 | EmuTimer period | `src/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
 | UsTimer period base | generated GPT + LPIT config, `src/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |
 | Receiver PPM thresholds | `src/app/app_modes.c` (`ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U)`) | At effective 12 MHz LPTMR tick: `0.975 / 1.475 / 1.975 / 2.167 ms` |
@@ -72,7 +72,7 @@
 | `Receiver_Timeout` effective tick | LPTMR0 clock 48 MHz + receiver channel prescaler enabled with configured divider `/4` | `12 MHz` effective timer tick (`48 MHz / 4`) |
 | `Ultrasonic_Echo` ICU timestamp tick | FTM1 clock 8 MHz + ICU FTM prescaler 4 | `2 MHz` timestamp tick (`0.5 us` per tick) |
 | `Display_Channel` I2C SCL | LPI2C0 source 8 MHz, prescaler `DIV_8`, `CLKHI=1`, `CLKLO=3` | `~166.7 kHz` (`8e6 / (8 * (1 + 3 + 2))`) |
-| Camera ADC sampling cadence | handwritten `linear_camera.c` + generated ADC Group0 SW trigger | Manual one-sample ADC conversion started on each camera clock falling edge after the SI pulse; SI width is one clock period and is no longer set by a separate config tick value |
+| Camera ADC sampling cadence | handwritten `linear_camera.c` + generated ADC Group0 SW trigger | Manual one-sample ADC conversion starts on each falling camera-clock edge after the two-edge SI pulse; PWM notifications are disabled again between frames |
 
 ## Verified note
 - `UsTimer` has been verified against generated config:

@@ -181,6 +181,11 @@
                         <pin_feature name="initValue" value="state_1"/>
                      </pin_features>
                   </pin>
+                  <pin peripheral="PORTA" signal="port, 12" pin_num="90" pin_signal="PTA12">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
                </pins>
             </function>
          </functions_list>
@@ -230,24 +235,24 @@
                <clock_outputs>
                   <clock_output id="ADC0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
                   <clock_output id="ADC1_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
-                  <clock_output id="BUS_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="BUS_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
                   <clock_output id="CLKOUT0_CLK.outFreq" value="1.6 MHz" locked="false" accuracy=""/>
-                  <clock_output id="CMP0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="CORE_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="CRC0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="DMA0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="DMAMUX0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="EIM0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="ERM0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="EWM0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CMP0_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CORE_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="CRC0_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="DMA0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="DMAMUX0_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="EIM0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="ERM0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="EWM0_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
                   <clock_output id="FIRCDIV1_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
                   <clock_output id="FIRCDIV2_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
                   <clock_output id="FIRCOUT.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="FLASH_CLK.outFreq" value="12 MHz" locked="false" accuracy=""/>
-                  <clock_output id="FLEXCAN0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="FLEXCAN1_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="FLEXCAN2_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="FTFC0_CLK.outFreq" value="12 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FLASH_CLK.outFreq" value="20 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FLEXCAN0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FLEXCAN1_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FLEXCAN2_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="FTFC0_CLK.outFreq" value="20 MHz" locked="false" accuracy=""/>
                   <clock_output id="FTM0_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="FTM1_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="FTM2_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
@@ -267,15 +272,15 @@
                   <clock_output id="LPUART0_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="LPUART1_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="LPUART2_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
-                  <clock_output id="MPU0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="MSCM0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PDB0_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PDB1_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PORTA_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PORTB_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PORTC_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PORTD_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="PORTE_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="MPU0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="MSCM0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PDB0_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PDB1_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PORTA_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PORTB_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PORTC_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PORTD_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="PORTE_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
                   <clock_output id="RTC0_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="RTC_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="RTC_CLKIN.outFreq" value="32.768 kHz" locked="false" accuracy=""/>
@@ -286,15 +291,15 @@
                   <clock_output id="SOSCDIV1_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="SOSCDIV2_CLK.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="SOSCOUT.outFreq" value="8 MHz" locked="false" accuracy=""/>
-                  <clock_output id="SPLLDIV1_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="SPLLDIV2_CLK.outFreq" value="24 MHz" locked="false" accuracy=""/>
-                  <clock_output id="SYS_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
-                  <clock_output id="TRACE_CLK.outFreq" value="48 MHz" locked="false" accuracy=""/>
+                  <clock_output id="SPLLDIV1_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
+                  <clock_output id="SPLLDIV2_CLK.outFreq" value="40 MHz" locked="false" accuracy=""/>
+                  <clock_output id="SYS_CLK.outFreq" value="80 MHz" locked="true" accuracy="0.001"/>
+                  <clock_output id="TRACE_CLK.outFreq" value="80 MHz" locked="false" accuracy=""/>
                </clock_outputs>
                <clock_settings>
                   <setting id="ClockDevErrorDetect" value="Enabled" locked="false"/>
-                  <setting id="DIVBUS.scale" value="1" locked="true"/>
-                  <setting id="DIVCORE.scale" value="1" locked="true"/>
+                  <setting id="DIVBUS.scale" value="2" locked="true"/>
+                  <setting id="DIVCORE.scale" value="2" locked="true"/>
                   <setting id="DIVSLOW.scale" value="4" locked="true"/>
                   <setting id="HSRUN:DIVBUS.scale" value="1" locked="true"/>
                   <setting id="HSRUN:DIVCORE.scale" value="1" locked="true"/>
@@ -304,17 +309,18 @@
                   <setting id="MODULE_CLOCKS.SIM_CLKOUT_DIV.scale" value="5" locked="false"/>
                   <setting id="MODULE_CLOCKS.SIM_CLKOUT_MUX.sel" value="MODULE_CLOCKS.PCC_RTC_CLK_DIV" locked="false"/>
                   <setting id="PREDIV.scale" value="1" locked="true"/>
-                  <setting id="RUN:DIVBUS.scale" value="1" locked="true"/>
-                  <setting id="RUN:DIVCORE.scale" value="1" locked="true"/>
+                  <setting id="RUN:DIVBUS.scale" value="2" locked="true"/>
+                  <setting id="RUN:DIVCORE.scale" value="2" locked="true"/>
                   <setting id="RUN:DIVSLOW.scale" value="4" locked="true"/>
+                  <setting id="RUN:SCSSEL.sel" value="SPLL_CLK" locked="false"/>
                   <setting id="SCG_SOSCCSR_SOSCEN_CFG" value="Enabled" locked="false"/>
                   <setting id="SCG_SPLLCSR_SPLLEN_CFG" value="Enabled" locked="false"/>
+                  <setting id="SCSSEL.sel" value="SPLL_CLK" locked="false"/>
                   <setting id="SIRCDIV1.scale" value="1" locked="true"/>
                   <setting id="SIRCDIV2.scale" value="1" locked="true"/>
                   <setting id="SPLLDIV1.scale" value="2" locked="true"/>
                   <setting id="SPLLDIV2.scale" value="4" locked="true"/>
-                  <setting id="SPLL_mul.scale" value="24" locked="true"/>
-                  <setting id="SPLLunderMcuControl" value="Disabled" locked="false"/>
+                  <setting id="SPLL_mul.scale" value="40" locked="true"/>
                   <setting id="VLPR:DIVBUS.scale" value="1" locked="true"/>
                   <setting id="VLPR:DIVCORE.scale" value="8" locked="true"/>
                   <setting id="VLPR:DIVSLOW.scale" value="4" locked="true"/>
@@ -473,11 +479,6 @@
             <dependency resourceType="SWComponent" resourceId="platform.driver.Platform" description="An unsupported version of the Platform in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. The project might not compile correctly." problem_level="1" source="Peripherals">
                <feature name="version" evaluation="equivalent">
                   <data type="Version">1.0.0</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data>true</data>
                </feature>
             </dependency>
          </dependencies>
@@ -1136,6 +1137,24 @@
                                     </struct>
                                  </array>
                               </struct>
+                              <struct name="9">
+                                 <setting name="Name" value="pcb_extra_pins"/>
+                                 <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
+                                 <array name="PortPin">
+                                    <struct name="0">
+                                       <setting name="Name" value="swPcb"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="22"/>
+                                       <setting name="PortPinPcr" value="12"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                 </array>
+                              </struct>
                            </array>
                            <array name="UnTouchedPortPin">
                               <struct name="0">
@@ -1188,7 +1207,7 @@
                            <setting name="McuVersionInfoApi" value="false"/>
                            <setting name="McuGetRamStateApi" value="false"/>
                            <setting name="McuInitClock" value="true"/>
-                           <setting name="McuNoPll" value="true"/>
+                           <setting name="McuNoPll" value="false"/>
                            <setting name="McuEnterLowPowerMode" value="true"/>
                            <setting name="McuTimeout" value="50000"/>
                            <setting name="McuEnableUserModeSupport" value="false"/>
@@ -1304,10 +1323,10 @@
                                  <setting name="McuScgClkOutSelect" value="FIRC_CLK"/>
                                  <struct name="McuRunClockConfig" quick_selection="Default">
                                     <setting name="Name" value="McuRunClockConfig"/>
-                                    <setting name="McuCoreClockDivider" value="1"/>
-                                    <setting name="McuBusClockDivider" value="1"/>
+                                    <setting name="McuCoreClockDivider" value="2"/>
+                                    <setting name="McuBusClockDivider" value="2"/>
                                     <setting name="McuSlowClockDivider" value="4"/>
-                                    <setting name="McuSystemClockSwitch" value="FIRC_CLK"/>
+                                    <setting name="McuSystemClockSwitch" value="SPLL_CLK"/>
                                  </struct>
                                  <struct name="McuVlprClockConfig" quick_selection="Default">
                                     <setting name="Name" value="McuVlprClockConfig"/>
@@ -1341,7 +1360,7 @@
                                     <setting name="McuSIRCStopEnable" value="false"/>
                                     <setting name="McuSIRCRangeSelect" value="HIGH_RANGE_CLOCK"/>
                                  </struct>
-                                 <struct name="McuFIRCClockConfig" quick_selection="Default">
+                                 <struct name="McuFIRCClockConfig">
                                     <setting name="Name" value="McuFIRCClockConfig"/>
                                     <setting name="McuFIRCUnderMcuControl" value="true"/>
                                     <setting name="McuFIRCEnable" value="true"/>
@@ -1350,7 +1369,7 @@
                                  </struct>
                                  <struct name="McuSystemPll">
                                     <setting name="Name" value="McuSystemPll"/>
-                                    <setting name="McuSystemPllUnderMcuControl" value="false"/>
+                                    <setting name="McuSystemPllUnderMcuControl" value="true"/>
                                     <setting name="McuSPLLEnable" value="true"/>
                                     <setting name="McuSPLLClockMonitorResetEnable" value="false"/>
                                     <setting name="McuSPLLClockMonitorEnable" value="false"/>
@@ -1797,7 +1816,9 @@
                                  <setting name="AdcHwUnitId" value="ADC0"/>
                                  <setting name="AdcLogicalUnitId" value="0"/>
                                  <setting name="AdcTransferType" value="ADC_INTERRUPT"/>
-                                 <array name="AdcDmaChannelId"/>
+                                 <array name="AdcDmaChannelId">
+                                    <setting name="0" value="/Mcl/Mcl/MclConfig/dmaLogicChannel_Type_0"/>
+                                 </array>
                                  <array name="AdcCountingDmaChannelId"/>
                                  <array name="AdcClockSource"/>
                                  <array name="AdcPrescale"/>
@@ -1817,7 +1838,7 @@
                                  </struct>
                                  <array name="AdcChannel">
                                     <struct name="0">
-                                       <setting name="Name" value="AdcChannel_0"/>
+                                       <setting name="Name" value="AdcChannel_cam"/>
                                        <setting name="AdcLogicalChannelId" value="0"/>
                                        <setting name="AdcChannelName" value="SE14_ADCH14"/>
                                        <setting name="AdcChannelId" value="14"/>
@@ -1857,7 +1878,7 @@
                                  </array>
                                  <array name="AdcGroup">
                                     <struct name="0">
-                                       <setting name="Name" value="AdcGroup_0"/>
+                                       <setting name="Name" value="AdcGroup_cam"/>
                                        <setting name="AdcGroupAccessMode" value="ADC_ACCESS_MODE_SINGLE"/>
                                        <setting name="AdcGroupConversionMode" value="ADC_CONV_MODE_ONESHOT"/>
                                        <setting name="AdcGroupConversionType" value="ADC_CONV_TYPE_NORMAL"/>
@@ -1887,7 +1908,9 @@
                                        <setting name="AdcGroupUsesChannelDelays" value="false"/>
                                        <setting name="AdcDelayNextPdb" value="0"/>
                                        <setting name="AdcPdbPeriodContinuousMode" value="1000"/>
-                                       <array name="AdcChannelDelay"/>
+                                       <array name="AdcChannelDelay">
+                                          <setting name="0" value="0"/>
+                                       </array>
                                        <struct name="AdcGroupConversionConfiguration">
                                           <setting name="Name" value="AdcGroupConversionConfiguration"/>
                                           <setting name="AdcGroupHardwareAverageEnable" value="false"/>
@@ -1901,7 +1924,7 @@
                                           <setting name="AdcGroupAltSampleTimeDuration" value="1"/>
                                        </struct>
                                        <array name="AdcGroupDefinition">
-                                          <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_0"/>
+                                          <setting name="0" value="/Adc/Adc/AdcConfigSet/AdcHwUnit_0/AdcChannel_cam"/>
                                        </array>
                                        <array name="AdcGroupEcucPartitionRef"/>
                                     </struct>
@@ -1956,12 +1979,7 @@
                                  <array name="AdcHwUnitEcucPartitionRef"/>
                               </struct>
                            </array>
-                           <array name="AdcHwTrigger">
-                              <struct name="0">
-                                 <setting name="Name" value="AdcHwTrigger_0"/>
-                                 <setting name="AdcHwTrigSrc" value="TRIGGER_IN0"/>
-                              </struct>
-                           </array>
+                           <array name="AdcHwTrigger"/>
                         </struct>
                         <struct name="AdcGeneral">
                            <setting name="Name" value="AdcGeneral"/>
@@ -1972,7 +1990,7 @@
                            <setting name="AdcPriorityQueueMaxDepth" value="1"/>
                            <setting name="AdcEnableStartStopGroupApi" value="true"/>
                            <setting name="AdcGrpNotifCapability" value="true"/>
-                           <setting name="AdcHwTriggerApi" value="true"/>
+                           <setting name="AdcHwTriggerApi" value="false"/>
                            <setting name="AdcPriorityImplementation" value="ADC_PRIORITY_NONE"/>
                            <setting name="AdcReadGroupApi" value="true"/>
                            <setting name="AdcResultAlignment" value="ADC_ALIGN_RIGHT"/>
@@ -2252,7 +2270,7 @@
                            <array name="dmaLogicChannel_Type">
                               <struct name="0">
                                  <setting name="Name" value="dmaLogicChannel_Type_0"/>
-                                 <setting name="dmaLogicChannel_LogicName" value="DMA_LOGIC_CH_0"/>
+                                 <setting name="dmaLogicChannel_LogicName" value="cameraDmaChannel"/>
                                  <setting name="dmaLogicChannel_HwInstId" value="DMA_IP_HW_INST_0"/>
                                  <setting name="dmaLogicChannel_HwChId" value="DMA_IP_HW_CH_0"/>
                                  <setting name="dmaLogicChannel_InterruptCallback" value="NULL_PTR"/>
@@ -2344,6 +2362,20 @@
                                        <setting name="trgmuxLogicTrigger_Name" value="TRGMUX_LOGIC_GROUP_0_TRIGGER_0"/>
                                        <setting name="trgmuxLogicTrigger_Output" value="TRGMUX_IP_OUTPUT_FTM3_HWTRIG0"/>
                                        <setting name="trgmuxLogicTrigger_Input" value="TRGMUX_IP_INPUT_FTM3_EXT_TRIG"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="trgmuxLogicGroup_1"/>
+                                 <setting name="trgmuxLogicGroupHardwareInstance" value="TRGMUX_IP_HW_INST_0"/>
+                                 <setting name="trgmuxLogicGroup_Name" value="TRGMUX_IP_PDB0"/>
+                                 <setting name="trgmuxLogicGroup_Lock" value="false"/>
+                                 <array name="trgmuxLogicTrigger">
+                                    <struct name="0">
+                                       <setting name="Name" value="pdbCameraAdcTrig"/>
+                                       <setting name="trgmuxLogicTrigger_Name" value="TRGMUX_LOGIC_GROUP_1_TRIGGER_0"/>
+                                       <setting name="trgmuxLogicTrigger_Output" value="TRGMUX_IP_OUTPUT_PDB0_TRIGGER_IN0"/>
+                                       <setting name="trgmuxLogicTrigger_Input" value="TRGMUX_IP_INPUT_FTM2_EXT_TRIG"/>
                                     </struct>
                                  </array>
                               </struct>
@@ -3029,7 +3061,7 @@
                                     <setting name="0" value="PWM_FIXED_PERIOD"/>
                                  </array>
                                  <setting name="PwmPeriodInTicks" value="true"/>
-                                 <setting name="PwmPeriodDefault" value="1000"/>
+                                 <setting name="PwmPeriodDefault" value="800"/>
                                  <setting name="PwmDutycycleDefault" value="0"/>
                                  <setting name="PwmPolarity" value="PWM_HIGH"/>
                                  <setting name="PwmIdleState" value="PWM_LOW"/>
@@ -3324,17 +3356,17 @@
                                        <setting name="PwmFtmChSwCtrlValue" value="false"/>
                                        <setting name="PwmFtmChExternTriggerEnable" value="false"/>
                                        <setting name="PwmFtmChMatchLoadPointEnable" value="false"/>
-                                       <setting name="PwmFtmPairChEnable" value="false"/>
+                                       <setting name="PwmFtmPairChEnable" value="true"/>
                                        <struct name="PwmFtmPairedCh">
-                                          <setting name="Name" value="PwmFtmPairedCh"/>
+                                          <setting name="Name" value="PwmFtmPairedChTrig"/>
                                           <setting name="PwmFtmPairedChDeadtimeEnable" value="false"/>
                                           <setting name="PwmFtmPairedChSync" value="false"/>
-                                          <setting name="PwmFtmPairedChExtTrig" value="false"/>
+                                          <setting name="PwmFtmPairedChExtTrig" value="true"/>
                                           <setting name="PwmFtmPairedChComplementary" value="false"/>
                                           <setting name="PwmFtmDutyDitheringPaired" value="false"/>
                                           <setting name="PwmFtmPairedChCombineMode" value="Combine_modes_disabled"/>
                                           <setting name="PwmFtmPairedChComplementaryMode" value="Invert_Output"/>
-                                          <setting name="PwmFtmPairedChPhaseShift" value="0"/>
+                                          <setting name="PwmFtmPairedChPhaseShift" value="12"/>
                                        </struct>
                                     </struct>
                                  </array>
@@ -3437,7 +3469,7 @@
                                  <struct name="0">
                                     <setting name="Name" value="EscIsr"/>
                                     <setting name="IsrName" value="FTM3_Ch6_Ch7_IRQn"/>
-                                    <setting name="IsrEnabled" value="true"/>
+                                    <setting name="IsrEnabled" value="false"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="FTM_3_CH_6_CH_7_ISR"/>
                                  </struct>
@@ -3451,7 +3483,7 @@
                                  <struct name="2">
                                     <setting name="Name" value="PlatformIsrConfig_1"/>
                                     <setting name="IsrName" value="FLEXIO_IRQn"/>
-                                    <setting name="IsrEnabled" value="false"/>
+                                    <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="MCL_FLEXIO_ISR"/>
                                  </struct>
@@ -3532,8 +3564,57 @@
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPIT_0_CH_2_ISR"/>
                                  </struct>
+                                 <struct name="14">
+                                    <setting name="Name" value="PlatformIsrConfig_14"/>
+                                    <setting name="IsrName" value="DMA0_IRQn"/>
+                                    <setting name="IsrEnabled" value="true"/>
+                                    <setting name="IsrPriority" value="0"/>
+                                    <setting name="IsrHandler" value="Dma0_Ch0_IRQHandler"/>
+                                 </struct>
                               </array>
                               <array name="PlatformNvicEcucPartitionRef"/>
+                           </struct>
+                        </array>
+                     </config_set>
+                  </instance>
+                  <instance name="Pdb_Adc_Ip" uuid="fa5384e2-093e-4b66-939b-dd699eb1cfc6" type="Pdb_Adc_Ip" type_id="Pdb_Adc_Ip" mode="ip" enabled="false" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="Pdb_Adc_Ip">
+                        <setting name="Name" value="Pdb_Adc_Ip"/>
+                        <struct name="PdbAdcGeneral">
+                           <setting name="Name" value="PdbAdcGeneral"/>
+                           <setting name="PdbIpDevErrorDetect" value="false"/>
+                           <setting name="PdbEnableUserModeSupport" value="false"/>
+                           <setting name="PdbEnableSIMBackToBackModeSupport" value="false"/>
+                        </struct>
+                        <array name="PdbHwUnit">
+                           <struct name="0">
+                              <setting name="Name" value="PdbForCameraAdc"/>
+                              <setting name="PdbHwUnitId" value="PDB0"/>
+                              <setting name="PdbLoadValueMode" value="LOAD_VAL_IMMEDIATELY"/>
+                              <setting name="PdbClkPreDiv" value="CLK_PREDIV_BY_1"/>
+                              <setting name="PdbClkPreMultFactor" value="CLK_PREMULT_FACT_AS_1"/>
+                              <setting name="PdbTriggerSource" value="TRIGGER_IN0"/>
+                              <setting name="PdbContinuousModeEnable" value="false"/>
+                              <setting name="PdbDmaEnable" value="false"/>
+                              <setting name="PdbCounterPeriod" value="16"/>
+                              <setting name="PdbInstBackToBackEnable" value="false"/>
+                              <setting name="PdbErrorNotification" value="NULL_PTR"/>
+                              <array name="PdbChannel">
+                                 <struct name="0">
+                                    <setting name="Name" value="PdbChannel_0"/>
+                                    <setting name="PdbChannelIdx" value="0"/>
+                                    <array name="PdbControl">
+                                       <struct name="0">
+                                          <setting name="Name" value="ChnIdx_0"/>
+                                          <setting name="ChannelIdx" value="0"/>
+                                          <setting name="PreTriggerEn" value="true"/>
+                                          <setting name="PreTriggerOut" value="true"/>
+                                          <setting name="PreTriggerBB" value="false"/>
+                                          <setting name="DelayValue" value="80"/>
+                                       </struct>
+                                    </array>
+                                 </struct>
+                              </array>
                            </struct>
                         </array>
                      </config_set>

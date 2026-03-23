@@ -10,7 +10,7 @@ Notes:
 - `board_init.c` performs ADC init and calibration.
 - `onboard_pot.c` references generated group `AdcGroup_pot`.
 - The linear camera ADC group is back to a software-triggered one-sample conversion path.
-- The handwritten camera driver starts one ADC conversion on each falling camera clock edge after the SI pulse.
+- The handwritten camera driver drives `SI` across two falling camera-clock edges, then starts one ADC conversion on each following falling edge until `128` pixels are stored.
 - If a new GPT frame request arrives before the current frame is done, the driver latches it and starts the next frame only after the current readout completes.
 - Each ADC callback stores one pixel into a handwritten ping-pong frame buffer.
 - The OLED waiting screen uses a neutral driver debug-counters snapshot instead of exposing ADC/DMA-specific counter getters.
@@ -26,7 +26,7 @@ Notes:
 Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
-- The linear camera PWM output free-runs as the pixel clock; notifications are enabled only briefly to place the SI pulse on two falling edges.
+- The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
 
 ## Timers / capture
 | Purpose | Driver/module | Key files |

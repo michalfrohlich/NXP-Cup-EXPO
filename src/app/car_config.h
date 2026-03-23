@@ -89,7 +89,7 @@
 
 /* Camera timing.
    CAM_FRAME_INTERVAL_TICKS controls the time between frame readouts. */
-#define CAM_FRAME_INTERVAL_TICKS          56700U
+#define CAM_FRAME_INTERVAL_TICKS          160000U
 
 /* Sensor geometry.
    The camera still captures all 128 physical pixels, but vision/debug use a

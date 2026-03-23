@@ -57,11 +57,7 @@ static void LinearCamera_StopCaptureHw(void)
 
 static void LinearCamera_StartFrameTimer(void)
 {
-    if (LinearCameraFrameIntervalTicks == 0U)
-    {
-        LinearCamera_RequestShutterPulse();
-    }
-    else
+    if (LinearCameraFrameIntervalTicks != 0U)
     {
         Gpt_EnableNotification(LinearCameraInstance.ShutterGptChannel);
         Gpt_StartTimer(LinearCameraInstance.ShutterGptChannel, LinearCameraFrameIntervalTicks);
@@ -96,7 +92,11 @@ static void LinearCamera_FinishFrame(void)
     LinearCameraSyncPhaseState = LINEAR_CAMERA_SYNC_IDLE;
     LinearCameraInstance.CurrentIndex = 0U;
 
-    if (restartPending == TRUE)
+    if (LinearCameraFrameIntervalTicks == 0U)
+    {
+        LinearCamera_RequestShutterPulse();
+    }
+    else if (restartPending == TRUE)
     {
         LinearCamera_RequestShutterPulse();
         LinearCamera_StartFrameTimer();
@@ -116,12 +116,13 @@ void NewCameraFrame(void)
     if (LinearCameraSyncPhaseState == LINEAR_CAMERA_SYNC_IDLE)
     {
         LinearCamera_RequestShutterPulse();
-        LinearCamera_StartFrameTimer();
     }
     else
     {
         LinearCameraFramePending = TRUE;
     }
+
+    LinearCamera_StartFrameTimer();
 }
 
 void CameraClock(void)
@@ -235,7 +236,14 @@ boolean LinearCameraStartStream(void)
 
     Adc_SetupResultBuffer(LinearCameraInstance.InputAdcGroup, &AdcResultBuffer);
     Pwm_SetDutyCycle(LinearCameraInstance.ClkPwmChannel, 0x4000U);
-    LinearCamera_StartFrameTimer();
+    if (LinearCameraFrameIntervalTicks == 0U)
+    {
+        LinearCamera_RequestShutterPulse();
+    }
+    else
+    {
+        LinearCamera_StartFrameTimer();
+    }
 
     return TRUE;
 }
@@ -245,6 +253,9 @@ void LinearCameraStopStream(void)
     LinearCameraStreamEnabled = FALSE;
     LinearCamera_StopCaptureHw();
     LinearCameraInstance.CurrentIndex = 0U;
+    LinearCameraLatestFrameReady = FALSE;
+    LinearCameraReadyBufferIndex = LINEAR_CAMERA_INVALID_INDEX;
+    LinearCameraWriteBufferIndex = 0U;
     LinearCameraInstance.Status = LINEAR_CAMERA_IDLE;
 }
 

@@ -128,7 +128,7 @@ const Adc_Ip_ConfigType AdcIpConfig_0_VS_0 =
     (boolean)FALSE, /* AvgEn */
     ADC_IP_AVG_4_CONV, /* AvgSel */
     ADC_IP_RESOLUTION_12BIT, /* Resolution */
-    ADC_IP_TRIGGER_SOFTWARE, /* TriggerMode */
+    ADC_IP_TRIGGER_HARDWARE, /* TriggerMode */
 #if (ADC_IP_ENABLE_SIM_SOURCE_SELECTION == STD_ON)
     ADC_IP_PRETRIGGER_SEL_PDB, /* PretriggerSel */
     ADC_IP_TRIGGER_SEL_PDB, /* TriggerSel */

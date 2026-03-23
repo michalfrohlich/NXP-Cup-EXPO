@@ -18,7 +18,7 @@ extern "C" {
  * currently generated peripheral setup, but they do not configure hardware.
  */
 #define LINEAR_CAMERA_TIMING_PWM_SOURCE_CLOCK_HZ   (8000000UL)
-#define LINEAR_CAMERA_TIMING_PWM_PERIOD_TICKS      (800UL)
+#define LINEAR_CAMERA_TIMING_PWM_PERIOD_TICKS      (1000UL)
 #define LINEAR_CAMERA_TIMING_GPT_SOURCE_CLOCK_HZ   (8000000UL)
 
 typedef struct

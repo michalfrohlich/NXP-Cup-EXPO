@@ -115,7 +115,7 @@ extern "C"{
 /**
 * @brief            This parameter shall be set True, if the H/W does not have a PLL or the PLL circuitry is enabled after the power on without S/W intervention.
 */
-#define POWER_IP_NO_PLL                              (STD_OFF)
+#define POWER_IP_NO_PLL                              (STD_ON)
 
 /**
 * @brief            If this parameter is set to TRUE, the Reset Control Module (RMC) initialization has to be disabled in the Power driver.

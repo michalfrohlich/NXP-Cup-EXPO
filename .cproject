@@ -206,9 +206,9 @@
 		<COND_TOOLCHAIN_CUSTOM_OPTION/>
 	</storageModule>
 	<storageModule moduleId="com.nxp.s32ds.cle.uct.internal.core.toolchainScriptProfile">
-		<COND_TOOLCHAIN_COMPONENTS_OPTION>COPY=platform.driver.icu;platform.driver.gpt;platform.driver.cdd_i2c;platform.driver.Platform;platform.driver.clock;platform.driver.adc;platform.driver.mcu;platform.driver.osif;platform.driver.port;platform.driver.mcl;platform.driver.pwm;platform.driver.dio</COND_TOOLCHAIN_COMPONENTS_OPTION>
+		<COND_TOOLCHAIN_COMPONENTS_OPTION>COPY=platform.driver.icu;platform.driver.Platform;platform.driver.clock;platform.driver.adc;platform.driver.mcu;platform.driver.osif;platform.driver.port;platform.driver.pwm;platform.driver.dio;platform.driver.gpt;platform.driver.pdb_adc;platform.driver.cdd_i2c;platform.driver.mcl</COND_TOOLCHAIN_COMPONENTS_OPTION>
 	</storageModule>
 	<storageModule moduleId="com.nxp.s32ds.cle.uct.core">
-		<sdkComponents>platform.driver.icu;platform.driver.rte_icu;platform.driver.det;platform.driver.Platform;platform.driver.rte_platform;platform.driver.clock;platform.driver.rte_mcu;platform.driver.adc;platform.driver.rte_adc;platform.driver.osif;platform.driver.mcu;platform.driver.port;platform.driver.rte_port;platform.driver.pwm;platform.driver.rte_pwm;platform.driver.dio;platform.driver.rte_dio;platform.driver.gpt;platform.driver.rte_gpt;platform.driver.cdd_i2c;platform.driver.rte_i2c;platform.driver.mcl;platform.driver.rte_mcl</sdkComponents>
+		<sdkComponents>platform.driver.icu;platform.driver.rte_icu;platform.driver.det;platform.driver.Platform;platform.driver.rte_platform;platform.driver.clock;platform.driver.rte_mcu;platform.driver.adc;platform.driver.rte_adc;platform.driver.osif;platform.driver.mcu;platform.driver.port;platform.driver.rte_port;platform.driver.pwm;platform.driver.rte_pwm;platform.driver.dio;platform.driver.rte_dio;platform.driver.gpt;platform.driver.rte_gpt;platform.driver.cdd_i2c;platform.driver.rte_i2c;platform.driver.mcl;platform.driver.rte_mcl;platform.driver.pdb_adc</sdkComponents>
 	</storageModule>
 </cproject>

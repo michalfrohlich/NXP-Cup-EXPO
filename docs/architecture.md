@@ -64,12 +64,14 @@
   - requests frame cadence with GPT and aligns the SI pulse to two PWM falling edges
   - keeps the camera clock free-running while FTM falling-edge notifications are enabled only during the active frame window
   - latches a pending frame request if GPT expires during an active frame, then starts the next frame only after the current one is fully published
-  - samples one pixel manually per falling edge with `Adc_StartGroupConversion()`
+  - asserts `SI` on the first falling edge and deasserts it on the second falling edge
+  - starts one software ADC conversion on each subsequent falling edge until all `128` pixels are captured
   - stores each completed sample in `CameraAdcFinished()` into handwritten ping-pong frame buffers
-  - publishes the completed `128`-pixel frame on the first falling edge after the last sample callback
+  - disables PWM notifications again as soon as the frame is complete, so there are no camera clock-edge interrupts between frames
   - exposes a neutral debug-counters snapshot for requested frames, frame starts, capture events, completed frames, and dropped frames
 - `app_modes.c`
   - the linear-camera waiting screen consumes the driver debug-counters snapshot instead of several driver-internal counter getters
+  - the waiting screen is rendered once before `LinearCameraStartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
 - `services/vision_linear_v2.c`
   - filters the frame
   - computes a 1D gradient
