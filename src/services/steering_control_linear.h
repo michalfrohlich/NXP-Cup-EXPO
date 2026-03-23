@@ -21,6 +21,7 @@ typedef struct
     float kp;
     float ki;
     float kd;
+    float iTermClamp;
 
     /* Extra steering aggressiveness multiplier */
     float steerScale;

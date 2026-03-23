@@ -17,13 +17,13 @@
 #include "../services/vision_linear_v2.h"
 #include "rgb_led.h"
 #include "../services/steering_control_linear.h"
+#include "../services/steering_smoothing.h"
 #include "vision_debug.h"
 
 #define VDBG_WHITE_MAX_FULL_SCALE     (4095U)
 #define VDBG_WHITE_MAX_MIN_ZOOM       (400U)
 
 #define RECEIVER_REFRESH_MS           (50U)
-#define ULTRASONIC_TEST_PERIOD_MS     (500U)
 #define TESTS_MENU_VISIBLE_LINES      (3U)
 #define TESTS_MENU_POT_STABLE_MS      (90U)
 #define TESTS_MENU_POT_HYSTERESIS     (6U)
@@ -31,6 +31,7 @@
 typedef enum
 {
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
+    APP_BUILD_MODE_NXP_CUP,
     APP_BUILD_MODE_RACE_MODE,
     APP_BUILD_MODE_FINAL_DUMMY,
     APP_BUILD_MODE_HONOR_LAP,
@@ -68,11 +69,25 @@ typedef struct
     uint32 nextRefreshMs;
 } ReceiverTestState_t;
 
+typedef enum
+{
+    ULTRA_TEST_MODE_CLEAR = 0,
+    ULTRA_TEST_MODE_STOP_HOLD,
+    ULTRA_TEST_MODE_CRAWL,
+    ULTRA_TEST_MODE_CUTOFF
+} UltrasonicTestMode_t;
+
 typedef struct
 {
-    uint32 lastTrigMs;
+    uint32 nextTriggerMs;
     uint32 nextDisplayMs;
+    uint32 ultraEnableMs;
+    uint32 modeUntilMs;
+    uint32 slowRangeSinceMs;
+    uint32 stopRangeSinceMs;
     float lastDistanceCm;
+    boolean haveValidDistance;
+    UltrasonicTestMode_t mode;
 } UltrasonicTestState_t;
 
 typedef struct
@@ -88,10 +103,12 @@ typedef struct
 
 typedef struct
 {
+    boolean configured;
+    boolean useSmoothing;
     uint32 nextDisplayMs;
-    uint8 potLevel;
-    sint16 steerCmd;
-    uint32 pwmCmd;
+    sint16 steerRaw;
+    sint16 steerFilt;
+    sint16 steerOut;
 } ServoTestState_t;
 
 typedef struct
@@ -130,6 +147,26 @@ typedef struct
 
 typedef struct
 {
+    float kp;
+    float kd;
+    float ki;
+    float iTermClamp;
+    float steerLpfAlpha;
+    sint16 steerClamp;
+    sint16 steerRateMax;
+    uint8 baseSpeedPct;
+} CamTuneProfile_t;
+
+typedef enum
+{
+    NXP_CUP_PROFILE_SUPERFAST = 0,
+    NXP_CUP_PROFILE_5050,
+    NXP_CUP_PROFILE_SLOW,
+    NXP_CUP_PROFILE_COUNT
+} NxpCupProfileId_t;
+
+typedef struct
+{
     VisionDebug_State_t vdbg;
     SteeringLinearState_t ctrl;
     LinearCameraFrame processedFrame;
@@ -138,6 +175,7 @@ typedef struct
     uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
     sint16 gradientBuf[VISION_LINEAR_BUFFER_SIZE];
     boolean haveValidVision;
+    uint32 lastFrameMs;
     sint16 steerRaw;
     sint16 steerFilt;
     sint16 steerOut;
@@ -146,7 +184,48 @@ typedef struct
     uint32 nextDisplayMs;
     uint32 tickCount;
     boolean displayDirty;
+    CamTuneProfile_t activeTune;
 } CamServoState_t;
+
+typedef enum
+{
+    NXP_CUP_ULTRA_CLEAR = 0,
+    NXP_CUP_ULTRA_STOP_HOLD,
+    NXP_CUP_ULTRA_CRAWL,
+    NXP_CUP_ULTRA_CUTOFF
+} NxpCupUltraMode_t;
+
+typedef struct
+{
+    uint32 nextTriggerMs;
+    uint32 ultraEnableMs;
+    uint32 modeUntilMs;
+    uint32 lastDistanceMs;
+    float lastDistanceCm;
+    boolean haveValidDistance;
+    NxpCupUltraMode_t mode;
+} NxpCupUltraState_t;
+
+typedef enum
+{
+    NXP_CUP_STATE_MENU = 0,
+    NXP_CUP_STATE_READY,
+    NXP_CUP_STATE_ESC_REARM,
+    NXP_CUP_STATE_RUN
+} NxpCupModeState_t;
+
+typedef struct
+{
+    NxpCupModeState_t state;
+    NxpCupProfileId_t profileId;
+    NxpCupUltraState_t ultraSt;
+    CamServoState_t camSt;
+    sint32 autoSpeedPct;
+    uint32 nextAutoSpeedMs;
+    uint32 nextDisplayMs;
+    uint32 escRearmDoneMs;
+    boolean cameraStarted;
+} NxpCupState_t;
 
 typedef enum
 {
@@ -228,7 +307,42 @@ static LinearCameraTestState_t g_linearCameraTest;
 static FinalDummyState_t g_finalDummy;
 static TestsMenuState_t g_testsMenu;
 static HonorLapState_t g_honorLap;
+static NxpCupState_t g_nxpCup;
 static RaceModeState_t g_raceMode;
+
+static const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
+{
+    {
+        NXP_CUP_SUPERFAST_KP,
+        NXP_CUP_SUPERFAST_KD,
+        NXP_CUP_SUPERFAST_KI,
+        NXP_CUP_SUPERFAST_ITERM_CLAMP,
+        NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
+        (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP,
+        (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
+        (uint8)NXP_CUP_SUPERFAST_SPEED_PCT
+    },
+    {
+        NXP_CUP_5050_KP,
+        NXP_CUP_5050_KD,
+        NXP_CUP_5050_KI,
+        NXP_CUP_5050_ITERM_CLAMP,
+        NXP_CUP_5050_STEER_LPF_ALPHA,
+        (sint16)NXP_CUP_5050_STEER_CLAMP,
+        (sint16)NXP_CUP_5050_STEER_RATE_MAX,
+        (uint8)NXP_CUP_5050_SPEED_PCT
+    },
+    {
+        NXP_CUP_SLOW_KP,
+        NXP_CUP_SLOW_KD,
+        NXP_CUP_SLOW_KI,
+        NXP_CUP_SLOW_ITERM_CLAMP,
+        NXP_CUP_SLOW_STEER_LPF_ALPHA,
+        (sint16)NXP_CUP_SLOW_STEER_CLAMP,
+        (sint16)NXP_CUP_SLOW_STEER_RATE_MAX,
+        (uint8)NXP_CUP_SLOW_SPEED_PCT
+    }
+};
 
 static const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
 {
@@ -259,13 +373,13 @@ static void receiver_test_enter(uint32 nowMs);
 static void receiver_test_update(uint32 nowMs);
 static void receiver_test_exit(void);
 static void ultrasonic_test_enter(uint32 nowMs);
-static void ultrasonic_test_update(uint32 nowMs);
+static void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed);
 static void ultrasonic_test_exit(void);
 static void ultrasonic_esc_test_enter(uint32 nowMs);
 static void ultrasonic_esc_test_update(uint32 nowMs);
 static void ultrasonic_esc_test_exit(void);
 static void servo_test_enter(uint32 nowMs);
-static void servo_test_update(uint32 nowMs, uint8 potLevel);
+static void servo_test_update(uint32 nowMs, boolean sw2Pressed, uint8 potLevel);
 static void servo_test_exit(void);
 static void esc_test_enter(uint32 nowMs);
 static void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel);
@@ -285,9 +399,8 @@ static void runtime_test_exit(RuntimeTestId_t testId);
 static void esc_enter(EscRunState_t *st, uint32 nowMs);
 static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3, uint8 pot);
 static void esc_test_draw(const EscRunState_t *st);
-static sint16 abs_s16(sint16 x);
-static sint16 clamp_s16(sint16 x, sint16 lo, sint16 hi);
-static sint16 iir_s16(sint16 y_prev, sint16 x, float alpha);
+static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile);
+static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile);
 static void camservo_enter(CamServoState_t *st, uint32 nowMs);
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2);
 static void camservo_exit(void);
@@ -297,6 +410,18 @@ static uint8 tests_menu_map_pot_to_index(uint8 pot, uint8 nItems);
 static void tests_menu_select_index(TestsMenuState_t *st, uint8 pot);
 static void tests_menu_draw(const TestsMenuState_t *st);
 static void mode_nxp_cup_tests(void);
+static void nxp_cup_idle_motor(void);
+static void nxp_cup_obstacle_stop_motor(void);
+static void nxp_cup_launch_motor(int logicalCmd);
+static uint8 nxp_cup_profile_from_pot(uint8 pot);
+static void nxp_cup_ultra_enter(NxpCupUltraState_t *st, uint32 nowMs);
+static void nxp_cup_ultra_arm_for_run(NxpCupUltraState_t *st, uint32 nowMs);
+static boolean nxp_cup_ultra_is_active(const NxpCupUltraState_t *st, uint32 nowMs);
+static boolean nxp_cup_ultra_mode_is_obstacle(const NxpCupUltraState_t *st);
+static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs);
+static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st, uint32 nowMs);
+static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st, uint32 nowMs, uint8 defaultSpeedPct);
+static void mode_nxp_cup(void);
 static void mode_final_dummy(void);
 static sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 static void honor_lap_draw_overlay(void);
@@ -459,16 +584,20 @@ static void DisplayTextPadded(uint16 displayLine, const char *text)
 
 static AppBuildMode_t App_GetSelectedBuildMode(void)
 {
-#if APP_TEST_NXP_CUP_TESTS
+#if APP_TEST_NXP_CUP
+    return APP_BUILD_MODE_NXP_CUP;
+#elif APP_TEST_NXP_CUP_TESTS
     return APP_BUILD_MODE_NXP_CUP_TESTS;
 #elif APP_TEST_HONOR_LAP
     return APP_BUILD_MODE_HONOR_LAP;
 #elif APP_TEST_RACE_MODE
     return APP_BUILD_MODE_RACE_MODE;
+#elif APP_TEST_FINAL_DUMMY
+    return APP_BUILD_MODE_FINAL_DUMMY;
 #elif APP_TEST_LINEAR_CAMERA_TEST
     return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
 #else
-    return APP_BUILD_MODE_FINAL_DUMMY;
+#error "CONFIG ERROR: App_GetSelectedBuildMode has no active APP_TEST_* selection"
 #endif
 }
 
@@ -520,43 +649,171 @@ static void ultrasonic_test_enter(uint32 nowMs)
     (void)memset(&g_ultrasonicTest, 0, sizeof(g_ultrasonicTest));
 
     Ultrasonic_Init();
-    g_ultrasonicTest.lastTrigMs = nowMs;
+    g_ultrasonicTest.nextTriggerMs = nowMs;
     g_ultrasonicTest.nextDisplayMs = nowMs;
     g_ultrasonicTest.lastDistanceCm = 0.0f;
-
-    DisplayTextPadded(0U, "ULTRA 500MS");
-    DisplayTextPadded(1U, "S:     I:");
-    DisplayTextPadded(2U, "cm:    x:");
-    DisplayTextPadded(3U, "t:     a:");
-    DisplayRefresh();
+    g_ultrasonicTest.haveValidDistance = FALSE;
+    g_ultrasonicTest.ultraEnableMs = nowMs + NXP_ULTRA_ENABLE_AFTER_RUN_MS;
+    g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
+    g_ultrasonicTest.modeUntilMs = 0U;
+    g_ultrasonicTest.slowRangeSinceMs = 0U;
+    g_ultrasonicTest.stopRangeSinceMs = 0U;
     StatusLed_Blue();
 }
 
-static void ultrasonic_test_update(uint32 nowMs)
+static void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed)
 {
     Ultrasonic_StatusType st;
-    float distanceCm;
+    boolean active;
+    boolean inStopRange = FALSE;
+    boolean inSlowRange = FALSE;
 
-    if ((uint32)(nowMs - g_ultrasonicTest.lastTrigMs) >= ULTRASONIC_TEST_PERIOD_MS)
+    if (sw2Pressed == TRUE)
     {
-        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
-        {
-            g_ultrasonicTest.lastTrigMs = nowMs;
-            Ultrasonic_StartMeasurement();
-        }
+        Ultrasonic_Init();
+        g_ultrasonicTest.nextTriggerMs = nowMs;
+        g_ultrasonicTest.ultraEnableMs = nowMs + NXP_ULTRA_ENABLE_AFTER_RUN_MS;
+        g_ultrasonicTest.haveValidDistance = FALSE;
+        g_ultrasonicTest.lastDistanceCm = 0.0f;
+        g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
+        g_ultrasonicTest.modeUntilMs = 0U;
+        g_ultrasonicTest.slowRangeSinceMs = 0U;
+        g_ultrasonicTest.stopRangeSinceMs = 0U;
     }
 
     Ultrasonic_Task();
     st = Ultrasonic_GetStatus();
 
-    if (Ultrasonic_GetDistanceCm(&distanceCm) == TRUE)
+    if (Ultrasonic_GetDistanceCm(&g_ultrasonicTest.lastDistanceCm) == TRUE)
     {
-        g_ultrasonicTest.lastDistanceCm = distanceCm;
-        st = ULTRA_STATUS_NEW_DATA;
+        if (g_ultrasonicTest.lastDistanceCm > 0.0f)
+        {
+            g_ultrasonicTest.haveValidDistance = TRUE;
+        }
     }
-    else if (st == ULTRA_STATUS_ERROR)
+
+    if (time_reached(nowMs, g_ultrasonicTest.nextTriggerMs) == TRUE)
     {
-        g_ultrasonicTest.lastDistanceCm = ULTRA_MAX_DISTANCE_CM + 1.0f;
+        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+        {
+            Ultrasonic_StartMeasurement();
+            g_ultrasonicTest.nextTriggerMs = nowMs + (uint32)NXP_CUP_ULTRA_TRIGGER_PERIOD_MS;
+        }
+    }
+
+    active = (time_reached(nowMs, g_ultrasonicTest.ultraEnableMs) == TRUE) ? TRUE : FALSE;
+
+    if (active != TRUE)
+    {
+        g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
+        g_ultrasonicTest.modeUntilMs = 0U;
+    }
+    else if (g_ultrasonicTest.mode != ULTRA_TEST_MODE_CUTOFF)
+    {
+        if (g_ultrasonicTest.haveValidDistance == TRUE)
+        {
+            if (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM)
+            {
+                g_ultrasonicTest.mode = ULTRA_TEST_MODE_CUTOFF;
+            }
+            else
+            {
+                switch (g_ultrasonicTest.mode)
+                {
+                    case ULTRA_TEST_MODE_STOP_HOLD:
+                        if ((g_ultrasonicTest.modeUntilMs != 0U) &&
+                            (time_reached(nowMs, g_ultrasonicTest.modeUntilMs) == TRUE))
+                        {
+                            if (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
+                            {
+                                g_ultrasonicTest.mode = ULTRA_TEST_MODE_CRAWL;
+                            }
+                            else
+                            {
+                                g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
+                            }
+                            g_ultrasonicTest.modeUntilMs = 0U;
+                        }
+                        break;
+
+                    case ULTRA_TEST_MODE_CRAWL:
+                        break;
+
+                    case ULTRA_TEST_MODE_CLEAR:
+                    default:
+                        if (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
+                        {
+                            g_ultrasonicTest.mode = ULTRA_TEST_MODE_STOP_HOLD;
+                            g_ultrasonicTest.modeUntilMs = nowMs + (uint32)NXP_CUP_ULTRA_STOP_HOLD_MS;
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    if ((active == TRUE) && (g_ultrasonicTest.haveValidDistance == TRUE))
+    {
+        inStopRange = (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM) ? TRUE : FALSE;
+        inSlowRange = ((g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM) &&
+                       (inStopRange != TRUE)) ? TRUE : FALSE;
+
+        if (inSlowRange == TRUE)
+        {
+            if (g_ultrasonicTest.slowRangeSinceMs == 0U)
+            {
+                g_ultrasonicTest.slowRangeSinceMs = nowMs;
+            }
+        }
+        else
+        {
+            g_ultrasonicTest.slowRangeSinceMs = 0U;
+        }
+
+        if (inStopRange == TRUE)
+        {
+            if (g_ultrasonicTest.stopRangeSinceMs == 0U)
+            {
+                g_ultrasonicTest.stopRangeSinceMs = nowMs;
+            }
+        }
+        else
+        {
+            g_ultrasonicTest.stopRangeSinceMs = 0U;
+        }
+
+        if ((g_ultrasonicTest.stopRangeSinceMs != 0U) &&
+            (((uint32)(nowMs - g_ultrasonicTest.stopRangeSinceMs)) >= 10U))
+        {
+            StatusLed_Red();
+        }
+        else if ((g_ultrasonicTest.slowRangeSinceMs != 0U) &&
+                 (((uint32)(nowMs - g_ultrasonicTest.slowRangeSinceMs)) >= 80U))
+        {
+            StatusLed_Yellow();
+        }
+        else
+        {
+            StatusLed_Green();
+        }
+    }
+    else
+    {
+        g_ultrasonicTest.slowRangeSinceMs = 0U;
+        g_ultrasonicTest.stopRangeSinceMs = 0U;
+
+        if (st == ULTRA_STATUS_ERROR)
+        {
+            StatusLed_Red();
+        }
+        else if (active == TRUE)
+        {
+            StatusLed_Green();
+        }
+        else
+        {
+            StatusLed_Blue();
+        }
     }
 
     if (time_reached(nowMs, g_ultrasonicTest.nextDisplayMs) != TRUE)
@@ -566,47 +823,59 @@ static void ultrasonic_test_update(uint32 nowMs)
 
     g_ultrasonicTest.nextDisplayMs = nowMs + DISPLAY_PERIOD_MS;
 
-    DisplayTextPadded(0U, "ULTRA 500MS");
-    DisplayTextPadded(1U, "S:     I:");
-    DisplayTextPadded(2U, "cm:    x:");
-    DisplayTextPadded(3U, "t:     a:");
+    DisplayClear();
+    DisplayText(0U, "ULTRA TEST", 10U, 0U);
 
-    if (st == ULTRA_STATUS_NEW_DATA)
+    if (g_ultrasonicTest.haveValidDistance == TRUE)
     {
-        DisplayText(1U, "NEW  ", 5U, 2U);
-    }
-    else if (st == ULTRA_STATUS_BUSY)
-    {
-        DisplayText(1U, "BUSY ", 5U, 2U);
-    }
-    else if (st == ULTRA_STATUS_ERROR)
-    {
-        DisplayText(1U, "ERR  ", 5U, 2U);
+        DisplayText(1U, "CM:", 3U, 0U);
+        DisplayValue(1U, (int)(g_ultrasonicTest.lastDistanceCm + 0.5f), 4U, 4U);
     }
     else
     {
-        DisplayText(1U, "IDLE ", 5U, 2U);
+        DisplayText(1U, "CM: ----", 8U, 0U);
     }
 
-    DisplayValue(1U, (int)Ultrasonic_GetIrqCount(), 6U, 10U);
-    DisplayValue(2U, (int)(g_ultrasonicTest.lastDistanceCm + 0.5f), 4U, 3U);
-    DisplayValue(2U, (int)Ultrasonic_GetTsIndex(), 6U, 10U);
-    DisplayValue(3U, (int)Ultrasonic_GetLastHighTicks(), 5U, 2U);
-    DisplayValue(3U, (int)(nowMs - g_ultrasonicTest.lastTrigMs), 6U, 10U);
+    if (active != TRUE)
+    {
+        DisplayText(2U, "MODE: WAIT", 10U, 0U);
+    }
+    else if (g_ultrasonicTest.haveValidDistance != TRUE)
+    {
+        DisplayText(2U, "MODE: SCAN", 10U, 0U);
+    }
+    else if ((g_ultrasonicTest.mode == ULTRA_TEST_MODE_STOP_HOLD) ||
+             (g_ultrasonicTest.mode == ULTRA_TEST_MODE_CUTOFF))
+    {
+        DisplayText(2U, "MODE: STOP", 10U, 0U);
+    }
+    else if (g_ultrasonicTest.mode == ULTRA_TEST_MODE_CRAWL)
+    {
+        DisplayText(2U, "MODE: SLOW", 10U, 0U);
+    }
+    else
+    {
+        DisplayText(2U, "MODE: CLEAR", 11U, 0U);
+    }
+
+    switch (st)
+    {
+        case ULTRA_STATUS_BUSY:
+            DisplayText(3U, "DRV: BUSY", 9U, 0U);
+            break;
+        case ULTRA_STATUS_NEW_DATA:
+            DisplayText(3U, "DRV: NEW", 8U, 0U);
+            break;
+        case ULTRA_STATUS_ERROR:
+            DisplayText(3U, "DRV: ERR", 8U, 0U);
+            break;
+        case ULTRA_STATUS_IDLE:
+        default:
+            DisplayText(3U, "DRV: IDLE", 9U, 0U);
+            break;
+    }
+
     DisplayRefresh();
-
-    if (st == ULTRA_STATUS_ERROR)
-    {
-        StatusLed_Red();
-    }
-    else if (st == ULTRA_STATUS_NEW_DATA)
-    {
-        StatusLed_Green();
-    }
-    else
-    {
-        StatusLed_Blue();
-    }
 }
 
 static void ultrasonic_test_exit(void)
@@ -749,85 +1018,120 @@ static void servo_test_enter(uint32 nowMs)
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
+    g_servoTest.configured = FALSE;
+    g_servoTest.useSmoothing = TRUE;
     g_servoTest.nextDisplayMs = nowMs;
 
-    DisplayTextPadded(0U, "SERVO MANUAL");
-    DisplayTextPadded(1U, "POT:");
-    DisplayTextPadded(2U, "STEER:");
-    DisplayTextPadded(3U, "PWM:");
-    DisplayRefresh();
     StatusLed_Blue();
 }
 
-static void servo_test_update(uint32 nowMs, uint8 potLevel)
+static void servo_test_update(uint32 nowMs, boolean sw2Pressed, uint8 potLevel)
 {
-    sint32 steerCmd;
-
-    g_servoTest.potLevel = potLevel;
-
-    if (potLevel <= (uint8)POT_CENTER_RAW)
+    if (g_servoTest.configured != TRUE)
     {
-        uint16 denom = (uint16)(POT_CENTER_RAW - POT_LEFT_RAW);
+        g_servoTest.useSmoothing = (potLevel >= 128U) ? TRUE : FALSE;
 
-        if (denom == 0U)
+        DisplayText(0U, "SERVO MODE", 10U, 0U);
+        if (g_servoTest.useSmoothing == TRUE)
         {
-            denom = 1U;
+            DisplayText(1U, " RAW", 4U, 0U);
+            DisplayText(2U, ">SMOOTH", 7U, 0U);
         }
-
-        steerCmd = -((sint32)((uint8)POT_CENTER_RAW - potLevel) * 100) / (sint32)denom;
-    }
-    else
-    {
-        uint16 denom = (uint16)(POT_RIGHT_RAW - POT_CENTER_RAW);
-
-        if (denom == 0U)
+        else
         {
-            denom = 1U;
+            DisplayText(1U, ">RAW", 4U, 0U);
+            DisplayText(2U, " SMOOTH", 7U, 0U);
         }
-
-        steerCmd = ((sint32)(potLevel - (uint8)POT_CENTER_RAW) * 100) / (sint32)denom;
-    }
-
-    if (steerCmd > 100)
-    {
-        steerCmd = 100;
-    }
-    if (steerCmd < -100)
-    {
-        steerCmd = -100;
-    }
-
-    g_servoTest.steerCmd = (sint16)steerCmd;
-    Steer((int)g_servoTest.steerCmd);
-
-    if (g_servoTest.steerCmd >= 0)
-    {
-        g_servoTest.pwmCmd = (uint32)SERVO_DUTY_MED +
-                             (((uint32)g_servoTest.steerCmd *
-                               ((uint32)SERVO_DUTY_MAX - (uint32)SERVO_DUTY_MED)) / 100U);
-    }
-    else
-    {
-        g_servoTest.pwmCmd = (uint32)SERVO_DUTY_MED -
-                             (((uint32)(-g_servoTest.steerCmd) *
-                               ((uint32)SERVO_DUTY_MED - (uint32)SERVO_DUTY_MIN)) / 100U);
-    }
-
-    if (time_reached(nowMs, g_servoTest.nextDisplayMs) == TRUE)
-    {
-        g_servoTest.nextDisplayMs = nowMs + 50U;
-
-        DisplayTextPadded(1U, "POT:");
-        DisplayValue(1U, (int)g_servoTest.potLevel, 3U, 5U);
-
-        DisplayTextPadded(2U, "STEER:");
-        DisplayValue(2U, (int)g_servoTest.steerCmd, 4U, 7U);
-
-        DisplayTextPadded(3U, "PWM:");
-        DisplayValue(3U, (int)g_servoTest.pwmCmd, 4U, 4U);
-
+        DisplayText(3U, "SW2 ENTER", 9U, 0U);
         DisplayRefresh();
+
+        if (sw2Pressed == TRUE)
+        {
+            g_servoTest.configured = TRUE;
+            g_servoTest.nextDisplayMs = nowMs;
+        }
+        return;
     }
+
+    if ((uint32)(nowMs - g_servoTest.nextDisplayMs) < SERVO_TEST_UPDATE_MS)
+    {
+        return;
+    }
+    g_servoTest.nextDisplayMs += SERVO_TEST_UPDATE_MS;
+
+    g_servoTest.steerRaw = (sint16)((((sint32)potLevel * 200) / 255) - 100);
+    if (g_servoTest.steerRaw > (sint16)SERVO_TEST_CMD_CLAMP)
+    {
+        g_servoTest.steerRaw = (sint16)SERVO_TEST_CMD_CLAMP;
+    }
+    if (g_servoTest.steerRaw < (sint16)(-SERVO_TEST_CMD_CLAMP))
+    {
+        g_servoTest.steerRaw = (sint16)(-SERVO_TEST_CMD_CLAMP);
+    }
+
+    if (sw2Pressed == TRUE)
+    {
+        g_servoTest.steerRaw = 0;
+        g_servoTest.steerFilt = 0;
+        g_servoTest.steerOut = 0;
+        SteerStraight();
+    }
+    else
+    {
+        if (g_servoTest.useSmoothing == TRUE)
+        {
+            sint16 rateMax;
+            sint16 absFilt;
+
+            g_servoTest.steerRaw = SteeringSmooth_DeadzoneS16(g_servoTest.steerRaw,
+                                                              (sint16)SERVO_TEST_DEADBAND,
+                                                              (sint16)SERVO_TEST_CMD_CLAMP);
+            g_servoTest.steerFilt = SteeringSmooth_IirS16(g_servoTest.steerFilt,
+                                                          g_servoTest.steerRaw,
+                                                          (float)SERVO_TEST_LPF_ALPHA);
+
+            absFilt = (g_servoTest.steerFilt < 0) ? (sint16)(-g_servoTest.steerFilt) : g_servoTest.steerFilt;
+            rateMax = (sint16)SERVO_TEST_RATE_MAX;
+            rateMax = (sint16)(rateMax + (absFilt / 6));
+            if (rateMax > (sint16)SERVO_TEST_CMD_CLAMP)
+            {
+                rateMax = (sint16)SERVO_TEST_CMD_CLAMP;
+            }
+
+            g_servoTest.steerOut = SteeringSmooth_RateLimitS16(g_servoTest.steerOut,
+                                                               g_servoTest.steerFilt,
+                                                               rateMax,
+                                                               (sint16)SERVO_TEST_CMD_CLAMP,
+                                                               0,
+                                                               0);
+            g_servoTest.steerOut = SteeringSmooth_ClampS16(g_servoTest.steerOut,
+                                                           (sint16)(-SERVO_TEST_CMD_CLAMP),
+                                                           (sint16)SERVO_TEST_CMD_CLAMP);
+        }
+        else
+        {
+            g_servoTest.steerFilt = g_servoTest.steerRaw;
+            g_servoTest.steerOut = g_servoTest.steerRaw;
+        }
+
+        Steer((int)g_servoTest.steerOut);
+    }
+
+    if (g_servoTest.useSmoothing == TRUE)
+    {
+        DisplayText(0U, "SERVO SMOOTH", 12U, 0U);
+    }
+    else
+    {
+        DisplayText(0U, "SERVO RAW", 9U, 0U);
+    }
+    DisplayText(1U, "RAW:", 4U, 0U);
+    DisplayValue(1U, (int)g_servoTest.steerRaw, 4U, 5U);
+    DisplayText(2U, "OUT:", 4U, 0U);
+    DisplayValue(2U, (int)g_servoTest.steerOut, 4U, 5U);
+    DisplayText(3U, "LIM:", 4U, 0U);
+    DisplayValue(3U, (int)SERVO_TEST_CMD_CLAMP, 4U, 5U);
+    DisplayRefresh();
 
     StatusLed_Blue();
 }
@@ -1029,26 +1333,26 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
 
             g_linearCameraTest.steerRaw = (sint16)out.steer_cmd;
 
-            if (abs_s16(g_linearCameraTest.steerRaw) <= 2)
+            if (((g_linearCameraTest.steerRaw < 0) ? (sint16)(-g_linearCameraTest.steerRaw) : g_linearCameraTest.steerRaw) <= 2)
             {
                 g_linearCameraTest.steerRaw = 0;
             }
 
-            g_linearCameraTest.steerFilt = iir_s16(g_linearCameraTest.steerFilt,
-                                                   g_linearCameraTest.steerRaw,
-                                                   0.45f);
+            g_linearCameraTest.steerFilt = SteeringSmooth_IirS16(g_linearCameraTest.steerFilt,
+                                                                 g_linearCameraTest.steerRaw,
+                                                                 0.45f);
 
             {
                 const sint16 steerRateMax = 8;
                 sint16 delta = (sint16)(g_linearCameraTest.steerFilt - g_linearCameraTest.steerOut);
 
-                delta = clamp_s16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
+                delta = SteeringSmooth_ClampS16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
                 g_linearCameraTest.steerOut = (sint16)(g_linearCameraTest.steerOut + delta);
             }
 
-            g_linearCameraTest.steerOut = clamp_s16(g_linearCameraTest.steerOut,
-                                                    (sint16)(-STEER_CMD_CLAMP),
-                                                    (sint16)(+STEER_CMD_CLAMP));
+            g_linearCameraTest.steerOut = SteeringSmooth_ClampS16(g_linearCameraTest.steerOut,
+                                                                  (sint16)(-STEER_CMD_CLAMP),
+                                                                  (sint16)(+STEER_CMD_CLAMP));
 
             Steer((int)g_linearCameraTest.steerOut);
         }
@@ -1148,11 +1452,11 @@ static void runtime_test_update(RuntimeTestId_t testId,
             break;
 
         case RUNTIME_TEST_SERVO:
-            servo_test_update(nowMs, potLevel);
+            servo_test_update(nowMs, sw2Pressed, potLevel);
             break;
 
         case RUNTIME_TEST_ULTRASONIC:
-            ultrasonic_test_update(nowMs);
+            ultrasonic_test_update(nowMs, sw2Pressed);
             break;
 
         case RUNTIME_TEST_CAMSERVO:
@@ -1372,41 +1676,30 @@ static void esc_test_draw(const EscRunState_t *st)
     DisplayRefresh();
 }
 
-static sint16 abs_s16(sint16 x)
+static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile)
 {
-    return (x < 0) ? (sint16)(-x) : x;
+    if ((st == NULL_PTR) || (profile == NULL_PTR))
+    {
+        return;
+    }
+
+    st->activeTune = *profile;
+
+    SteeringLinear_SetTunings(&st->ctrl,
+                              profile->kp,
+                              profile->kd,
+                              1.0f);
+    st->ctrl.ki = profile->ki;
+    st->ctrl.iTermClamp = profile->iTermClamp;
+    SteeringLinear_Reset(&st->ctrl);
+
+    st->steerRaw = 0;
+    st->steerFilt = 0;
+    st->steerOut = 0;
+    SteerStraight();
 }
 
-static sint16 clamp_s16(sint16 x, sint16 lo, sint16 hi)
-{
-    if (x < lo)
-    {
-        return lo;
-    }
-    if (x > hi)
-    {
-        return hi;
-    }
-    return x;
-}
-
-static sint16 iir_s16(sint16 y_prev, sint16 x, float alpha)
-{
-    float y = (float)y_prev + alpha * ((float)x - (float)y_prev);
-
-    if (y > 32767.0f)
-    {
-        y = 32767.0f;
-    }
-    if (y < -32768.0f)
-    {
-        y = -32768.0f;
-    }
-
-    return (sint16)(y);
-}
-
-static void camservo_enter(CamServoState_t *st, uint32 nowMs)
+static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile)
 {
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
@@ -1430,16 +1723,34 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     (void)memset(st->filteredBuf, 0, sizeof(st->filteredBuf));
     (void)memset(st->gradientBuf, 0, sizeof(st->gradientBuf));
 
-    st->steerRaw = 0;
-    st->steerFilt = 0;
-    st->steerOut = 0;
     st->haveValidVision = FALSE;
+    st->lastFrameMs = nowMs;
     st->nextTickMs = nowMs;
     st->nextSteerMs = nowMs + STEER_UPDATE_MS;
     st->nextDisplayMs = nowMs;
     st->tickCount = 0u;
+    st->displayDirty = FALSE;
+
+    camservo_apply_profile(st, profile);
 
     (void)LinearCameraStartStream();
+}
+
+static void camservo_enter(CamServoState_t *st, uint32 nowMs)
+{
+    const CamTuneProfile_t defaultProfile =
+    {
+        KP,
+        KD,
+        KI,
+        ITERM_CLAMP,
+        0.45f,
+        (sint16)STEER_CMD_CLAMP,
+        8,
+        20U
+    };
+
+    camservo_enter_with_profile(st, nowMs, &defaultProfile);
 }
 
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
@@ -1477,6 +1788,7 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
                      ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
         VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
         st->haveValidVision = TRUE;
+        st->lastFrameMs = nowMs;
         st->displayDirty = TRUE;
     }
 
@@ -1495,30 +1807,35 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            const uint8 fakeSpeed = 20U;
-            SteeringOutput_t out = SteeringLinear_UpdateV2(&st->ctrl, &st->result, dt, fakeSpeed);
+            SteeringOutput_t out = SteeringLinear_UpdateV2(&st->ctrl,
+                                                           &st->result,
+                                                           dt,
+                                                           st->activeTune.baseSpeedPct);
 
             st->steerRaw = (sint16)out.steer_cmd;
         }
 
-        if (abs_s16(st->steerRaw) <= 2)
+        if (((st->steerRaw < 0) ? (sint16)(-st->steerRaw) : st->steerRaw) <= 2)
         {
             st->steerRaw = 0;
         }
 
-        st->steerFilt = iir_s16(st->steerFilt, st->steerRaw, 0.45f);
+        st->steerFilt = SteeringSmooth_IirS16(st->steerFilt,
+                                              st->steerRaw,
+                                              st->activeTune.steerLpfAlpha);
 
         {
-            const sint16 steerRateMax = 8;
             sint16 delta = (sint16)(st->steerFilt - st->steerOut);
 
-            delta = clamp_s16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
+            delta = SteeringSmooth_ClampS16(delta,
+                                            (sint16)(-st->activeTune.steerRateMax),
+                                            (sint16)(+st->activeTune.steerRateMax));
             st->steerOut = (sint16)(st->steerOut + delta);
         }
 
-        st->steerOut = clamp_s16(st->steerOut,
-                                 (sint16)(-STEER_CMD_CLAMP),
-                                 (sint16)(+STEER_CMD_CLAMP));
+        st->steerOut = SteeringSmooth_ClampS16(st->steerOut,
+                                               (sint16)(-st->activeTune.steerClamp),
+                                               (sint16)(+st->activeTune.steerClamp));
 
         Steer((int)st->steerOut);
     }
@@ -1778,6 +2095,636 @@ static void mode_nxp_cup_tests(void)
     }
 }
 
+static void nxp_cup_idle_motor(void)
+{
+    Esc_StopNeutral();
+}
+
+static void nxp_cup_obstacle_stop_motor(void)
+{
+    Esc_StopNeutral();
+}
+
+static void nxp_cup_launch_motor(int logicalCmd)
+{
+    EscSetBrake(0U);
+    EscSetSpeed(logicalCmd);
+}
+
+static uint8 nxp_cup_profile_from_pot(uint8 pot)
+{
+    if (pot < 85U)
+    {
+        return (uint8)NXP_CUP_PROFILE_SUPERFAST;
+    }
+
+    if (pot < 171U)
+    {
+        return (uint8)NXP_CUP_PROFILE_5050;
+    }
+
+    return (uint8)NXP_CUP_PROFILE_SLOW;
+}
+
+static void nxp_cup_ultra_enter(NxpCupUltraState_t *st, uint32 nowMs)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    (void)memset(st, 0, sizeof(*st));
+    Ultrasonic_Init();
+    st->nextTriggerMs = nowMs;
+    st->mode = NXP_CUP_ULTRA_CLEAR;
+}
+
+static void nxp_cup_ultra_arm_for_run(NxpCupUltraState_t *st, uint32 nowMs)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->ultraEnableMs = nowMs + NXP_ULTRA_ENABLE_AFTER_RUN_MS;
+}
+
+static boolean nxp_cup_ultra_is_active(const NxpCupUltraState_t *st, uint32 nowMs)
+{
+    if ((st == NULL_PTR) || (NXP_CUP_ULTRASONIC_ENABLE != 1))
+    {
+        return FALSE;
+    }
+
+    return (boolean)((st->ultraEnableMs != 0U) &&
+                     (time_reached(nowMs, st->ultraEnableMs) == TRUE));
+}
+
+static boolean nxp_cup_ultra_mode_is_obstacle(const NxpCupUltraState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return FALSE;
+    }
+
+    return (boolean)((st->mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+                     (st->mode == NXP_CUP_ULTRA_CRAWL) ||
+                     (st->mode == NXP_CUP_ULTRA_CUTOFF));
+}
+
+static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs)
+{
+    const uint32 ultraStaleMs =
+        ((uint32)NXP_CUP_ULTRA_TRIGGER_PERIOD_MS * 2U) + (uint32)ULTRA_TIMEOUT_MS;
+    float distanceCm = 0.0f;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    Ultrasonic_Task();
+
+    if (time_reached(nowMs, st->nextTriggerMs) == TRUE)
+    {
+        st->nextTriggerMs = nowMs + NXP_CUP_ULTRA_TRIGGER_PERIOD_MS;
+
+        if (Ultrasonic_GetStatus() != ULTRA_STATUS_BUSY)
+        {
+            Ultrasonic_StartMeasurement();
+        }
+    }
+
+    if (Ultrasonic_GetDistanceCm(&distanceCm) == TRUE)
+    {
+        st->lastDistanceCm = distanceCm;
+        st->lastDistanceMs = nowMs;
+        st->haveValidDistance = (boolean)(distanceCm > 0.0f);
+    }
+    else if ((st->haveValidDistance == TRUE) &&
+             ((uint32)(nowMs - st->lastDistanceMs) > ultraStaleMs))
+    {
+        st->haveValidDistance = FALSE;
+    }
+
+    if (nxp_cup_ultra_is_active(st, nowMs) != TRUE)
+    {
+        st->mode = NXP_CUP_ULTRA_CLEAR;
+        st->modeUntilMs = 0U;
+        return;
+    }
+
+    if (st->haveValidDistance != TRUE)
+    {
+        return;
+    }
+
+    if (st->lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM)
+    {
+        st->mode = NXP_CUP_ULTRA_CUTOFF;
+        st->modeUntilMs = 0U;
+        return;
+    }
+
+    switch (st->mode)
+    {
+        case NXP_CUP_ULTRA_STOP_HOLD:
+            if ((st->modeUntilMs != 0U) &&
+                (time_reached(nowMs, st->modeUntilMs) == TRUE))
+            {
+                st->mode = (st->lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM) ?
+                    NXP_CUP_ULTRA_CRAWL : NXP_CUP_ULTRA_CLEAR;
+                st->modeUntilMs = 0U;
+            }
+            break;
+
+        case NXP_CUP_ULTRA_CRAWL:
+            if (st->lastDistanceCm > (float)NXP_CUP_ULTRA_STOP_CM)
+            {
+                st->mode = NXP_CUP_ULTRA_CLEAR;
+            }
+            break;
+
+        case NXP_CUP_ULTRA_CUTOFF:
+            break;
+
+        case NXP_CUP_ULTRA_CLEAR:
+        default:
+            if (st->lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
+            {
+                st->mode = NXP_CUP_ULTRA_STOP_HOLD;
+                st->modeUntilMs = nowMs + NXP_CUP_ULTRA_STOP_HOLD_MS;
+            }
+            break;
+    }
+}
+
+static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st, uint32 nowMs)
+{
+    (void)nowMs;
+    return nxp_cup_ultra_mode_is_obstacle(st);
+}
+
+static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st, uint32 nowMs, uint8 defaultSpeedPct)
+{
+    if ((st == NULL_PTR) || (nxp_cup_ultra_is_active(st, nowMs) != TRUE))
+    {
+        return defaultSpeedPct;
+    }
+
+    switch (st->mode)
+    {
+        case NXP_CUP_ULTRA_STOP_HOLD:
+        case NXP_CUP_ULTRA_CUTOFF:
+            return 0U;
+
+        case NXP_CUP_ULTRA_CRAWL:
+            return (uint8)((NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD < 0) ?
+                (-NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD) :
+                NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD);
+
+        case NXP_CUP_ULTRA_CLEAR:
+        default:
+            return defaultSpeedPct;
+    }
+}
+
+static void mode_nxp_cup(void)
+{
+    uint32 nextButtonsMs;
+
+    App_InitRuntimeCommon();
+    (void)memset(&g_nxpCup, 0, sizeof(g_nxpCup));
+
+    g_nxpCup.state = NXP_CUP_STATE_MENU;
+    g_nxpCup.profileId = (NxpCupProfileId_t)NXP_CUP_DEFAULT_PROFILE;
+    g_nxpCup.nextDisplayMs = Timebase_GetMs();
+    nextButtonsMs = Timebase_GetMs();
+
+    nxp_cup_idle_motor();
+    nxp_cup_ultra_enter(&g_nxpCup.ultraSt, Timebase_GetMs());
+    StatusLed_Blue();
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+        boolean sw2Pressed;
+        boolean sw3Pressed;
+        boolean systemBad = FALSE;
+        uint8 potLevel;
+
+        while (time_reached(nowMs, nextButtonsMs) == TRUE)
+        {
+            Buttons_Update();
+            nextButtonsMs += BUTTONS_PERIOD_MS;
+        }
+
+        sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
+        sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
+        potLevel = OnboardPot_ReadLevelFiltered();
+
+        if ((g_nxpCup.state == NXP_CUP_STATE_RUN) &&
+            (g_nxpCup.cameraStarted == TRUE) &&
+            (nxp_cup_ultra_mode_is_obstacle(&g_nxpCup.ultraSt) != TRUE) &&
+            ((g_nxpCup.camSt.haveValidVision != TRUE) ||
+             ((uint32)(nowMs - g_nxpCup.camSt.lastFrameMs) > CAM_STEER_HOLD_MS) ||
+             (g_nxpCup.camSt.result.status == VISION_TRACK_LOST)))
+        {
+            systemBad = TRUE;
+        }
+
+        if ((g_nxpCup.state == NXP_CUP_STATE_RUN) &&
+            ((g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+             (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CUTOFF)))
+        {
+            StatusLed_Red();
+        }
+        else if ((g_nxpCup.state == NXP_CUP_STATE_RUN) &&
+                 (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CRAWL))
+        {
+            StatusLed_Yellow();
+        }
+        else if (systemBad == TRUE)
+        {
+            StatusLed_Red();
+            g_nxpCup.autoSpeedPct = 0;
+            nxp_cup_idle_motor();
+        }
+        else if ((g_nxpCup.state == NXP_CUP_STATE_RUN) ||
+                 (g_nxpCup.state == NXP_CUP_STATE_ESC_REARM))
+        {
+            StatusLed_Green();
+        }
+        else
+        {
+            StatusLed_Blue();
+        }
+
+        if (time_reached(nowMs, g_nxpCup.nextDisplayMs) == TRUE)
+        {
+            g_nxpCup.nextDisplayMs = nowMs + DISPLAY_PERIOD_MS;
+            DisplayClear();
+
+            switch (g_nxpCup.state)
+            {
+                case NXP_CUP_STATE_MENU:
+                    g_nxpCup.profileId = (NxpCupProfileId_t)nxp_cup_profile_from_pot(potLevel);
+                    DisplayTextPadded(0U, "NXP CUP MENU");
+                    if (g_nxpCup.profileId == NXP_CUP_PROFILE_SUPERFAST)
+                    {
+                        DisplayTextPadded(1U, ">SUPERFAST");
+                        DisplayTextPadded(2U, " 5050");
+                        DisplayTextPadded(3U, " SLOW SW2 ENTER");
+                    }
+                    else if (g_nxpCup.profileId == NXP_CUP_PROFILE_5050)
+                    {
+                        DisplayTextPadded(1U, " SUPERFAST");
+                        DisplayTextPadded(2U, ">5050");
+                        DisplayTextPadded(3U, " SLOW SW2 ENTER");
+                    }
+                    else
+                    {
+                        DisplayTextPadded(1U, " SUPERFAST");
+                        DisplayTextPadded(2U, " 5050");
+                        DisplayTextPadded(3U, ">SLOW SW2 ENTER");
+                    }
+                    break;
+
+                case NXP_CUP_STATE_READY:
+                    DisplayTextPadded(0U, "NXP CUP READY");
+                    if (g_nxpCup.profileId == NXP_CUP_PROFILE_SUPERFAST)
+                    {
+                        DisplayTextPadded(1U, "PROFILE:SUPER");
+                    }
+                    else if (g_nxpCup.profileId == NXP_CUP_PROFILE_5050)
+                    {
+                        DisplayTextPadded(1U, "PROFILE:5050");
+                    }
+                    else
+                    {
+                        DisplayTextPadded(1U, "PROFILE:SLOW");
+                    }
+                    DisplayTextPadded(2U, "SW3 START");
+                    DisplayTextPadded(3U, "SW2 BACK");
+                    break;
+
+                case NXP_CUP_STATE_ESC_REARM:
+                    DisplayTextPadded(0U, "NXP CUP ARM");
+                    DisplayTextPadded(1U, "ESC re-arming");
+                    DisplayTextPadded(2U, "SW3 ready");
+                    DisplayTextPadded(3U, "SW2 menu");
+                    break;
+
+                case NXP_CUP_STATE_RUN:
+                default:
+                    DisplayTextPadded(0U, "NXP CUP RUN");
+                    DisplayTextPadded(1U, "SPD:    D:--- ");
+                    DisplayValue(1U, (int)g_nxpCup.autoSpeedPct, 3U, 4U);
+                    if (g_nxpCup.ultraSt.haveValidDistance == TRUE)
+                    {
+                        DisplayValue(1U, (int)(g_nxpCup.ultraSt.lastDistanceCm + 0.5f), 3U, 11U);
+                    }
+
+                    if (systemBad == TRUE)
+                    {
+                        DisplayTextPadded(2U, "MODE: FAULT");
+                    }
+                    else if (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD)
+                    {
+                        DisplayTextPadded(2U, "MODE: STOP");
+                    }
+                    else if (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CRAWL)
+                    {
+                        DisplayTextPadded(2U, "MODE: CRAWL");
+                    }
+                    else if (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CUTOFF)
+                    {
+                        DisplayTextPadded(2U, "MODE: CUTOFF");
+                    }
+                    else if ((g_nxpCup.camSt.haveValidVision == TRUE) &&
+                             (g_nxpCup.camSt.result.status != VISION_TRACK_LOST))
+                    {
+                        DisplayTextPadded(2U, "MODE: TRACK");
+                    }
+                    else
+                    {
+                        DisplayTextPadded(2U, "MODE: WAIT");
+                    }
+
+                    DisplayTextPadded(3U, "SW3 READY SW2 M");
+                    break;
+            }
+
+            DisplayRefresh();
+        }
+
+        if (g_nxpCup.state == NXP_CUP_STATE_MENU)
+        {
+            if (g_nxpCup.cameraStarted == TRUE)
+            {
+                camservo_exit();
+                g_nxpCup.cameraStarted = FALSE;
+            }
+
+            nxp_cup_idle_motor();
+            SteerStraight();
+            g_nxpCup.autoSpeedPct = 0;
+            g_nxpCup.nextAutoSpeedMs = 0U;
+            g_nxpCup.escRearmDoneMs = 0U;
+
+            if (sw2Pressed == TRUE)
+            {
+                g_nxpCup.state = NXP_CUP_STATE_READY;
+            }
+
+            continue;
+        }
+
+        if (g_nxpCup.state == NXP_CUP_STATE_READY)
+        {
+            if (g_nxpCup.cameraStarted == TRUE)
+            {
+                camservo_exit();
+                g_nxpCup.cameraStarted = FALSE;
+            }
+
+            nxp_cup_idle_motor();
+            SteerStraight();
+            g_nxpCup.autoSpeedPct = 0;
+            g_nxpCup.nextAutoSpeedMs = 0U;
+            g_nxpCup.escRearmDoneMs = 0U;
+
+            if (sw2Pressed == TRUE)
+            {
+                g_nxpCup.state = NXP_CUP_STATE_MENU;
+                continue;
+            }
+
+            if (sw3Pressed == TRUE)
+            {
+                camservo_enter_with_profile(&g_nxpCup.camSt,
+                                            nowMs,
+                                            &g_nxpCupProfiles[g_nxpCup.profileId]);
+                g_nxpCup.cameraStarted = TRUE;
+                g_nxpCup.autoSpeedPct = 0;
+                g_nxpCup.nextAutoSpeedMs = 0U;
+
+                nxp_cup_ultra_enter(&g_nxpCup.ultraSt, nowMs);
+                EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+                g_nxpCup.escRearmDoneMs = nowMs + ESC_ARM_TIME_MS + NXP_ESC_EXTRA_SETTLE_MS;
+                g_nxpCup.state = NXP_CUP_STATE_ESC_REARM;
+                continue;
+            }
+
+            continue;
+        }
+
+        if (g_nxpCup.state == NXP_CUP_STATE_ESC_REARM)
+        {
+            nxp_cup_ultra_task(&g_nxpCup.ultraSt, nowMs);
+
+            if (g_nxpCup.cameraStarted == TRUE)
+            {
+                camservo_update(&g_nxpCup.camSt, nowMs, FALSE);
+            }
+
+            if (sw2Pressed == TRUE)
+            {
+                nxp_cup_idle_motor();
+                if (g_nxpCup.cameraStarted == TRUE)
+                {
+                    camservo_exit();
+                    g_nxpCup.cameraStarted = FALSE;
+                }
+                SteerStraight();
+                g_nxpCup.autoSpeedPct = 0;
+                g_nxpCup.nextAutoSpeedMs = 0U;
+                g_nxpCup.escRearmDoneMs = 0U;
+                g_nxpCup.state = NXP_CUP_STATE_MENU;
+                continue;
+            }
+
+            if (sw3Pressed == TRUE)
+            {
+                nxp_cup_idle_motor();
+                if (g_nxpCup.cameraStarted == TRUE)
+                {
+                    camservo_exit();
+                    g_nxpCup.cameraStarted = FALSE;
+                }
+                SteerStraight();
+                g_nxpCup.autoSpeedPct = 0;
+                g_nxpCup.nextAutoSpeedMs = 0U;
+                g_nxpCup.escRearmDoneMs = 0U;
+                g_nxpCup.state = NXP_CUP_STATE_READY;
+                continue;
+            }
+
+            nxp_cup_idle_motor();
+
+            if (time_reached(nowMs, g_nxpCup.escRearmDoneMs) == TRUE)
+            {
+                int logicalCmd;
+
+                g_nxpCup.autoSpeedPct = (sint32)g_nxpCup.camSt.activeTune.baseSpeedPct;
+                if (g_nxpCup.autoSpeedPct < 0)
+                {
+                    g_nxpCup.autoSpeedPct = 0;
+                }
+                if (g_nxpCup.autoSpeedPct > 100)
+                {
+                    g_nxpCup.autoSpeedPct = 100;
+                }
+
+                nxp_cup_ultra_arm_for_run(&g_nxpCup.ultraSt, nowMs);
+                nxp_cup_ultra_task(&g_nxpCup.ultraSt, nowMs);
+
+                if ((g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+                    (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CUTOFF))
+                {
+                    g_nxpCup.autoSpeedPct = 0;
+                    nxp_cup_obstacle_stop_motor();
+                    SteerStraight();
+                }
+                else
+                {
+                    if (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CRAWL)
+                    {
+                        logicalCmd = (int)NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD;
+                        g_nxpCup.autoSpeedPct = (logicalCmd < 0) ? -logicalCmd : logicalCmd;
+                    }
+                    else
+                    {
+                        g_nxpCup.autoSpeedPct =
+                            (sint32)nxp_cup_ultra_target_speed_pct(&g_nxpCup.ultraSt,
+                                                                   nowMs,
+                                                                   g_nxpCup.camSt.activeTune.baseSpeedPct);
+                        logicalCmd = (int)(-g_nxpCup.autoSpeedPct);
+                    }
+
+                    nxp_cup_launch_motor(logicalCmd);
+                }
+
+                g_nxpCup.nextAutoSpeedMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+                g_nxpCup.state = NXP_CUP_STATE_RUN;
+            }
+
+            continue;
+        }
+
+        nxp_cup_ultra_task(&g_nxpCup.ultraSt, nowMs);
+
+        if (g_nxpCup.cameraStarted == TRUE)
+        {
+            if (nxp_cup_ultra_should_hold_servo(&g_nxpCup.ultraSt, nowMs) == TRUE)
+            {
+                SteerStraight();
+            }
+            else
+            {
+                camservo_update(&g_nxpCup.camSt, nowMs, FALSE);
+            }
+        }
+
+        if ((g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_STOP_HOLD) ||
+            (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CUTOFF))
+        {
+            g_nxpCup.autoSpeedPct = 0;
+            nxp_cup_obstacle_stop_motor();
+        }
+        else if (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CRAWL)
+        {
+            int crawlCmd = (int)NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD;
+
+            g_nxpCup.autoSpeedPct = (crawlCmd < 0) ? -crawlCmd : crawlCmd;
+            nxp_cup_launch_motor(crawlCmd);
+        }
+
+        if (sw2Pressed == TRUE)
+        {
+            nxp_cup_idle_motor();
+            if (g_nxpCup.cameraStarted == TRUE)
+            {
+                camservo_exit();
+                g_nxpCup.cameraStarted = FALSE;
+            }
+            SteerStraight();
+            g_nxpCup.autoSpeedPct = 0;
+            g_nxpCup.nextAutoSpeedMs = 0U;
+            g_nxpCup.escRearmDoneMs = 0U;
+            g_nxpCup.state = NXP_CUP_STATE_MENU;
+            continue;
+        }
+
+        if (sw3Pressed == TRUE)
+        {
+            nxp_cup_idle_motor();
+            if (g_nxpCup.cameraStarted == TRUE)
+            {
+                camservo_exit();
+                g_nxpCup.cameraStarted = FALSE;
+            }
+            SteerStraight();
+            g_nxpCup.autoSpeedPct = 0;
+            g_nxpCup.nextAutoSpeedMs = 0U;
+            g_nxpCup.escRearmDoneMs = 0U;
+            g_nxpCup.state = NXP_CUP_STATE_READY;
+            continue;
+        }
+
+        if (time_reached(nowMs, g_nxpCup.nextAutoSpeedMs) == TRUE)
+        {
+            sint32 targetSpeedPct;
+            int logicalCmd;
+
+            g_nxpCup.nextAutoSpeedMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+            targetSpeedPct =
+                (sint32)nxp_cup_ultra_target_speed_pct(&g_nxpCup.ultraSt,
+                                                       nowMs,
+                                                       g_nxpCup.camSt.activeTune.baseSpeedPct);
+
+            if (g_nxpCup.ultraSt.mode == NXP_CUP_ULTRA_CRAWL)
+            {
+                logicalCmd = (int)NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD;
+                g_nxpCup.autoSpeedPct = (logicalCmd < 0) ? -logicalCmd : logicalCmd;
+            }
+            else if (g_nxpCup.autoSpeedPct < targetSpeedPct)
+            {
+                g_nxpCup.autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
+                if (g_nxpCup.autoSpeedPct > targetSpeedPct)
+                {
+                    g_nxpCup.autoSpeedPct = targetSpeedPct;
+                }
+                logicalCmd = (int)(-g_nxpCup.autoSpeedPct);
+            }
+            else if (g_nxpCup.autoSpeedPct > targetSpeedPct)
+            {
+                g_nxpCup.autoSpeedPct -= (sint32)NXP_CUP_RAMP_DOWN_STEP_PCT;
+                if (g_nxpCup.autoSpeedPct < targetSpeedPct)
+                {
+                    g_nxpCup.autoSpeedPct = targetSpeedPct;
+                }
+                logicalCmd = (int)(-g_nxpCup.autoSpeedPct);
+            }
+            else
+            {
+                logicalCmd = (int)(-g_nxpCup.autoSpeedPct);
+            }
+
+            if (g_nxpCup.autoSpeedPct < 0)
+            {
+                g_nxpCup.autoSpeedPct = 0;
+            }
+            if (g_nxpCup.autoSpeedPct > 100)
+            {
+                g_nxpCup.autoSpeedPct = 100;
+            }
+
+            nxp_cup_launch_motor(logicalCmd);
+        }
+    }
+}
+
 static void mode_linear_camera_test(void)
 {
     uint32 nextButtonsMs;
@@ -1898,6 +2845,7 @@ static void honor_lap_enter(uint32 nowMs)
     g_linearCameraTest.ctrl.kp = HONOR_KP;
     g_linearCameraTest.ctrl.kd = HONOR_KD;
     g_linearCameraTest.ctrl.ki = HONOR_KI;
+    g_linearCameraTest.ctrl.iTermClamp = ITERM_CLAMP;
     g_linearCameraTest.ctrl.steerScale = HONOR_STEER_SCALE;
     g_linearCameraTest.steeringBaseSpeed = HONOR_FAKE_SPEED;
 
@@ -2201,24 +3149,24 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
             out = SteeringLinear_UpdateV2(&st->ctrl, &st->result, dt, controllerBaseSpeed);
             st->steerRaw = (sint16)out.steer_cmd;
 
-            if (abs_s16(st->steerRaw) <= 2)
+            if (((st->steerRaw < 0) ? (sint16)(-st->steerRaw) : st->steerRaw) <= 2)
             {
                 st->steerRaw = 0;
             }
 
-            st->steerFilt = iir_s16(st->steerFilt, st->steerRaw, 0.45f);
+            st->steerFilt = SteeringSmooth_IirS16(st->steerFilt, st->steerRaw, 0.45f);
 
             {
                 const sint16 steerRateMax = 8;
                 sint16 delta = (sint16)(st->steerFilt - st->steerOut);
 
-                delta = clamp_s16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
+                delta = SteeringSmooth_ClampS16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
                 st->steerOut = (sint16)(st->steerOut + delta);
             }
 
-            st->steerOut = clamp_s16(st->steerOut,
-                                     (sint16)(-STEER_CMD_CLAMP),
-                                     (sint16)(+STEER_CMD_CLAMP));
+            st->steerOut = SteeringSmooth_ClampS16(st->steerOut,
+                                                   (sint16)(-STEER_CMD_CLAMP),
+                                                   (sint16)(+STEER_CMD_CLAMP));
             Steer((int)st->steerOut);
         }
         else
@@ -2239,7 +3187,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
 
     if (st->phase == RACE_PHASE_SPEED_RUN)
     {
-        sint32 steerSlowPct = ((sint32)abs_s16(st->steerOut) * (sint32)SPEED_SLOW_PER_STEER) /
+        sint32 steerSlowPct = ((sint32)((st->steerOut < 0) ? (sint16)(-st->steerOut) : st->steerOut) * (sint32)SPEED_SLOW_PER_STEER) /
                               (sint32)STEER_CMD_CLAMP;
 
         st->targetSpeedPct = (sint32)FULL_AUTO_SPEED_PCT - steerSlowPct;
@@ -2470,6 +3418,10 @@ void App_RunSelectedMode(void)
             mode_linear_camera_test();
             break;
 
+        case APP_BUILD_MODE_NXP_CUP:
+            mode_nxp_cup();
+            break;
+
         case APP_BUILD_MODE_RACE_MODE:
             mode_race_mode();
             break;
@@ -2487,7 +3439,8 @@ void App_RunSelectedMode(void)
             break;
 
         default:
-            mode_final_dummy();
-            break;
+            while (1)
+            {
+            }
     }
 }

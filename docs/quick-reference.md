@@ -5,24 +5,28 @@
 
 ## Main entry points
 - `src/main.c`: process entry; calls `App_RunSelectedMode()`.
-- `src/app/app_modes.c`: compile-time mode dispatcher plus the `APP_TEST_NXP_CUP_TESTS` runtime test menu.
+- `src/app/app_modes.c`: compile-time mode dispatcher plus the `APP_TEST_NXP_CUP_TESTS` runtime test menu and the standalone `APP_TEST_NXP_CUP` competition flow.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up and common hardware init.
 - `src/app/car_config.h`: compile-time mode selection and main tuning constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
 
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
-- Current repository state selects `APP_TEST_RACE_MODE = 1`.
+- Invalid or missing selection is a configuration error; the app no longer falls back to `FINAL_DUMMY`.
+- Current repository state selects `APP_TEST_LINEAR_CAMERA_TEST = 1`.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
+- `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
 - `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode for the rest of the interactive test screens.
 - `APP_TEST_FINAL_DUMMY` remains a standalone compile-time mode and is not included in the runtime test menu.
 - `APP_TEST_HONOR_LAP` is available as a standalone compile-time mode for automatic line following with ultrasonic obstacle slowing/stopping.
 - The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Ultra+ESC`, and `Receiver - x`.
+- `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
+- `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules
 - App orchestration: `src/app/app_modes.c`, `src/app/user_interface.c`, `src/app/vision_debug.c`
-- Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/braking.c`
+- Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`, `src/services/braking.c`
 - Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`, `src/hbridge.c`
 
 ## Vision V2 snapshot

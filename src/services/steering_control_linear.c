@@ -37,6 +37,7 @@ void SteeringLinear_Init(SteeringLinearState_t *s)
     s->kp = (float)KP;
     s->kd = (float)KD;
     s->ki = (float)KI;
+    s->iTermClamp = (float)ITERM_CLAMP;
 
     /* If you don’t have STEER_SCALE in car_config.h yet,
        add:  #define STEER_SCALE 1.4f  */
@@ -126,15 +127,15 @@ SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
        KI is useful for constant bias:
        - car always rides slightly left/right on straights
        Anti-windup:
-       - clamp the integral accumulator using ITERM_CLAMP
+       - clamp the integral accumulator using the configured clamp
        ===================================================== */
     if (dt_seconds > 0.0001f)
     {
         s->i_term += err * dt_seconds;
 
         /* wind-up protection */
-        if (s->i_term >  (float)ITERM_CLAMP) s->i_term =  (float)ITERM_CLAMP;
-        if (s->i_term < -(float)ITERM_CLAMP) s->i_term = -(float)ITERM_CLAMP;
+        if (s->i_term >  s->iTermClamp) s->i_term =  s->iTermClamp;
+        if (s->i_term < -s->iTermClamp) s->i_term = -s->iTermClamp;
     }
 
     /* =====================================================

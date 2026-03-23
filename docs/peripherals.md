@@ -42,7 +42,7 @@ Notes:
 - `ultrasonic.h` defines `ULTRA_ICU_ECHO_CHANNEL` and trigger DIO channel macros.
 - `APP_TEST_HONOR_LAP` uses `ultrasonic.c` directly from `app_modes.c` to trigger measurements, consume fresh distance samples, and slow/stop the ESC command.
 - `APP_TEST_RACE_MODE` uses the same ultrasonic driver path, but only after finish detection switches the speed policy into the honor-lap stopping thresholds.
-- The standalone ultrasonic test mode and the `APP_TEST_NXP_CUP_TESTS` ultrasonic menu item both use `ultrasonic.c` directly from `app_modes.c` for the 500 ms diagnostic screen.
+- The standalone ultrasonic test mode and the `APP_TEST_NXP_CUP_TESTS` ultrasonic menu item both use `ultrasonic.c` directly from `app_modes.c` for a state-based diagnostic flow with enable delay, frequent retriggering, and `WAIT` / `SCAN` / `CLEAR` / `SLOW` / `STOP` display states.
 
 ## I2C
 | Purpose | Driver/module | Key files |

@@ -9,9 +9,11 @@
 - Bare-metal, no scheduler, no RTOS.
 - Standalone compile-time modes still own the top-level loop, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
+- `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
 - `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
+- Invalid or missing `APP_TEST_*` selection is treated as a configuration error; the dispatcher no longer silently falls back to `FINAL_DUMMY`.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
   - periodic state-machine updates
@@ -30,7 +32,7 @@
 3. Exactly one compile-time mode is selected in `car_config.h`
 4. That mode performs common runtime init (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
 5. The selected mode runs forever
-6. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; `APP_TEST_LINEAR_CAMERA_TEST` is the only standalone individual test exception
+6. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
 7. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
 
 ## Runtime-selectable tests mode
@@ -39,10 +41,20 @@
   - the pot selects the highlighted test
   - the dedicated `swPcb` toggle switch enters or leaves the selected test
   - `swPcb` is treated as a maintained level input, not a click-style button event
-  - the menu includes an `Ultrasonic` runtime test that triggers a measurement every 500 ms and shows status, distance, timing, and debug counters
+  - the menu includes an `Ultrasonic` runtime test that, after a short enable delay, classifies the measured distance into `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP`, with `SW2` resetting the test state
   - the menu includes an `Ultra+ESC` runtime test that uses the ultrasonic stopping logic from honor lap without camera or servo
   - the menu now includes a final `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
 - `APP_TEST_FINAL_DUMMY` and `APP_TEST_HONOR_LAP` remain standalone compile-time modes and are not part of the runtime test menu
+
+## NXP Cup mode
+- `APP_TEST_NXP_CUP` is a profile-driven competition flow built on the current camera, vision, steering, and ultrasonic paths.
+- The user flow is:
+  - menu: select `SUPERFAST`, `5050`, or `SLOW` with the pot and confirm with `SW2`
+  - ready: `SW3` starts the run sequence, `SW2` goes back
+  - ESC rearm: the ESC finishes its arm/beep sequence after profile selection, while camera steering is already running in the background
+  - run: camera vision steers, motor speed ramps toward the selected profile target, ultrasonic can force stop/crawl/cutoff behavior
+- `SW2` returns to the menu and `SW3` returns to the ready screen from both the rearm and run phases.
+- During ultrasonic obstacle handling, steering is held straight instead of continuing camera corrections.
 
 ## Race mode
 - `APP_TEST_RACE_MODE` is the cleaned-up production successor to `APP_TEST_FINAL_DUMMY`.
@@ -79,6 +91,7 @@
   - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
+  - carries the active integral clamp in controller state, so per-mode and per-profile integral clamp settings are real runtime inputs
 - `servo.c`
   - applies steering through PWM
 
@@ -114,7 +127,8 @@
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
   - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning honor-lap obstacle stopping
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
-  - uses a manual standalone servo test driven by the potentiometer, with on-screen pot, steer, and PWM values
+  - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
+  - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `esc.c`
   - applies motor command through PWM and an internal ESC state machine
 

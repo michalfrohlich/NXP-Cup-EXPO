@@ -59,11 +59,25 @@
 | Item | Source | Value |
 | --- | --- | --- |
 | Main clock init config | `board_init.c` + generated MCU clock config | `McuClockSettingConfig_0` |
+| Buttons polling period | `src/app/car_config.h` | `5 ms` |
+| Camera loop period | `src/app/car_config.h` | `5 ms` |
+| Default display refresh period | `src/app/car_config.h` | `20 ms` |
+| Camera debug display period | `src/app/car_config.h` | `100 ms` |
+| Steering update period | `src/app/car_config.h` | `10 ms` |
+| Race display period | `src/app/car_config.h` | `200 ms` |
 | Camera shutter GPT logical channel | `src/app/car_config.h` | 1 |
 | Camera frame interval ticks | `src/app/car_config.h` | 160000 |
 | Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 800 |
 | EmuTimer period | `src/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
 | UsTimer period base | generated GPT + LPIT config, `src/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |
+| Servo test update period | `src/app/car_config.h` | `5 ms` |
+| Camera steering hold after line loss | `src/app/car_config.h` | `350 ms` |
+| ESC arm time | `src/app/car_config.h` | `3000 ms` |
+| Full-auto speed ramp period | `src/app/car_config.h` | `20 ms` |
+| NXP Cup ESC extra settle | `src/app/car_config.h` | `1500 ms` |
+| NXP Cup ultrasonic trigger period | `src/app/car_config.h` | `1 ms` |
+| NXP Cup ultrasonic enable delay after run starts | `src/app/car_config.h` | `2000 ms` |
+| NXP Cup ultrasonic stop-hold time | `src/app/car_config.h` | `350 ms` |
 | Receiver PPM thresholds | `src/app/app_modes.c` (`ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U)`) | At effective 12 MHz LPTMR tick: `0.975 / 1.475 / 1.975 / 2.167 ms` |
 
 ## Additional derived peripheral timing
