@@ -11,10 +11,10 @@
 #define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_RECEIVER_TEST            0
 #define APP_TEST_SERVO_TEST               0
-#define APP_TEST_ULTRASONIC_TEST          0
+#define APP_TEST_ULTRASONIC_TEST          1
 #define APP_TEST_ESC_TEST                 0
 #define APP_TEST_FINAL_DUMMY              0
-#define APP_TEST_NXP_CUP                  1
+#define APP_TEST_NXP_CUP                  0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
@@ -59,7 +59,7 @@
 #define SERVO_DUTY_MAX                    3550U
 
 #define STEER_SIGN                        (+1)
-#define STEER_CMD_CLAMP                   50
+#define STEER_CMD_CLAMP                   140
 
 /* Simple compile-time servo enable.
    1 = normal steering output
@@ -141,17 +141,17 @@
    Full car safety
 ========================================================= */
 #define LINE_LOST_COAST_MS                2000u
-#define SPEED_LOST_LINE                   0
+#define SPEED_LOST_LINE                   20
 
 /* =========================================================
    PID (Vision V2 error is normalized -1..+1)
 ========================================================= */
-#define KP                                2.4f
-#define KD                                0.5f
-#define KI                                0.00f
-#define ITERM_CLAMP                       0.20f
+#define KP                                4.5f
+#define KD                                2.0f
+#define KI                                0.03f
+#define ITERM_CLAMP                       0.30f
 #define STEER_CENTER_ERR_DEADBAND         0.07f
-#define STEER_LPF_ALPHA                   0.70f
+#define STEER_LPF_ALPHA                   0.60f
 #define STEER_ERROR_LPF_ALPHA             0.30f
 #define STEER_D_INPUT_ALPHA               0.55f
 #define STEER_DTERM_LPF_ALPHA             0.35f

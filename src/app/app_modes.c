@@ -538,6 +538,26 @@ typedef struct
     CamTuneProfile_t activeTune;
 } CamServoState_t;
 
+static sint16 abs_s16(sint16 x)
+{
+    return (x < 0) ? (sint16)(-x) : x;
+}
+
+static sint16 clamp_s16(sint16 x, sint16 lo, sint16 hi)
+{
+    if (x < lo) { return lo; }
+    if (x > hi) { return hi; }
+    return x;
+}
+
+static sint16 iir_s16(sint16 yPrev, sint16 x, float alpha)
+{
+    float y = (float)yPrev + (alpha * ((float)x - (float)yPrev));
+    if (y > 32767.0f) { y = 32767.0f; }
+    if (y < -32768.0f) { y = -32768.0f; }
+    return (sint16)y;
+}
+
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile)
 {
     if ((st == NULL) || (profile == NULL))
@@ -612,15 +632,9 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
     const uint32 DISP_MS    = (uint32)DISPLAY_PERIOD_MS;
     const uint32 DISP_TICKS = (DISP_MS / LOOP_MS);
     boolean doDisplay;
-    boolean gotNewFrame = FALSE;
 
     if ((uint32)(nowMs - st->nextTickMs) < LOOP_MS)
     {
-        if ((uint32)(nowMs - st->lastServoApplyMs) >= SERVO_REFRESH_MS)
-        {
-            steer_apply_safe((int)st->steerOut);
-            st->lastServoApplyMs = nowMs;
-        }
         return;
     }
 
@@ -657,99 +671,63 @@ static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean allowSw2D
 
             st->haveValidVision = TRUE;
             st->lastFrameMs = nowMs;
-            gotNewFrame = TRUE;
         }
     }
 
     if (time_reached(nowMs, st->nextSteerMs))
     {
-        boolean frameHardStale;
+        const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
+        SteeringOutput_t out;
+        sint16 delta;
 
         st->nextSteerMs += STEER_UPDATE_MS;
-        frameHardStale = ((uint32)(nowMs - st->lastFrameMs) > CAM_STEER_HOLD_MS) ? TRUE : FALSE;
 
-        if ((st->haveValidVision != TRUE) ||
-                 (frameHardStale == TRUE))
+        if (st->haveValidVision != TRUE)
         {
             st->steerRaw = 0;
             st->steerFilt = 0;
             st->steerOut = 0;
             steer_center_safe();
             st->lastServoApplyMs = nowMs;
+            return;
         }
-        else
+
+        out = SteeringLinear_UpdateV2(&st->ctrl,
+                                      &st->result,
+                                      dt,
+                                      st->activeTune.baseSpeedPct);
+
+        if (out.brake == TRUE)
         {
-            if (gotNewFrame == TRUE)
-            {
-                const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-                SteeringOutput_t out;
-
-                out = SteeringLinear_UpdateV2(&st->ctrl,
-                                              &st->result,
-                                              dt,
-                                              st->activeTune.baseSpeedPct);
-
-                if (out.brake != TRUE)
-                {
-                    st->steerRaw = (sint16)out.steer_cmd;
-
-#if LIVE_STEER_SMOOTHING_ENABLE
-                    st->steerRaw = SteeringSmooth_DeadzoneS16(st->steerRaw,
-                                                              (sint16)STEER_CMD_DEADBAND,
-                                                              st->activeTune.steerClamp);
-                    st->steerRaw = SteeringSmooth_ShapeS16(st->steerRaw,
-                                                           st->activeTune.steerClamp,
-                                                           (sint16)STEER_CMD_SHAPE_BLEND_PCT);
-
-                    st->steerFilt = SteeringSmooth_IirS16(st->steerFilt,
-                                                          st->steerRaw,
-                                                          st->activeTune.steerLpfAlpha);
-
-                    st->steerOut = SteeringSmooth_RateLimitS16(st->steerOut,
-                                                               st->steerFilt,
-                                                               st->activeTune.steerRateMax,
-                                                               st->activeTune.steerClamp,
-                                                               (sint16)STEER_RATE_BOOST_DIV,
-                                                               (sint16)STEER_RATE_BOOST_MAX);
-
-                    st->steerOut = SteeringSmooth_ClampS16(st->steerOut,
-                                                           (sint16)(-st->activeTune.steerClamp),
-                                                           (sint16)(+st->activeTune.steerClamp));
-#else
-                    st->steerOut = SteeringSmooth_ClampS16(st->steerRaw,
-                                                           (sint16)(-st->activeTune.steerClamp),
-                                                           (sint16)(+st->activeTune.steerClamp));
-                    st->steerFilt = st->steerOut;
-#endif
-                }
-                else
-                {
-                    /* A fresh frame reported track-lost/brake. Do not keep
-                       driving the servo with the last non-zero command. */
-                    st->steerRaw = 0;
-#if LIVE_STEER_SMOOTHING_ENABLE
-                    st->steerFilt = SteeringSmooth_IirS16(st->steerFilt, 0, st->activeTune.steerLpfAlpha);
-                    st->steerOut = SteeringSmooth_RateLimitS16(st->steerOut,
-                                                               0,
-                                                               st->activeTune.steerRateMax,
-                                                               st->activeTune.steerClamp,
-                                                               (sint16)STEER_RATE_BOOST_DIV,
-                                                               (sint16)STEER_RATE_BOOST_MAX);
-#else
-                    st->steerFilt = 0;
-                    st->steerOut = 0;
-#endif
-                }
-            }
-
-            steer_apply_safe((int)st->steerOut);
+            st->steerRaw = 0;
+            st->steerFilt = 0;
+            st->steerOut = 0;
+            steer_center_safe();
             st->lastServoApplyMs = nowMs;
+            return;
         }
-    }
-    else if (((uint32)(nowMs - st->lastServoApplyMs) >= SERVO_REFRESH_MS) &&
-             ((gotNewFrame == TRUE) ||
-              ((uint32)(nowMs - st->lastFrameMs) <= CAM_STEER_HOLD_MS)))
-    {
+
+        st->steerRaw = (sint16)out.steer_cmd;
+
+        if (abs_s16(st->steerRaw) <= 2)
+        {
+            st->steerRaw = 0;
+        }
+
+        st->steerFilt = iir_s16(st->steerFilt,
+                                st->steerRaw,
+                                st->activeTune.steerLpfAlpha);
+
+        delta = (sint16)(st->steerFilt - st->steerOut);
+        delta = clamp_s16(delta,
+                          (sint16)(-st->activeTune.steerRateMax),
+                          (sint16)(+st->activeTune.steerRateMax));
+
+        st->steerOut = (sint16)(st->steerOut + delta);
+        st->steerOut = clamp_s16(st->steerOut,
+                                 (sint16)(-st->activeTune.steerClamp),
+                                 (sint16)(+st->activeTune.steerClamp));
+
         steer_apply_safe((int)st->steerOut);
         st->lastServoApplyMs = nowMs;
     }

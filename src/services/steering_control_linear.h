@@ -16,9 +16,6 @@ typedef struct
     /* PID memory */
     float i_term;          /* integral accumulator */
     float prev_error;      /* last error for derivative */
-    float err_filt;        /* filtered steering error */
-    float d_error;         /* filtered error used by derivative */
-    float d_term;          /* filtered derivative term */
 
     /* Tunings (defaults come from car_config.h in Init) */
     float kp;
