@@ -4,6 +4,7 @@
 - `src/main.c` calls `App_RunSelectedMode()` and never returns.
 - `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/car_config.h`.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
+- `src/services/serial_debug.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
@@ -91,6 +92,8 @@
   - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
+  - applies filtered-error and filtered-derivative shaping (with confidence-aware error filtering) before PID output
+  - resets controller memory when vision reports track lost to avoid stale integral/derivative carry-over
   - carries the active integral clamp in controller state, so per-mode and per-profile integral clamp settings are real runtime inputs
 - `servo.c`
   - applies steering through PWM
@@ -151,6 +154,7 @@
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_control_linear.c`, `src/servo.c`
 - Motor control: `src/esc.c`, `src/hbridge.c`
+- Serial debug: `src/services/serial_debug.c`
 - Sensors / IO: `src/linear_camera.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/buttons.c`, `src/display.c`, `src/rgb_led.c`
 
 ## Current vision notes

@@ -77,6 +77,12 @@
 
 #define MOTOR_DEADBAND_PCT                6U
 #define ESC_ARM_TIME_MS                   3000u /* Try lowering later; keep stable for now */
+/* Logical ESC command that corresponds to physical neutral on your setup.
+   Keep at 0 if no offset compensation is needed. */
+#define ESC_TRUE_NEUTRAL_CMD              (-6)
+/* Extra launch writes improve ESC command latching on some setups. */
+#define ESC_LAUNCH_PULSE_COUNT            3U
+#define ESC_LAUNCH_PULSE_DELAY_TICKS      30000U
 #define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   1u
 #define NXP_ULTRA_ENABLE_AFTER_RUN_MS     2000u
 #define NXP_CUP_ULTRA_STOP_CM             35.0f
@@ -208,8 +214,18 @@
 #define KI                                0.03f
 //   - ITERM_CLAMP: caps integral; higher = more bias correction but more wind-up risk
 #define ITERM_CLAMP                       0.3f
+//   - STEER_CENTER_ERR_DEADBAND: ignores tiny center errors (reduces straight-line twitch)
+#define STEER_CENTER_ERR_DEADBAND         0.07f
 //   - STEER_LPF_ALPHA: higher = smoother steering, but adds lag (can miss corners)
 #define STEER_LPF_ALPHA                   0.60f
+//   - STEER_ERROR_LPF_ALPHA: low-pass filter alpha for vision error before PID
+#define STEER_ERROR_LPF_ALPHA             0.30f
+//   - STEER_D_INPUT_ALPHA: smoothing for derivative input
+#define STEER_D_INPUT_ALPHA               0.55f
+//   - STEER_DTERM_LPF_ALPHA: smoothing for derivative output
+#define STEER_DTERM_LPF_ALPHA             0.35f
+//   - STEER_DTERM_CLAMP: hard cap on derivative term to limit spikes
+#define STEER_DTERM_CLAMP                 4.0f
 
 
 
