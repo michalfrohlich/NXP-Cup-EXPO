@@ -12,7 +12,7 @@
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
 - Invalid or missing selection is a configuration error; the app no longer falls back to `FINAL_DUMMY`.
-- Current repository state selects `APP_TEST_LINEAR_CAMERA_TEST = 1`.
+- Current repository state selects `APP_TEST_NXP_CUP = 1`.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
 - `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
 - `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
@@ -36,8 +36,8 @@
   - signed gradient
   - edge candidates
   - lane selection
+  - confidence from selected-edge strength, contrast, and line status
   - finish-gap detection
-- Single-edge recovery keeps estimating lane center, but confidence is reduced after a configurable streak limit.
 - Finish-line acceptance is constrained by expected gap width and by gap midpoint staying close to the lane midpoint.
 - Debug screens in `src/app/vision_debug.c`: `MAIN`, `FILT`, `GRAD`, `FINISH`
 - `MAIN` and graph/debug screens can overlay finish-gap edge markers when the detector finds them.

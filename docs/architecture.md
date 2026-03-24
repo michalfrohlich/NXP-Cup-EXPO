@@ -88,6 +88,7 @@
   - filters the frame
   - computes a 1D gradient
   - selects lane edges / track center from signed edge candidates
+  - computes confidence from selected-edge strength, contrast, and line-status state
   - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
