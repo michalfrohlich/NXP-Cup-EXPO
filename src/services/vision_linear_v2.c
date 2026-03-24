@@ -25,6 +25,57 @@ static uint16 VisionLinear_AbsDiffU8(uint8 a, uint8 b)
     return (a >= b) ? (uint16)(a - b) : (uint16)(b - a);
 }
 
+static uint8 VisionLinear_ScaleToPct(uint16 value, uint16 low, uint16 high)
+{
+    if (value <= low)
+    {
+        return 0U;
+    }
+
+    if (value >= high)
+    {
+        return 100U;
+    }
+
+    if (high <= low)
+    {
+        return 100U;
+    }
+
+    return (uint8)(((uint32)(value - low) * 100U) / (uint32)(high - low));
+}
+
+static uint8 VisionLinear_ComputeContrastConfidence(uint16 contrast)
+{
+    uint16 threshold = VISION_LINEAR_CONF_CONTRAST_THRESHOLD;
+    uint16 high = (threshold < 32768U) ? (uint16)(threshold * 2U) : 65535U;
+
+    return VisionLinear_ScaleToPct(contrast, threshold, high);
+}
+
+static uint8 VisionLinear_ComputeEdgeStrengthConfidence(uint16 edgeStrength)
+{
+    return VisionLinear_ScaleToPct(edgeStrength,
+                                   VISION_LINEAR_CONF_EDGE_LOW,
+                                   VISION_LINEAR_CONF_EDGE_HIGH);
+}
+
+static uint8 VisionLinear_BlendConfidence(uint8 edgeStrengthConfidence,
+                                          uint8 contrastConfidence)
+{
+    uint16 edgeWeight = VISION_LINEAR_CONF_EDGE_WEIGHT_PCT;
+    uint16 contrastWeight = VISION_LINEAR_CONF_CONTRAST_WEIGHT_PCT;
+    uint16 weightSum = (uint16)(edgeWeight + contrastWeight);
+
+    if (weightSum == 0U)
+    {
+        return edgeStrengthConfidence;
+    }
+
+    return (uint8)((((uint32)edgeStrengthConfidence * edgeWeight) +
+                    ((uint32)contrastConfidence * contrastWeight)) / weightSum);
+}
+
 static uint8 VisionLinear_ClampSplitPoint(float center)
 {
     uint8 splitPoint = (uint8)center;
@@ -181,6 +232,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     uint8 bestRightIdx = VISION_LINEAR_INVALID_IDX;
     uint16 bestLeftDist = 255U;
     uint16 bestRightDist = 255U;
+    uint16 bestLeftStrength = 0U;
+    uint16 bestRightStrength = 0U;
     uint8 edgeCandidateIdx[VLIN_MAX_EDGE_CANDIDATES];
     sint8 edgeCandidatePolarity[VLIN_MAX_EDGE_CANDIDATES];
     uint8 edgeCandidateCount = 0U;
@@ -196,6 +249,10 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     uint8 finishGapLeftEdgeIdx = VISION_LINEAR_INVALID_IDX;
     uint8 finishGapRightEdgeIdx = VISION_LINEAR_INVALID_IDX;
     uint8 finishDetected = 0U;
+    uint8 contrastConfidence = 0U;
+    uint8 edgeStrengthConfidence = 0U;
+    uint8 baseConfidence = 0U;
+    uint8 lineStatusFactor = 0U;
 
     if ((dbg != (VisionLinear_DebugOut_t*)0) &&
         ((dbg->mask & (uint32)VLIN_DBG_FILTERED) != 0u) &&
@@ -221,6 +278,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
 
     contrast = (uint16)(maxVal - minVal);
     VisionLinear_ComputeGradient(filtered, gradient, &maxAbsGradient);
+    contrastConfidence = VisionLinear_ComputeContrastConfidence(contrast);
 
     edgeHighThreshold = (uint16)(((uint32)maxAbsGradient * VISION_LINEAR_EDGE_HIGH_PCT) / 100U);
     if (edgeHighThreshold < VISION_LINEAR_MIN_STRONG_EDGE)
@@ -264,7 +322,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         }
     }
 
-    if ((contrast < VISION_LINEAR_MIN_CONTRAST) || (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE))
+    if (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE)
     {
         out->error = 0.0f;
         out->status = VISION_TRACK_LOST;
@@ -336,6 +394,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 {
                     bestLeftDist = distance;
                     bestLeftIdx = (uint8)i;
+                    bestLeftStrength = strength;
                 }
             }
             else if ((polarity < 0) && ((uint8)i > splitPoint))
@@ -353,6 +412,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 {
                     bestRightDist = distance;
                     bestRightIdx = (uint8)i;
+                    bestRightStrength = strength;
                 }
             }
         }
@@ -365,6 +425,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         sint32 bestPairScore = 2147483647L;
         uint8 pairLeft = bestLeftIdx;
         uint8 pairRight = bestRightIdx;
+        uint16 pairLeftStrength = bestLeftStrength;
+        uint16 pairRightStrength = bestRightStrength;
 
         for (li = 0U; li < leftCandidateCount; li++)
         {
@@ -391,6 +453,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                             bestPairScore = score;
                             pairLeft = leftIdx;
                             pairRight = rightIdx;
+                            pairLeftStrength = leftCandidateStrengths[li];
+                            pairRightStrength = rightCandidateStrengths[ri];
                         }
                     }
                 }
@@ -401,6 +465,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         {
             bestLeftIdx = pairLeft;
             bestRightIdx = pairRight;
+            bestLeftStrength = pairLeftStrength;
+            bestRightStrength = pairRightStrength;
         }
     }
 
@@ -419,39 +485,41 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
 
         if ((bestLeftIdx != VISION_LINEAR_INVALID_IDX) && (bestRightIdx != VISION_LINEAR_INVALID_IDX))
         {
+            uint16 selectedStrength = (bestLeftStrength < bestRightStrength) ? bestLeftStrength : bestRightStrength;
+            edgeStrengthConfidence = VisionLinear_ComputeEdgeStrengthConfidence(selectedStrength);
+            baseConfidence = VisionLinear_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
+            lineStatusFactor = 100U;
             out->status = VISION_TRACK_BOTH;
-            out->confidence = 100U;
+            out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
             trackCenter = ((float)bestLeftIdx + (float)bestRightIdx) / 2.0f;
             s_singleEdgeStreak = 0U;
         }
         else if (bestLeftIdx != VISION_LINEAR_INVALID_IDX)
         {
             float simulatedRight = (float)bestLeftIdx + (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
+            edgeStrengthConfidence = VisionLinear_ComputeEdgeStrengthConfidence(bestLeftStrength);
+            baseConfidence = VisionLinear_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
+            lineStatusFactor = 50U;
             out->status = VISION_TRACK_LEFT;
-            out->confidence = 60U;
+            out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
             trackCenter = ((float)bestLeftIdx + simulatedRight) / 2.0f;
             if (s_singleEdgeStreak < 255U)
             {
                 s_singleEdgeStreak++;
             }
-            if (s_singleEdgeStreak > VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT)
-            {
-                out->confidence = VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE;
-            }
         }
         else if (bestRightIdx != VISION_LINEAR_INVALID_IDX)
         {
             float simulatedLeft = (float)bestRightIdx - (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
+            edgeStrengthConfidence = VisionLinear_ComputeEdgeStrengthConfidence(bestRightStrength);
+            baseConfidence = VisionLinear_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
+            lineStatusFactor = 50U;
             out->status = VISION_TRACK_RIGHT;
-            out->confidence = 60U;
+            out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
             trackCenter = (simulatedLeft + (float)bestRightIdx) / 2.0f;
             if (s_singleEdgeStreak < 255U)
             {
                 s_singleEdgeStreak++;
-            }
-            if (s_singleEdgeStreak > VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT)
-            {
-                out->confidence = VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE;
             }
         }
         else

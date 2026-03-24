@@ -41,8 +41,8 @@
   - signed gradient
   - edge candidates
   - lane selection
+  - confidence from selected-edge strength, contrast, and line status
   - finish-gap detection
-- Single-edge recovery keeps estimating lane center, but confidence is reduced after a configurable streak limit.
 - Finish-line acceptance is constrained by expected gap width and by gap midpoint staying close to the lane midpoint.
 - Debug screens in `src/app/vision_debug.c`: `MAIN`, `FILT`, `GRAD`, `FINISH`
 - `MAIN` and graph/debug screens can overlay finish-gap edge markers when the detector finds them.
