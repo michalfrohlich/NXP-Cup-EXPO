@@ -48,3 +48,4 @@
   - `src/services/`
   - `include/`
 - If peripheral configuration must change, the source of truth is likely `Nxp_Cup.mex`, not the generated output files.
+- For this temporary handwritten UART proof-of-concept, the runtime code lives in `src/services/serial_debug.c`, but the CLI-managed build also needs the new source listed in `Debug_FLASH/src/services/subdir.mk` until the IDE regenerates the make metadata.

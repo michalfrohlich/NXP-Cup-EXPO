@@ -9,11 +9,12 @@
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
 #define APP_TEST_LINEAR_CAMERA_TEST       0
-#define APP_TEST_NXP_CUP                  1
+#define APP_TEST_NXP_CUP                  0
 #define APP_TEST_RACE_MODE                0
 #define APP_TEST_FINAL_DUMMY              0
 #define APP_TEST_HONOR_LAP                0
 #define APP_TEST_NXP_CUP_TESTS            0
+#define APP_TEST_SERIAL_TUNE              1
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
@@ -21,7 +22,8 @@
     (APP_TEST_RACE_MODE) + \
     (APP_TEST_FINAL_DUMMY) + \
     (APP_TEST_HONOR_LAP) + \
-    (APP_TEST_NXP_CUP_TESTS) \
+    (APP_TEST_NXP_CUP_TESTS) + \
+    (APP_TEST_SERIAL_TUNE) \
 )
 
 #if (APP_MODE_COUNT != 1)

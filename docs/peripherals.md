@@ -69,5 +69,17 @@ Notes:
 - The `buttons` module now distinguishes momentary buttons from maintained toggle switches; `swPcb` is level-based only and does not publish click events.
 - `APP_TEST_NXP_CUP_TESTS` uses `swPcb` to enter/leave the selected test, while `APP_TEST_RACE_MODE` uses it only to enable optional OLED telemetry.
 
+## UART
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| Temporary serial debug / PID tuning transport | Handwritten register-level `LPUART1` service | `src/services/serial_debug.c`, `src/services/serial_debug.h`, `src/app/board_init.c` |
+
+Notes:
+- This is a temporary proof-of-concept path and intentionally does not use `.mex` or generated RTD UART configuration yet.
+- `SerialDebug_Init()` runs from `board_init.c` after generated driver init, then manually remuxes `PTC6` / `PTC7` to `LPUART1_RX` / `LPUART1_TX`.
+- The service currently uses the teammate demo clocking model: `LPUART1` sourced from `SIRCDIV2` and configured for `9600` baud.
+- The API is intentionally blocking and minimal: single-char TX/RX, polling for RX readiness, and a blocking line reader for future tuning shells.
+- `APP_TEST_SERIAL_TUNE` is the first compile-time mode that uses this handwritten UART path; it only shows shadow PID values on the OLED and echoes received UART lines.
+
 ## Not documented here
-- UART / CAN / SPI are not documented because their use was not confirmed in handwritten project code.
+- CAN / SPI are not documented because their use was not confirmed in handwritten project code.
