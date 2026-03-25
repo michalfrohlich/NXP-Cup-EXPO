@@ -20,8 +20,16 @@ configureTerminator(s, "CR/LF");
 flush(s);
 
 fig = figure("Name", "Vision Debug Data", "NumberTitle", "off", ...
-             "Color", "w", "CloseRequestFcn", @(src, evt)closeViewer(src, s));
+             "Color", "w", ...
+             "CloseRequestFcn", @(src, evt)closeViewer(src, s), ...
+             "KeyPressFcn", @(src, evt)toggleFreezeOnKey(src, evt));
 ax = axes(fig);
+fig.UserData.isFrozen = false;
+fig.UserData.freezeButton = uicontrol(fig, "Style", "togglebutton", ...
+    "String", "Freeze", ...
+    "Units", "pixels", ...
+    "Position", [12 12 80 28], ...
+    "Callback", @(btn, evt)toggleFreezeButton(btn, fig));
 hold(ax, "on");
 grid(ax, "on");
 xlim(ax, [0 sampleCount - 1]);
@@ -105,7 +113,7 @@ while isvalid(fig)
         latestFrame = parsePacket(packet, sampleCount, maxEdgeCount);
     end
 
-    if ~isempty(latestFrame)
+    if ~isempty(latestFrame) && ~fig.UserData.isFrozen
         yyaxis(ax, "left");
         set(hRaw, "YData", double(latestFrame.raw));
         set(hFiltered, "YData", double(latestFrame.filtered));
@@ -297,4 +305,26 @@ end
 
 function hideFromLegend(h)
 h.Annotation.LegendInformation.IconDisplayStyle = "off";
+end
+
+function toggleFreezeOnKey(fig, evt)
+if strcmp(evt.Key, "space") || strcmp(evt.Key, "f")
+    fig.UserData.isFrozen = ~fig.UserData.isFrozen;
+    syncFreezeButton(fig);
+end
+end
+
+function toggleFreezeButton(btn, fig)
+fig.UserData.isFrozen = logical(btn.Value);
+syncFreezeButton(fig);
+end
+
+function syncFreezeButton(fig)
+if fig.UserData.isFrozen
+    fig.UserData.freezeButton.String = "Resume";
+    fig.UserData.freezeButton.Value = 1;
+else
+    fig.UserData.freezeButton.String = "Freeze";
+    fig.UserData.freezeButton.Value = 0;
+end
 end
