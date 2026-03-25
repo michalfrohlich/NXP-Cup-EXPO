@@ -12,7 +12,6 @@
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
-- `APP_TEST_SERIAL_TUNE` is a standalone UART proof-of-concept used for shadow tuning work before those values are integrated into runtime tests.
 - `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
@@ -46,6 +45,7 @@
   - the menu includes an `Ultra+ESC` runtime test that uses the ultrasonic stopping logic from honor lap without camera or servo
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
+  - the menu includes `Serial tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
 - `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
 ## NXP Cup mode

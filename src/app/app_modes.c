@@ -39,8 +39,7 @@ typedef enum
     APP_BUILD_MODE_NXP_CUP,
     APP_BUILD_MODE_RACE_MODE,
     APP_BUILD_MODE_HONOR_LAP,
-    APP_BUILD_MODE_NXP_CUP_TESTS,
-    APP_BUILD_MODE_SERIAL_TUNE
+    APP_BUILD_MODE_NXP_CUP_TESTS
 } AppBuildMode_t;
 
 typedef enum
@@ -51,6 +50,7 @@ typedef enum
     RUNTIME_TEST_ULTRASONIC,
     RUNTIME_TEST_CAMSERVO,
     RUNTIME_TEST_SIMPLE_DRIVE,
+    RUNTIME_TEST_SERIAL_TUNE,
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
     RUNTIME_TEST_COUNT
@@ -378,6 +378,7 @@ static const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
     "Ultrasonic     ",
     "Cam+Servo      ",
     "Simple test drv",
+    "Serial tune    ",
     "Ultra+ESC      ",
     "Receiver - x   "
 };
@@ -412,7 +413,9 @@ static void serial_tune_enter_edit(SerialTuneState_t *st, SerialTuneScreen_t scr
 static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch);
 static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch);
 static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch);
-static void mode_serial_tune(void);
+static void serial_tune_test_enter(uint32 nowMs);
+static void serial_tune_test_update(void);
+static void serial_tune_test_exit(void);
 static void receiver_test_enter(uint32 nowMs);
 static void receiver_test_update(uint32 nowMs);
 static void receiver_test_exit(void);
@@ -1182,8 +1185,6 @@ static AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_NXP_CUP;
 #elif APP_TEST_NXP_CUP_TESTS
     return APP_BUILD_MODE_NXP_CUP_TESTS;
-#elif APP_TEST_SERIAL_TUNE
-    return APP_BUILD_MODE_SERIAL_TUNE;
 #elif APP_TEST_HONOR_LAP
     return APP_BUILD_MODE_HONOR_LAP;
 #elif APP_TEST_RACE_MODE
@@ -2022,6 +2023,10 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             simple_drive_test_enter(nowMs);
             break;
 
+        case RUNTIME_TEST_SERIAL_TUNE:
+            serial_tune_test_enter(nowMs);
+            break;
+
         case RUNTIME_TEST_ULTRA_ESC:
             ultrasonic_esc_test_enter(nowMs);
             break;
@@ -2065,6 +2070,10 @@ static void runtime_test_update(RuntimeTestId_t testId,
             simple_drive_test_update(nowMs, sw2Pressed, modeNextPressed);
             break;
 
+        case RUNTIME_TEST_SERIAL_TUNE:
+            serial_tune_test_update();
+            break;
+
         case RUNTIME_TEST_ULTRA_ESC:
             ultrasonic_esc_test_update(nowMs);
             break;
@@ -2102,6 +2111,10 @@ static void runtime_test_exit(RuntimeTestId_t testId)
 
         case RUNTIME_TEST_SIMPLE_DRIVE:
             simple_drive_test_exit();
+            break;
+
+        case RUNTIME_TEST_SERIAL_TUNE:
+            serial_tune_test_exit();
             break;
 
         case RUNTIME_TEST_ULTRA_ESC:
@@ -3989,11 +4002,9 @@ static void mode_race_mode(void)
     }
 }
 
-static void mode_serial_tune(void)
+static void serial_tune_test_enter(uint32 nowMs)
 {
-    char rxChar;
-
-    App_InitRuntimeCommon();
+    (void)nowMs;
 
     (void)memset(&g_serialTune, 0, sizeof(g_serialTune));
     g_serialTune.kp = KP;
@@ -4012,11 +4023,14 @@ static void mode_serial_tune(void)
     SerialDebug_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
     SerialDebug_WriteLine("' to connect.");
     SerialDebug_WriteString("> ");
+}
 
-    for (;;)
+static void serial_tune_test_update(void)
+{
+    char rxChar;
+
+    while (SerialDebug_TryReadChar(&rxChar) == TRUE)
     {
-        rxChar = SerialDebug_ReadCharBlocking();
-
         if (g_serialTune.connected != TRUE)
         {
             if (rxChar != SERIAL_TUNE_CONNECT_CHAR)
@@ -4050,6 +4064,12 @@ static void mode_serial_tune(void)
     }
 }
 
+static void serial_tune_test_exit(void)
+{
+    SerialDebug_WriteLine("");
+    SerialDebug_WriteLine("Leaving Serial Tune.");
+}
+
 void App_RunSelectedMode(void)
 {
     switch (App_GetSelectedBuildMode())
@@ -4072,10 +4092,6 @@ void App_RunSelectedMode(void)
 
         case APP_BUILD_MODE_NXP_CUP_TESTS:
             mode_nxp_cup_tests();
-            break;
-
-        case APP_BUILD_MODE_SERIAL_TUNE:
-            mode_serial_tune();
             break;
 
         default:
