@@ -6,6 +6,9 @@
 #define SERIAL_DEBUG_UART_TX_PIN 7U
 
 static boolean g_serialDebugInitialized = FALSE;
+static uint8 g_serialDebugTxBuffer[SERIAL_DEBUG_TX_BUFFER_SIZE];
+static volatile uint16 g_serialDebugTxHead = 0U;
+static volatile uint16 g_serialDebugTxTail = 0U;
 
 static void SerialDebug_InitPins(void)
 {
@@ -33,9 +36,12 @@ void SerialDebug_Init(void)
     SerialDebug_InitPins();
     SerialDebug_InitClocking();
 
-    /* 8 MHz / (16 * 52) = 9615 baud, matching the original proof-of-concept. */
-    IP_LPUART1->BAUD = LPUART_BAUD_SBR(0x34U) | LPUART_BAUD_OSR(15U);
+    /* 8 MHz / (14 * 5) = 114285 baud, close enough for 115200 debug streaming. */
+    IP_LPUART1->BAUD = LPUART_BAUD_SBR(5U) | LPUART_BAUD_OSR(13U);
     IP_LPUART1->CTRL = LPUART_CTRL_RE_MASK | LPUART_CTRL_TE_MASK;
+
+    g_serialDebugTxHead = 0U;
+    g_serialDebugTxTail = 0U;
 
     g_serialDebugInitialized = TRUE;
 }
@@ -65,6 +71,27 @@ char SerialDebug_ReadCharBlocking(void)
     return (char)IP_LPUART1->DATA;
 }
 
+boolean SerialDebug_IsTxReady(void)
+{
+    if (g_serialDebugInitialized != TRUE)
+    {
+        return FALSE;
+    }
+
+    return ((IP_LPUART1->STAT & LPUART_STAT_TDRE_MASK) != 0U) ? TRUE : FALSE;
+}
+
+boolean SerialDebug_TryWriteChar(char ch)
+{
+    if (SerialDebug_IsTxReady() != TRUE)
+    {
+        return FALSE;
+    }
+
+    IP_LPUART1->DATA = (uint8)ch;
+    return TRUE;
+}
+
 void SerialDebug_WriteChar(char ch)
 {
     if (g_serialDebugInitialized != TRUE)
@@ -72,11 +99,9 @@ void SerialDebug_WriteChar(char ch)
         return;
     }
 
-    while (((IP_LPUART1->STAT & LPUART_STAT_TDRE_MASK) >> LPUART_STAT_TDRE_SHIFT) == 0U)
+    while (SerialDebug_TryWriteChar(ch) != TRUE)
     {
     }
-
-    IP_LPUART1->DATA = (uint8)ch;
 }
 
 void SerialDebug_WriteString(const char *text)
@@ -97,6 +122,67 @@ void SerialDebug_WriteLine(const char *text)
 {
     SerialDebug_WriteString(text);
     SerialDebug_WriteString("\r\n");
+}
+
+void SerialDebug_ServiceTx(void)
+{
+    if (g_serialDebugInitialized != TRUE)
+    {
+        return;
+    }
+
+    while ((g_serialDebugTxHead != g_serialDebugTxTail) &&
+           (SerialDebug_IsTxReady() == TRUE))
+    {
+        IP_LPUART1->DATA = g_serialDebugTxBuffer[g_serialDebugTxTail];
+        g_serialDebugTxTail = (uint16)((g_serialDebugTxTail + 1U) % SERIAL_DEBUG_TX_BUFFER_SIZE);
+    }
+}
+
+void SerialDebug_ClearTxQueue(void)
+{
+    g_serialDebugTxHead = 0U;
+    g_serialDebugTxTail = 0U;
+}
+
+uint16 SerialDebug_GetTxFree(void)
+{
+    uint16 used;
+
+    if (g_serialDebugTxHead >= g_serialDebugTxTail)
+    {
+        used = (uint16)(g_serialDebugTxHead - g_serialDebugTxTail);
+    }
+    else
+    {
+        used = (uint16)(SERIAL_DEBUG_TX_BUFFER_SIZE - g_serialDebugTxTail + g_serialDebugTxHead);
+    }
+
+    return (uint16)((SERIAL_DEBUG_TX_BUFFER_SIZE - 1U) - used);
+}
+
+boolean SerialDebug_EnqueueBytes(const uint8 *data, uint16 length)
+{
+    uint16 i;
+
+    if ((g_serialDebugInitialized != TRUE) || (data == (const uint8 *)0))
+    {
+        return FALSE;
+    }
+
+    if (length > SerialDebug_GetTxFree())
+    {
+        return FALSE;
+    }
+
+    for (i = 0U; i < length; i++)
+    {
+        g_serialDebugTxBuffer[g_serialDebugTxHead] = data[i];
+        g_serialDebugTxHead = (uint16)((g_serialDebugTxHead + 1U) % SERIAL_DEBUG_TX_BUFFER_SIZE);
+    }
+
+    SerialDebug_ServiceTx();
+    return TRUE;
 }
 
 uint32 SerialDebug_ReadLineBlocking(char *buffer, uint32 bufferSize, boolean echo)

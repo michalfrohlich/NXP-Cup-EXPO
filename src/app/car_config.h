@@ -38,6 +38,7 @@
 #define RACE_DISPLAY_PERIOD_MS            200u
 #define RACE_FINISH_MIN_CONFIDENCE        50U
 #define CAM_STEER_HOLD_MS                 350u
+#define CAM_UART_STREAM_PERIOD_MS         200u
 
 /* =========================================================
    Servo
