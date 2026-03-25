@@ -46,6 +46,7 @@
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
   - the menu includes `Serial tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
+  - serial tuning writes into a shared RAM-backed runtime tune block that persists for the current power cycle, and the generic camera/servo drive path now reads that block when entering `Cam Servo` and `Simple test drv`
 - `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
 ## NXP Cup mode

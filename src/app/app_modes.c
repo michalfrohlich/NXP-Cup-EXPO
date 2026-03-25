@@ -323,6 +323,12 @@ typedef struct
     boolean connected;
 } SerialTuneState_t;
 
+typedef struct
+{
+    CamTuneProfile_t profile;
+    boolean initialized;
+} RuntimeTuneState_t;
+
 static ReceiverTestState_t g_receiverTest;
 static UltrasonicTestState_t g_ultrasonicTest;
 static UltrasonicEscTestState_t g_ultrasonicEscTest;
@@ -335,6 +341,7 @@ static HonorLapState_t g_honorLap;
 static NxpCupState_t g_nxpCup;
 static RaceModeState_t g_raceMode;
 static SerialTuneState_t g_serialTune;
+static RuntimeTuneState_t g_runtimeTune;
 
 static const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
 {
@@ -397,6 +404,7 @@ static void App_InitRuntimeCore(void);
 static void App_InitRuntimeCommon(void);
 static AppBuildMode_t App_GetSelectedBuildMode(void);
 static void DisplayTextPadded(uint16 displayLine, const char *text);
+static void RuntimeTune_InitDefaults(void);
 static void serial_tune_draw(const SerialTuneState_t *st);
 static void serial_tune_print_pid_menu(void);
 static void serial_tune_print_servo_menu(void);
@@ -595,8 +603,27 @@ static void Esc_StopNeutral(void)
     EscSetSpeed(0);
 }
 
+static void RuntimeTune_InitDefaults(void)
+{
+    if (g_runtimeTune.initialized == TRUE)
+    {
+        return;
+    }
+
+    g_runtimeTune.profile.kp = KP;
+    g_runtimeTune.profile.kd = KD;
+    g_runtimeTune.profile.ki = KI;
+    g_runtimeTune.profile.iTermClamp = ITERM_CLAMP;
+    g_runtimeTune.profile.steerLpfAlpha = SERVO_TEST_LPF_ALPHA;
+    g_runtimeTune.profile.steerClamp = (sint16)SERVO_TEST_CMD_CLAMP;
+    g_runtimeTune.profile.steerRateMax = (sint16)SERVO_TEST_RATE_MAX;
+    g_runtimeTune.profile.baseSpeedPct = 20U;
+    g_runtimeTune.initialized = TRUE;
+}
+
 static void App_InitRuntimeCore(void)
 {
+    RuntimeTune_InitDefaults();
     Board_InitDrivers();
     Timebase_Init();
     OnboardPot_Init();
@@ -1111,6 +1138,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
             }
 
             *serial_tune_active_int_ptr(st) = parsedIntValue;
+            g_runtimeTune.profile.steerClamp = st->servoClamp;
         }
         else
         {
@@ -1138,6 +1166,24 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
             }
 
             *activeValue = parsedValue;
+
+            switch (st->screen)
+            {
+                case SERIAL_TUNE_SCREEN_EDIT_KP:
+                    g_runtimeTune.profile.kp = st->kp;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_KI:
+                    g_runtimeTune.profile.ki = st->ki;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_KD:
+                    g_runtimeTune.profile.kd = st->kd;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+                    g_runtimeTune.profile.steerLpfAlpha = st->servoLpfAlpha;
+                    break;
+                default:
+                    break;
+            }
         }
 
         label = serial_tune_active_label(st);
@@ -2357,19 +2403,8 @@ static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const
 
 static void camservo_enter(CamServoState_t *st, uint32 nowMs)
 {
-    const CamTuneProfile_t defaultProfile =
-    {
-        KP,
-        KD,
-        KI,
-        ITERM_CLAMP,
-        0.45f,
-        (sint16)STEER_CMD_CLAMP,
-        8,
-        20U
-    };
-
-    camservo_enter_with_profile(st, nowMs, &defaultProfile);
+    RuntimeTune_InitDefaults();
+    camservo_enter_with_profile(st, nowMs, &g_runtimeTune.profile);
 }
 
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
@@ -4005,13 +4040,14 @@ static void mode_race_mode(void)
 static void serial_tune_test_enter(uint32 nowMs)
 {
     (void)nowMs;
+    RuntimeTune_InitDefaults();
 
     (void)memset(&g_serialTune, 0, sizeof(g_serialTune));
-    g_serialTune.kp = KP;
-    g_serialTune.ki = KI;
-    g_serialTune.kd = KD;
-    g_serialTune.servoClamp = (sint16)SERVO_TEST_CMD_CLAMP;
-    g_serialTune.servoLpfAlpha = SERVO_TEST_LPF_ALPHA;
+    g_serialTune.kp = g_runtimeTune.profile.kp;
+    g_serialTune.ki = g_runtimeTune.profile.ki;
+    g_serialTune.kd = g_runtimeTune.profile.kd;
+    g_serialTune.servoClamp = g_runtimeTune.profile.steerClamp;
+    g_serialTune.servoLpfAlpha = g_runtimeTune.profile.steerLpfAlpha;
     g_serialTune.screen = SERIAL_TUNE_SCREEN_WAIT;
 
     serial_tune_draw(&g_serialTune);
