@@ -13,15 +13,13 @@
 #define APP_TEST_RACE_MODE                0
 #define APP_TEST_HONOR_LAP                0
 #define APP_TEST_NXP_CUP_TESTS            1
-#define APP_TEST_SERIAL_TUNE              0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
     (APP_TEST_NXP_CUP) + \
     (APP_TEST_RACE_MODE) + \
     (APP_TEST_HONOR_LAP) + \
-    (APP_TEST_NXP_CUP_TESTS) + \
-    (APP_TEST_SERIAL_TUNE) \
+    (APP_TEST_NXP_CUP_TESTS) \
 )
 
 #if (APP_MODE_COUNT != 1)
