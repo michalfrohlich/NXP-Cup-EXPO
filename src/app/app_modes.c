@@ -38,7 +38,6 @@ typedef enum
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
     APP_BUILD_MODE_NXP_CUP,
     APP_BUILD_MODE_RACE_MODE,
-    APP_BUILD_MODE_FINAL_DUMMY,
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_NXP_CUP_TESTS,
     APP_BUILD_MODE_SERIAL_TUNE
@@ -51,6 +50,7 @@ typedef enum
     RUNTIME_TEST_SERVO,
     RUNTIME_TEST_ULTRASONIC,
     RUNTIME_TEST_CAMSERVO,
+    RUNTIME_TEST_SIMPLE_DRIVE,
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
     RUNTIME_TEST_COUNT
@@ -233,20 +233,14 @@ typedef struct
     boolean cameraStarted;
 } NxpCupState_t;
 
-typedef enum
-{
-    DUMMY_ESC = 0,
-    DUMMY_CAM = 1
-} DummyState_t;
-
 typedef struct
 {
-    DummyState_t state;
+    uint32 armDoneMs;
     sint32 autoSpeedPct;
     uint32 nextAutoSpeedMs;
-    EscRunState_t escSt;
+    boolean runEnabled;
     CamServoState_t camSt;
-} FinalDummyState_t;
+} SimpleDriveState_t;
 
 typedef struct
 {
@@ -335,7 +329,7 @@ static UltrasonicEscTestState_t g_ultrasonicEscTest;
 static ServoTestState_t g_servoTest;
 static EscRunState_t g_escTest;
 static LinearCameraTestState_t g_linearCameraTest;
-static FinalDummyState_t g_finalDummy;
+static SimpleDriveState_t g_simpleDriveTest;
 static TestsMenuState_t g_testsMenu;
 static HonorLapState_t g_honorLap;
 static NxpCupState_t g_nxpCup;
@@ -383,6 +377,7 @@ static const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
     "Servo          ",
     "Ultrasonic     ",
     "Cam+Servo      ",
+    "Simple test drv",
     "Ultra+ESC      ",
     "Receiver - x   "
 };
@@ -453,8 +448,9 @@ static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const
 static void camservo_enter(CamServoState_t *st, uint32 nowMs);
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2);
 static void camservo_exit(void);
-static void final_dummy_enter(uint32 nowMs);
-static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel);
+static void simple_drive_test_enter(uint32 nowMs);
+static void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed);
+static void simple_drive_test_exit(void);
 static uint8 tests_menu_map_pot_to_index(uint8 pot, uint8 nItems);
 static void tests_menu_select_index(TestsMenuState_t *st, uint8 pot);
 static void tests_menu_draw(const TestsMenuState_t *st);
@@ -471,7 +467,6 @@ static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs);
 static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st, uint32 nowMs);
 static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st, uint32 nowMs, uint8 defaultSpeedPct);
 static void mode_nxp_cup(void);
-static void mode_final_dummy(void);
 static sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 static void honor_lap_draw_overlay(void);
 static void honor_lap_enter(uint32 nowMs);
@@ -1193,8 +1188,6 @@ static AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_HONOR_LAP;
 #elif APP_TEST_RACE_MODE
     return APP_BUILD_MODE_RACE_MODE;
-#elif APP_TEST_FINAL_DUMMY
-    return APP_BUILD_MODE_FINAL_DUMMY;
 #elif APP_TEST_LINEAR_CAMERA_TEST
     return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
 #else
@@ -2025,6 +2018,10 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             linear_camera_test_enter_common(nowMs, TRUE);
             break;
 
+        case RUNTIME_TEST_SIMPLE_DRIVE:
+            simple_drive_test_enter(nowMs);
+            break;
+
         case RUNTIME_TEST_ULTRA_ESC:
             ultrasonic_esc_test_enter(nowMs);
             break;
@@ -2064,6 +2061,10 @@ static void runtime_test_update(RuntimeTestId_t testId,
             linear_camera_test_update(nowMs, FALSE, potLevel);
             break;
 
+        case RUNTIME_TEST_SIMPLE_DRIVE:
+            simple_drive_test_update(nowMs, sw2Pressed, modeNextPressed);
+            break;
+
         case RUNTIME_TEST_ULTRA_ESC:
             ultrasonic_esc_test_update(nowMs);
             break;
@@ -2097,6 +2098,10 @@ static void runtime_test_exit(RuntimeTestId_t testId)
 
         case RUNTIME_TEST_CAMSERVO:
             linear_camera_test_exit();
+            break;
+
+        case RUNTIME_TEST_SIMPLE_DRIVE:
+            simple_drive_test_exit();
             break;
 
         case RUNTIME_TEST_ULTRA_ESC:
@@ -2466,89 +2471,90 @@ static void camservo_exit(void)
     }
 }
 
-static void final_dummy_enter(uint32 nowMs)
+static void simple_drive_test_enter(uint32 nowMs)
 {
-    (void)memset(&g_finalDummy, 0, sizeof(g_finalDummy));
+    (void)memset(&g_simpleDriveTest, 0, sizeof(g_simpleDriveTest));
 
-    g_finalDummy.state = DUMMY_ESC;
-    esc_enter(&g_finalDummy.escSt, nowMs);
+    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_StopNeutral();
+
+    camservo_enter(&g_simpleDriveTest.camSt, nowMs);
+    g_simpleDriveTest.armDoneMs = nowMs + ESC_ARM_TIME_MS;
+    g_simpleDriveTest.nextAutoSpeedMs = g_simpleDriveTest.armDoneMs;
+    g_simpleDriveTest.autoSpeedPct = 0;
+
     StatusLed_Blue();
 }
 
-static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel)
+static void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed)
 {
-    if (sw3Pressed == TRUE)
-    {
-        if (g_finalDummy.state == DUMMY_ESC)
-        {
-            Esc_StopNeutral();
-            camservo_enter(&g_finalDummy.camSt, nowMs);
-            g_finalDummy.state = DUMMY_CAM;
-            StatusLed_Cyan();
+    camservo_update(&g_simpleDriveTest.camSt, nowMs, sw2Pressed);
 
-            g_finalDummy.autoSpeedPct = 0;
-            g_finalDummy.nextAutoSpeedMs = nowMs;
-            EscSetBrake(0U);
-            EscSetSpeed(0);
+    if (time_reached(nowMs, g_simpleDriveTest.armDoneMs) != TRUE)
+    {
+        g_simpleDriveTest.autoSpeedPct = 0;
+        Esc_StopNeutral();
+        StatusLed_Blue();
+        return;
+    }
+
+    if (g_simpleDriveTest.runEnabled != TRUE)
+    {
+        if (sw3Pressed == TRUE)
+        {
+            g_simpleDriveTest.runEnabled = TRUE;
+            g_simpleDriveTest.nextAutoSpeedMs = nowMs;
         }
         else
         {
-            camservo_exit();
-            esc_enter(&g_finalDummy.escSt, nowMs);
-            g_finalDummy.state = DUMMY_ESC;
+            g_simpleDriveTest.autoSpeedPct = 0;
+            Esc_StopNeutral();
             StatusLed_Blue();
-
-            g_finalDummy.autoSpeedPct = 0;
-            g_finalDummy.nextAutoSpeedMs = 0u;
+            return;
         }
-
-        sw3Pressed = FALSE;
     }
 
-    if (g_finalDummy.state == DUMMY_ESC)
+    if (time_reached(nowMs, g_simpleDriveTest.nextAutoSpeedMs) == TRUE)
     {
-        esc_update(&g_finalDummy.escSt, nowMs, sw2Pressed, sw3Pressed, potLevel);
+        g_simpleDriveTest.nextAutoSpeedMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+
+        if (g_simpleDriveTest.autoSpeedPct < (sint32)FULL_AUTO_SPEED_PCT)
+        {
+            g_simpleDriveTest.autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
+            if (g_simpleDriveTest.autoSpeedPct > (sint32)FULL_AUTO_SPEED_PCT)
+            {
+                g_simpleDriveTest.autoSpeedPct = (sint32)FULL_AUTO_SPEED_PCT;
+            }
+        }
+
+        if (g_simpleDriveTest.autoSpeedPct < 0)
+        {
+            g_simpleDriveTest.autoSpeedPct = 0;
+        }
+        if (g_simpleDriveTest.autoSpeedPct > 100)
+        {
+            g_simpleDriveTest.autoSpeedPct = 100;
+        }
+
+        EscSetBrake(0U);
+        EscSetSpeed((int)(-g_simpleDriveTest.autoSpeedPct));
+    }
+
+    if ((g_simpleDriveTest.camSt.haveValidVision == TRUE) &&
+        (g_simpleDriveTest.camSt.result.status != VISION_TRACK_LOST))
+    {
+        StatusLed_Cyan();
     }
     else
     {
-        camservo_update(&g_finalDummy.camSt, nowMs, sw2Pressed);
-
-        if (time_reached(nowMs, g_finalDummy.nextAutoSpeedMs) == TRUE)
-        {
-            g_finalDummy.nextAutoSpeedMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
-
-            if (g_finalDummy.autoSpeedPct < (sint32)FULL_AUTO_SPEED_PCT)
-            {
-                g_finalDummy.autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
-                if (g_finalDummy.autoSpeedPct > (sint32)FULL_AUTO_SPEED_PCT)
-                {
-                    g_finalDummy.autoSpeedPct = (sint32)FULL_AUTO_SPEED_PCT;
-                }
-            }
-
-            if (g_finalDummy.autoSpeedPct < 0)
-            {
-                g_finalDummy.autoSpeedPct = 0;
-            }
-            if (g_finalDummy.autoSpeedPct > 100)
-            {
-                g_finalDummy.autoSpeedPct = 100;
-            }
-
-            EscSetBrake(0U);
-            EscSetSpeed((int)(-g_finalDummy.autoSpeedPct));
-        }
-
-        if ((g_finalDummy.camSt.haveValidVision == TRUE) &&
-            (g_finalDummy.camSt.result.status != VISION_TRACK_LOST))
-        {
-            StatusLed_Cyan();
-        }
-        else
-        {
-            StatusLed_Yellow();
-        }
+        StatusLed_Yellow();
     }
+}
+
+static void simple_drive_test_exit(void)
+{
+    camservo_exit();
+    Esc_StopNeutral();
 }
 
 static uint8 tests_menu_map_pot_to_index(uint8 pot, uint8 nItems)
@@ -2652,6 +2658,7 @@ static void mode_nxp_cup_tests(void)
     {
         uint32 nowMs = Timebase_GetMs();
         boolean sw2Pressed = FALSE;
+        boolean sw3Pressed = FALSE;
         boolean modeSwitchOn;
         uint8 potLevel;
 
@@ -2690,7 +2697,8 @@ static void mode_nxp_cup_tests(void)
             else
             {
                 sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-                runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, FALSE, potLevel);
+                sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
+                runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, sw3Pressed, potLevel);
             }
         }
     }
@@ -3352,36 +3360,6 @@ static void mode_linear_camera_test(void)
         potLevel = OnboardPot_ReadLevelFiltered();
 
         runtime_test_update(RUNTIME_TEST_LINEAR_CAMERA, nowMs, FALSE, sw3Pressed, potLevel);
-    }
-}
-
-static void mode_final_dummy(void)
-{
-    uint32 nextButtonsMs;
-
-    App_InitRuntimeCommon();
-    final_dummy_enter(Timebase_GetMs());
-
-    nextButtonsMs = Timebase_GetMs();
-
-    for (;;)
-    {
-        uint32 nowMs = Timebase_GetMs();
-        boolean sw2Pressed;
-        boolean sw3Pressed;
-        uint8 potLevel;
-
-        while (time_reached(nowMs, nextButtonsMs) == TRUE)
-        {
-            Buttons_Update();
-            nextButtonsMs += BUTTONS_PERIOD_MS;
-        }
-
-        sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-        sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
-        potLevel = OnboardPot_ReadLevelFiltered();
-
-        final_dummy_update(nowMs, sw2Pressed, sw3Pressed, potLevel);
     }
 }
 
@@ -4086,10 +4064,6 @@ void App_RunSelectedMode(void)
 
         case APP_BUILD_MODE_RACE_MODE:
             mode_race_mode();
-            break;
-
-        case APP_BUILD_MODE_FINAL_DUMMY:
-            mode_final_dummy();
             break;
 
         case APP_BUILD_MODE_HONOR_LAP:

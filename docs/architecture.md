@@ -12,8 +12,9 @@
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
+- `APP_TEST_SERIAL_TUNE` is a standalone UART proof-of-concept used for shadow tuning work before those values are integrated into runtime tests.
 - `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
-- Invalid or missing `APP_TEST_*` selection is treated as a configuration error; the dispatcher no longer silently falls back to `FINAL_DUMMY`.
+- Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
   - periodic state-machine updates
@@ -43,8 +44,9 @@
   - `swPcb` is treated as a maintained level input, not a click-style button event
   - the menu includes an `Ultrasonic` runtime test that, after a short enable delay, classifies the measured distance into `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP`, with `SW2` resetting the test state
   - the menu includes an `Ultra+ESC` runtime test that uses the ultrasonic stopping logic from honor lap without camera or servo
-  - the menu now includes a final `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
-- `APP_TEST_FINAL_DUMMY` and `APP_TEST_HONOR_LAP` remain standalone compile-time modes and are not part of the runtime test menu
+  - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
+  - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
+- `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
 ## NXP Cup mode
 - `APP_TEST_NXP_CUP` is a profile-driven competition flow built on the current camera, vision, steering, and ultrasonic paths.
@@ -120,13 +122,12 @@
 - `onboard_pot.c`
   - samples the potentiometer through ADC
 - `app_modes.c`
-  - maps pot value to speed in `FINAL_DUMMY` ESC mode
-  - ramps speed in `FINAL_DUMMY` camera mode
-  - uses the same manual arm/run ESC flow in standalone ESC test mode and in `FINAL_DUMMY` ESC mode
+  - uses the same manual arm/run ESC flow in the standalone ESC test mode
   - draws an ESC test screen with arm/run state, pot level, and commanded speed in standalone ESC mode
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
   - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning honor-lap obstacle stopping
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
+  - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `esc.c`
