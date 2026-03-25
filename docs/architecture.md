@@ -87,6 +87,7 @@
 - `app_modes.c`
   - the linear-camera waiting screen consumes the driver debug-counters snapshot instead of several driver-internal counter getters
   - the waiting screen is rendered once before `LinearCameraStartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
+  - the runtime `Camera` / `Cam Servo` tests now opportunistically queue one compact UART telemetry packet per processed frame, dropping packets instead of blocking if the software TX queue is full
 - `services/vision_linear_v2.c`
   - filters the frame
   - computes a 1D gradient
@@ -131,6 +132,9 @@
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
+- `services/serial_debug.c`
+  - still provides the blocking shell-style serial path used by `Serial tune`
+  - now also exposes a small non-blocking TX queue so camera telemetry can be drained in the background from the runtime camera tests
 - `esc.c`
   - applies motor command through PWM and an internal ESC state machine
 

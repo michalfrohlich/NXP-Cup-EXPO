@@ -32,6 +32,15 @@
 #define SERIAL_TUNE_CONNECT_CHAR      ('c')
 #define SERIAL_TUNE_COMMIT_CHAR       ('#')
 #define SERIAL_TUNE_INPUT_MAX_LEN     (12U)
+#define CAM_UART_STREAM_SYNC0         (0xA5U)
+#define CAM_UART_STREAM_SYNC1         (0x5AU)
+#define CAM_UART_STREAM_TYPE_FRAME    (0x43U)
+#define CAM_UART_STREAM_PACKET_BYTES  (10U + \
+                                       (3U * VISION_LINEAR_BUFFER_SIZE) + \
+                                       9U + \
+                                       6U + \
+                                       (4U * VLIN_MAX_EDGE_CANDIDATES) + \
+                                       1U)
 
 typedef enum
 {
@@ -133,7 +142,10 @@ typedef struct
     uint32 nextTickMs;
     uint32 nextSteerMs;
     uint32 nextDisplayMs;
+    uint32 nextStreamMs;
     uint32 tickCount;
+    uint16 streamSeq;
+    uint16 streamDropCount;
     boolean haveValidVision;
     boolean displayDirty;
     boolean paused;
@@ -443,6 +455,7 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled);
 static void linear_camera_test_enter(uint32 nowMs);
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
 static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st);
+static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st);
 static void linear_camera_test_exit(void);
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs);
 static void runtime_test_update(RuntimeTestId_t testId,
@@ -1815,10 +1828,12 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
     LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
     VisionLinear_InitV2();
     VisionDebug_Init(&g_linearCameraTest.vdbg, 3200U);
+    SerialDebug_ClearTxQueue();
 
     g_linearCameraTest.nextTickMs = nowMs;
     g_linearCameraTest.nextSteerMs = nowMs + STEER_UPDATE_MS;
     g_linearCameraTest.nextDisplayMs = nowMs;
+    g_linearCameraTest.nextStreamMs = nowMs;
 
     if (servoEnabled == TRUE)
     {
@@ -1867,6 +1882,142 @@ static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st)
     DisplayRefresh();
 }
 
+static sint8 linear_camera_test_stream_encode_error(float error)
+{
+    sint32 errorPct = (sint32)(error * 100.0f);
+
+    if (errorPct > 127)
+    {
+        errorPct = 127;
+    }
+    else if (errorPct < -127)
+    {
+        errorPct = -127;
+    }
+
+    return (sint8)errorPct;
+}
+
+static sint8 linear_camera_test_stream_scale_gradient(sint16 gradient, uint16 scaleAbs)
+{
+    sint32 scaled;
+
+    if (scaleAbs == 0U)
+    {
+        scaleAbs = 1U;
+    }
+
+    scaled = ((sint32)gradient * 127) / (sint32)scaleAbs;
+
+    if (scaled > 127)
+    {
+        scaled = 127;
+    }
+    else if (scaled < -127)
+    {
+        scaled = -127;
+    }
+
+    return (sint8)scaled;
+}
+
+static uint8 linear_camera_test_stream_scale_sample(uint16 sample)
+{
+    sample = (uint16)(sample >> 4U);
+    if (sample > 255U)
+    {
+        sample = 255U;
+    }
+
+    return (uint8)sample;
+}
+
+static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
+{
+    uint8 packet[CAM_UART_STREAM_PACKET_BYTES];
+    uint8 checksum = 0U;
+    uint16 packetIndex = 10U;
+    uint16 i;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    packet[0] = CAM_UART_STREAM_SYNC0;
+    packet[1] = CAM_UART_STREAM_SYNC1;
+    packet[2] = CAM_UART_STREAM_TYPE_FRAME;
+    packet[3] = (uint8)(st->streamSeq & 0xFFU);
+    packet[4] = (uint8)((st->streamSeq >> 8U) & 0xFFU);
+    packet[5] = st->result.confidence;
+    packet[6] = (uint8)st->result.status;
+    packet[7] = (uint8)linear_camera_test_stream_encode_error(st->result.error);
+    packet[8] = st->result.leftLineIdx;
+    packet[9] = st->result.rightLineIdx;
+
+    for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
+    {
+        packet[packetIndex++] = linear_camera_test_stream_scale_sample(st->processedFrame.Values[i]);
+    }
+
+    for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
+    {
+        packet[packetIndex++] = linear_camera_test_stream_scale_sample(st->filteredBuf[i]);
+    }
+
+    for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
+    {
+        packet[packetIndex++] = (uint8)linear_camera_test_stream_scale_gradient(st->gradientBuf[i],
+                                                                                st->dbg.maxAbsGradient);
+    }
+
+    packet[packetIndex++] = (uint8)(st->dbg.contrast & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.contrast >> 8U) & 0xFFU);
+    packet[packetIndex++] = (uint8)(st->dbg.maxAbsGradient & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.maxAbsGradient >> 8U) & 0xFFU);
+    packet[packetIndex++] = (uint8)(st->dbg.edgeHighThreshold & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.edgeHighThreshold >> 8U) & 0xFFU);
+    packet[packetIndex++] = (uint8)(st->dbg.edgeLowThreshold & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.edgeLowThreshold >> 8U) & 0xFFU);
+
+    packet[packetIndex++] = st->dbg.splitPoint;
+    packet[packetIndex++] = st->dbg.finishGapLeftEdgeIdx;
+    packet[packetIndex++] = st->dbg.finishGapRightEdgeIdx;
+    packet[packetIndex++] = st->dbg.laneWidth;
+    packet[packetIndex++] = st->dbg.expectedFinishGap;
+    packet[packetIndex++] = st->dbg.measuredFinishGap;
+    packet[packetIndex++] = st->dbg.edgeCount;
+
+    for (i = 0U; i < (uint16)VLIN_MAX_EDGE_CANDIDATES; i++)
+    {
+        if (i < st->dbg.edgeCount)
+        {
+            packet[packetIndex++] = st->dbg.edges[i].idx;
+            packet[packetIndex++] = (uint8)st->dbg.edges[i].polarity;
+            packet[packetIndex++] = (uint8)(st->dbg.edges[i].strength & 0xFFU);
+            packet[packetIndex++] = (uint8)((st->dbg.edges[i].strength >> 8U) & 0xFFU);
+        }
+        else
+        {
+            packet[packetIndex++] = VISION_LINEAR_INVALID_IDX;
+            packet[packetIndex++] = 0U;
+            packet[packetIndex++] = 0U;
+            packet[packetIndex++] = 0U;
+        }
+    }
+
+    for (i = 2U; i < (uint16)(CAM_UART_STREAM_PACKET_BYTES - 1U); i++)
+    {
+        checksum ^= packet[i];
+    }
+    packet[CAM_UART_STREAM_PACKET_BYTES - 1U] = checksum;
+
+    if (SerialDebug_EnqueueBytes(packet, CAM_UART_STREAM_PACKET_BYTES) != TRUE)
+    {
+        g_linearCameraTest.streamDropCount++;
+    }
+}
+
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel)
 {
     const uint32 loopPeriodMs = 5U;
@@ -1879,6 +2030,7 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
         return;
     }
 
+    SerialDebug_ServiceTx();
     g_linearCameraTest.nextTickMs += loopPeriodMs;
     g_linearCameraTest.tickCount++;
 
@@ -1923,6 +2075,7 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
     if (g_linearCameraTest.paused != TRUE)
     {
         const LinearCameraFrame *latestFrame = NULL_PTR;
+        boolean wantStream = time_reached(nowMs, g_linearCameraTest.nextStreamMs);
 
         if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
         {
@@ -1930,7 +2083,14 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
             g_linearCameraTest.dbg.filteredOut = NULL_PTR;
             g_linearCameraTest.dbg.gradientOut = NULL_PTR;
 
-            if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
+            if (wantStream == TRUE)
+            {
+                g_linearCameraTest.dbg.mask =
+                    (uint32)(VLIN_DBG_FILTERED | VLIN_DBG_GRADIENT | VLIN_DBG_STATS | VLIN_DBG_EDGES);
+                g_linearCameraTest.dbg.filteredOut = g_linearCameraTest.filteredBuf;
+                g_linearCameraTest.dbg.gradientOut = g_linearCameraTest.gradientBuf;
+            }
+            else if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
             {
                 VisionDebug_PrepareVisionDbg(&g_linearCameraTest.vdbg,
                                              &g_linearCameraTest.dbg,
@@ -1948,6 +2108,13 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
 
             g_linearCameraTest.haveValidVision = TRUE;
             g_linearCameraTest.displayDirty = TRUE;
+
+            if (time_reached(nowMs, g_linearCameraTest.nextStreamMs) == TRUE)
+            {
+                linear_camera_test_stream_frame(&g_linearCameraTest);
+                g_linearCameraTest.streamSeq++;
+                g_linearCameraTest.nextStreamMs = nowMs + CAM_UART_STREAM_PERIOD_MS;
+            }
         }
     }
 
@@ -2042,6 +2209,7 @@ static void linear_camera_test_exit(void)
         LinearCameraStopStream();
     }
 
+    SerialDebug_ClearTxQueue();
     StatusLed_Blue();
 }
 
