@@ -90,6 +90,8 @@ extern "C"{
 #define FTM_PWM_IP_VS_0_I3_CH7_CFG      (3U)
 /* Ftm instance index for configuration PwmFtmCh_6 */
 #define FTM_PWM_IP_VS_0_I3_CH6_CFG      (3U)
+/* Ftm instance index for configuration PwmFtmCh_4 */
+#define FTM_PWM_IP_VS_0_I3_CH4_CFG      (3U)
 /* Ftm instance index for configuration PwmFtmCh_0 */
 #define FTM_PWM_IP_VS_0_I2_CH0_CFG      (2U)
 
@@ -148,6 +150,9 @@ extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch7;
 
 /* Ftm channel 6 configuration */
 extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch6;
+
+/* Ftm channel 4 configuration */
+extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch4;
 
 /*================================================================================================*/
 /* Ftm instance 2 User configuration structure */

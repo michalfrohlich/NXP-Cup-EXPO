@@ -918,7 +918,7 @@ static void ultrasonic_esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_ultrasonicEscTest, 0, sizeof(g_ultrasonicEscTest));
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     Ultrasonic_Init();
@@ -1554,7 +1554,7 @@ static void esc_enter(EscRunState_t *st, uint32 nowMs)
     st->currentCmdPct = 0;
     st->lastPotLevel = (uint8)POT_CENTER_RAW;
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 }
 
@@ -2549,7 +2549,7 @@ static void mode_nxp_cup(void)
                 g_nxpCup.nextAutoSpeedMs = 0U;
 
                 nxp_cup_ultra_enter(&g_nxpCup.ultraSt, nowMs);
-                EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+                EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
                 g_nxpCup.escRearmDoneMs = nowMs + ESC_ARM_TIME_MS + NXP_ESC_EXTRA_SETTLE_MS;
                 g_nxpCup.state = NXP_CUP_STATE_ESC_REARM;
                 continue;
@@ -2871,7 +2871,7 @@ static void honor_lap_enter(uint32 nowMs)
 
     (void)memset(&g_honorLap, 0, sizeof(g_honorLap));
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     armStartMs = Timebase_GetMs();
@@ -3018,7 +3018,7 @@ static void race_mode_enter(uint32 nowMs)
     g_raceMode.armDoneMs = nowMs + ESC_ARM_TIME_MS;
     g_raceMode.lastDistanceMs = nowMs;
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);

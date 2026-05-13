@@ -39,6 +39,7 @@ enum EscStates{
 };
 
 typedef struct{
+    boolean Initialized;
     enum EscStates State;
     Pwm_ChannelType Channel;
     uint16 MinDutyCycle;
@@ -76,8 +77,15 @@ typedef struct{
 *                                   LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/
 void EscInit(Pwm_ChannelType EscPwmChannel, uint16 MinDutyCycle, uint16 MedDutyCycle, uint16 MaxDutyCycle);
+void EscInitDual(Pwm_ChannelType PrimaryEscPwmChannel,
+                 Pwm_ChannelType SecondaryEscPwmChannel,
+                 uint16 MinDutyCycle,
+                 uint16 MedDutyCycle,
+                 uint16 MaxDutyCycle);
 void EscSetSpeed(int Speed);
+void EscSetSpeedPair(int PrimarySpeed, int SecondarySpeed);
 void EscSetBrake(uint8 Brake);
+void EscSetBrakePair(uint8 PrimaryBrake, uint8 SecondaryBrake);
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS

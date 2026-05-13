@@ -10,7 +10,7 @@
 - Bare-metal, no scheduler, no RTOS.
 - Standalone compile-time modes still own the top-level loop, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
-- `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, ESC rearm, and autonomous run phases.
+- `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
 - `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
@@ -52,16 +52,16 @@
 - The user flow is:
   - menu: select `SUPERFAST`, `5050`, or `SLOW` with the pot and confirm with `SW2`
   - ready: `SW3` starts the run sequence, `SW2` goes back
-  - ESC rearm: the ESC finishes its arm/beep sequence after profile selection, while camera steering is already running in the background
+  - ESC rearm: both ESC outputs finish their arm/beep sequence after profile selection, while camera steering is already running in the background
   - run: camera vision steers, motor speed ramps toward the selected profile target, ultrasonic can force stop/crawl/cutoff behavior
 - `SW2` returns to the menu and `SW3` returns to the ready screen from both the rearm and run phases.
 - During ultrasonic obstacle handling, steering is held straight instead of continuing camera corrections.
 
 ## Race mode
 - `APP_TEST_RACE_MODE` is the cleaned-up production successor to `APP_TEST_FINAL_DUMMY`.
-- The mode owns ESC, servo, linear camera, vision, and ultrasonic directly instead of switching between sub-modes.
+- The mode owns dual ESC outputs, servo, linear camera, vision, and ultrasonic directly instead of switching between sub-modes.
 - After startup it:
-  - arms the ESC
+  - arms both ESC outputs
   - autostarts line following
   - runs the normal race speed policy until a confirmed finish-line detection
   - transitions once into the honor-lap ultrasonic stopping policy
@@ -103,14 +103,14 @@
   - reuses the linear camera debug/servo path for continuous line following
   - keeps the OLED active in linear-camera debug mode even before first valid frame by showing camera trigger/DMA/ADC counters
   - overrides steering tunings with the `HONOR_*` constants from `car_config.h`
-  - arms the ESC at startup, then commands forward speed from the honor-lap distance policy
+  - arms both ESC outputs at startup, then commands forward speed from the honor-lap distance policy
 - `ultrasonic.c`
   - provides periodic obstacle distance samples
   - can reduce commanded speed through the `HONOR_SLOW*` and `HONOR_STOP_*` thresholds
 
 ### Race mode path
 - `app_modes.c`
-  - initializes ESC, servo, camera, steering, and ultrasonic once at mode entry
+  - initializes the dual-ESC path, servo, camera, steering, and ultrasonic once at mode entry
   - runs a deterministic ordered loop:
     - fetch/process the newest camera frame
     - service ultrasonic timing and capture state
@@ -133,12 +133,12 @@
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `esc.c`
-  - applies motor command through PWM and an internal ESC state machine
+  - applies motor command through PWM and an internal ESC state machine on both configured ESC outputs
 
 ### Optional braking path present in repo
 - `services/braking.c`
   - uses `ultrasonic.c` and `hbridge.c`
-  - not part of the currently selected mode path
+  - remains a legacy DC motor path and is not part of the active BLDC mode path
 
 ## Interrupt / callback-driven pieces
 - `timebase.c`: `EmuTimer_Notification()`, `UsTimer_Notification()`
@@ -153,7 +153,8 @@
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_control_linear.c`, `src/servo.c`
-- Motor control: `src/esc.c`, `src/hbridge.c`
+- Motor control: `src/esc.c`
+- Legacy DC motor path: `src/hbridge.c`
 - Serial debug: `src/services/serial_debug.c`
 - Sensors / IO: `src/linear_camera.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/buttons.c`, `src/display.c`, `src/rgb_led.c`
 
