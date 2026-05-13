@@ -115,6 +115,7 @@ extern "C"{
 /** @brief  Prototypes of PWM channels User Notifications */
 
 extern void Esc_Period_Finished(void);
+extern void Servo_Period_Finished(void);
 
 extern void CameraClock(void);
 
@@ -182,7 +183,7 @@ const Pwm_ChannelConfigType Pwm_Channels_VS_0_PB[PWM_VS_0_PB_CFG_CHANNELS_COUNT]
         },
         /** @brief  The state of the channel output in idle mode */
         PWM_LOW,
-        NULL_PTR
+        &Servo_Period_Finished
     },
     /* Motor_1_Speed */
     {

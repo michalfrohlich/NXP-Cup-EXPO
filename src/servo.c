@@ -38,6 +38,10 @@ extern "C" {
 *                                      LOCAL VARIABLES
 ==================================================================================================*/
 static Servo ServoInstance;
+static volatile boolean ServoInitialized = FALSE;
+static volatile uint16 ServoAppliedDutyCycle = 0U;
+static volatile uint16 ServoPendingDutyCycle = 0U;
+static volatile boolean ServoPendingUpdate = FALSE;
 /*==================================================================================================
 *                                      GLOBAL CONSTANTS
 ==================================================================================================*/
@@ -53,6 +57,29 @@ static Servo ServoInstance;
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS
 ==================================================================================================*/
+static uint16 Servo_CalcDuty(int Direction)
+{
+    uint16 ServoDutyCycle;
+
+    if(Direction>(int)0)
+    {
+        if(Direction > 100)
+        {
+            Direction = 100;
+        }
+        ServoDutyCycle = ServoInstance.MedDutyCycle + Direction*(int)(ServoInstance.MaxDutyCycle-ServoInstance.MedDutyCycle)/100;
+    }
+    else
+    {
+        if(Direction < -100)
+        {
+            Direction = -100;
+        }
+        ServoDutyCycle = ServoInstance.MedDutyCycle - Direction*(int)(ServoInstance.MinDutyCycle-ServoInstance.MedDutyCycle)/100;
+    }
+
+    return ServoDutyCycle;
+}
 
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
@@ -63,36 +90,90 @@ void ServoInit(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinD
     ServoInstance.MaxDutyCycle = MaxDutyCycle;
     ServoInstance.MinDutyCycle = MinDutyCycle;
     ServoInstance.MedDutyCycle = MedDutyCycle;
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MedDutyCycle);
+    ServoAppliedDutyCycle = ServoInstance.MedDutyCycle;
+    ServoPendingDutyCycle = ServoInstance.MedDutyCycle;
+    ServoPendingUpdate = FALSE;
+    ServoInitialized = TRUE;
+    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoAppliedDutyCycle);
+    Pwm_EnableNotification(ServoInstance.ServoPwmChannel, PWM_FALLING_EDGE);
 }
 
 void Steer(int Direction){
-    uint16 ServoDutyCycle;
-    if(Direction>(int)0){
-        if(Direction > 100){
-            Direction = 100;
-        }
-        ServoDutyCycle = ServoInstance.MedDutyCycle + Direction*(int)(ServoInstance.MaxDutyCycle-ServoInstance.MedDutyCycle)/100;
+    uint16 ServoDutyCycle = Servo_CalcDuty(Direction);
+
+    if (ServoInitialized != TRUE)
+    {
+        return;
     }
-    else{
-        if(Direction < -100){
-            Direction = -100;
-        }
-        ServoDutyCycle = ServoInstance.MedDutyCycle - Direction*(int)(ServoInstance.MinDutyCycle-ServoInstance.MedDutyCycle)/100;
+
+    if (ServoDutyCycle == ServoAppliedDutyCycle)
+    {
+        ServoPendingUpdate = FALSE;
+        return;
     }
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoDutyCycle);
+
+    ServoPendingDutyCycle = ServoDutyCycle;
+    ServoPendingUpdate = TRUE;
 }
 
 void SteerLeft(void){
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MinDutyCycle);
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    if (ServoInstance.MinDutyCycle == ServoAppliedDutyCycle)
+    {
+        ServoPendingUpdate = FALSE;
+        return;
+    }
+
+    ServoPendingDutyCycle = ServoInstance.MinDutyCycle;
+    ServoPendingUpdate = TRUE;
 }
 
 void SteerRight(void){
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MaxDutyCycle);
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    if (ServoInstance.MaxDutyCycle == ServoAppliedDutyCycle)
+    {
+        ServoPendingUpdate = FALSE;
+        return;
+    }
+
+    ServoPendingDutyCycle = ServoInstance.MaxDutyCycle;
+    ServoPendingUpdate = TRUE;
 }
 
 void SteerStraight(void){
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MedDutyCycle);
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    if (ServoInstance.MedDutyCycle == ServoAppliedDutyCycle)
+    {
+        ServoPendingUpdate = FALSE;
+        return;
+    }
+
+    ServoPendingDutyCycle = ServoInstance.MedDutyCycle;
+    ServoPendingUpdate = TRUE;
+}
+
+void Servo_Period_Finished(void)
+{
+    if ((ServoInitialized != TRUE) || (ServoPendingUpdate != TRUE))
+    {
+        return;
+    }
+
+    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoPendingDutyCycle);
+    ServoAppliedDutyCycle = ServoPendingDutyCycle;
+    ServoPendingUpdate = FALSE;
 }
 
 #ifdef __cplusplus
