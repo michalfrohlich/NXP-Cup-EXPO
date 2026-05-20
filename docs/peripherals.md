@@ -72,12 +72,12 @@ Notes:
 ## UART
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Temporary serial debug / PID tuning transport | Handwritten register-level `LPUART1` service | `src/services/serial_debug.c`, `src/services/serial_debug.h`, `src/app/board_init.c` |
+| Temporary serial debug / PID tuning transport | Generated Port pin mux + handwritten register-level `LPUART1` service | `src/services/serial_debug.c`, `src/services/serial_debug.h`, `src/app/board_init.c` |
 
 Notes:
-- This is a temporary proof-of-concept path and intentionally does not use `.mex` or generated RTD UART configuration yet.
-- `SerialDebug_Init()` runs from `board_init.c` after generated driver init, then manually remuxes `PTC6` / `PTC7` to `LPUART1_RX` / `LPUART1_TX`.
-- The service currently uses `LPUART1` sourced from `SIRCDIV2` and is configured for `115200` baud to leave headroom for camera telemetry.
+- `PTC6` / `PTC7` are routed in `.mex` as `LPUART1_RX` / `LPUART1_TX` and applied by generated `Port_Init()`.
+- `SerialDebug_Init()` runs from `board_init.c` after generated driver init.
+- The service still initializes `LPUART1` registers directly, sourcing it from `SIRCDIV2` and configuring `115200` baud to leave headroom for camera telemetry.
 - The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `SerialDebug_ServiceTx()` / `SerialDebug_EnqueueBytes()` for non-blocking background streaming.
 - `APP_TEST_SERIAL_TUNE` is the first compile-time mode that uses this handwritten UART path; it only shows shadow PID values on the OLED and echoes received UART lines.
 - `RUNTIME_TEST_LINEAR_CAMERA` and `RUNTIME_TEST_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.

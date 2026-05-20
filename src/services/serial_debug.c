@@ -2,24 +2,10 @@
 
 #include "S32K144.h"
 
-#define SERIAL_DEBUG_UART_RX_PIN 6U
-#define SERIAL_DEBUG_UART_TX_PIN 7U
-
 static boolean g_serialDebugInitialized = FALSE;
 static uint8 g_serialDebugTxBuffer[SERIAL_DEBUG_TX_BUFFER_SIZE];
 static volatile uint16 g_serialDebugTxHead = 0U;
 static volatile uint16 g_serialDebugTxTail = 0U;
-
-static void SerialDebug_InitPins(void)
-{
-    IP_PCC->PCCn[PCC_PORTC_INDEX] |= PCC_PCCn_CGC_MASK;
-
-    /* Temporary proof-of-concept muxing:
-       PTC6 -> LPUART1_RX (ALT2)
-       PTC7 -> LPUART1_TX (ALT2) */
-    IP_PORTC->PCR[SERIAL_DEBUG_UART_RX_PIN] = PORT_PCR_MUX(2U);
-    IP_PORTC->PCR[SERIAL_DEBUG_UART_TX_PIN] = PORT_PCR_MUX(2U);
-}
 
 static void SerialDebug_InitClocking(void)
 {
@@ -33,7 +19,6 @@ static void SerialDebug_InitClocking(void)
 
 void SerialDebug_Init(void)
 {
-    SerialDebug_InitPins();
     SerialDebug_InitClocking();
 
     /* 8 MHz / (14 * 5) = 114285 baud, close enough for 115200 debug streaming. */

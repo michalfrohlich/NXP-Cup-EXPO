@@ -4222,7 +4222,7 @@ static void serial_tune_test_enter(uint32 nowMs)
     StatusLed_Blue();
     SerialDebug_WriteLine("");
     SerialDebug_WriteLine("=== Serial Tune Mode ===");
-    SerialDebug_WriteLine("Open terminal at 9600 8N1.");
+    SerialDebug_WriteLine("Open terminal at 115200 8N1.");
     SerialDebug_WriteString("Send '");
     SerialDebug_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
     SerialDebug_WriteLine("' to connect.");

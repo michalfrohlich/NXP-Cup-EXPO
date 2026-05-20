@@ -7,9 +7,9 @@
 extern "C" {
 #endif
 
-/* Temporary handwritten UART debug service.
-   This bypasses generated .mex/RTD UART config on purpose for the current
-   proof-of-concept and uses the teammate demo wiring and baud rate. */
+/* Temporary UART debug service.
+   Pin muxing is generated from .mex, while byte-level LPUART1 setup and
+   polling I/O remain handwritten for the current proof-of-concept. */
 
 #define SERIAL_DEBUG_BAUD_RATE 115200U
 #define SERIAL_DEBUG_TX_BUFFER_SIZE 512U
