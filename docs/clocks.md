@@ -50,7 +50,7 @@
 | Logical PWM | Generated mapping | Derived output rate |
 | --- | --- | --- |
 | `Esc_Pwm` | FTM3 CH6, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
-| `Esc2_Pwm` | FTM3 CH4, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
+| `Esc2_Pwm` | FTM3 CH2, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
 | `Servo_Pwm` | FTM3 CH7, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
 | `Motor_1_Speed` | FTM0 CH1, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (legacy H-bridge) |
 | `Motor_2_Speed` | FTM0 CH2, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (legacy H-bridge) |

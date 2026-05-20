@@ -115,6 +115,7 @@ extern "C"{
 /** @brief  Prototypes of PWM channels User Notifications */
 
 extern void Esc_Period_Finished(void);
+
 extern void Servo_Period_Finished(void);
 
 extern void CameraClock(void);
@@ -271,13 +272,13 @@ const Pwm_ChannelConfigType Pwm_Channels_VS_0_PB[PWM_VS_0_PB_CFG_CHANNELS_COUNT]
             /** @brief  Hardware Channel Type */
             PWM_CHANNEL_FTM,
             /** @brief  Hardware Channel Configuration Pointer */
-            (const void *)(&Ftm_Pwm_Ip_VS_0_I3_Ch4),
+            (const void *)(&Ftm_Pwm_Ip_VS_0_I3_Ch2),
         #if (defined(PWM_FLEXIO_USED) && (PWM_FLEXIO_USED == STD_ON))
             /** @brief  Pointer to the Flexio ip channel configuration structure */
             NULL_PTR,
         #endif
             /** @brief  Hardware Channel Instance ID */
-            (Pwm_IpwInstanceType)FTM_PWM_IP_VS_0_I3_CH4_CFG,
+            (Pwm_IpwInstanceType)FTM_PWM_IP_VS_0_I3_CH2_CFG,
             /** @brief The duty cycle of this channel */
             0U
         },
@@ -344,7 +345,7 @@ const Pwm_ConfigType Pwm_Config =
         /* Index of channels 0 - 7 of FTM_2 in the array of logic PWM channels */
         (Pwm_ChannelType)4, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255,
         /* Index of channels 0 - 7 of FTM_3 in the array of logic PWM channels */
-        (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)5, (Pwm_ChannelType)255, (Pwm_ChannelType)0, (Pwm_ChannelType)1,
+        (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)5, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)255, (Pwm_ChannelType)0, (Pwm_ChannelType)1,
         /*---------------------Flexio_0---------------------------*/
         (Pwm_ChannelType)255,            /* Flexio_0_0 unused */
         (Pwm_ChannelType)255,            /* Flexio_0_1 unused */

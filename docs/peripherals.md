@@ -26,7 +26,7 @@ Notes:
 
 Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
-- The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH4/PTD2`; both run at the same generated `50 Hz` period.
+- The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTC6`; both run at the same generated `50 Hz` period.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
 - The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
 - The old H-bridge PWM channels remain generated, but they are no longer part of the active BLDC motor-control path.
