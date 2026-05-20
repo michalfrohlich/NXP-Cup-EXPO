@@ -147,10 +147,10 @@ const Port_Ci_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr_VS_0[NUM_OF_CONF
         .digitalFilter         = (boolean)FALSE
     },
     {
-        .portBase              = IP_PORTC,
+        .portBase              = IP_PORTB,
         .gpioBase              = NULL_PTR,
-        .pinPortIdx            = 6,
-        .mux                   = PORT_MUX_ALT4,
+        .pinPortIdx            = 10,
+        .mux                   = PORT_MUX_ALT2,
         .direction             = PORT_CI_PORT_PIN_OUT,
         .pullConfig            = PORT_INTERNAL_PULL_NOT_ENABLED,
         .driveStrength         = PORT_DRIVE_STRENGTH_LOW,

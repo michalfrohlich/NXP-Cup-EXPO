@@ -36,7 +36,8 @@
                <pin_label pin_num="49" pin_signal="PTC13" label="SWITCH3"/>
                <pin_label pin_num="46" pin_signal="PTC14" label="POT"/>
                <pin_label pin_num="85" pin_signal="PTE2" label="esc1"/>
-               <pin_label pin_num="81" pin_signal="PTC6" label="esc2"/>
+               <pin_label pin_num="81" pin_signal="PTC6" label="UART RX"/>
+               <pin_label pin_num="75" pin_signal="PTB10" label="esc2"/>
             </pin_labels>
          </pins_profile>
          <functions_list>
@@ -183,7 +184,7 @@
                         <pin_feature name="initValue" value="state_1"/>
                      </pin_features>
                   </pin>
-                  <pin peripheral="FTM3" signal="ftm3_ch2" pin_num="81" pin_signal="PTC6">
+                  <pin peripheral="FTM3" signal="ftm3_ch2" pin_num="75" pin_signal="PTB10">
                      <pin_features>
                         <pin_feature name="direction" value="OUTPUT"/>
                      </pin_features>
@@ -480,6 +481,11 @@
             <dependency resourceType="SWComponent" resourceId="platform.driver.Platform" description="An unsupported version of the Platform in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. The project might not compile correctly." problem_level="1" source="Peripherals">
                <feature name="version" evaluation="equivalent">
                   <data type="Version">1.0.0</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data>true</data>
                </feature>
             </dependency>
          </dependencies>
@@ -886,7 +892,7 @@
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
                                        <setting name="PortPinId" value="22"/>
-                                       <setting name="PortPinPcr" value="70"/>
+                                       <setting name="PortPinPcr" value="42"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
