@@ -125,8 +125,8 @@
 - `app_modes.c`
   - maps pot value to speed in `FINAL_DUMMY` ESC mode
   - ramps speed in `FINAL_DUMMY` camera mode
-  - uses the same manual arm/run ESC flow in standalone ESC test mode and in `FINAL_DUMMY` ESC mode
-  - draws an ESC test screen with arm/run state, pot level, and commanded speed in standalone ESC mode
+  - uses a dedicated standalone ESC test with hold-to-arm/disarm, hold-to-stop, selectable both/ESC1/ESC2/differential output modes, and a low capped potentiometer speed command
+  - draws an ESC test screen with state, selected output mode, direction, pot level, and both ESC commands
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
   - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning honor-lap obstacle stopping
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
