@@ -134,6 +134,7 @@
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `esc.c`
   - applies motor command through PWM and an internal ESC state machine on both configured ESC outputs
+  - exposes one explicit dual-output API: `EscInit(primary, secondary, ...)`, `EscSetSpeed(primary, secondary)`, and `EscSetBrake(primary, secondary)`
 
 ### Optional braking path present in repo
 - `services/braking.c`

@@ -366,7 +366,7 @@ static void StatusLed_Red(void);
 static void StatusLed_Off(void);
 static void Esc_StopNeutral(void);
 static int esc_apply_neutral_offset(int logicalCmd);
-static void Esc_SetLogicalSpeed(int logicalCmd);
+static void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd);
 static void busy_delay(volatile uint32 ticks);
 static void App_InitRuntimeCore(void);
 static void App_InitRuntimeCommon(void);
@@ -555,8 +555,8 @@ static void StatusLed_Off(void)
 
 static void Esc_StopNeutral(void)
 {
-    EscSetBrake(0U);
-    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD);
+    EscSetBrake(0U, 0U);
+    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD, ESC_TRUE_NEUTRAL_CMD);
 }
 
 static int esc_apply_neutral_offset(int logicalCmd)
@@ -575,9 +575,12 @@ static int esc_apply_neutral_offset(int logicalCmd)
     return physicalCmd;
 }
 
-static void Esc_SetLogicalSpeed(int logicalCmd)
+static void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd)
 {
-    EscSetSpeed(esc_apply_neutral_offset(logicalCmd));
+    const int primaryPhysicalCmd = esc_apply_neutral_offset(primaryLogicalCmd);
+    const int secondaryPhysicalCmd = esc_apply_neutral_offset(secondaryLogicalCmd);
+
+    EscSetSpeed(primaryPhysicalCmd, secondaryPhysicalCmd);
 }
 
 static void App_InitRuntimeCore(void)
@@ -918,7 +921,7 @@ static void ultrasonic_esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_ultrasonicEscTest, 0, sizeof(g_ultrasonicEscTest));
 
-    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     Ultrasonic_Init();
@@ -987,8 +990,9 @@ static void ultrasonic_esc_test_update(uint32 nowMs)
         g_ultrasonicEscTest.commandedSpeedPct =
             honor_speed_from_distance(g_ultrasonicEscTest.hasValidDistance,
                                       g_ultrasonicEscTest.lastDistanceCm);
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct));
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
+                        (int)(-g_ultrasonicEscTest.commandedSpeedPct));
     }
 
     if (time_reached(nowMs, g_ultrasonicEscTest.nextDisplayMs) != TRUE)
@@ -1554,7 +1558,7 @@ static void esc_enter(EscRunState_t *st, uint32 nowMs)
     st->currentCmdPct = 0;
     st->lastPotLevel = (uint8)POT_CENTER_RAW;
 
-    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 }
 
@@ -1589,8 +1593,8 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         st->mode = CAR_ARMING;
         st->startGoMs = nowMs + START_DELAY_MS;
 
-        Esc_SetLogicalSpeed(0);
-        EscSetBrake(0U);
+        Esc_SetLogicalSpeed(0, 0);
+        EscSetBrake(0U, 0U);
     }
 
     if ((st->mode == CAR_ARMING) && (time_reached(nowMs, st->startGoMs) == TRUE))
@@ -1637,8 +1641,8 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         }
 
         st->currentCmdPct = (sint16)cmdPct;
-        EscSetBrake(0U);
-        Esc_SetLogicalSpeed((int)cmdPct);
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed((int)cmdPct, (int)cmdPct);
     }
 
     if (st->mode == CAR_RUN)
@@ -1919,8 +1923,8 @@ static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pres
 
             g_finalDummy.autoSpeedPct = 0;
             g_finalDummy.nextAutoSpeedMs = nowMs;
-            EscSetBrake(0U);
-            Esc_SetLogicalSpeed(0);
+            EscSetBrake(0U, 0U);
+            Esc_SetLogicalSpeed(0, 0);
         }
         else
         {
@@ -1966,8 +1970,9 @@ static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pres
                 g_finalDummy.autoSpeedPct = 100;
               }
 
-              EscSetBrake(0U);
-              Esc_SetLogicalSpeed((int)(-g_finalDummy.autoSpeedPct));
+              EscSetBrake(0U, 0U);
+              Esc_SetLogicalSpeed((int)(-g_finalDummy.autoSpeedPct),
+                                  (int)(-g_finalDummy.autoSpeedPct));
           }
 
         if ((g_finalDummy.camSt.haveValidVision == TRUE) &&
@@ -2139,14 +2144,14 @@ static void nxp_cup_obstacle_stop_motor(void)
 
 static void nxp_cup_launch_motor(int logicalCmd)
 {
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed(logicalCmd);
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
 
     for (uint8 pulse = 1U; pulse < (uint8)ESC_LAUNCH_PULSE_COUNT; pulse++)
     {
         busy_delay((uint32)ESC_LAUNCH_PULSE_DELAY_TICKS);
-        EscSetBrake(0U);
-        Esc_SetLogicalSpeed(logicalCmd);
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
     }
 }
 
@@ -2549,7 +2554,7 @@ static void mode_nxp_cup(void)
                 g_nxpCup.nextAutoSpeedMs = 0U;
 
                 nxp_cup_ultra_enter(&g_nxpCup.ultraSt, nowMs);
-                EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+                EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
                 g_nxpCup.escRearmDoneMs = nowMs + ESC_ARM_TIME_MS + NXP_ESC_EXTRA_SETTLE_MS;
                 g_nxpCup.state = NXP_CUP_STATE_ESC_REARM;
                 continue;
@@ -2871,7 +2876,7 @@ static void honor_lap_enter(uint32 nowMs)
 
     (void)memset(&g_honorLap, 0, sizeof(g_honorLap));
 
-    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     armStartMs = Timebase_GetMs();
@@ -2948,8 +2953,9 @@ static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLev
         g_honorLap.commandedSpeedPct = 0;
     }
 
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct));
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct),
+                        (int)(-g_honorLap.commandedSpeedPct));
 
     if (time_reached(nowMs, g_honorLap.nextDisplayMs) == TRUE)
     {
@@ -3018,7 +3024,7 @@ static void race_mode_enter(uint32 nowMs)
     g_raceMode.armDoneMs = nowMs + ESC_ARM_TIME_MS;
     g_raceMode.lastDistanceMs = nowMs;
 
-    EscInitDual(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
@@ -3296,8 +3302,9 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         }
         else
         {
-            EscSetBrake(0U);
-            Esc_SetLogicalSpeed((int)(-st->currentSpeedPct));
+            EscSetBrake(0U, 0U);
+            Esc_SetLogicalSpeed((int)(-st->currentSpeedPct),
+                                (int)(-st->currentSpeedPct));
         }
     }
 
