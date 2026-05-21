@@ -9,17 +9,15 @@
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
 #define APP_TEST_LINEAR_CAMERA_TEST       0
-#define APP_TEST_NXP_CUP                  1
+#define APP_TEST_NXP_CUP                  0
 #define APP_TEST_RACE_MODE                0
-#define APP_TEST_FINAL_DUMMY              0
 #define APP_TEST_HONOR_LAP                0
-#define APP_TEST_NXP_CUP_TESTS            0
+#define APP_TEST_NXP_CUP_TESTS            1
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
     (APP_TEST_NXP_CUP) + \
     (APP_TEST_RACE_MODE) + \
-    (APP_TEST_FINAL_DUMMY) + \
     (APP_TEST_HONOR_LAP) + \
     (APP_TEST_NXP_CUP_TESTS) \
 )
@@ -40,6 +38,7 @@
 #define RACE_DISPLAY_PERIOD_MS            200u
 #define RACE_FINISH_MIN_CONFIDENCE        50U
 #define CAM_STEER_HOLD_MS                 350u
+#define CAM_UART_STREAM_PERIOD_MS         200u
 
 /* =========================================================
    Servo
@@ -66,6 +65,8 @@
    ESC
 ========================================================= */
 #define ESC_PWM_CH                        0U
+#define ESC_SECOND_PWM_CH                 5U
+/* Generated second ESC output: FTM3 CH2 on PTB10. */
 
 /* ESC calibration values (timer compare) that arm correctly on your setup.
    DO NOT change these to "25% speed".
@@ -240,7 +241,7 @@
 
 /* IMPORTANT:
    - POT (manual) mode should stay FULL RANGE (-100..+100)
-   - FULL AUTO (SW3 camera mode in FINAL_DUMMY) should be capped here
+   - FULL AUTO (Simple test drive runtime test) should be capped here
 */
 #define FULL_AUTO_SPEED_PCT               25   /* was effectively: 100 (uncapped) */
 #define FULL_AUTO_RAMP_STEP_PCT           2    /* was: (none) */

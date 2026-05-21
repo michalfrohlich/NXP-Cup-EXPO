@@ -383,12 +383,39 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch6 =
     /* PairCfg */               NULL_PTR
 };
 
+/* Ftm channel 2 configuration */
+const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch2 =
+{
+    /* ChannelId */             2U,
+    /* ChannelMode */           FTM_PWM_IP_MODE_EDGE_ALIGNED_HIGH,
+    /* ChIrqEn */               (boolean)TRUE,
+    /* ChannelCb */             {
+        /* FunctionCallback */      &Pwm_Ipw_FlexTimerNotification,
+        /* CbParam */               2U
+                                },
+    /* ChOutputEn */            (boolean)TRUE,
+    /* SwControlEn */           (boolean)TRUE,
+    /* SwControlVal */          (boolean)FALSE,
+    /* ExtTrigEn */             (boolean)FALSE,
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
+    /* ChMatchLoadEn */         (boolean)FALSE,
+#endif
+    /* DutyCycle */             0U,
+#if (defined(FTM_PWM_IP_HAS_DITHERING) && (FTM_PWM_IP_HAS_DITHERING == STD_ON))
+    /* DutyCycleDither */       0U,
+#endif
+    /* InitOut */               FTM_PWM_IP_OUTPUT_STATE_LOW,
+    /* Polarity */              FTM_PWM_IP_POLARITY_HIGH,
+    /* PairCfg */               NULL_PTR
+};
+
 
 /* Ftm channels configuration array */
-const Ftm_Pwm_Ip_ChannelConfigType * const Ftm_Pwm_Ip_VS_0_I3_ChArray[2U] =
+const Ftm_Pwm_Ip_ChannelConfigType * const Ftm_Pwm_Ip_VS_0_I3_ChArray[3U] =
 {
     &Ftm_Pwm_Ip_VS_0_I3_Ch7,
-    &Ftm_Pwm_Ip_VS_0_I3_Ch6
+    &Ftm_Pwm_Ip_VS_0_I3_Ch6,
+    &Ftm_Pwm_Ip_VS_0_I3_Ch2
 };
 
 /* Ftm instance 3 User configuration structure */
@@ -396,7 +423,7 @@ const Ftm_Pwm_Ip_UserCfgType Ftm_Pwm_Ip_VS_0_UserCfg3 =
 {
     /* InstanceCfg */           &Ftm_Pwm_Ip_VS_0_InstCfg3,
     /* ConfiguredChArray */     Ftm_Pwm_Ip_VS_0_I3_ChArray,
-    /* NoOfConfiguredCh */      2U
+    /* NoOfConfiguredCh */      3U
 #if (defined(FTM_PWM_IP_HAS_FAULT) && (FTM_PWM_IP_HAS_FAULT == STD_ON))
     ,
     /* ConfiguredFaultArray */  NULL_PTR,

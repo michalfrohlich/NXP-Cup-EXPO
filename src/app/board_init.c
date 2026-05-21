@@ -20,6 +20,7 @@
 #include "rgb_led.h"
 
 #include "car_config.h"
+#include "../services/serial_debug.h"
 
 void Board_InitDrivers(void)
 {
@@ -61,6 +62,8 @@ void Board_InitDrivers(void)
     }
 
     Pwm_Init(NULL_PTR);
+
+    SerialDebug_Init();
 }
 
 void Board_InitCommonApp(void)
@@ -70,7 +73,7 @@ void Board_InitCommonApp(void)
     OnboardPot_Init();
     Ultrasonic_Init();
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     ServoInit(SERVO_PWM_CH, 3300U, 1700U, 2500U);
 
     DisplayInit(0U, STD_ON);

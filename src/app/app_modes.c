@@ -2,6 +2,7 @@
 #include "main_types.h"
 #include "car_config.h"
 #include "board_init.h"
+#include <stdio.h>
 #include <string.h>
 
 #include "timebase.h"
@@ -19,6 +20,7 @@
 #include "../services/steering_control_linear.h"
 #include "../services/steering_smoothing.h"
 #include "vision_debug.h"
+#include "../services/serial_debug.h"
 
 #define VDBG_WHITE_MAX_FULL_SCALE     (4095U)
 #define VDBG_WHITE_MAX_MIN_ZOOM       (400U)
@@ -27,13 +29,26 @@
 #define TESTS_MENU_VISIBLE_LINES      (3U)
 #define TESTS_MENU_POT_STABLE_MS      (90U)
 #define TESTS_MENU_POT_HYSTERESIS     (6U)
+#define ESC_TEST_MAX_SPEED_PCT        (30U)
+#define ESC_TEST_LED_BLINK_MS         (250U)
+#define SERIAL_TUNE_CONNECT_CHAR      ('c')
+#define SERIAL_TUNE_COMMIT_CHAR       ('#')
+#define SERIAL_TUNE_INPUT_MAX_LEN     (12U)
+#define CAM_UART_STREAM_SYNC0         (0xA5U)
+#define CAM_UART_STREAM_SYNC1         (0x5AU)
+#define CAM_UART_STREAM_TYPE_FRAME    (0x43U)
+#define CAM_UART_STREAM_PACKET_BYTES  (10U + \
+                                       (3U * VISION_LINEAR_BUFFER_SIZE) + \
+                                       9U + \
+                                       6U + \
+                                       (4U * VLIN_MAX_EDGE_CANDIDATES) + \
+                                       1U)
 
 typedef enum
 {
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
     APP_BUILD_MODE_NXP_CUP,
     APP_BUILD_MODE_RACE_MODE,
-    APP_BUILD_MODE_FINAL_DUMMY,
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_NXP_CUP_TESTS
 } AppBuildMode_t;
@@ -45,6 +60,8 @@ typedef enum
     RUNTIME_TEST_SERVO,
     RUNTIME_TEST_ULTRASONIC,
     RUNTIME_TEST_CAMSERVO,
+    RUNTIME_TEST_SIMPLE_DRIVE,
+    RUNTIME_TEST_SERIAL_TUNE,
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
     RUNTIME_TEST_COUNT
@@ -127,7 +144,10 @@ typedef struct
     uint32 nextTickMs;
     uint32 nextSteerMs;
     uint32 nextDisplayMs;
+    uint32 nextStreamMs;
     uint32 tickCount;
+    uint16 streamSeq;
+    uint16 streamDropCount;
     boolean haveValidVision;
     boolean displayDirty;
     boolean paused;
@@ -144,6 +164,40 @@ typedef struct
     sint16 currentCmdPct;
     uint8 lastPotLevel;
 } EscRunState_t;
+
+typedef enum
+{
+    ESC_TEST_STATE_DISARMED = 0,
+    ESC_TEST_STATE_ARMING,
+    ESC_TEST_STATE_ARMED_NEUTRAL,
+    ESC_TEST_STATE_RUNNING,
+    ESC_TEST_STATE_ESTOP
+} EscTestStateId_t;
+
+typedef enum
+{
+    ESC_TEST_MODE_BOTH = 0,
+    ESC_TEST_MODE_ESC1,
+    ESC_TEST_MODE_ESC2,
+    ESC_TEST_MODE_DIFF,
+    ESC_TEST_MODE_COUNT
+} EscTestModeId_t;
+
+typedef struct
+{
+    EscTestStateId_t state;
+    EscTestModeId_t mode;
+    Sw2Tracker_t sw2Tracker;
+    Sw2Tracker_t sw3Tracker;
+    uint32 armDoneMs;
+    uint32 nextDisplayMs;
+    sint16 commandPct;
+    sint16 primaryCmdPct;
+    sint16 secondaryCmdPct;
+    uint8 lastPotLevel;
+    boolean reverse;
+    boolean requirePotZero;
+} EscManualTestState_t;
 
 typedef struct
 {
@@ -227,20 +281,14 @@ typedef struct
     boolean cameraStarted;
 } NxpCupState_t;
 
-typedef enum
-{
-    DUMMY_ESC = 0,
-    DUMMY_CAM = 1
-} DummyState_t;
-
 typedef struct
 {
-    DummyState_t state;
+    uint32 armDoneMs;
     sint32 autoSpeedPct;
     uint32 nextAutoSpeedMs;
-    EscRunState_t escSt;
+    boolean runEnabled;
     CamServoState_t camSt;
-} FinalDummyState_t;
+} SimpleDriveState_t;
 
 typedef struct
 {
@@ -298,17 +346,50 @@ typedef struct
     boolean displayWasOn;
 } RaceModeState_t;
 
+typedef enum
+{
+    SERIAL_TUNE_SCREEN_WAIT = 0,
+    SERIAL_TUNE_SCREEN_MENU,
+    SERIAL_TUNE_SCREEN_SERVO_MENU,
+    SERIAL_TUNE_SCREEN_EDIT_KP,
+    SERIAL_TUNE_SCREEN_EDIT_KI,
+    SERIAL_TUNE_SCREEN_EDIT_KD,
+    SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP,
+    SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF
+} SerialTuneScreen_t;
+
+typedef struct
+{
+    SerialTuneScreen_t screen;
+    float kp;
+    float ki;
+    float kd;
+    sint16 servoClamp;
+    float servoLpfAlpha;
+    char inputBuf[SERIAL_TUNE_INPUT_MAX_LEN + 1U];
+    uint8 inputLen;
+    boolean connected;
+} SerialTuneState_t;
+
+typedef struct
+{
+    CamTuneProfile_t profile;
+    boolean initialized;
+} RuntimeTuneState_t;
+
 static ReceiverTestState_t g_receiverTest;
 static UltrasonicTestState_t g_ultrasonicTest;
 static UltrasonicEscTestState_t g_ultrasonicEscTest;
 static ServoTestState_t g_servoTest;
-static EscRunState_t g_escTest;
+static EscManualTestState_t g_escTest;
 static LinearCameraTestState_t g_linearCameraTest;
-static FinalDummyState_t g_finalDummy;
+static SimpleDriveState_t g_simpleDriveTest;
 static TestsMenuState_t g_testsMenu;
 static HonorLapState_t g_honorLap;
 static NxpCupState_t g_nxpCup;
 static RaceModeState_t g_raceMode;
+static SerialTuneState_t g_serialTune;
+static RuntimeTuneState_t g_runtimeTune;
 
 static const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
 {
@@ -351,6 +432,8 @@ static const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
     "Servo          ",
     "Ultrasonic     ",
     "Cam+Servo      ",
+    "Simple test drv",
+    "Serial tune    ",
     "Ultra+ESC      ",
     "Receiver - x   "
 };
@@ -366,12 +449,32 @@ static void StatusLed_Red(void);
 static void StatusLed_Off(void);
 static void Esc_StopNeutral(void);
 static int esc_apply_neutral_offset(int logicalCmd);
-static void Esc_SetLogicalSpeed(int logicalCmd);
+static void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd);
 static void busy_delay(volatile uint32 ticks);
 static void App_InitRuntimeCore(void);
 static void App_InitRuntimeCommon(void);
 static AppBuildMode_t App_GetSelectedBuildMode(void);
 static void DisplayTextPadded(uint16 displayLine, const char *text);
+static void RuntimeTune_InitDefaults(void);
+static void serial_tune_draw(const SerialTuneState_t *st);
+static void serial_tune_print_pid_menu(void);
+static void serial_tune_print_servo_menu(void);
+static void serial_tune_print_edit_help(SerialTuneScreen_t screen);
+static void serial_tune_echo_char(char ch);
+static boolean serial_tune_parse_value(const char *text, float *value);
+static boolean serial_tune_parse_int_value(const char *text, sint16 *value);
+static float *serial_tune_active_value_ptr(SerialTuneState_t *st);
+static sint16 *serial_tune_active_int_ptr(SerialTuneState_t *st);
+static const char *serial_tune_active_label(const SerialTuneState_t *st);
+static void serial_tune_enter_pid_menu(SerialTuneState_t *st);
+static void serial_tune_enter_servo_menu(SerialTuneState_t *st);
+static void serial_tune_enter_edit(SerialTuneState_t *st, SerialTuneScreen_t screen);
+static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch);
+static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch);
+static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch);
+static void serial_tune_test_enter(uint32 nowMs);
+static void serial_tune_test_update(void);
+static void serial_tune_test_exit(void);
 static void receiver_test_enter(uint32 nowMs);
 static void receiver_test_update(uint32 nowMs);
 static void receiver_test_exit(void);
@@ -387,10 +490,19 @@ static void servo_test_exit(void);
 static void esc_test_enter(uint32 nowMs);
 static void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel);
 static void esc_test_exit(void);
+static Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs);
+static void esc_test_start_arming(EscManualTestState_t *st, uint32 nowMs);
+static void esc_test_disarm(EscManualTestState_t *st);
+static void esc_test_estop(EscManualTestState_t *st);
+static sint16 esc_test_command_from_pot(uint8 pot);
+static void esc_test_apply_outputs(EscManualTestState_t *st);
+static void esc_test_update_led(const EscManualTestState_t *st, uint32 nowMs);
+static void esc_test_draw(const EscManualTestState_t *st);
 static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled);
 static void linear_camera_test_enter(uint32 nowMs);
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
 static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st);
+static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st);
 static void linear_camera_test_exit(void);
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs);
 static void runtime_test_update(RuntimeTestId_t testId,
@@ -401,14 +513,14 @@ static void runtime_test_update(RuntimeTestId_t testId,
 static void runtime_test_exit(RuntimeTestId_t testId);
 static void esc_enter(EscRunState_t *st, uint32 nowMs);
 static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3, uint8 pot);
-static void esc_test_draw(const EscRunState_t *st);
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile);
 static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile);
 static void camservo_enter(CamServoState_t *st, uint32 nowMs);
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2);
 static void camservo_exit(void);
-static void final_dummy_enter(uint32 nowMs);
-static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel);
+static void simple_drive_test_enter(uint32 nowMs);
+static void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed);
+static void simple_drive_test_exit(void);
 static uint8 tests_menu_map_pot_to_index(uint8 pot, uint8 nItems);
 static void tests_menu_select_index(TestsMenuState_t *st, uint8 pot);
 static void tests_menu_draw(const TestsMenuState_t *st);
@@ -425,7 +537,6 @@ static void nxp_cup_ultra_task(NxpCupUltraState_t *st, uint32 nowMs);
 static boolean nxp_cup_ultra_should_hold_servo(const NxpCupUltraState_t *st, uint32 nowMs);
 static uint8 nxp_cup_ultra_target_speed_pct(const NxpCupUltraState_t *st, uint32 nowMs, uint8 defaultSpeedPct);
 static void mode_nxp_cup(void);
-static void mode_final_dummy(void);
 static sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 static void honor_lap_draw_overlay(void);
 static void honor_lap_enter(uint32 nowMs);
@@ -479,7 +590,7 @@ static uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel)
     return (uint16)whiteMax;
 }
 
-static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
+static Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs)
 {
     boolean pressedNow;
 
@@ -488,7 +599,7 @@ static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
         return SW2_ACTION_NONE;
     }
 
-    pressedNow = Buttons_IsPressed(BUTTON_ID_SW2);
+    pressedNow = Buttons_IsPressed(id);
 
     if ((pressedNow == TRUE) && (st->wasPressed != TRUE))
     {
@@ -523,6 +634,11 @@ static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
     return SW2_ACTION_NONE;
 }
 
+static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
+{
+    return ButtonTracker_Update(st, BUTTON_ID_SW2, nowMs);
+}
+
 static void StatusLed_Blue(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = true });
@@ -555,8 +671,8 @@ static void StatusLed_Off(void)
 
 static void Esc_StopNeutral(void)
 {
-    EscSetBrake(0U);
-    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD);
+    EscSetBrake(0U, 0U);
+    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD, ESC_TRUE_NEUTRAL_CMD);
 }
 
 static int esc_apply_neutral_offset(int logicalCmd)
@@ -575,13 +691,35 @@ static int esc_apply_neutral_offset(int logicalCmd)
     return physicalCmd;
 }
 
-static void Esc_SetLogicalSpeed(int logicalCmd)
+static void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd)
 {
-    EscSetSpeed(esc_apply_neutral_offset(logicalCmd));
+    const int primaryPhysicalCmd = esc_apply_neutral_offset(primaryLogicalCmd);
+    const int secondaryPhysicalCmd = esc_apply_neutral_offset(secondaryLogicalCmd);
+
+    EscSetSpeed(primaryPhysicalCmd, secondaryPhysicalCmd);
+}
+
+static void RuntimeTune_InitDefaults(void)
+{
+    if (g_runtimeTune.initialized == TRUE)
+    {
+        return;
+    }
+
+    g_runtimeTune.profile.kp = KP;
+    g_runtimeTune.profile.kd = KD;
+    g_runtimeTune.profile.ki = KI;
+    g_runtimeTune.profile.iTermClamp = ITERM_CLAMP;
+    g_runtimeTune.profile.steerLpfAlpha = SERVO_TEST_LPF_ALPHA;
+    g_runtimeTune.profile.steerClamp = (sint16)SERVO_TEST_CMD_CLAMP;
+    g_runtimeTune.profile.steerRateMax = (sint16)SERVO_TEST_RATE_MAX;
+    g_runtimeTune.profile.baseSpeedPct = 20U;
+    g_runtimeTune.initialized = TRUE;
 }
 
 static void App_InitRuntimeCore(void)
 {
+    RuntimeTune_InitDefaults();
     Board_InitDrivers();
     Timebase_Init();
     OnboardPot_Init();
@@ -614,6 +752,575 @@ static void DisplayTextPadded(uint16 displayLine, const char *text)
     DisplayText(displayLine, lineBuf, 16U, 0U);
 }
 
+static void serial_tune_draw(const SerialTuneState_t *st)
+{
+    char lineBuf[17];
+    int scaledValue;
+    int wholePart;
+    int fracPart;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    DisplayClear();
+    switch (st->screen)
+    {
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+            DisplayTextPadded(0U, "EDIT SERVO CLMP");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+            DisplayTextPadded(0U, "EDIT SERVO LPF");
+            break;
+        case SERIAL_TUNE_SCREEN_SERVO_MENU:
+            DisplayTextPadded(0U, "SERVO TUNE MENU");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_KP:
+            DisplayTextPadded(0U, "EDIT KP");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_KI:
+            DisplayTextPadded(0U, "EDIT KI");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_KD:
+            DisplayTextPadded(0U, "EDIT KD");
+            break;
+        case SERIAL_TUNE_SCREEN_MENU:
+            DisplayTextPadded(0U, "CONNECTED MENU");
+            break;
+        case SERIAL_TUNE_SCREEN_WAIT:
+        default:
+            DisplayTextPadded(0U, "WAITING SERIAL");
+            break;
+    }
+
+    if ((st->screen == SERIAL_TUNE_SCREEN_SERVO_MENU) ||
+        (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+        (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+    {
+        (void)snprintf(lineBuf, sizeof(lineBuf), "CLAMP:%4d", (int)st->servoClamp);
+        DisplayTextPadded(1U, lineBuf);
+
+        scaledValue = (int)((st->servoLpfAlpha * 100.0f) + 0.5f);
+        if (scaledValue < 0)
+        {
+            scaledValue = 0;
+        }
+        if (scaledValue > 99999)
+        {
+            scaledValue = 99999;
+        }
+        wholePart = scaledValue / 100;
+        fracPart = scaledValue % 100;
+        (void)snprintf(lineBuf, sizeof(lineBuf), "LPF:%5d.%02d", wholePart, fracPart);
+        DisplayTextPadded(2U, lineBuf);
+        DisplayTextPadded(3U, "");
+        DisplayRefresh();
+        return;
+    }
+
+    scaledValue = (int)((st->kp * 100.0f) + 0.5f);
+    if (scaledValue < 0)
+    {
+        scaledValue = 0;
+    }
+    if (scaledValue > 99999)
+    {
+        scaledValue = 99999;
+    }
+    wholePart = scaledValue / 100;
+    fracPart = scaledValue % 100;
+    (void)snprintf(lineBuf, sizeof(lineBuf), "KP:%3d.%02d", wholePart, fracPart);
+    DisplayTextPadded(1U, lineBuf);
+
+    scaledValue = (int)((st->ki * 100.0f) + 0.5f);
+    if (scaledValue < 0)
+    {
+        scaledValue = 0;
+    }
+    if (scaledValue > 99999)
+    {
+        scaledValue = 99999;
+    }
+    wholePart = scaledValue / 100;
+    fracPart = scaledValue % 100;
+    (void)snprintf(lineBuf, sizeof(lineBuf), "KI:%3d.%02d", wholePart, fracPart);
+    DisplayTextPadded(2U, lineBuf);
+
+    scaledValue = (int)((st->kd * 100.0f) + 0.5f);
+    if (scaledValue < 0)
+    {
+        scaledValue = 0;
+    }
+    if (scaledValue > 99999)
+    {
+        scaledValue = 99999;
+    }
+    wholePart = scaledValue / 100;
+    fracPart = scaledValue % 100;
+    (void)snprintf(lineBuf, sizeof(lineBuf), "KD:%3d.%02d", wholePart, fracPart);
+    DisplayTextPadded(3U, lineBuf);
+
+    DisplayRefresh();
+}
+
+static void serial_tune_print_pid_menu(void)
+{
+    SerialDebug_WriteLine("");
+    SerialDebug_WriteLine("=== PID Tune Menu ===");
+    SerialDebug_WriteLine("p - edit KP");
+    SerialDebug_WriteLine("i - edit KI");
+    SerialDebug_WriteLine("d - edit KD");
+    SerialDebug_WriteLine("s - servo menu");
+    SerialDebug_WriteString("menu> ");
+}
+
+static void serial_tune_print_servo_menu(void)
+{
+    SerialDebug_WriteLine("");
+    SerialDebug_WriteLine("=== Servo Tune Menu ===");
+    SerialDebug_WriteLine("c - edit clamp");
+    SerialDebug_WriteLine("l - edit LPF");
+    SerialDebug_WriteLine("p - PID menu");
+    SerialDebug_WriteString("servo> ");
+}
+
+static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
+{
+    switch (screen)
+    {
+        case SERIAL_TUNE_SCREEN_EDIT_KP:
+            SerialDebug_WriteLine("");
+            SerialDebug_WriteLine("Editing KP");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_KI:
+            SerialDebug_WriteLine("");
+            SerialDebug_WriteLine("Editing KI");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_KD:
+            SerialDebug_WriteLine("");
+            SerialDebug_WriteLine("Editing KD");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+            SerialDebug_WriteLine("");
+            SerialDebug_WriteLine("Editing SERVO CLAMP");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+            SerialDebug_WriteLine("");
+            SerialDebug_WriteLine("Editing SERVO LPF");
+            break;
+        default:
+            return;
+    }
+
+    SerialDebug_WriteLine("Type digits and optional decimal point.");
+    SerialDebug_WriteString("Press ");
+    SerialDebug_WriteChar(SERIAL_TUNE_COMMIT_CHAR);
+    SerialDebug_WriteLine(" to save, q to cancel.");
+    SerialDebug_WriteString("edit> ");
+}
+
+static void serial_tune_echo_char(char ch)
+{
+    SerialDebug_WriteString("RX: ");
+    SerialDebug_WriteChar(ch);
+    SerialDebug_WriteString("\r\n");
+}
+
+static boolean serial_tune_parse_value(const char *text, float *value)
+{
+    uint32 idx = 0U;
+    uint32 intPart = 0U;
+    uint32 fracPart = 0U;
+    uint32 fracScale = 1U;
+    boolean seenDigit = FALSE;
+    boolean seenDot = FALSE;
+
+    if ((text == NULL_PTR) || (value == NULL_PTR) || (text[0] == '\0'))
+    {
+        return FALSE;
+    }
+
+    while (text[idx] != '\0')
+    {
+        char ch = text[idx];
+
+        if ((ch >= '0') && (ch <= '9'))
+        {
+            seenDigit = TRUE;
+            if (seenDot == TRUE)
+            {
+                if (fracScale < 1000U)
+                {
+                    fracPart = (fracPart * 10U) + (uint32)(ch - '0');
+                    fracScale *= 10U;
+                }
+            }
+            else
+            {
+                if (intPart > 999U)
+                {
+                    return FALSE;
+                }
+                intPart = (intPart * 10U) + (uint32)(ch - '0');
+            }
+        }
+        else if ((ch == '.') && (seenDot != TRUE))
+        {
+            seenDot = TRUE;
+        }
+        else
+        {
+            return FALSE;
+        }
+
+        idx++;
+    }
+
+    if (seenDigit != TRUE)
+    {
+        return FALSE;
+    }
+
+    *value = (float)intPart + ((float)fracPart / (float)fracScale);
+    return TRUE;
+}
+
+static boolean serial_tune_parse_int_value(const char *text, sint16 *value)
+{
+    uint32 idx = 0U;
+    sint32 out = 0;
+
+    if ((text == NULL_PTR) || (value == NULL_PTR) || (text[0] == '\0'))
+    {
+        return FALSE;
+    }
+
+    while (text[idx] != '\0')
+    {
+        char ch = text[idx];
+        if ((ch < '0') || (ch > '9'))
+        {
+            return FALSE;
+        }
+
+        out = (out * 10) + (sint32)(ch - '0');
+        if (out > 32767)
+        {
+            return FALSE;
+        }
+
+        idx++;
+    }
+
+    *value = (sint16)out;
+    return TRUE;
+}
+
+static float *serial_tune_active_value_ptr(SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return NULL_PTR;
+    }
+
+    switch (st->screen)
+    {
+        case SERIAL_TUNE_SCREEN_EDIT_KP:
+            return &st->kp;
+        case SERIAL_TUNE_SCREEN_EDIT_KI:
+            return &st->ki;
+        case SERIAL_TUNE_SCREEN_EDIT_KD:
+            return &st->kd;
+        default:
+            return NULL_PTR;
+    }
+}
+
+static sint16 *serial_tune_active_int_ptr(SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return NULL_PTR;
+    }
+
+    switch (st->screen)
+    {
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+            return &st->servoClamp;
+        default:
+            return NULL_PTR;
+    }
+}
+
+static const char *serial_tune_active_label(const SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return "";
+    }
+
+    switch (st->screen)
+    {
+        case SERIAL_TUNE_SCREEN_EDIT_KP:
+            return "KP";
+        case SERIAL_TUNE_SCREEN_EDIT_KI:
+            return "KI";
+        case SERIAL_TUNE_SCREEN_EDIT_KD:
+            return "KD";
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+            return "SERVO CLAMP";
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+            return "SERVO LPF";
+        default:
+            return "";
+    }
+}
+
+static void serial_tune_enter_pid_menu(SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->screen = SERIAL_TUNE_SCREEN_MENU;
+    st->inputLen = 0U;
+    st->inputBuf[0] = '\0';
+    serial_tune_draw(st);
+    StatusLed_Green();
+    serial_tune_print_pid_menu();
+}
+
+static void serial_tune_enter_servo_menu(SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->screen = SERIAL_TUNE_SCREEN_SERVO_MENU;
+    st->inputLen = 0U;
+    st->inputBuf[0] = '\0';
+    serial_tune_draw(st);
+    StatusLed_Green();
+    serial_tune_print_servo_menu();
+}
+
+static void serial_tune_enter_edit(SerialTuneState_t *st, SerialTuneScreen_t screen)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->screen = screen;
+    st->inputLen = 0U;
+    st->inputBuf[0] = '\0';
+    serial_tune_draw(st);
+    StatusLed_Yellow();
+    serial_tune_print_edit_help(screen);
+}
+
+static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (ch)
+    {
+        case 'p':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_KP);
+            break;
+        case 'i':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_KI);
+            break;
+        case 'd':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_KD);
+            break;
+        case 's':
+            serial_tune_enter_servo_menu(st);
+            break;
+        case 'q':
+            serial_tune_print_pid_menu();
+            break;
+        default:
+            SerialDebug_WriteLine("Unknown key. Press q for menu.");
+            SerialDebug_WriteString("menu> ");
+            break;
+    }
+}
+
+static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (ch)
+    {
+        case 'c':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP);
+            break;
+        case 'l':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF);
+            break;
+        case 'p':
+            serial_tune_enter_pid_menu(st);
+            break;
+        case 'q':
+            serial_tune_print_servo_menu();
+            break;
+        default:
+            SerialDebug_WriteLine("Unknown key.");
+            SerialDebug_WriteString("servo> ");
+            break;
+    }
+}
+
+static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
+{
+    float parsedValue;
+    float *activeValue;
+    const char *label;
+    char lineBuf[24];
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    if (ch == 'q')
+    {
+        SerialDebug_WriteLine("Edit cancelled.");
+        if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+            (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+        {
+            serial_tune_enter_servo_menu(st);
+        }
+        else
+        {
+            serial_tune_enter_pid_menu(st);
+        }
+        return;
+    }
+
+    if ((ch == '\b') || ((uint8)ch == 0x7FU))
+    {
+        if (st->inputLen > 0U)
+        {
+            st->inputLen--;
+            st->inputBuf[st->inputLen] = '\0';
+            SerialDebug_WriteString("\b \b");
+        }
+        return;
+    }
+
+    if (ch == SERIAL_TUNE_COMMIT_CHAR)
+    {
+        if (serial_tune_active_int_ptr(st) != NULL_PTR)
+        {
+            sint16 parsedIntValue;
+
+            if (serial_tune_parse_int_value(st->inputBuf, &parsedIntValue) != TRUE)
+            {
+                SerialDebug_WriteLine("");
+                SerialDebug_WriteLine("Invalid number.");
+                SerialDebug_WriteString("edit> ");
+                return;
+            }
+
+            *serial_tune_active_int_ptr(st) = parsedIntValue;
+            g_runtimeTune.profile.steerClamp = st->servoClamp;
+        }
+        else
+        {
+            if (serial_tune_parse_value(st->inputBuf, &parsedValue) != TRUE)
+            {
+                SerialDebug_WriteLine("");
+                SerialDebug_WriteLine("Invalid number.");
+                SerialDebug_WriteString("edit> ");
+                return;
+            }
+
+            activeValue = serial_tune_active_value_ptr(st);
+            if (activeValue == NULL_PTR)
+            {
+                if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+                    (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+                {
+                    serial_tune_enter_servo_menu(st);
+                }
+                else
+                {
+                    serial_tune_enter_pid_menu(st);
+                }
+                return;
+            }
+
+            *activeValue = parsedValue;
+
+            switch (st->screen)
+            {
+                case SERIAL_TUNE_SCREEN_EDIT_KP:
+                    g_runtimeTune.profile.kp = st->kp;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_KI:
+                    g_runtimeTune.profile.ki = st->ki;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_KD:
+                    g_runtimeTune.profile.kd = st->kd;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+                    g_runtimeTune.profile.steerLpfAlpha = st->servoLpfAlpha;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        label = serial_tune_active_label(st);
+        (void)snprintf(lineBuf, sizeof(lineBuf), "%s updated.", label);
+        SerialDebug_WriteLine("");
+        SerialDebug_WriteLine(lineBuf);
+        if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+            (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+        {
+            serial_tune_enter_servo_menu(st);
+        }
+        else
+        {
+            serial_tune_enter_pid_menu(st);
+        }
+        return;
+    }
+
+    if (((ch >= '0') && (ch <= '9')) || (ch == '.'))
+    {
+        if (st->inputLen < SERIAL_TUNE_INPUT_MAX_LEN)
+        {
+            if ((ch == '.') && (serial_tune_active_int_ptr(st) != NULL_PTR))
+            {
+                return;
+            }
+
+            if ((ch == '.') && (strchr(st->inputBuf, '.') != NULL_PTR))
+            {
+                return;
+            }
+
+            st->inputBuf[st->inputLen] = ch;
+            st->inputLen++;
+            st->inputBuf[st->inputLen] = '\0';
+            SerialDebug_WriteChar(ch);
+        }
+        return;
+    }
+}
+
 static AppBuildMode_t App_GetSelectedBuildMode(void)
 {
 #if APP_TEST_NXP_CUP
@@ -624,8 +1331,6 @@ static AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_HONOR_LAP;
 #elif APP_TEST_RACE_MODE
     return APP_BUILD_MODE_RACE_MODE;
-#elif APP_TEST_FINAL_DUMMY
-    return APP_BUILD_MODE_FINAL_DUMMY;
 #elif APP_TEST_LINEAR_CAMERA_TEST
     return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
 #else
@@ -918,7 +1623,7 @@ static void ultrasonic_esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_ultrasonicEscTest, 0, sizeof(g_ultrasonicEscTest));
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     Ultrasonic_Init();
@@ -987,8 +1692,9 @@ static void ultrasonic_esc_test_update(uint32 nowMs)
         g_ultrasonicEscTest.commandedSpeedPct =
             honor_speed_from_distance(g_ultrasonicEscTest.hasValidDistance,
                                       g_ultrasonicEscTest.lastDistanceCm);
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct));
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
+                        (int)(-g_ultrasonicEscTest.commandedSpeedPct));
     }
 
     if (time_reached(nowMs, g_ultrasonicEscTest.nextDisplayMs) != TRUE)
@@ -1176,13 +1882,94 @@ static void servo_test_exit(void)
 static void esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_escTest, 0, sizeof(g_escTest));
-    esc_enter(&g_escTest, nowMs);
+
+    g_escTest.mode = ESC_TEST_MODE_BOTH;
+    g_escTest.nextDisplayMs = nowMs;
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    esc_test_disarm(&g_escTest);
     esc_test_draw(&g_escTest);
 }
 
 static void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel)
 {
-    esc_update(&g_escTest, nowMs, sw2Pressed, sw3Pressed, potLevel);
+    Sw2Action_t sw2Action;
+    Sw2Action_t sw3Action;
+    sint16 cmd;
+
+    (void)sw2Pressed;
+    (void)sw3Pressed;
+
+    g_escTest.lastPotLevel = potLevel;
+    sw2Action = ButtonTracker_Update(&g_escTest.sw2Tracker, BUTTON_ID_SW2, nowMs);
+    sw3Action = ButtonTracker_Update(&g_escTest.sw3Tracker, BUTTON_ID_SW3, nowMs);
+
+    if (sw3Action == SW2_ACTION_HOLD)
+    {
+        esc_test_estop(&g_escTest);
+    }
+    else if (sw2Action == SW2_ACTION_HOLD)
+    {
+        if ((g_escTest.state == ESC_TEST_STATE_DISARMED) ||
+            (g_escTest.state == ESC_TEST_STATE_ESTOP))
+        {
+            esc_test_start_arming(&g_escTest, nowMs);
+        }
+        else
+        {
+            esc_test_disarm(&g_escTest);
+        }
+    }
+    else
+    {
+        if ((g_escTest.state == ESC_TEST_STATE_DISARMED) ||
+            (g_escTest.state == ESC_TEST_STATE_ARMED_NEUTRAL) ||
+            (g_escTest.state == ESC_TEST_STATE_ESTOP))
+        {
+            if (sw2Action == SW2_ACTION_CLICK)
+            {
+                g_escTest.mode = (EscTestModeId_t)(((uint8)g_escTest.mode + 1U) %
+                                                   (uint8)ESC_TEST_MODE_COUNT);
+            }
+            if (sw3Action == SW2_ACTION_CLICK)
+            {
+                g_escTest.reverse = (g_escTest.reverse == TRUE) ? FALSE : TRUE;
+            }
+        }
+    }
+
+    cmd = esc_test_command_from_pot(potLevel);
+    if (g_escTest.reverse != TRUE)
+    {
+        cmd = (sint16)(-cmd);
+    }
+    g_escTest.commandPct = cmd;
+
+    if ((g_escTest.state == ESC_TEST_STATE_ARMING) &&
+        (time_reached(nowMs, g_escTest.armDoneMs) == TRUE))
+    {
+        g_escTest.state = ESC_TEST_STATE_ARMED_NEUTRAL;
+    }
+
+    if ((g_escTest.state == ESC_TEST_STATE_ARMED_NEUTRAL) ||
+        (g_escTest.state == ESC_TEST_STATE_RUNNING))
+    {
+        if (g_escTest.commandPct == 0)
+        {
+            g_escTest.requirePotZero = FALSE;
+            g_escTest.state = ESC_TEST_STATE_ARMED_NEUTRAL;
+        }
+        else if (g_escTest.requirePotZero != TRUE)
+        {
+            g_escTest.state = ESC_TEST_STATE_RUNNING;
+        }
+        else
+        {
+            g_escTest.state = ESC_TEST_STATE_ARMED_NEUTRAL;
+        }
+    }
+
+    esc_test_apply_outputs(&g_escTest);
+    esc_test_update_led(&g_escTest, nowMs);
 
     if (time_reached(nowMs, g_escTest.nextDisplayMs) == TRUE)
     {
@@ -1196,6 +1983,191 @@ static void esc_test_exit(void)
     Esc_StopNeutral();
 }
 
+static void esc_test_start_arming(EscManualTestState_t *st, uint32 nowMs)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->state = ESC_TEST_STATE_ARMING;
+    st->armDoneMs = nowMs + ESC_ARM_TIME_MS;
+    st->requirePotZero = TRUE;
+    st->commandPct = 0;
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+    Esc_StopNeutral();
+}
+
+static void esc_test_disarm(EscManualTestState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->state = ESC_TEST_STATE_DISARMED;
+    st->requirePotZero = TRUE;
+    st->commandPct = 0;
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+    Esc_StopNeutral();
+    StatusLed_Blue();
+}
+
+static void esc_test_estop(EscManualTestState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->state = ESC_TEST_STATE_ESTOP;
+    st->requirePotZero = TRUE;
+    st->commandPct = 0;
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+    Esc_StopNeutral();
+}
+
+static sint16 esc_test_command_from_pot(uint8 pot)
+{
+    sint16 cmd = (sint16)(((uint32)pot * (uint32)ESC_TEST_MAX_SPEED_PCT) / 255U);
+
+    if (cmd <= (sint16)MOTOR_DEADBAND_PCT)
+    {
+        cmd = 0;
+    }
+
+    return cmd;
+}
+
+static void esc_test_apply_outputs(EscManualTestState_t *st)
+{
+    sint16 cmd;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+
+    if (st->state == ESC_TEST_STATE_RUNNING)
+    {
+        cmd = st->commandPct;
+
+        switch (st->mode)
+        {
+            case ESC_TEST_MODE_ESC1:
+                st->primaryCmdPct = cmd;
+                break;
+            case ESC_TEST_MODE_ESC2:
+                st->secondaryCmdPct = cmd;
+                break;
+            case ESC_TEST_MODE_DIFF:
+                st->primaryCmdPct = cmd;
+                st->secondaryCmdPct = (sint16)(-cmd);
+                break;
+            case ESC_TEST_MODE_BOTH:
+            default:
+                st->primaryCmdPct = cmd;
+                st->secondaryCmdPct = cmd;
+                break;
+        }
+    }
+
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)st->primaryCmdPct, (int)st->secondaryCmdPct);
+}
+
+static void esc_test_update_led(const EscManualTestState_t *st, uint32 nowMs)
+{
+    boolean blinkOn = (((nowMs / (uint32)ESC_TEST_LED_BLINK_MS) & 1U) == 0U) ? TRUE : FALSE;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (st->state)
+    {
+        case ESC_TEST_STATE_ARMING:
+            if (blinkOn == TRUE) { StatusLed_Cyan(); } else { StatusLed_Off(); }
+            break;
+        case ESC_TEST_STATE_ARMED_NEUTRAL:
+            if (blinkOn == TRUE) { StatusLed_Green(); } else { StatusLed_Off(); }
+            break;
+        case ESC_TEST_STATE_RUNNING:
+            StatusLed_Green();
+            break;
+        case ESC_TEST_STATE_ESTOP:
+            if (blinkOn == TRUE) { StatusLed_Red(); } else { StatusLed_Off(); }
+            break;
+        case ESC_TEST_STATE_DISARMED:
+        default:
+            StatusLed_Blue();
+            break;
+    }
+}
+
+static void esc_test_draw(const EscManualTestState_t *st)
+{
+    const char *stateText = "DIS ";
+    const char *modeText = "BOTH";
+    const char *dirText = "FWD";
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (st->state)
+    {
+        case ESC_TEST_STATE_ARMING:       stateText = "ARM "; break;
+        case ESC_TEST_STATE_ARMED_NEUTRAL:stateText = "RDY "; break;
+        case ESC_TEST_STATE_RUNNING:      stateText = "RUN "; break;
+        case ESC_TEST_STATE_ESTOP:        stateText = "STOP"; break;
+        case ESC_TEST_STATE_DISARMED:
+        default:                          stateText = "DIS "; break;
+    }
+
+    switch (st->mode)
+    {
+        case ESC_TEST_MODE_ESC1: modeText = "ESC1"; break;
+        case ESC_TEST_MODE_ESC2: modeText = "ESC2"; break;
+        case ESC_TEST_MODE_DIFF: modeText = "DIFF"; break;
+        case ESC_TEST_MODE_BOTH:
+        default:                 modeText = "BOTH"; break;
+    }
+
+    if (st->reverse == TRUE)
+    {
+        dirText = "REV";
+    }
+
+    DisplayTextPadded(0U, "ESC TEST");
+    DisplayText(0U, stateText, 4U, 9U);
+
+    DisplayTextPadded(1U, "M:");
+    DisplayText(1U, modeText, 4U, 2U);
+    DisplayText(1U, dirText, 3U, 8U);
+
+    DisplayTextPadded(2U, "E1:");
+    DisplayValue(2U, (int)st->primaryCmdPct, 4U, 3U);
+    DisplayText(2U, "E2:", 3U, 8U);
+    DisplayValue(2U, (int)st->secondaryCmdPct, 4U, 11U);
+
+    DisplayTextPadded(3U, "P:");
+    DisplayValue(3U, (int)st->lastPotLevel, 3U, 2U);
+    DisplayText(3U, "C:", 2U, 7U);
+    DisplayValue(3U, (int)st->commandPct, 4U, 9U);
+    DisplayText(3U, "%", 1U, 14U);
+
+    DisplayRefresh();
+}
+
 static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
 {
     (void)memset(&g_linearCameraTest, 0, sizeof(g_linearCameraTest));
@@ -1206,10 +2178,12 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
     LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
     VisionLinear_InitV2();
     VisionDebug_Init(&g_linearCameraTest.vdbg, 3200U);
+    SerialDebug_ClearTxQueue();
 
     g_linearCameraTest.nextTickMs = nowMs;
     g_linearCameraTest.nextSteerMs = nowMs + STEER_UPDATE_MS;
     g_linearCameraTest.nextDisplayMs = nowMs;
+    g_linearCameraTest.nextStreamMs = nowMs;
 
     if (servoEnabled == TRUE)
     {
@@ -1258,6 +2232,142 @@ static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st)
     DisplayRefresh();
 }
 
+static sint8 linear_camera_test_stream_encode_error(float error)
+{
+    sint32 errorPct = (sint32)(error * 100.0f);
+
+    if (errorPct > 127)
+    {
+        errorPct = 127;
+    }
+    else if (errorPct < -127)
+    {
+        errorPct = -127;
+    }
+
+    return (sint8)errorPct;
+}
+
+static sint8 linear_camera_test_stream_scale_gradient(sint16 gradient, uint16 scaleAbs)
+{
+    sint32 scaled;
+
+    if (scaleAbs == 0U)
+    {
+        scaleAbs = 1U;
+    }
+
+    scaled = ((sint32)gradient * 127) / (sint32)scaleAbs;
+
+    if (scaled > 127)
+    {
+        scaled = 127;
+    }
+    else if (scaled < -127)
+    {
+        scaled = -127;
+    }
+
+    return (sint8)scaled;
+}
+
+static uint8 linear_camera_test_stream_scale_sample(uint16 sample)
+{
+    sample = (uint16)(sample >> 4U);
+    if (sample > 255U)
+    {
+        sample = 255U;
+    }
+
+    return (uint8)sample;
+}
+
+static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
+{
+    uint8 packet[CAM_UART_STREAM_PACKET_BYTES];
+    uint8 checksum = 0U;
+    uint16 packetIndex = 10U;
+    uint16 i;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    packet[0] = CAM_UART_STREAM_SYNC0;
+    packet[1] = CAM_UART_STREAM_SYNC1;
+    packet[2] = CAM_UART_STREAM_TYPE_FRAME;
+    packet[3] = (uint8)(st->streamSeq & 0xFFU);
+    packet[4] = (uint8)((st->streamSeq >> 8U) & 0xFFU);
+    packet[5] = st->result.confidence;
+    packet[6] = (uint8)st->result.status;
+    packet[7] = (uint8)linear_camera_test_stream_encode_error(st->result.error);
+    packet[8] = st->result.leftLineIdx;
+    packet[9] = st->result.rightLineIdx;
+
+    for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
+    {
+        packet[packetIndex++] = linear_camera_test_stream_scale_sample(st->processedFrame.Values[i]);
+    }
+
+    for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
+    {
+        packet[packetIndex++] = linear_camera_test_stream_scale_sample(st->filteredBuf[i]);
+    }
+
+    for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
+    {
+        packet[packetIndex++] = (uint8)linear_camera_test_stream_scale_gradient(st->gradientBuf[i],
+                                                                                st->dbg.maxAbsGradient);
+    }
+
+    packet[packetIndex++] = (uint8)(st->dbg.contrast & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.contrast >> 8U) & 0xFFU);
+    packet[packetIndex++] = (uint8)(st->dbg.maxAbsGradient & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.maxAbsGradient >> 8U) & 0xFFU);
+    packet[packetIndex++] = (uint8)(st->dbg.edgeHighThreshold & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.edgeHighThreshold >> 8U) & 0xFFU);
+    packet[packetIndex++] = (uint8)(st->dbg.edgeLowThreshold & 0xFFU);
+    packet[packetIndex++] = (uint8)((st->dbg.edgeLowThreshold >> 8U) & 0xFFU);
+
+    packet[packetIndex++] = st->dbg.splitPoint;
+    packet[packetIndex++] = st->dbg.finishGapLeftEdgeIdx;
+    packet[packetIndex++] = st->dbg.finishGapRightEdgeIdx;
+    packet[packetIndex++] = st->dbg.laneWidth;
+    packet[packetIndex++] = st->dbg.expectedFinishGap;
+    packet[packetIndex++] = st->dbg.measuredFinishGap;
+    packet[packetIndex++] = st->dbg.edgeCount;
+
+    for (i = 0U; i < (uint16)VLIN_MAX_EDGE_CANDIDATES; i++)
+    {
+        if (i < st->dbg.edgeCount)
+        {
+            packet[packetIndex++] = st->dbg.edges[i].idx;
+            packet[packetIndex++] = (uint8)st->dbg.edges[i].polarity;
+            packet[packetIndex++] = (uint8)(st->dbg.edges[i].strength & 0xFFU);
+            packet[packetIndex++] = (uint8)((st->dbg.edges[i].strength >> 8U) & 0xFFU);
+        }
+        else
+        {
+            packet[packetIndex++] = VISION_LINEAR_INVALID_IDX;
+            packet[packetIndex++] = 0U;
+            packet[packetIndex++] = 0U;
+            packet[packetIndex++] = 0U;
+        }
+    }
+
+    for (i = 2U; i < (uint16)(CAM_UART_STREAM_PACKET_BYTES - 1U); i++)
+    {
+        checksum ^= packet[i];
+    }
+    packet[CAM_UART_STREAM_PACKET_BYTES - 1U] = checksum;
+
+    if (SerialDebug_EnqueueBytes(packet, CAM_UART_STREAM_PACKET_BYTES) != TRUE)
+    {
+        g_linearCameraTest.streamDropCount++;
+    }
+}
+
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel)
 {
     const uint32 loopPeriodMs = 5U;
@@ -1270,6 +2380,7 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
         return;
     }
 
+    SerialDebug_ServiceTx();
     g_linearCameraTest.nextTickMs += loopPeriodMs;
     g_linearCameraTest.tickCount++;
 
@@ -1314,6 +2425,7 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
     if (g_linearCameraTest.paused != TRUE)
     {
         const LinearCameraFrame *latestFrame = NULL_PTR;
+        boolean wantStream = time_reached(nowMs, g_linearCameraTest.nextStreamMs);
 
         if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
         {
@@ -1321,7 +2433,14 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
             g_linearCameraTest.dbg.filteredOut = NULL_PTR;
             g_linearCameraTest.dbg.gradientOut = NULL_PTR;
 
-            if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
+            if (wantStream == TRUE)
+            {
+                g_linearCameraTest.dbg.mask =
+                    (uint32)(VLIN_DBG_FILTERED | VLIN_DBG_GRADIENT | VLIN_DBG_STATS | VLIN_DBG_EDGES);
+                g_linearCameraTest.dbg.filteredOut = g_linearCameraTest.filteredBuf;
+                g_linearCameraTest.dbg.gradientOut = g_linearCameraTest.gradientBuf;
+            }
+            else if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
             {
                 VisionDebug_PrepareVisionDbg(&g_linearCameraTest.vdbg,
                                              &g_linearCameraTest.dbg,
@@ -1339,6 +2458,13 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
 
             g_linearCameraTest.haveValidVision = TRUE;
             g_linearCameraTest.displayDirty = TRUE;
+
+            if (time_reached(nowMs, g_linearCameraTest.nextStreamMs) == TRUE)
+            {
+                linear_camera_test_stream_frame(&g_linearCameraTest);
+                g_linearCameraTest.streamSeq++;
+                g_linearCameraTest.nextStreamMs = nowMs + CAM_UART_STREAM_PERIOD_MS;
+            }
         }
     }
 
@@ -1433,6 +2559,7 @@ static void linear_camera_test_exit(void)
         LinearCameraStopStream();
     }
 
+    SerialDebug_ClearTxQueue();
     StatusLed_Blue();
 }
 
@@ -1454,6 +2581,14 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
 
         case RUNTIME_TEST_CAMSERVO:
             linear_camera_test_enter_common(nowMs, TRUE);
+            break;
+
+        case RUNTIME_TEST_SIMPLE_DRIVE:
+            simple_drive_test_enter(nowMs);
+            break;
+
+        case RUNTIME_TEST_SERIAL_TUNE:
+            serial_tune_test_enter(nowMs);
             break;
 
         case RUNTIME_TEST_ULTRA_ESC:
@@ -1495,6 +2630,14 @@ static void runtime_test_update(RuntimeTestId_t testId,
             linear_camera_test_update(nowMs, FALSE, potLevel);
             break;
 
+        case RUNTIME_TEST_SIMPLE_DRIVE:
+            simple_drive_test_update(nowMs, sw2Pressed, modeNextPressed);
+            break;
+
+        case RUNTIME_TEST_SERIAL_TUNE:
+            serial_tune_test_update();
+            break;
+
         case RUNTIME_TEST_ULTRA_ESC:
             ultrasonic_esc_test_update(nowMs);
             break;
@@ -1530,6 +2673,14 @@ static void runtime_test_exit(RuntimeTestId_t testId)
             linear_camera_test_exit();
             break;
 
+        case RUNTIME_TEST_SIMPLE_DRIVE:
+            simple_drive_test_exit();
+            break;
+
+        case RUNTIME_TEST_SERIAL_TUNE:
+            serial_tune_test_exit();
+            break;
+
         case RUNTIME_TEST_ULTRA_ESC:
             ultrasonic_esc_test_exit();
             break;
@@ -1554,7 +2705,7 @@ static void esc_enter(EscRunState_t *st, uint32 nowMs)
     st->currentCmdPct = 0;
     st->lastPotLevel = (uint8)POT_CENTER_RAW;
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 }
 
@@ -1589,8 +2740,8 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         st->mode = CAR_ARMING;
         st->startGoMs = nowMs + START_DELAY_MS;
 
-        Esc_SetLogicalSpeed(0);
-        EscSetBrake(0U);
+        Esc_SetLogicalSpeed(0, 0);
+        EscSetBrake(0U, 0U);
     }
 
     if ((st->mode == CAR_ARMING) && (time_reached(nowMs, st->startGoMs) == TRUE))
@@ -1637,8 +2788,8 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         }
 
         st->currentCmdPct = (sint16)cmdPct;
-        EscSetBrake(0U);
-        Esc_SetLogicalSpeed((int)cmdPct);
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed((int)cmdPct, (int)cmdPct);
     }
 
     if (st->mode == CAR_RUN)
@@ -1657,55 +2808,6 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
     {
         StatusLed_Blue();
     }
-}
-
-static void esc_test_draw(const EscRunState_t *st)
-{
-    const char *modeText = "UNKNOWN";
-    char percentText[17];
-
-    if (st == NULL_PTR)
-    {
-        return;
-    }
-
-    switch (st->mode)
-    {
-        case CAR_INIT:
-            modeText = "State: INIT";
-            break;
-
-        case CAR_IDLE:
-            modeText = "State: IDLE";
-            break;
-
-        case CAR_ARMING:
-            modeText = "State: ARMING";
-            break;
-
-        case CAR_RUN:
-            modeText = "State: RUN";
-            break;
-
-        default:
-            modeText = "State: OTHER";
-            break;
-    }
-
-    DisplayTextPadded(0U, "ESC TEST");
-    DisplayTextPadded(1U, modeText);
-
-    DisplayTextPadded(2U, "Pot:");
-    DisplayValue(2U, (int)st->lastPotLevel, 3U, 4U);
-
-    DisplayTextPadded(3U, "Cmd:");
-    DisplayValue(3U, (int)st->currentCmdPct, 4U, 4U);
-    (void)memset(percentText, ' ', 16U);
-    percentText[0] = '%';
-    percentText[16] = '\0';
-    DisplayText(3U, percentText, 1U, 8U);
-
-    DisplayRefresh();
 }
 
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile)
@@ -1770,19 +2872,8 @@ static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const
 
 static void camservo_enter(CamServoState_t *st, uint32 nowMs)
 {
-    const CamTuneProfile_t defaultProfile =
-    {
-        KP,
-        KD,
-        KI,
-        ITERM_CLAMP,
-        0.45f,
-        (sint16)STEER_CMD_CLAMP,
-        8,
-        20U
-    };
-
-    camservo_enter_with_profile(st, nowMs, &defaultProfile);
+    RuntimeTune_InitDefaults();
+    camservo_enter_with_profile(st, nowMs, &g_runtimeTune.profile);
 }
 
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
@@ -1897,89 +2988,91 @@ static void camservo_exit(void)
     }
 }
 
-static void final_dummy_enter(uint32 nowMs)
+static void simple_drive_test_enter(uint32 nowMs)
 {
-    (void)memset(&g_finalDummy, 0, sizeof(g_finalDummy));
+    (void)memset(&g_simpleDriveTest, 0, sizeof(g_simpleDriveTest));
 
-    g_finalDummy.state = DUMMY_ESC;
-    esc_enter(&g_finalDummy.escSt, nowMs);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_StopNeutral();
+
+    camservo_enter(&g_simpleDriveTest.camSt, nowMs);
+    g_simpleDriveTest.armDoneMs = nowMs + ESC_ARM_TIME_MS;
+    g_simpleDriveTest.nextAutoSpeedMs = g_simpleDriveTest.armDoneMs;
+    g_simpleDriveTest.autoSpeedPct = 0;
+
     StatusLed_Blue();
 }
 
-static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel)
+static void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed)
 {
-    if (sw3Pressed == TRUE)
-    {
-        if (g_finalDummy.state == DUMMY_ESC)
-        {
-            Esc_StopNeutral();
-            camservo_enter(&g_finalDummy.camSt, nowMs);
-            g_finalDummy.state = DUMMY_CAM;
-            StatusLed_Cyan();
+    camservo_update(&g_simpleDriveTest.camSt, nowMs, sw2Pressed);
 
-            g_finalDummy.autoSpeedPct = 0;
-            g_finalDummy.nextAutoSpeedMs = nowMs;
-            EscSetBrake(0U);
-            Esc_SetLogicalSpeed(0);
+    if (time_reached(nowMs, g_simpleDriveTest.armDoneMs) != TRUE)
+    {
+        g_simpleDriveTest.autoSpeedPct = 0;
+        Esc_StopNeutral();
+        StatusLed_Blue();
+        return;
+    }
+
+    if (g_simpleDriveTest.runEnabled != TRUE)
+    {
+        if (sw3Pressed == TRUE)
+        {
+            g_simpleDriveTest.runEnabled = TRUE;
+            g_simpleDriveTest.nextAutoSpeedMs = nowMs;
         }
         else
         {
-            camservo_exit();
-            esc_enter(&g_finalDummy.escSt, nowMs);
-            g_finalDummy.state = DUMMY_ESC;
+            g_simpleDriveTest.autoSpeedPct = 0;
+            Esc_StopNeutral();
             StatusLed_Blue();
-
-            g_finalDummy.autoSpeedPct = 0;
-            g_finalDummy.nextAutoSpeedMs = 0u;
+            return;
         }
-
-        sw3Pressed = FALSE;
     }
 
-    if (g_finalDummy.state == DUMMY_ESC)
+    if (time_reached(nowMs, g_simpleDriveTest.nextAutoSpeedMs) == TRUE)
     {
-        esc_update(&g_finalDummy.escSt, nowMs, sw2Pressed, sw3Pressed, potLevel);
+        g_simpleDriveTest.nextAutoSpeedMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+
+        if (g_simpleDriveTest.autoSpeedPct < (sint32)FULL_AUTO_SPEED_PCT)
+        {
+            g_simpleDriveTest.autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
+            if (g_simpleDriveTest.autoSpeedPct > (sint32)FULL_AUTO_SPEED_PCT)
+            {
+                g_simpleDriveTest.autoSpeedPct = (sint32)FULL_AUTO_SPEED_PCT;
+            }
+        }
+
+        if (g_simpleDriveTest.autoSpeedPct < 0)
+        {
+            g_simpleDriveTest.autoSpeedPct = 0;
+        }
+        if (g_simpleDriveTest.autoSpeedPct > 100)
+        {
+            g_simpleDriveTest.autoSpeedPct = 100;
+        }
+
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed((int)(-g_simpleDriveTest.autoSpeedPct),
+                            (int)(-g_simpleDriveTest.autoSpeedPct));
+    }
+
+    if ((g_simpleDriveTest.camSt.haveValidVision == TRUE) &&
+        (g_simpleDriveTest.camSt.result.status != VISION_TRACK_LOST))
+    {
+        StatusLed_Cyan();
     }
     else
     {
-        camservo_update(&g_finalDummy.camSt, nowMs, sw2Pressed);
-
-        if (time_reached(nowMs, g_finalDummy.nextAutoSpeedMs) == TRUE)
-        {
-            g_finalDummy.nextAutoSpeedMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
-
-            if (g_finalDummy.autoSpeedPct < (sint32)FULL_AUTO_SPEED_PCT)
-            {
-                g_finalDummy.autoSpeedPct += (sint32)FULL_AUTO_RAMP_STEP_PCT;
-                if (g_finalDummy.autoSpeedPct > (sint32)FULL_AUTO_SPEED_PCT)
-                {
-                    g_finalDummy.autoSpeedPct = (sint32)FULL_AUTO_SPEED_PCT;
-                }
-            }
-
-            if (g_finalDummy.autoSpeedPct < 0)
-            {
-                g_finalDummy.autoSpeedPct = 0;
-            }
-            if (g_finalDummy.autoSpeedPct > 100)
-            {
-                g_finalDummy.autoSpeedPct = 100;
-              }
-
-              EscSetBrake(0U);
-              Esc_SetLogicalSpeed((int)(-g_finalDummy.autoSpeedPct));
-          }
-
-        if ((g_finalDummy.camSt.haveValidVision == TRUE) &&
-            (g_finalDummy.camSt.result.status != VISION_TRACK_LOST))
-        {
-            StatusLed_Cyan();
-        }
-        else
-        {
-            StatusLed_Yellow();
-        }
+        StatusLed_Yellow();
     }
+}
+
+static void simple_drive_test_exit(void)
+{
+    camservo_exit();
+    Esc_StopNeutral();
 }
 
 static uint8 tests_menu_map_pot_to_index(uint8 pot, uint8 nItems)
@@ -2083,6 +3176,7 @@ static void mode_nxp_cup_tests(void)
     {
         uint32 nowMs = Timebase_GetMs();
         boolean sw2Pressed = FALSE;
+        boolean sw3Pressed = FALSE;
         boolean modeSwitchOn;
         uint8 potLevel;
 
@@ -2121,7 +3215,8 @@ static void mode_nxp_cup_tests(void)
             else
             {
                 sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-                runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, FALSE, potLevel);
+                sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
+                runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, sw3Pressed, potLevel);
             }
         }
     }
@@ -2139,14 +3234,14 @@ static void nxp_cup_obstacle_stop_motor(void)
 
 static void nxp_cup_launch_motor(int logicalCmd)
 {
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed(logicalCmd);
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
 
     for (uint8 pulse = 1U; pulse < (uint8)ESC_LAUNCH_PULSE_COUNT; pulse++)
     {
         busy_delay((uint32)ESC_LAUNCH_PULSE_DELAY_TICKS);
-        EscSetBrake(0U);
-        Esc_SetLogicalSpeed(logicalCmd);
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
     }
 }
 
@@ -2549,7 +3644,7 @@ static void mode_nxp_cup(void)
                 g_nxpCup.nextAutoSpeedMs = 0U;
 
                 nxp_cup_ultra_enter(&g_nxpCup.ultraSt, nowMs);
-                EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+                EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
                 g_nxpCup.escRearmDoneMs = nowMs + ESC_ARM_TIME_MS + NXP_ESC_EXTRA_SETTLE_MS;
                 g_nxpCup.state = NXP_CUP_STATE_ESC_REARM;
                 continue;
@@ -2793,36 +3888,6 @@ static void mode_linear_camera_test(void)
     }
 }
 
-static void mode_final_dummy(void)
-{
-    uint32 nextButtonsMs;
-
-    App_InitRuntimeCommon();
-    final_dummy_enter(Timebase_GetMs());
-
-    nextButtonsMs = Timebase_GetMs();
-
-    for (;;)
-    {
-        uint32 nowMs = Timebase_GetMs();
-        boolean sw2Pressed;
-        boolean sw3Pressed;
-        uint8 potLevel;
-
-        while (time_reached(nowMs, nextButtonsMs) == TRUE)
-        {
-            Buttons_Update();
-            nextButtonsMs += BUTTONS_PERIOD_MS;
-        }
-
-        sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-        sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
-        potLevel = OnboardPot_ReadLevelFiltered();
-
-        final_dummy_update(nowMs, sw2Pressed, sw3Pressed, potLevel);
-    }
-}
-
 static sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm)
 {
     if (hasValidDistance == TRUE)
@@ -2871,7 +3936,7 @@ static void honor_lap_enter(uint32 nowMs)
 
     (void)memset(&g_honorLap, 0, sizeof(g_honorLap));
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     armStartMs = Timebase_GetMs();
@@ -2948,8 +4013,9 @@ static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLev
         g_honorLap.commandedSpeedPct = 0;
     }
 
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct));
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct),
+                        (int)(-g_honorLap.commandedSpeedPct));
 
     if (time_reached(nowMs, g_honorLap.nextDisplayMs) == TRUE)
     {
@@ -3018,7 +4084,7 @@ static void race_mode_enter(uint32 nowMs)
     g_raceMode.armDoneMs = nowMs + ESC_ARM_TIME_MS;
     g_raceMode.lastDistanceMs = nowMs;
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
@@ -3296,8 +4362,9 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         }
         else
         {
-            EscSetBrake(0U);
-            Esc_SetLogicalSpeed((int)(-st->currentSpeedPct));
+            EscSetBrake(0U, 0U);
+            Esc_SetLogicalSpeed((int)(-st->currentSpeedPct),
+                                (int)(-st->currentSpeedPct));
         }
     }
 
@@ -3449,6 +4516,75 @@ static void mode_race_mode(void)
     }
 }
 
+static void serial_tune_test_enter(uint32 nowMs)
+{
+    (void)nowMs;
+    RuntimeTune_InitDefaults();
+
+    (void)memset(&g_serialTune, 0, sizeof(g_serialTune));
+    g_serialTune.kp = g_runtimeTune.profile.kp;
+    g_serialTune.ki = g_runtimeTune.profile.ki;
+    g_serialTune.kd = g_runtimeTune.profile.kd;
+    g_serialTune.servoClamp = g_runtimeTune.profile.steerClamp;
+    g_serialTune.servoLpfAlpha = g_runtimeTune.profile.steerLpfAlpha;
+    g_serialTune.screen = SERIAL_TUNE_SCREEN_WAIT;
+
+    serial_tune_draw(&g_serialTune);
+    StatusLed_Blue();
+    SerialDebug_WriteLine("");
+    SerialDebug_WriteLine("=== Serial Tune Mode ===");
+    SerialDebug_WriteLine("Open terminal at 115200 8N1.");
+    SerialDebug_WriteString("Send '");
+    SerialDebug_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
+    SerialDebug_WriteLine("' to connect.");
+    SerialDebug_WriteString("> ");
+}
+
+static void serial_tune_test_update(void)
+{
+    char rxChar;
+
+    while (SerialDebug_TryReadChar(&rxChar) == TRUE)
+    {
+        if (g_serialTune.connected != TRUE)
+        {
+            if (rxChar != SERIAL_TUNE_CONNECT_CHAR)
+            {
+                serial_tune_echo_char(rxChar);
+                SerialDebug_WriteString("Send '");
+                SerialDebug_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
+                SerialDebug_WriteLine("' to connect.");
+                SerialDebug_WriteString("> ");
+                continue;
+            }
+
+            g_serialTune.connected = TRUE;
+            StatusLed_Green();
+            serial_tune_enter_pid_menu(&g_serialTune);
+            continue;
+        }
+
+        if (g_serialTune.screen == SERIAL_TUNE_SCREEN_MENU)
+        {
+            serial_tune_handle_pid_menu_char(&g_serialTune, rxChar);
+        }
+        else if (g_serialTune.screen == SERIAL_TUNE_SCREEN_SERVO_MENU)
+        {
+            serial_tune_handle_servo_menu_char(&g_serialTune, rxChar);
+        }
+        else
+        {
+            serial_tune_handle_edit_char(&g_serialTune, rxChar);
+        }
+    }
+}
+
+static void serial_tune_test_exit(void)
+{
+    SerialDebug_WriteLine("");
+    SerialDebug_WriteLine("Leaving Serial Tune.");
+}
+
 void App_RunSelectedMode(void)
 {
     switch (App_GetSelectedBuildMode())
@@ -3463,10 +4599,6 @@ void App_RunSelectedMode(void)
 
         case APP_BUILD_MODE_RACE_MODE:
             mode_race_mode();
-            break;
-
-        case APP_BUILD_MODE_FINAL_DUMMY:
-            mode_final_dummy();
             break;
 
         case APP_BUILD_MODE_HONOR_LAP:

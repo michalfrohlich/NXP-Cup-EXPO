@@ -703,6 +703,7 @@ PORT_CONFIG_VS_0_PB \
 #define PortConf_PortPin_Display_I2c_Sda 1
 #define PortConf_PortPin_Display_I2c_Scl 0
 #define PortConf_PortPin_Esc_Pwm 2
+#define PortConf_PortPin_Esc2_Pwm 21
 #define PortConf_PortPin_Servo_Pwm 3
 #define PortConf_PortPin_Motor1_Speed 4
 #define PortConf_PortPin_Motor1_Forward 5
@@ -721,6 +722,8 @@ PORT_CONFIG_VS_0_PB \
 #define PortConf_PortPin_RED_pin 18
 #define PortConf_PortPin_GREEN_pin 19
 #define PortConf_PortPin_BLUE_pin 20
+#define PortConf_PortPin_Uart_Rx 22
+#define PortConf_PortPin_Uart_Tx 23
 
 /**
 * @brief Number of available pad modes options
@@ -740,12 +743,12 @@ PORT_CONFIG_VS_0_PB \
 /**
 * @brief The maximum number of configured pins
 */
-#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)21)
+#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)24)
 
 /**
  * @brief Number of UnUsed pin array
 */
-#define PORT_MAX_UNUSED_PADS_U16    (63U)
+#define PORT_MAX_UNUSED_PADS_U16    (60U)
 
 /**
 * @brief Port driver Pre-Compile configuration switch
