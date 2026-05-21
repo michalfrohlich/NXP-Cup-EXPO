@@ -108,7 +108,7 @@ extern "C"{
 #define PORT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Port_MemMap.h"
 
-const Port_Ci_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr_VS_0[NUM_OF_CONFIGURED_PINS] =
+const Port_Ci_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr_VS_0[NUM_OF_CONFIGURED_PINS] = 
 {
     {
         .portBase              = IP_PORTA,
@@ -385,6 +385,30 @@ const Port_Ci_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr_VS_0[NUM_OF_CONF
         .lockRegister          = PORT_LOCK_REGISTER_DISABLED,
         .digitalFilter         = (boolean)FALSE,
         .initValue             = 1
+    },
+    {
+        .portBase              = IP_PORTC,
+        .gpioBase              = NULL_PTR,
+        .pinPortIdx            = 6,
+        .mux                   = PORT_MUX_ALT2,
+        .direction             = PORT_CI_PORT_PIN_IN,
+        .pullConfig            = PORT_INTERNAL_PULL_NOT_ENABLED,
+        .driveStrength         = PORT_DRIVE_STRENGTH_LOW,
+        .passiveFilter         = (boolean)FALSE,
+        .lockRegister          = PORT_LOCK_REGISTER_DISABLED,
+        .digitalFilter         = (boolean)FALSE
+    },
+    {
+        .portBase              = IP_PORTC,
+        .gpioBase              = NULL_PTR,
+        .pinPortIdx            = 7,
+        .mux                   = PORT_MUX_ALT2,
+        .direction             = PORT_CI_PORT_PIN_OUT,
+        .pullConfig            = PORT_INTERNAL_PULL_NOT_ENABLED,
+        .driveStrength         = PORT_DRIVE_STRENGTH_LOW,
+        .passiveFilter         = (boolean)FALSE,
+        .lockRegister          = PORT_LOCK_REGISTER_DISABLED,
+        .digitalFilter         = (boolean)FALSE
     }
 };
 

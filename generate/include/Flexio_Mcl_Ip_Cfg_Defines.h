@@ -46,6 +46,10 @@ extern "C"
 #if defined(I2C_CHANNEL_0_USED) || defined(I2C_CHANNEL_1_USED) || defined(I2C_CHANNEL_2_USED) || defined(I2C_CHANNEL_3_USED)|| defined(I2C_CHANNEL_4_USED) || defined(I2C_CHANNEL_5_USED) || defined(I2C_CHANNEL_6_USED) || defined(I2C_CHANNEL_7_USED)
     #define USE_I2C_MODULE
 #endif
+#include "Flexio_Uart_Ip_CfgDefines.h"
+#if defined(UART_CHANNEL_0_USED) || defined(UART_CHANNEL_1_USED) || defined(UART_CHANNEL_2_USED) || defined(UART_CHANNEL_3_USED)|| defined(UART_CHANNEL_4_USED) || defined(UART_CHANNEL_5_USED) || defined(UART_CHANNEL_6_USED) || defined(UART_CHANNEL_7_USED)
+    #define USE_UART_MODULE
+#endif
 #include "Flexio_Pwm_Ip_CfgDefines.h"
 #if defined(PWM_CHANNEL_0_USED) || defined(PWM_CHANNEL_1_USED) || defined(PWM_CHANNEL_2_USED) || defined(PWM_CHANNEL_3_USED)|| defined(PWM_CHANNEL_4_USED) || defined(PWM_CHANNEL_5_USED) || defined(PWM_CHANNEL_6_USED) || defined(PWM_CHANNEL_7_USED)
     #define USE_PWM_MODULE

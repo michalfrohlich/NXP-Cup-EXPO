@@ -174,7 +174,7 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg0 =
     /* FaultOutState */         FTM_PWM_IP_OUT_SAFE_VALUE,
     /* FaultInFilter */         0U,
     /* FaultIrqEn */            (boolean)FALSE,
-#endif
+#endif    
     /* SyncCfg */               &Ftm_Pwm_Ip_VS_0_SyncCfg0
 };
 
@@ -199,7 +199,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I0_Ch1 =
     /* SwControlEn */           (boolean)TRUE,
     /* SwControlVal */          (boolean)FALSE,
     /* ExtTrigEn */             (boolean)FALSE,
-#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
     /* DutyCycle */             0U,
@@ -225,7 +225,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I0_Ch2 =
     /* SwControlEn */           (boolean)TRUE,
     /* SwControlVal */          (boolean)FALSE,
     /* ExtTrigEn */             (boolean)FALSE,
-#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
     /* DutyCycle */             0U,
@@ -320,7 +320,7 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg3 =
     /* FaultOutState */         FTM_PWM_IP_OUT_SAFE_VALUE,
     /* FaultInFilter */         0U,
     /* FaultIrqEn */            (boolean)FALSE,
-#endif
+#endif    
     /* SyncCfg */               &Ftm_Pwm_Ip_VS_0_SyncCfg3
 };
 
@@ -345,7 +345,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch7 =
     /* SwControlEn */           (boolean)TRUE,
     /* SwControlVal */          (boolean)FALSE,
     /* ExtTrigEn */             (boolean)FALSE,
-#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
     /* DutyCycle */             0U,
@@ -371,7 +371,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch6 =
     /* SwControlEn */           (boolean)TRUE,
     /* SwControlVal */          (boolean)FALSE,
     /* ExtTrigEn */             (boolean)FALSE,
-#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
     /* DutyCycle */             0U,
@@ -397,7 +397,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I3_Ch2 =
     /* SwControlEn */           (boolean)TRUE,
     /* SwControlVal */          (boolean)FALSE,
     /* ExtTrigEn */             (boolean)FALSE,
-#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
     /* DutyCycle */             0U,
@@ -493,7 +493,7 @@ const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg2 =
     /* FaultOutState */         FTM_PWM_IP_OUT_SAFE_VALUE,
     /* FaultInFilter */         0U,
     /* FaultIrqEn */            (boolean)FALSE,
-#endif
+#endif    
     /* SyncCfg */               &Ftm_Pwm_Ip_VS_0_SyncCfg2
 };
 
@@ -518,7 +518,7 @@ const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I2_Ch0 =
     /* SwControlEn */           (boolean)FALSE,
     /* SwControlVal */          (boolean)FALSE,
     /* ExtTrigEn */             (boolean)FALSE,
-#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))
+#if (defined(FTM_PWM_IP_HAS_RELOAD_POINT) && (FTM_PWM_IP_HAS_RELOAD_POINT == STD_ON))    
     /* ChMatchLoadEn */         (boolean)FALSE,
 #endif
     /* DutyCycle */             0U,
