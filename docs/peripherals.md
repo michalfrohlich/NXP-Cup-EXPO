@@ -13,6 +13,7 @@ Notes:
 - The handwritten camera driver drives `SI` across two falling camera-clock edges, then starts one ADC conversion on each following falling edge until `128` pixels are stored.
 - If a new GPT frame request arrives before the current frame is done, the driver latches it and starts the next frame only after the current readout completes.
 - Each ADC callback stores one pixel into a handwritten ping-pong frame buffer.
+- Application modes consume completed frames when the camera driver publishes a ready buffer; UI/debug/control housekeeping is separately rate-limited.
 - The OLED waiting screen uses a neutral driver debug-counters snapshot instead of exposing ADC/DMA-specific counter getters.
 
 ## PWM

@@ -61,7 +61,8 @@
 | --- | --- | --- |
 | Main clock init config | `board_init.c` + generated MCU clock config | `McuClockSettingConfig_0` |
 | Buttons polling period | `src/app/car_config.h` | `5 ms` |
-| Camera loop period | `src/app/car_config.h` | `5 ms` |
+| Camera debug UI period | `src/app/car_config.h` | `5 ms` |
+| Cam+Servo control housekeeping period | `src/app/car_config.h` | `5 ms` |
 | Default display refresh period | `src/app/car_config.h` | `20 ms` |
 | Camera debug display period | `src/app/car_config.h` | `100 ms` |
 | Steering update period | `src/app/car_config.h` | `10 ms` |

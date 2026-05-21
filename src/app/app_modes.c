@@ -141,11 +141,10 @@ typedef struct
     sint16 steerRaw;
     sint16 steerFilt;
     sint16 steerOut;
-    uint32 nextTickMs;
+    uint32 nextUiMs;
     uint32 nextSteerMs;
     uint32 nextDisplayMs;
     uint32 nextStreamMs;
-    uint32 tickCount;
     uint16 streamSeq;
     uint16 streamDropCount;
     boolean haveValidVision;
@@ -233,10 +232,9 @@ typedef struct
     sint16 steerRaw;
     sint16 steerFilt;
     sint16 steerOut;
-    uint32 nextTickMs;
+    uint32 nextControlMs;
     uint32 nextSteerMs;
     uint32 nextDisplayMs;
-    uint32 tickCount;
     boolean displayDirty;
     CamTuneProfile_t activeTune;
 } CamServoState_t;
@@ -324,7 +322,6 @@ typedef struct
     SteeringLinearState_t ctrl;
     LinearCameraFrame processedFrame;
     VisionOutput_t result;
-    uint32 nextVisionMs;
     uint32 nextControlMs;
     uint32 nextSpeedRampMs;
     uint32 nextUltraTrigMs;
@@ -502,6 +499,7 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled);
 static void linear_camera_test_enter(uint32 nowMs);
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
 static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st);
+static void linear_camera_test_process_latest_frame(uint32 nowMs);
 static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st);
 static void linear_camera_test_exit(void);
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs);
@@ -516,6 +514,7 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile);
 static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile);
 static void camservo_enter(CamServoState_t *st, uint32 nowMs);
+static void camservo_process_latest_frame(CamServoState_t *st, uint32 nowMs);
 static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2);
 static void camservo_exit(void);
 static void simple_drive_test_enter(uint32 nowMs);
@@ -2180,7 +2179,7 @@ static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
     VisionDebug_Init(&g_linearCameraTest.vdbg, 3200U);
     SerialDebug_ClearTxQueue();
 
-    g_linearCameraTest.nextTickMs = nowMs;
+    g_linearCameraTest.nextUiMs = nowMs;
     g_linearCameraTest.nextSteerMs = nowMs + STEER_UPDATE_MS;
     g_linearCameraTest.nextDisplayMs = nowMs;
     g_linearCameraTest.nextStreamMs = nowMs;
@@ -2368,21 +2367,76 @@ static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
     }
 }
 
-static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel)
+static void linear_camera_test_process_latest_frame(uint32 nowMs)
 {
-    const uint32 loopPeriodMs = 5U;
-    Sw2Action_t sw2Action;
-    boolean sw2ClickHandled = FALSE;
-    boolean screenTogglePressed;
+    const LinearCameraFrame *latestFrame = NULL_PTR;
+    boolean wantStream;
 
-    if ((uint32)(nowMs - g_linearCameraTest.nextTickMs) < loopPeriodMs)
+    if (g_linearCameraTest.paused == TRUE)
     {
         return;
     }
 
+    if (LinearCameraGetLatestFrame(&latestFrame) != TRUE)
+    {
+        return;
+    }
+
+    wantStream = time_reached(nowMs, g_linearCameraTest.nextStreamMs);
+
+    g_linearCameraTest.dbg.mask = (uint32)VLIN_DBG_NONE;
+    g_linearCameraTest.dbg.filteredOut = NULL_PTR;
+    g_linearCameraTest.dbg.gradientOut = NULL_PTR;
+
+    if (wantStream == TRUE)
+    {
+        g_linearCameraTest.dbg.mask =
+            (uint32)(VLIN_DBG_FILTERED | VLIN_DBG_GRADIENT | VLIN_DBG_STATS | VLIN_DBG_EDGES);
+        g_linearCameraTest.dbg.filteredOut = g_linearCameraTest.filteredBuf;
+        g_linearCameraTest.dbg.gradientOut = g_linearCameraTest.gradientBuf;
+    }
+    else if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
+    {
+        VisionDebug_PrepareVisionDbg(&g_linearCameraTest.vdbg,
+                                     &g_linearCameraTest.dbg,
+                                     g_linearCameraTest.filteredBuf,
+                                     g_linearCameraTest.gradientBuf);
+    }
+
+    (void)memcpy(g_linearCameraTest.processedFrame.Values,
+                 &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                 ((size_t)VISION_LINEAR_BUFFER_SIZE *
+                  sizeof(g_linearCameraTest.processedFrame.Values[0])));
+    VisionLinear_ProcessFrameEx(g_linearCameraTest.processedFrame.Values,
+                                &g_linearCameraTest.result,
+                                &g_linearCameraTest.dbg);
+
+    g_linearCameraTest.haveValidVision = TRUE;
+    g_linearCameraTest.displayDirty = TRUE;
+
+    if (wantStream == TRUE)
+    {
+        linear_camera_test_stream_frame(&g_linearCameraTest);
+        g_linearCameraTest.streamSeq++;
+        g_linearCameraTest.nextStreamMs = nowMs + CAM_UART_STREAM_PERIOD_MS;
+    }
+}
+
+static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel)
+{
+    Sw2Action_t sw2Action;
+    boolean sw2ClickHandled = FALSE;
+    boolean screenTogglePressed;
+
     SerialDebug_ServiceTx();
-    g_linearCameraTest.nextTickMs += loopPeriodMs;
-    g_linearCameraTest.tickCount++;
+    linear_camera_test_process_latest_frame(nowMs);
+
+    if ((uint32)(nowMs - g_linearCameraTest.nextUiMs) < CAM_DEBUG_UI_PERIOD_MS)
+    {
+        return;
+    }
+
+    g_linearCameraTest.nextUiMs += CAM_DEBUG_UI_PERIOD_MS;
 
     sw2Action = Sw2Tracker_Update(&g_linearCameraTest.sw2Tracker, nowMs);
 
@@ -2420,52 +2474,6 @@ static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uin
     if ((screenTogglePressed == TRUE) || (modeNextPressed == TRUE))
     {
         g_linearCameraTest.displayDirty = TRUE;
-    }
-
-    if (g_linearCameraTest.paused != TRUE)
-    {
-        const LinearCameraFrame *latestFrame = NULL_PTR;
-        boolean wantStream = time_reached(nowMs, g_linearCameraTest.nextStreamMs);
-
-        if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
-        {
-            g_linearCameraTest.dbg.mask = (uint32)VLIN_DBG_NONE;
-            g_linearCameraTest.dbg.filteredOut = NULL_PTR;
-            g_linearCameraTest.dbg.gradientOut = NULL_PTR;
-
-            if (wantStream == TRUE)
-            {
-                g_linearCameraTest.dbg.mask =
-                    (uint32)(VLIN_DBG_FILTERED | VLIN_DBG_GRADIENT | VLIN_DBG_STATS | VLIN_DBG_EDGES);
-                g_linearCameraTest.dbg.filteredOut = g_linearCameraTest.filteredBuf;
-                g_linearCameraTest.dbg.gradientOut = g_linearCameraTest.gradientBuf;
-            }
-            else if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
-            {
-                VisionDebug_PrepareVisionDbg(&g_linearCameraTest.vdbg,
-                                             &g_linearCameraTest.dbg,
-                                             g_linearCameraTest.filteredBuf,
-                                             g_linearCameraTest.gradientBuf);
-            }
-
-            (void)memcpy(g_linearCameraTest.processedFrame.Values,
-                         &latestFrame->Values[CAM_TRIM_LEFT_PX],
-                         ((size_t)VISION_LINEAR_BUFFER_SIZE *
-                          sizeof(g_linearCameraTest.processedFrame.Values[0])));
-            VisionLinear_ProcessFrameEx(g_linearCameraTest.processedFrame.Values,
-                                        &g_linearCameraTest.result,
-                                        &g_linearCameraTest.dbg);
-
-            g_linearCameraTest.haveValidVision = TRUE;
-            g_linearCameraTest.displayDirty = TRUE;
-
-            if (time_reached(nowMs, g_linearCameraTest.nextStreamMs) == TRUE)
-            {
-                linear_camera_test_stream_frame(&g_linearCameraTest);
-                g_linearCameraTest.streamSeq++;
-                g_linearCameraTest.nextStreamMs = nowMs + CAM_UART_STREAM_PERIOD_MS;
-            }
-        }
     }
 
     if ((g_linearCameraTest.servoEnabled == TRUE) &&
@@ -2859,10 +2867,9 @@ static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const
 
     st->haveValidVision = FALSE;
     st->lastFrameMs = nowMs;
-    st->nextTickMs = nowMs;
+    st->nextControlMs = nowMs;
     st->nextSteerMs = nowMs + STEER_UPDATE_MS;
     st->nextDisplayMs = nowMs;
-    st->tickCount = 0u;
     st->displayDirty = FALSE;
 
     camservo_apply_profile(st, profile);
@@ -2876,42 +2883,57 @@ static void camservo_enter(CamServoState_t *st, uint32 nowMs)
     camservo_enter_with_profile(st, nowMs, &g_runtimeTune.profile);
 }
 
-static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
+static void camservo_process_latest_frame(CamServoState_t *st, uint32 nowMs)
 {
-    const uint32 loopMs = (uint32)V2_LOOP_PERIOD_MS;
     const LinearCameraFrame *latestFrame = NULL_PTR;
 
-    if ((uint32)(nowMs - st->nextTickMs) < loopMs)
+    if (st == NULL_PTR)
     {
         return;
     }
 
-    st->nextTickMs += loopMs;
-    st->tickCount++;
+    if (LinearCameraGetLatestFrame(&latestFrame) != TRUE)
+    {
+        return;
+    }
+
+    st->dbg.mask = (uint32)VLIN_DBG_NONE;
+    st->dbg.filteredOut = NULL_PTR;
+    st->dbg.gradientOut = NULL_PTR;
+
+    if (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE)
+    {
+        VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->filteredBuf, st->gradientBuf);
+    }
+
+    (void)memcpy(st->processedFrame.Values,
+                 &latestFrame->Values[CAM_TRIM_LEFT_PX],
+                 ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
+    VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
+    st->haveValidVision = TRUE;
+    st->lastFrameMs = nowMs;
+    st->displayDirty = TRUE;
+}
+
+static void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    camservo_process_latest_frame(st, nowMs);
+
+    if ((uint32)(nowMs - st->nextControlMs) < CAM_SERVO_CONTROL_PERIOD_MS)
+    {
+        return;
+    }
+
+    st->nextControlMs += CAM_SERVO_CONTROL_PERIOD_MS;
 
     VisionDebug_OnTick(&st->vdbg, sw2, FALSE);
     if (sw2 == TRUE)
     {
-        st->displayDirty = TRUE;
-    }
-
-    if (LinearCameraGetLatestFrame(&latestFrame) == TRUE)
-    {
-        st->dbg.mask = (uint32)VLIN_DBG_NONE;
-        st->dbg.filteredOut = NULL_PTR;
-        st->dbg.gradientOut = NULL_PTR;
-
-        if (VisionDebug_WantsVisionDebugData(&st->vdbg) == TRUE)
-        {
-            VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->filteredBuf, st->gradientBuf);
-        }
-
-        (void)memcpy(st->processedFrame.Values,
-                     &latestFrame->Values[CAM_TRIM_LEFT_PX],
-                     ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
-        VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
-        st->haveValidVision = TRUE;
-        st->lastFrameMs = nowMs;
         st->displayDirty = TRUE;
     }
 
@@ -4076,7 +4098,6 @@ static void race_mode_enter(uint32 nowMs)
     /* Race mode owns all actuators directly. Initialize them once, then keep
        the runtime loop strictly ordered: vision -> ultrasonic -> control. */
     g_raceMode.phase = RACE_PHASE_ESC_ARM;
-    g_raceMode.nextVisionMs = nowMs;
     g_raceMode.nextControlMs = nowMs;
     g_raceMode.nextSpeedRampMs = nowMs;
     g_raceMode.nextUltraTrigMs = nowMs;
@@ -4112,14 +4133,12 @@ static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
 {
     const LinearCameraFrame *latestFrame = NULL_PTR;
 
-    if ((st == NULL_PTR) || (time_reached(nowMs, st->nextVisionMs) != TRUE))
+    (void)nowMs;
+
+    if (st == NULL_PTR)
     {
         return;
     }
-
-    /* At most one vision update is executed per main-loop pass. This avoids
-       catch-up bursts if an optional blocking display refresh was requested. */
-    st->nextVisionMs = nowMs + CAMERA_PERIOD_MS;
 
     if (LinearCameraGetLatestFrame(&latestFrame) != TRUE)
     {

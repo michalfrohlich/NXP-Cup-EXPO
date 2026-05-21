@@ -31,7 +31,6 @@
 ========================================================= */
 #define START_DELAY_MS                    1000u
 #define BUTTONS_PERIOD_MS                 5u
-#define CAMERA_PERIOD_MS                  5u
 #define DISPLAY_PERIOD_MS                 20u
 #define CAM_DEBUG_DISPLAY_PERIOD_MS       100u
 #define STEER_UPDATE_MS                   10u
@@ -112,7 +111,8 @@
 #define CAM_EFFECTIVE_PIXELS             (CAM_N_PIXELS - CAM_TRIM_LEFT_PX - CAM_TRIM_RIGHT_PX)
 
 /* Camera test / debug loop settings. */
-#define V2_LOOP_PERIOD_MS                 5u
+#define CAM_DEBUG_UI_PERIOD_MS            5u
+#define CAM_SERVO_CONTROL_PERIOD_MS       5u
 #define V2_WHITE_SAT_U8                   220u
 #define CAM_DEBUG_PAUSE_HOLD_MS           1000U
 

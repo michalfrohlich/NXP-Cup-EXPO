@@ -88,6 +88,7 @@
 - `app_modes.c`
   - the linear-camera waiting screen consumes the driver debug-counters snapshot instead of several driver-internal counter getters
   - the waiting screen is rendered once before `LinearCameraStartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
+  - consumes completed camera frames as soon as `LinearCameraGetLatestFrame()` reports a ready buffer, while UI/debug/control housekeeping remains separately rate-limited
   - the runtime `Camera` / `Cam Servo` tests now opportunistically queue one compact UART telemetry packet per processed frame, dropping packets instead of blocking if the software TX queue is full
 - `services/vision_linear_v2.c`
   - filters the frame
@@ -117,7 +118,7 @@
 - `app_modes.c`
   - initializes the dual-ESC path, servo, camera, steering, and ultrasonic once at mode entry
   - runs a deterministic ordered loop:
-    - fetch/process the newest camera frame
+    - consume the newest completed camera frame if one is ready
     - service ultrasonic timing and capture state
     - update steering and speed commands
   - rate-limits the ESC command with the existing ramp constants
