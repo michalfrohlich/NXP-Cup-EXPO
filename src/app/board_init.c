@@ -63,8 +63,6 @@ void Board_InitDrivers(void)
 
     Pwm_Init(NULL_PTR);
 
-    /* Temporary handwritten proof-of-concept UART bring-up.
-       This intentionally bypasses .mex-generated UART configuration for now. */
     SerialDebug_Init();
 }
 

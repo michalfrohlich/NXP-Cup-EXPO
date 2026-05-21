@@ -1,29 +1,25 @@
 #include "serial_debug.h"
 
+#include "CDD_Uart.h"
 #include "S32K144.h"
+
+#define SERIAL_DEBUG_UART_CHANNEL 0U
+#define SERIAL_DEBUG_WRITE_TIMEOUT_US 10000U
 
 static boolean g_serialDebugInitialized = FALSE;
 static uint8 g_serialDebugTxBuffer[SERIAL_DEBUG_TX_BUFFER_SIZE];
 static volatile uint16 g_serialDebugTxHead = 0U;
 static volatile uint16 g_serialDebugTxTail = 0U;
 
-static void SerialDebug_InitClocking(void)
-{
-    /* Re-enable SIRCDIV outputs so LPUART1 can use the same known 8 MHz source
-       as the teammate demo, independent of .mex UART configuration. */
-    IP_SCG->SIRCDIV = SCG_SIRCDIV_SIRCDIV1(1U) | SCG_SIRCDIV_SIRCDIV2(1U);
-
-    IP_PCC->PCCn[PCC_LPUART1_INDEX] &= ~PCC_PCCn_CGC_MASK;
-    IP_PCC->PCCn[PCC_LPUART1_INDEX] = PCC_PCCn_PCS(2U) | PCC_PCCn_CGC_MASK;
-}
-
 void SerialDebug_Init(void)
 {
-    SerialDebug_InitClocking();
+    Uart_Init(NULL_PTR);
 
-    /* 8 MHz / (14 * 5) = 114285 baud, close enough for 115200 debug streaming. */
-    IP_LPUART1->BAUD = LPUART_BAUD_SBR(5U) | LPUART_BAUD_OSR(13U);
-    IP_LPUART1->CTRL = LPUART_CTRL_RE_MASK | LPUART_CTRL_TE_MASK;
+    /* The generated UART config is interrupt-mode only. Keep RX enabled here so
+       the existing tuning shell can still poll single characters without an ISR. */
+    /* TODO(serial): Replace this proof-of-concept RX polling with generated
+       UART async receive plus an LPUART1 IRQ/callback ring buffer. */
+    IP_LPUART1->CTRL |= LPUART_CTRL_RE_MASK;
 
     g_serialDebugTxHead = 0U;
     g_serialDebugTxTail = 0U;
@@ -33,6 +29,11 @@ void SerialDebug_Init(void)
 
 boolean SerialDebug_IsRxReady(void)
 {
+    if (g_serialDebugInitialized != TRUE)
+    {
+        return FALSE;
+    }
+
     return ((IP_LPUART1->STAT & LPUART_STAT_RDRF_MASK) != 0U) ? TRUE : FALSE;
 }
 
@@ -58,23 +59,22 @@ char SerialDebug_ReadCharBlocking(void)
 
 boolean SerialDebug_IsTxReady(void)
 {
+    return (g_serialDebugInitialized == TRUE) ? TRUE : FALSE;
+}
+
+boolean SerialDebug_TryWriteChar(char ch)
+{
+    uint8 data = (uint8)ch;
+
     if (g_serialDebugInitialized != TRUE)
     {
         return FALSE;
     }
 
-    return ((IP_LPUART1->STAT & LPUART_STAT_TDRE_MASK) != 0U) ? TRUE : FALSE;
-}
-
-boolean SerialDebug_TryWriteChar(char ch)
-{
-    if (SerialDebug_IsTxReady() != TRUE)
-    {
-        return FALSE;
-    }
-
-    IP_LPUART1->DATA = (uint8)ch;
-    return TRUE;
+    return (Uart_SyncSend(SERIAL_DEBUG_UART_CHANNEL,
+                          &data,
+                          1U,
+                          SERIAL_DEBUG_WRITE_TIMEOUT_US) == E_OK) ? TRUE : FALSE;
 }
 
 void SerialDebug_WriteChar(char ch)
@@ -119,7 +119,10 @@ void SerialDebug_ServiceTx(void)
     while ((g_serialDebugTxHead != g_serialDebugTxTail) &&
            (SerialDebug_IsTxReady() == TRUE))
     {
-        IP_LPUART1->DATA = g_serialDebugTxBuffer[g_serialDebugTxTail];
+        if (SerialDebug_TryWriteChar((char)g_serialDebugTxBuffer[g_serialDebugTxTail]) != TRUE)
+        {
+            break;
+        }
         g_serialDebugTxTail = (uint16)((g_serialDebugTxTail + 1U) % SERIAL_DEBUG_TX_BUFFER_SIZE);
     }
 }

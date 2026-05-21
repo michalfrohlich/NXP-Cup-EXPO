@@ -8,8 +8,8 @@ extern "C" {
 #endif
 
 /* Temporary UART debug service.
-   Pin muxing is generated from .mex, while byte-level LPUART1 setup and
-   polling I/O remain handwritten for the current proof-of-concept. */
+   Pin muxing and UART baud/frame setup are generated from .mex. The service
+   keeps the existing byte-oriented tuning API on top of the generated driver. */
 
 #define SERIAL_DEBUG_BAUD_RATE 115200U
 #define SERIAL_DEBUG_TX_BUFFER_SIZE 512U
