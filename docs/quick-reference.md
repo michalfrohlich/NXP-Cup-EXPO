@@ -11,23 +11,27 @@
 
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
-- Invalid or missing selection is a configuration error; the app no longer falls back to `FINAL_DUMMY`.
-- Current repository state selects `APP_TEST_LINEAR_CAMERA_TEST = 1`.
+- Invalid or missing selection is a configuration error.
+- Current repository state selects `APP_TEST_NXP_CUP_TESTS = 1`.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
 - `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
 - `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode for the rest of the interactive test screens.
-- `APP_TEST_FINAL_DUMMY` remains a standalone compile-time mode and is not included in the runtime test menu.
 - `APP_TEST_HONOR_LAP` is available as a standalone compile-time mode for automatic line following with ultrasonic obstacle slowing/stopping.
-- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Ultra+ESC`, and `Receiver - x`.
+- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Simple test drv`, `Serial tune`, `Ultra+ESC`, and `Receiver - x`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
+- `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
+- `Serial tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
+- `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in `tools/matlab/linear_camera_dashboard_viewer.m` and `tools/matlab/linear_camera_single_graph_viewer.m`.
+  - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
+- `Cam+Servo` and `Simple test drv` now consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
 - `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules
 - App orchestration: `src/app/app_modes.c`, `src/app/user_interface.c`, `src/app/vision_debug.c`
 - Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`, `src/services/braking.c`
-- Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`
+- Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`, `src/services/serial_debug.c`
 - Legacy DC motor code remains in `src/hbridge.c`, but the active build now uses dual BLDC ESC PWM outputs instead.
 
 ## Vision V2 snapshot

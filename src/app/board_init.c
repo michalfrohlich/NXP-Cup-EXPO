@@ -20,6 +20,7 @@
 #include "rgb_led.h"
 
 #include "car_config.h"
+#include "../services/serial_debug.h"
 
 void Board_InitDrivers(void)
 {
@@ -61,6 +62,8 @@ void Board_InitDrivers(void)
     }
 
     Pwm_Init(NULL_PTR);
+
+    SerialDebug_Init();
 }
 
 void Board_InitCommonApp(void)

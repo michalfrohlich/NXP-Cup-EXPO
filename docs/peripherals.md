@@ -73,5 +73,21 @@ Notes:
 - The `buttons` module now distinguishes momentary buttons from maintained toggle switches; `swPcb` is level-based only and does not publish click events.
 - `APP_TEST_NXP_CUP_TESTS` uses `swPcb` to enter/leave the selected test, while `APP_TEST_RACE_MODE` uses it only to enable optional OLED telemetry.
 
+## UART
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/services/serial_debug.c`, `src/services/serial_debug.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
+
+Notes:
+- `PTC6` / `PTC7` are routed in `.mex` as `LPUART1_RX` / `LPUART1_TX` and applied by generated `Port_Init()`.
+- The UART peripheral is generated from `.mex` as logical UART channel `0` on `LPUART1`, using `LPUART1_CLK` and `115200 8N1`.
+- `SerialDebug_Init()` runs from `board_init.c` after generated driver init and calls `Uart_Init(NULL_PTR)`.
+- The service keeps a small direct RX-ready/read path because the generated UART driver is configured for interrupt mode and the tuning shell currently uses polling-style single-byte reads.
+- TODO: replace the proof-of-concept direct RX polling with generated UART async receive once `LPUART1` interrupt routing/callback buffering is configured in `.mex`.
+- The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `SerialDebug_ServiceTx()` / `SerialDebug_EnqueueBytes()` for non-blocking background streaming.
+- `APP_TEST_SERIAL_TUNE` is the first compile-time mode that uses this handwritten UART path; it only shows shadow PID values on the OLED and echoes received UART lines.
+- `RUNTIME_TEST_LINEAR_CAMERA` and `RUNTIME_TEST_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.
+- That debug UART stream is rate-limited in `src/app/car_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.
+
 ## Not documented here
-- UART / CAN / SPI are not documented because their use was not confirmed in handwritten project code.
+- CAN / SPI are not documented because their use was not confirmed in handwritten project code.
