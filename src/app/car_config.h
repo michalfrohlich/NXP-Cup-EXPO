@@ -66,6 +66,8 @@
    ESC
 ========================================================= */
 #define ESC_PWM_CH                        0U
+#define ESC_SECOND_PWM_CH                 5U
+/* Generated second ESC output: FTM3 CH2 on PTB10. */
 
 /* ESC calibration values (timer compare) that arm correctly on your setup.
    DO NOT change these to "25% speed".

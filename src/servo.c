@@ -21,6 +21,7 @@ extern "C" {
 * 3) internal and external interfaces from this unit
 ==================================================================================================*/
 #include "servo.h"
+#include "SchM_Pwm.h"
 
 /*==================================================================================================
 *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
@@ -38,6 +39,10 @@ extern "C" {
 *                                      LOCAL VARIABLES
 ==================================================================================================*/
 static Servo ServoInstance;
+static volatile boolean ServoInitialized = FALSE;
+static volatile uint16 ServoAppliedDutyCycle = 0U;
+static volatile uint16 ServoPendingDutyCycle = 0U;
+static volatile boolean ServoPendingUpdate = FALSE;
 /*==================================================================================================
 *                                      GLOBAL CONSTANTS
 ==================================================================================================*/
@@ -53,6 +58,46 @@ static Servo ServoInstance;
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS
 ==================================================================================================*/
+static uint16 Servo_CalcDuty(int Direction)
+{
+    uint16 ServoDutyCycle;
+
+    if(Direction>(int)0)
+    {
+        if(Direction > 100)
+        {
+            Direction = 100;
+        }
+        ServoDutyCycle = ServoInstance.MedDutyCycle + Direction*(int)(ServoInstance.MaxDutyCycle-ServoInstance.MedDutyCycle)/100;
+    }
+    else
+    {
+        if(Direction < -100)
+        {
+            Direction = -100;
+        }
+        ServoDutyCycle = ServoInstance.MedDutyCycle - Direction*(int)(ServoInstance.MinDutyCycle-ServoInstance.MedDutyCycle)/100;
+    }
+
+    return ServoDutyCycle;
+}
+
+static void Servo_PublishPendingDuty(uint16 ServoDutyCycle)
+{
+    SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
+
+    if (ServoDutyCycle == ServoAppliedDutyCycle)
+    {
+        ServoPendingUpdate = FALSE;
+    }
+    else
+    {
+        ServoPendingDutyCycle = ServoDutyCycle;
+        ServoPendingUpdate = TRUE;
+    }
+
+    SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+}
 
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
@@ -63,36 +108,63 @@ void ServoInit(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinD
     ServoInstance.MaxDutyCycle = MaxDutyCycle;
     ServoInstance.MinDutyCycle = MinDutyCycle;
     ServoInstance.MedDutyCycle = MedDutyCycle;
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MedDutyCycle);
+    ServoAppliedDutyCycle = ServoInstance.MedDutyCycle;
+    ServoPendingDutyCycle = ServoInstance.MedDutyCycle;
+    ServoPendingUpdate = FALSE;
+    ServoInitialized = TRUE;
+    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoAppliedDutyCycle);
+    Pwm_EnableNotification(ServoInstance.ServoPwmChannel, PWM_FALLING_EDGE);
 }
 
 void Steer(int Direction){
     uint16 ServoDutyCycle;
-    if(Direction>(int)0){
-        if(Direction > 100){
-            Direction = 100;
-        }
-        ServoDutyCycle = ServoInstance.MedDutyCycle + Direction*(int)(ServoInstance.MaxDutyCycle-ServoInstance.MedDutyCycle)/100;
+
+    if (ServoInitialized != TRUE)
+    {
+        return;
     }
-    else{
-        if(Direction < -100){
-            Direction = -100;
-        }
-        ServoDutyCycle = ServoInstance.MedDutyCycle - Direction*(int)(ServoInstance.MinDutyCycle-ServoInstance.MedDutyCycle)/100;
-    }
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoDutyCycle);
+
+    ServoDutyCycle = Servo_CalcDuty(Direction);
+    Servo_PublishPendingDuty(ServoDutyCycle);
 }
 
 void SteerLeft(void){
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MinDutyCycle);
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    Servo_PublishPendingDuty(ServoInstance.MinDutyCycle);
 }
 
 void SteerRight(void){
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MaxDutyCycle);
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    Servo_PublishPendingDuty(ServoInstance.MaxDutyCycle);
 }
 
 void SteerStraight(void){
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoInstance.MedDutyCycle);
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    Servo_PublishPendingDuty(ServoInstance.MedDutyCycle);
+}
+
+void Servo_Period_Finished(void)
+{
+    if ((ServoInitialized != TRUE) || (ServoPendingUpdate != TRUE))
+    {
+        return;
+    }
+
+    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoPendingDutyCycle);
+    ServoAppliedDutyCycle = ServoPendingDutyCycle;
+    ServoPendingUpdate = FALSE;
 }
 
 #ifdef __cplusplus

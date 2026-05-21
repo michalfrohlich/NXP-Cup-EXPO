@@ -33,7 +33,7 @@ extern "C" {
 /*==================================================================================================
 *                                      LOCAL CONSTANTS
 ==================================================================================================*/
-static volatile Esc EscInstance;
+static volatile Esc EscInstances[2];
 /*==================================================================================================
 *                                      LOCAL VARIABLES
 ==================================================================================================*/
@@ -53,134 +53,179 @@ static volatile Esc EscInstance;
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS
 ==================================================================================================*/
-static void SetPwm(int EscSpeedCommand) {
+static int EscClampSpeed(int Speed)
+{
+    if (Speed > 100)
+    {
+        return 100;
+    }
+    if (Speed < -100)
+    {
+        return -100;
+    }
+
+    return Speed;
+}
+
+static void SetPwm(volatile Esc *EscInstance, int EscSpeedCommand)
+{
     uint16 EscDutyCycle;
+
+    if ((EscInstance == NULL_PTR) || (EscInstance->Initialized != TRUE))
+    {
+        return;
+    }
+
     if(EscSpeedCommand >= 0) {
-        EscDutyCycle = (uint16)(EscInstance.MedDutyCycle + EscSpeedCommand*(int)(EscInstance.MaxDutyCycle-EscInstance.MedDutyCycle)/100);
-        Pwm_SetDutyCycle(EscInstance.Channel, EscDutyCycle);
+        EscDutyCycle = (uint16)(EscInstance->MedDutyCycle + EscSpeedCommand*(int)(EscInstance->MaxDutyCycle-EscInstance->MedDutyCycle)/100);
+        Pwm_SetDutyCycle(EscInstance->Channel, EscDutyCycle);
     }
     else{
-        EscDutyCycle = (uint16)(EscInstance.MedDutyCycle + EscSpeedCommand*(int)(EscInstance.MedDutyCycle-EscInstance.MinDutyCycle)/100);
-        Pwm_SetDutyCycle(EscInstance.Channel, EscDutyCycle);
+        EscDutyCycle = (uint16)(EscInstance->MedDutyCycle + EscSpeedCommand*(int)(EscInstance->MedDutyCycle-EscInstance->MinDutyCycle)/100);
+        Pwm_SetDutyCycle(EscInstance->Channel, EscDutyCycle);
     }
 }
 
-void Esc_Period_Finished(void){
+static void EscInitOne(volatile Esc *EscInstance,
+                       Pwm_ChannelType EscPwmChannel,
+                       uint16 MinDutyCycle,
+                       uint16 MedDutyCycle,
+                       uint16 MaxDutyCycle)
+{
+    if (EscInstance == NULL_PTR)
+    {
+        return;
+    }
+
+    EscInstance->Initialized = TRUE;
+    EscInstance->Channel = EscPwmChannel;
+    EscInstance->MinDutyCycle = MinDutyCycle;/*1ms*/
+    EscInstance->MedDutyCycle = MedDutyCycle;/*1.5ms*/
+    EscInstance->MaxDutyCycle = MaxDutyCycle;/*2ms*/
+    EscInstance->State = Neutral;
+    EscInstance->Speed = 0;
+    EscInstance->Brake = 0U;
+    Pwm_SetDutyCycle(EscInstance->Channel, EscInstance->MedDutyCycle);/*sending the 'Neutral' command arms the esc*/
+}
+
+static void EscPeriodFinishedOne(volatile Esc *EscInstance)
+{
     int EscSpeedCommand;
+
+    if ((EscInstance == NULL_PTR) || (EscInstance->Initialized != TRUE))
+    {
+        return;
+    }
+
     /*if your chosen ESC has braking capabilities, set this on STD_ON. If not, set it on STD_OFF.
      * Using the wrong configuration can make the car go full speed backward on braking!*/
 #if (ESC_HAS_BRAKE == STD_ON)
     /* state machine updates here at every PWM signal edge*/
-    switch(EscInstance.State){
+    switch(EscInstance->State){
     case Forward:
-        if(EscInstance.Brake != 0U || EscInstance.Speed < 0){
-            EscInstance.State = Braking;
+        if(EscInstance->Brake != 0U || EscInstance->Speed < 0){
+            EscInstance->State = Braking;
         }
         break;
     case Braking:
-        if(EscInstance.Brake == 0U && EscInstance.Speed >= 0){
-            EscInstance.State = Forward;
+        if(EscInstance->Brake == 0U && EscInstance->Speed >= 0){
+            EscInstance->State = Forward;
         }
-        else if(EscInstance.Brake == 0U && EscInstance.Speed < 0){
-            EscInstance.State = Neutral;
+        else if(EscInstance->Brake == 0U && EscInstance->Speed < 0){
+            EscInstance->State = Neutral;
         }
         break;
 #else
-    switch(EscInstance.State){
+    switch(EscInstance->State){
         case Forward:
-            if(EscInstance.Brake != 0U){
-                EscInstance.State = Braking;
+            if(EscInstance->Brake != 0U){
+                EscInstance->State = Braking;
             }
-            else if(EscInstance.Speed < 0){
-                EscInstance.State = Reverse;
+            else if(EscInstance->Speed < 0){
+                EscInstance->State = Reverse;
             }
             break;
         case Braking:
-            if(EscInstance.Brake != 0U){
-                EscInstance.State = Neutral;
+            if(EscInstance->Brake != 0U){
+                EscInstance->State = Neutral;
             }
-            else if(EscInstance.Speed < 0){
-                EscInstance.State = Reverse;
+            else if(EscInstance->Speed < 0){
+                EscInstance->State = Reverse;
             }
-            else if(EscInstance.Speed >= 0){
-                EscInstance.State = Forward;
+            else if(EscInstance->Speed >= 0){
+                EscInstance->State = Forward;
             }
             break;
 #endif
         case Neutral:
-            if(EscInstance.Brake == 0U && EscInstance.Speed < 0){
-                EscInstance.State = Reverse;
+            if(EscInstance->Brake == 0U && EscInstance->Speed < 0){
+                EscInstance->State = Reverse;
             }
-            else if(EscInstance.Brake == 0U && EscInstance.Speed >= 0){
-                EscInstance.State = Forward;
+            else if(EscInstance->Brake == 0U && EscInstance->Speed >= 0){
+                EscInstance->State = Forward;
             }
             break;
         case Reverse:
-            if(EscInstance.Brake != 0U){
-                EscInstance.State = Braking;
+            if(EscInstance->Brake != 0U){
+                EscInstance->State = Braking;
             }
-            else if(EscInstance.Speed >= 0){
-                EscInstance.State = Forward;
+            else if(EscInstance->Speed >= 0){
+                EscInstance->State = Forward;
             }
             break;
         default:/*invalid case, set safe values for esc*/
-            EscInstance.Speed = 0;
+            EscInstance->Speed = 0;
     }
 
     /*update the car's speed*/
-    switch(EscInstance.State){
+    switch(EscInstance->State){
         case Forward:
         case Reverse:
-            EscSpeedCommand = EscInstance.Speed;
+            EscSpeedCommand = EscInstance->Speed;
             break;
         case Braking:
 #if (ESC_HAS_BRAKE == STD_ON)
             EscSpeedCommand = -100;
 #else
-            EscSpeedCommand = -EscInstance.Speed;
+            EscSpeedCommand = -EscInstance->Speed;
 #endif
             break;
         case Neutral:
         default:
             EscSpeedCommand = 0;
     }
-    SetPwm(EscSpeedCommand);
+    SetPwm(EscInstance, EscSpeedCommand);
+}
+
+void Esc_Period_Finished(void){
+    EscPeriodFinishedOne(&EscInstances[0]);
+    EscPeriodFinishedOne(&EscInstances[1]);
 }
 /*==================================================================================================
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
 
-void EscInit(Pwm_ChannelType EscPwmChannel, uint16 MinDutyCycle, uint16 MedDutyCycle, uint16 MaxDutyCycle){
-    EscInstance.Channel = EscPwmChannel;
-    EscInstance.MinDutyCycle = MinDutyCycle;/*1ms*/
-    EscInstance.MedDutyCycle = MedDutyCycle;/*1.5ms*/
-    EscInstance.MaxDutyCycle = MaxDutyCycle;/*2ms*/
-    EscInstance.State = Neutral;
-    EscInstance.Speed = 0;
-    EscInstance.Brake = 0U;
-    Pwm_SetDutyCycle(EscInstance.Channel, EscInstance.MedDutyCycle);/*sending the 'Neutral' command arms the esc*/
-    Pwm_EnableNotification(EscInstance.Channel, PWM_FALLING_EDGE);/*enables interrupt for state machine update at every PWM signal falling edge*/
+void EscInit(Pwm_ChannelType PrimaryEscPwmChannel,
+             Pwm_ChannelType SecondaryEscPwmChannel,
+             uint16 MinDutyCycle,
+             uint16 MedDutyCycle,
+             uint16 MaxDutyCycle)
+{
+    EscInitOne(&EscInstances[0], PrimaryEscPwmChannel, MinDutyCycle, MedDutyCycle, MaxDutyCycle);
+    EscInitOne(&EscInstances[1], SecondaryEscPwmChannel, MinDutyCycle, MedDutyCycle, MaxDutyCycle);
+    Pwm_EnableNotification(EscInstances[0].Channel, PWM_FALLING_EDGE);/*updates both ESC state machines from the shared 50 Hz cadence*/
 }
 
-void EscSetSpeed(int Speed){
-    if(Speed > 100){
-        EscInstance.Speed = 100;
-    }
-    else if(Speed < -100){
-        EscInstance.Speed = -100;
-    }
-    else{
-        EscInstance.Speed = Speed;
-    }
+void EscSetSpeed(int PrimarySpeed, int SecondarySpeed)
+{
+    EscInstances[0].Speed = EscClampSpeed(PrimarySpeed);
+    EscInstances[1].Speed = EscClampSpeed(SecondarySpeed);
 }
 
-void EscSetBrake(uint8 Brake){
-    if(Brake != 0U){
-        EscInstance.Brake = 1U;
-    }
-    else{
-        EscInstance.Brake = 0U;
-    }
+void EscSetBrake(uint8 PrimaryBrake, uint8 SecondaryBrake)
+{
+    EscInstances[0].Brake = (PrimaryBrake != 0U) ? 1U : 0U;
+    EscInstances[1].Brake = (SecondaryBrake != 0U) ? 1U : 0U;
 }
 
 #ifdef __cplusplus
@@ -188,4 +233,3 @@ void EscSetBrake(uint8 Brake){
 #endif
 
 /** @} */
-

@@ -27,6 +27,8 @@
 #define TESTS_MENU_VISIBLE_LINES      (3U)
 #define TESTS_MENU_POT_STABLE_MS      (90U)
 #define TESTS_MENU_POT_HYSTERESIS     (6U)
+#define ESC_TEST_MAX_SPEED_PCT        (30U)
+#define ESC_TEST_LED_BLINK_MS         (250U)
 
 typedef enum
 {
@@ -144,6 +146,40 @@ typedef struct
     sint16 currentCmdPct;
     uint8 lastPotLevel;
 } EscRunState_t;
+
+typedef enum
+{
+    ESC_TEST_STATE_DISARMED = 0,
+    ESC_TEST_STATE_ARMING,
+    ESC_TEST_STATE_ARMED_NEUTRAL,
+    ESC_TEST_STATE_RUNNING,
+    ESC_TEST_STATE_ESTOP
+} EscTestStateId_t;
+
+typedef enum
+{
+    ESC_TEST_MODE_BOTH = 0,
+    ESC_TEST_MODE_ESC1,
+    ESC_TEST_MODE_ESC2,
+    ESC_TEST_MODE_DIFF,
+    ESC_TEST_MODE_COUNT
+} EscTestModeId_t;
+
+typedef struct
+{
+    EscTestStateId_t state;
+    EscTestModeId_t mode;
+    Sw2Tracker_t sw2Tracker;
+    Sw2Tracker_t sw3Tracker;
+    uint32 armDoneMs;
+    uint32 nextDisplayMs;
+    sint16 commandPct;
+    sint16 primaryCmdPct;
+    sint16 secondaryCmdPct;
+    uint8 lastPotLevel;
+    boolean reverse;
+    boolean requirePotZero;
+} EscManualTestState_t;
 
 typedef struct
 {
@@ -302,7 +338,7 @@ static ReceiverTestState_t g_receiverTest;
 static UltrasonicTestState_t g_ultrasonicTest;
 static UltrasonicEscTestState_t g_ultrasonicEscTest;
 static ServoTestState_t g_servoTest;
-static EscRunState_t g_escTest;
+static EscManualTestState_t g_escTest;
 static LinearCameraTestState_t g_linearCameraTest;
 static FinalDummyState_t g_finalDummy;
 static TestsMenuState_t g_testsMenu;
@@ -366,7 +402,7 @@ static void StatusLed_Red(void);
 static void StatusLed_Off(void);
 static void Esc_StopNeutral(void);
 static int esc_apply_neutral_offset(int logicalCmd);
-static void Esc_SetLogicalSpeed(int logicalCmd);
+static void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd);
 static void busy_delay(volatile uint32 ticks);
 static void App_InitRuntimeCore(void);
 static void App_InitRuntimeCommon(void);
@@ -387,6 +423,14 @@ static void servo_test_exit(void);
 static void esc_test_enter(uint32 nowMs);
 static void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel);
 static void esc_test_exit(void);
+static Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs);
+static void esc_test_start_arming(EscManualTestState_t *st, uint32 nowMs);
+static void esc_test_disarm(EscManualTestState_t *st);
+static void esc_test_estop(EscManualTestState_t *st);
+static sint16 esc_test_command_from_pot(uint8 pot);
+static void esc_test_apply_outputs(EscManualTestState_t *st);
+static void esc_test_update_led(const EscManualTestState_t *st, uint32 nowMs);
+static void esc_test_draw(const EscManualTestState_t *st);
 static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled);
 static void linear_camera_test_enter(uint32 nowMs);
 static void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
@@ -401,7 +445,6 @@ static void runtime_test_update(RuntimeTestId_t testId,
 static void runtime_test_exit(RuntimeTestId_t testId);
 static void esc_enter(EscRunState_t *st, uint32 nowMs);
 static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3, uint8 pot);
-static void esc_test_draw(const EscRunState_t *st);
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile);
 static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile);
 static void camservo_enter(CamServoState_t *st, uint32 nowMs);
@@ -479,7 +522,7 @@ static uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel)
     return (uint16)whiteMax;
 }
 
-static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
+static Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs)
 {
     boolean pressedNow;
 
@@ -488,7 +531,7 @@ static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
         return SW2_ACTION_NONE;
     }
 
-    pressedNow = Buttons_IsPressed(BUTTON_ID_SW2);
+    pressedNow = Buttons_IsPressed(id);
 
     if ((pressedNow == TRUE) && (st->wasPressed != TRUE))
     {
@@ -523,6 +566,11 @@ static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
     return SW2_ACTION_NONE;
 }
 
+static Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
+{
+    return ButtonTracker_Update(st, BUTTON_ID_SW2, nowMs);
+}
+
 static void StatusLed_Blue(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = true });
@@ -555,8 +603,8 @@ static void StatusLed_Off(void)
 
 static void Esc_StopNeutral(void)
 {
-    EscSetBrake(0U);
-    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD);
+    EscSetBrake(0U, 0U);
+    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD, ESC_TRUE_NEUTRAL_CMD);
 }
 
 static int esc_apply_neutral_offset(int logicalCmd)
@@ -575,9 +623,12 @@ static int esc_apply_neutral_offset(int logicalCmd)
     return physicalCmd;
 }
 
-static void Esc_SetLogicalSpeed(int logicalCmd)
+static void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd)
 {
-    EscSetSpeed(esc_apply_neutral_offset(logicalCmd));
+    const int primaryPhysicalCmd = esc_apply_neutral_offset(primaryLogicalCmd);
+    const int secondaryPhysicalCmd = esc_apply_neutral_offset(secondaryLogicalCmd);
+
+    EscSetSpeed(primaryPhysicalCmd, secondaryPhysicalCmd);
 }
 
 static void App_InitRuntimeCore(void)
@@ -918,7 +969,7 @@ static void ultrasonic_esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_ultrasonicEscTest, 0, sizeof(g_ultrasonicEscTest));
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     Ultrasonic_Init();
@@ -987,8 +1038,9 @@ static void ultrasonic_esc_test_update(uint32 nowMs)
         g_ultrasonicEscTest.commandedSpeedPct =
             honor_speed_from_distance(g_ultrasonicEscTest.hasValidDistance,
                                       g_ultrasonicEscTest.lastDistanceCm);
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct));
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
+                        (int)(-g_ultrasonicEscTest.commandedSpeedPct));
     }
 
     if (time_reached(nowMs, g_ultrasonicEscTest.nextDisplayMs) != TRUE)
@@ -1176,13 +1228,94 @@ static void servo_test_exit(void)
 static void esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_escTest, 0, sizeof(g_escTest));
-    esc_enter(&g_escTest, nowMs);
+
+    g_escTest.mode = ESC_TEST_MODE_BOTH;
+    g_escTest.nextDisplayMs = nowMs;
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    esc_test_disarm(&g_escTest);
     esc_test_draw(&g_escTest);
 }
 
 static void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel)
 {
-    esc_update(&g_escTest, nowMs, sw2Pressed, sw3Pressed, potLevel);
+    Sw2Action_t sw2Action;
+    Sw2Action_t sw3Action;
+    sint16 cmd;
+
+    (void)sw2Pressed;
+    (void)sw3Pressed;
+
+    g_escTest.lastPotLevel = potLevel;
+    sw2Action = ButtonTracker_Update(&g_escTest.sw2Tracker, BUTTON_ID_SW2, nowMs);
+    sw3Action = ButtonTracker_Update(&g_escTest.sw3Tracker, BUTTON_ID_SW3, nowMs);
+
+    if (sw3Action == SW2_ACTION_HOLD)
+    {
+        esc_test_estop(&g_escTest);
+    }
+    else if (sw2Action == SW2_ACTION_HOLD)
+    {
+        if ((g_escTest.state == ESC_TEST_STATE_DISARMED) ||
+            (g_escTest.state == ESC_TEST_STATE_ESTOP))
+        {
+            esc_test_start_arming(&g_escTest, nowMs);
+        }
+        else
+        {
+            esc_test_disarm(&g_escTest);
+        }
+    }
+    else
+    {
+        if ((g_escTest.state == ESC_TEST_STATE_DISARMED) ||
+            (g_escTest.state == ESC_TEST_STATE_ARMED_NEUTRAL) ||
+            (g_escTest.state == ESC_TEST_STATE_ESTOP))
+        {
+            if (sw2Action == SW2_ACTION_CLICK)
+            {
+                g_escTest.mode = (EscTestModeId_t)(((uint8)g_escTest.mode + 1U) %
+                                                   (uint8)ESC_TEST_MODE_COUNT);
+            }
+            if (sw3Action == SW2_ACTION_CLICK)
+            {
+                g_escTest.reverse = (g_escTest.reverse == TRUE) ? FALSE : TRUE;
+            }
+        }
+    }
+
+    cmd = esc_test_command_from_pot(potLevel);
+    if (g_escTest.reverse != TRUE)
+    {
+        cmd = (sint16)(-cmd);
+    }
+    g_escTest.commandPct = cmd;
+
+    if ((g_escTest.state == ESC_TEST_STATE_ARMING) &&
+        (time_reached(nowMs, g_escTest.armDoneMs) == TRUE))
+    {
+        g_escTest.state = ESC_TEST_STATE_ARMED_NEUTRAL;
+    }
+
+    if ((g_escTest.state == ESC_TEST_STATE_ARMED_NEUTRAL) ||
+        (g_escTest.state == ESC_TEST_STATE_RUNNING))
+    {
+        if (g_escTest.commandPct == 0)
+        {
+            g_escTest.requirePotZero = FALSE;
+            g_escTest.state = ESC_TEST_STATE_ARMED_NEUTRAL;
+        }
+        else if (g_escTest.requirePotZero != TRUE)
+        {
+            g_escTest.state = ESC_TEST_STATE_RUNNING;
+        }
+        else
+        {
+            g_escTest.state = ESC_TEST_STATE_ARMED_NEUTRAL;
+        }
+    }
+
+    esc_test_apply_outputs(&g_escTest);
+    esc_test_update_led(&g_escTest, nowMs);
 
     if (time_reached(nowMs, g_escTest.nextDisplayMs) == TRUE)
     {
@@ -1194,6 +1327,191 @@ static void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed
 static void esc_test_exit(void)
 {
     Esc_StopNeutral();
+}
+
+static void esc_test_start_arming(EscManualTestState_t *st, uint32 nowMs)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->state = ESC_TEST_STATE_ARMING;
+    st->armDoneMs = nowMs + ESC_ARM_TIME_MS;
+    st->requirePotZero = TRUE;
+    st->commandPct = 0;
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+    Esc_StopNeutral();
+}
+
+static void esc_test_disarm(EscManualTestState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->state = ESC_TEST_STATE_DISARMED;
+    st->requirePotZero = TRUE;
+    st->commandPct = 0;
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+    Esc_StopNeutral();
+    StatusLed_Blue();
+}
+
+static void esc_test_estop(EscManualTestState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->state = ESC_TEST_STATE_ESTOP;
+    st->requirePotZero = TRUE;
+    st->commandPct = 0;
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+    Esc_StopNeutral();
+}
+
+static sint16 esc_test_command_from_pot(uint8 pot)
+{
+    sint16 cmd = (sint16)(((uint32)pot * (uint32)ESC_TEST_MAX_SPEED_PCT) / 255U);
+
+    if (cmd <= (sint16)MOTOR_DEADBAND_PCT)
+    {
+        cmd = 0;
+    }
+
+    return cmd;
+}
+
+static void esc_test_apply_outputs(EscManualTestState_t *st)
+{
+    sint16 cmd;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->primaryCmdPct = 0;
+    st->secondaryCmdPct = 0;
+
+    if (st->state == ESC_TEST_STATE_RUNNING)
+    {
+        cmd = st->commandPct;
+
+        switch (st->mode)
+        {
+            case ESC_TEST_MODE_ESC1:
+                st->primaryCmdPct = cmd;
+                break;
+            case ESC_TEST_MODE_ESC2:
+                st->secondaryCmdPct = cmd;
+                break;
+            case ESC_TEST_MODE_DIFF:
+                st->primaryCmdPct = cmd;
+                st->secondaryCmdPct = (sint16)(-cmd);
+                break;
+            case ESC_TEST_MODE_BOTH:
+            default:
+                st->primaryCmdPct = cmd;
+                st->secondaryCmdPct = cmd;
+                break;
+        }
+    }
+
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)st->primaryCmdPct, (int)st->secondaryCmdPct);
+}
+
+static void esc_test_update_led(const EscManualTestState_t *st, uint32 nowMs)
+{
+    boolean blinkOn = (((nowMs / (uint32)ESC_TEST_LED_BLINK_MS) & 1U) == 0U) ? TRUE : FALSE;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (st->state)
+    {
+        case ESC_TEST_STATE_ARMING:
+            if (blinkOn == TRUE) { StatusLed_Cyan(); } else { StatusLed_Off(); }
+            break;
+        case ESC_TEST_STATE_ARMED_NEUTRAL:
+            if (blinkOn == TRUE) { StatusLed_Green(); } else { StatusLed_Off(); }
+            break;
+        case ESC_TEST_STATE_RUNNING:
+            StatusLed_Green();
+            break;
+        case ESC_TEST_STATE_ESTOP:
+            if (blinkOn == TRUE) { StatusLed_Red(); } else { StatusLed_Off(); }
+            break;
+        case ESC_TEST_STATE_DISARMED:
+        default:
+            StatusLed_Blue();
+            break;
+    }
+}
+
+static void esc_test_draw(const EscManualTestState_t *st)
+{
+    const char *stateText = "DIS ";
+    const char *modeText = "BOTH";
+    const char *dirText = "FWD";
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (st->state)
+    {
+        case ESC_TEST_STATE_ARMING:       stateText = "ARM "; break;
+        case ESC_TEST_STATE_ARMED_NEUTRAL:stateText = "RDY "; break;
+        case ESC_TEST_STATE_RUNNING:      stateText = "RUN "; break;
+        case ESC_TEST_STATE_ESTOP:        stateText = "STOP"; break;
+        case ESC_TEST_STATE_DISARMED:
+        default:                          stateText = "DIS "; break;
+    }
+
+    switch (st->mode)
+    {
+        case ESC_TEST_MODE_ESC1: modeText = "ESC1"; break;
+        case ESC_TEST_MODE_ESC2: modeText = "ESC2"; break;
+        case ESC_TEST_MODE_DIFF: modeText = "DIFF"; break;
+        case ESC_TEST_MODE_BOTH:
+        default:                 modeText = "BOTH"; break;
+    }
+
+    if (st->reverse == TRUE)
+    {
+        dirText = "REV";
+    }
+
+    DisplayTextPadded(0U, "ESC TEST");
+    DisplayText(0U, stateText, 4U, 9U);
+
+    DisplayTextPadded(1U, "M:");
+    DisplayText(1U, modeText, 4U, 2U);
+    DisplayText(1U, dirText, 3U, 8U);
+
+    DisplayTextPadded(2U, "E1:");
+    DisplayValue(2U, (int)st->primaryCmdPct, 4U, 3U);
+    DisplayText(2U, "E2:", 3U, 8U);
+    DisplayValue(2U, (int)st->secondaryCmdPct, 4U, 11U);
+
+    DisplayTextPadded(3U, "P:");
+    DisplayValue(3U, (int)st->lastPotLevel, 3U, 2U);
+    DisplayText(3U, "C:", 2U, 7U);
+    DisplayValue(3U, (int)st->commandPct, 4U, 9U);
+    DisplayText(3U, "%", 1U, 14U);
+
+    DisplayRefresh();
 }
 
 static void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
@@ -1554,7 +1872,7 @@ static void esc_enter(EscRunState_t *st, uint32 nowMs)
     st->currentCmdPct = 0;
     st->lastPotLevel = (uint8)POT_CENTER_RAW;
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 }
 
@@ -1589,8 +1907,8 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         st->mode = CAR_ARMING;
         st->startGoMs = nowMs + START_DELAY_MS;
 
-        Esc_SetLogicalSpeed(0);
-        EscSetBrake(0U);
+        Esc_SetLogicalSpeed(0, 0);
+        EscSetBrake(0U, 0U);
     }
 
     if ((st->mode == CAR_ARMING) && (time_reached(nowMs, st->startGoMs) == TRUE))
@@ -1637,8 +1955,8 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
         }
 
         st->currentCmdPct = (sint16)cmdPct;
-        EscSetBrake(0U);
-        Esc_SetLogicalSpeed((int)cmdPct);
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed((int)cmdPct, (int)cmdPct);
     }
 
     if (st->mode == CAR_RUN)
@@ -1657,55 +1975,6 @@ static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3
     {
         StatusLed_Blue();
     }
-}
-
-static void esc_test_draw(const EscRunState_t *st)
-{
-    const char *modeText = "UNKNOWN";
-    char percentText[17];
-
-    if (st == NULL_PTR)
-    {
-        return;
-    }
-
-    switch (st->mode)
-    {
-        case CAR_INIT:
-            modeText = "State: INIT";
-            break;
-
-        case CAR_IDLE:
-            modeText = "State: IDLE";
-            break;
-
-        case CAR_ARMING:
-            modeText = "State: ARMING";
-            break;
-
-        case CAR_RUN:
-            modeText = "State: RUN";
-            break;
-
-        default:
-            modeText = "State: OTHER";
-            break;
-    }
-
-    DisplayTextPadded(0U, "ESC TEST");
-    DisplayTextPadded(1U, modeText);
-
-    DisplayTextPadded(2U, "Pot:");
-    DisplayValue(2U, (int)st->lastPotLevel, 3U, 4U);
-
-    DisplayTextPadded(3U, "Cmd:");
-    DisplayValue(3U, (int)st->currentCmdPct, 4U, 4U);
-    (void)memset(percentText, ' ', 16U);
-    percentText[0] = '%';
-    percentText[16] = '\0';
-    DisplayText(3U, percentText, 1U, 8U);
-
-    DisplayRefresh();
 }
 
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile)
@@ -1919,8 +2188,8 @@ static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pres
 
             g_finalDummy.autoSpeedPct = 0;
             g_finalDummy.nextAutoSpeedMs = nowMs;
-            EscSetBrake(0U);
-            Esc_SetLogicalSpeed(0);
+            EscSetBrake(0U, 0U);
+            Esc_SetLogicalSpeed(0, 0);
         }
         else
         {
@@ -1966,8 +2235,9 @@ static void final_dummy_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pres
                 g_finalDummy.autoSpeedPct = 100;
               }
 
-              EscSetBrake(0U);
-              Esc_SetLogicalSpeed((int)(-g_finalDummy.autoSpeedPct));
+              EscSetBrake(0U, 0U);
+              Esc_SetLogicalSpeed((int)(-g_finalDummy.autoSpeedPct),
+                                  (int)(-g_finalDummy.autoSpeedPct));
           }
 
         if ((g_finalDummy.camSt.haveValidVision == TRUE) &&
@@ -2139,14 +2409,14 @@ static void nxp_cup_obstacle_stop_motor(void)
 
 static void nxp_cup_launch_motor(int logicalCmd)
 {
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed(logicalCmd);
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
 
     for (uint8 pulse = 1U; pulse < (uint8)ESC_LAUNCH_PULSE_COUNT; pulse++)
     {
         busy_delay((uint32)ESC_LAUNCH_PULSE_DELAY_TICKS);
-        EscSetBrake(0U);
-        Esc_SetLogicalSpeed(logicalCmd);
+        EscSetBrake(0U, 0U);
+        Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
     }
 }
 
@@ -2549,7 +2819,7 @@ static void mode_nxp_cup(void)
                 g_nxpCup.nextAutoSpeedMs = 0U;
 
                 nxp_cup_ultra_enter(&g_nxpCup.ultraSt, nowMs);
-                EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+                EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
                 g_nxpCup.escRearmDoneMs = nowMs + ESC_ARM_TIME_MS + NXP_ESC_EXTRA_SETTLE_MS;
                 g_nxpCup.state = NXP_CUP_STATE_ESC_REARM;
                 continue;
@@ -2871,7 +3141,7 @@ static void honor_lap_enter(uint32 nowMs)
 
     (void)memset(&g_honorLap, 0, sizeof(g_honorLap));
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     armStartMs = Timebase_GetMs();
@@ -2948,8 +3218,9 @@ static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLev
         g_honorLap.commandedSpeedPct = 0;
     }
 
-    EscSetBrake(0U);
-    Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct));
+    EscSetBrake(0U, 0U);
+    Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct),
+                        (int)(-g_honorLap.commandedSpeedPct));
 
     if (time_reached(nowMs, g_honorLap.nextDisplayMs) == TRUE)
     {
@@ -3018,7 +3289,7 @@ static void race_mode_enter(uint32 nowMs)
     g_raceMode.armDoneMs = nowMs + ESC_ARM_TIME_MS;
     g_raceMode.lastDistanceMs = nowMs;
 
-    EscInit(ESC_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
@@ -3296,8 +3567,9 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         }
         else
         {
-            EscSetBrake(0U);
-            Esc_SetLogicalSpeed((int)(-st->currentSpeedPct));
+            EscSetBrake(0U, 0U);
+            Esc_SetLogicalSpeed((int)(-st->currentSpeedPct),
+                                (int)(-st->currentSpeedPct));
         }
     }
 

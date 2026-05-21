@@ -18,15 +18,19 @@ Notes:
 ## PWM
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| ESC command output | `Pwm` | `src/esc.c`, `src/app/car_config.h` |
+| Primary ESC command output | `Pwm` | `src/esc.c`, `src/app/car_config.h` |
+| Secondary ESC command output | `Pwm` | `src/esc.c`, `src/app/car_config.h` |
 | Servo steering output | `Pwm` | `src/servo.c`, `src/app/car_config.h` |
 | Linear camera pixel clock | `Pwm` notification-driven clocking | `src/linear_camera.c`, `src/app/car_config.h` |
-| H-bridge motor speed | `Pwm` | `src/hbridge.c`, `include/hbridge.h` |
+| Legacy H-bridge motor speed | `Pwm` | `src/hbridge.c`, `include/hbridge.h` |
 
 Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
+- The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTB10`; both run at the same generated `50 Hz` period.
+- Handwritten ESC calls pass both ESC commands explicitly; same-speed driving uses equal primary and secondary arguments, while differential steering can pass different values.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
 - The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
+- The old H-bridge PWM channels remain generated, but they are no longer part of the active BLDC motor-control path.
 
 ## Timers / capture
 | Purpose | Driver/module | Key files |
