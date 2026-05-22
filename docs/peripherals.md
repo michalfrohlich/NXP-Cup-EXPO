@@ -31,7 +31,6 @@ Notes:
 - The standalone servo rate test changes how often application code calls `Steer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
 - The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
-- Unused legacy motor PWM/GPIO channels may remain generated until removed through the S32DS MEX GUI.
 
 ## Timers / capture
 | Purpose | Driver/module | Key files |

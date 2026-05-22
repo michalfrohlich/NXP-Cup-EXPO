@@ -700,30 +700,24 @@ PORT_CONFIG_VS_0_PB \
 * @details Get All Symbolic Names from configuration tool
 *
 */
-#define PortConf_PortPin_Display_I2c_Sda 1
-#define PortConf_PortPin_Display_I2c_Scl 0
+#define PortConf_PortPin_Display_I2c_Sda 0
+#define PortConf_PortPin_Display_I2c_Scl 1
 #define PortConf_PortPin_Esc_Pwm 2
-#define PortConf_PortPin_Esc2_Pwm 21
-#define PortConf_PortPin_Servo_Pwm 3
-#define PortConf_PortPin_Motor1_Speed 4
-#define PortConf_PortPin_Motor1_Forward 5
-#define PortConf_PortPin_Motor1_Backward 6
-#define PortConf_PortPin_Motor2_Speed 7
-#define PortConf_PortPin_Motor2_Forward 8
-#define PortConf_PortPin_Motor2_Backward 9
-#define PortConf_PortPin_ReceiverInput_PPM 10
-#define PortConf_PortPin_LinearCamera_Clk 11
-#define PortConf_PortPin_LinearCamera_Shutter 12
-#define PortConf_PortPin_LinearCamera_Analog 13
-#define PortConf_PortPin_PortPin_PTC12_sw2 14
-#define PortConf_PortPin_PortPin_PTC13_sw3 15
-#define PortConf_PortPin_TRIG 16
-#define PortConf_PortPin_ECHO 17
-#define PortConf_PortPin_RED_pin 18
-#define PortConf_PortPin_GREEN_pin 19
-#define PortConf_PortPin_BLUE_pin 20
-#define PortConf_PortPin_Uart_Rx 22
-#define PortConf_PortPin_Uart_Tx 23
+#define PortConf_PortPin_Esc2_Pwm 3
+#define PortConf_PortPin_Servo_Pwm 4
+#define PortConf_PortPin_ReceiverInput_PPM 5
+#define PortConf_PortPin_LinearCamera_Clk 6
+#define PortConf_PortPin_LinearCamera_Shutter 7
+#define PortConf_PortPin_LinearCamera_Analog 8
+#define PortConf_PortPin_PortPin_PTC12_sw2 9
+#define PortConf_PortPin_PortPin_PTC13_sw3 10
+#define PortConf_PortPin_TRIG 11
+#define PortConf_PortPin_ECHO 12
+#define PortConf_PortPin_RED_pin 13
+#define PortConf_PortPin_GREEN_pin 14
+#define PortConf_PortPin_BLUE_pin 15
+#define PortConf_PortPin_Uart_Rx 16
+#define PortConf_PortPin_Uart_Tx 17
 
 /**
 * @brief Number of available pad modes options
@@ -743,12 +737,12 @@ PORT_CONFIG_VS_0_PB \
 /**
 * @brief The maximum number of configured pins
 */
-#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)24)
+#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)18)
 
 /**
  * @brief Number of UnUsed pin array
 */
-#define PORT_MAX_UNUSED_PADS_U16    (60U)
+#define PORT_MAX_UNUSED_PADS_U16    (66U)
 
 /**
 * @brief Port driver Pre-Compile configuration switch

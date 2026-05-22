@@ -76,12 +76,12 @@ extern "C"{
 /**
 * @brief        Total number of configured PWM channels
 */
-#define PWM_VS_0_PB_CFG_CHANNELS_COUNT           ((uint8)6U)
+#define PWM_VS_0_PB_CFG_CHANNELS_COUNT           ((uint8)4U)
 
 /**
 * @brief        Total number of configured PWM instances
 */
-#define PWM_VS_0_PB_CFG_INSTANCES_COUNT          ((uint8)3U)
+#define PWM_VS_0_PB_CFG_INSTANCES_COUNT          ((uint8)2U)
 
 /*==================================================================================================
 *                                              ENUMS

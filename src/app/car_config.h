@@ -5,6 +5,8 @@
   Single source of truth for build-time mode selection and tuning constants.
 */
 
+#include "Pwm_Cfg.h"
+
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
@@ -12,8 +14,8 @@
 #define APP_TEST_NXP_CUP                  0
 #define APP_TEST_RACE_MODE                0
 #define APP_TEST_HONOR_LAP                0
-#define APP_TEST_SERVO_RATE_TEST          1
-#define APP_TEST_NXP_CUP_TESTS            0
+#define APP_TEST_SERVO_RATE_TEST          0
+#define APP_TEST_NXP_CUP_TESTS            1
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
@@ -44,7 +46,7 @@
 /* =========================================================
    Servo
 ========================================================= */
-#define SERVO_PWM_CH                      1U
+#define SERVO_PWM_CH                      Servo_Pwm
 #define SERVO_DUTY_MIN                    1650U
 #define SERVO_DUTY_MED                    2700U
 #define SERVO_DUTY_MAX                    3550U
@@ -65,8 +67,8 @@
 /* =========================================================
    ESC
 ========================================================= */
-#define ESC_PWM_CH                        0U
-#define ESC_SECOND_PWM_CH                 5U
+#define ESC_PWM_CH                        Esc_Pwm
+#define ESC_SECOND_PWM_CH                 Esc2_Pwm
 /* Generated second ESC output: FTM3 CH2 on PTB10. */
 
 /* ESC calibration values (timer compare) that arm correctly on your setup.
@@ -95,7 +97,7 @@
    Linear camera
 ========================================================= */
 /* Hardware routing for the line scan camera. */
-#define CAM_CLK_PWM_CH                    4U
+#define CAM_CLK_PWM_CH                    LinearCamera_Clk
 #define CAM_SHUTTER_GPT_CH                1U
 #define CAM_ADC_GROUP                     0U
 #define CAM_SHUTTER_PCR                   97U

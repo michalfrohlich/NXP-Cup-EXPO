@@ -77,7 +77,6 @@ static const IntCtrl_Ip_IrqConfigType aIrqConfiguration[] = {
     {PORTE_IRQn, (boolean)TRUE, 0U, PORT_CI_ICU_IP_E_EXT_IRQ_ISR},
     {LPTMR0_IRQn, (boolean)TRUE, 0U, LPTMR_0_CH_0_ISR},
     {FTM3_Ovf_Reload_IRQn, (boolean)TRUE, 0U, FTM_3_OVF_RELOAD_ISR},
-    {FTM0_Ovf_Reload_IRQn, (boolean)FALSE, 0U, FTM_0_OVF_RELOAD_ISR},
     {FTM2_Ovf_Reload_IRQn, (boolean)TRUE, 0U, FTM_2_OVF_RELOAD_ISR},
     {LPI2C0_Master_IRQn, (boolean)FALSE, 0U, LPI2C0_Master_IRQHandler},
     {FTM1_Ch2_Ch3_IRQn, (boolean)TRUE, 0U, FTM_1_CH_2_CH_3_ISR},
@@ -86,7 +85,7 @@ static const IntCtrl_Ip_IrqConfigType aIrqConfiguration[] = {
     {LPIT0_Ch2_IRQn, (boolean)TRUE, 0U, LPIT_0_CH_2_ISR},
 };
 const IntCtrl_Ip_CtrlConfigType intCtrlConfig = {
-    14U,
+    13U,
     aIrqConfiguration
 };
 

@@ -226,33 +226,12 @@ extern "C" {
 
 /* ========== DioConfig ========== */
 
-/* ---------- DioPort_B ---------- */
-
-/**
-* @brief          Symbolic name for the port DioPort_B.
-*/
-#define DioConf_DioPort_DioPort_B  ((uint8)0x01U)
-/**
-* @brief          Symbolic name for the channel Motor1_Forward.
-*
-*/
-#define DioConf_DioChannel_Motor1_Forward  ((uint16)0x0020U)
-/**
-* @brief          Symbolic name for the channel Motor1_Backward.
-*
-*/
-#define DioConf_DioChannel_Motor1_Backward  ((uint16)0x0021U)
 /* ---------- DioPort_C ---------- */
 
 /**
 * @brief          Symbolic name for the port DioPort_C.
 */
 #define DioConf_DioPort_DioPort_C  ((uint8)0x02U)
-/**
-* @brief          Symbolic name for the channel Motor2_Backward.
-*
-*/
-#define DioConf_DioChannel_Motor2_Backward  ((uint16)0x0043U)
 /**
 * @brief          Symbolic name for the channel PTC12_sw2.
 *
@@ -270,10 +249,10 @@ extern "C" {
 */
 #define DioConf_DioPort_DioPort_A  ((uint8)0x00U)
 /**
-* @brief          Symbolic name for the channel DioChannel_0.
+* @brief          Symbolic name for the channel Display_I2c_Sda.
 *
 */
-#define DioConf_DioChannel_DioChannel_0  ((uint16)0x0002U)
+#define DioConf_DioChannel_Display_I2c_Sda  ((uint16)0x0002U)
 /* ---------- DioPort_D ---------- */
 
 /**

@@ -170,11 +170,6 @@ extern "C"{
 #endif
 
 /* Macros that indicate FTM instances used by Pwm */
-#ifndef FTM_0_USED
-    #define FTM_0_USED
-#else
-    #error "FTM_0 instance cannot be used by Pwm. Instance locked by another driver!"
-#endif
 #ifndef FTM_3_USED
     #define FTM_3_USED
 #else
@@ -216,9 +211,6 @@ extern "C"{
 /** Number of instances of the SIM module. */
 #define FTM_PWM_IP_SIM_INSTANCE_COUNT                  (SIM_INSTANCE_COUNT)
 
-#define FTM_PWM_IP_0_OVF_RELOAD_ISR_USED
-#define FTM_PWM_IP_0_CH_0_CH_1_ISR_USED
-#define FTM_PWM_IP_0_CH_2_CH_3_ISR_USED
 #define FTM_PWM_IP_3_OVF_RELOAD_ISR_USED
 #define FTM_PWM_IP_3_CH_2_CH_3_ISR_USED
 #define FTM_PWM_IP_3_CH_6_CH_7_ISR_USED

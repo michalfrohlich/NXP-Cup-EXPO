@@ -52,8 +52,6 @@
 | `Esc_Pwm` | FTM3 CH6, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
 | `Esc2_Pwm` | FTM3 CH2, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
 | `Servo_Pwm` | FTM3 CH7, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
-| `Motor_1_Speed` | FTM0 CH1, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (unused legacy motor PWM) |
-| `Motor_2_Speed` | FTM0 CH2, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (unused legacy motor PWM) |
 | `LinearCamera_Clk` | FTM2 CH0, period 1000, clk 8 MHz / div 1 | `8 MHz / 1 / 1000 = 8 kHz` |
 
 ## Confirmed app-side timing assumptions

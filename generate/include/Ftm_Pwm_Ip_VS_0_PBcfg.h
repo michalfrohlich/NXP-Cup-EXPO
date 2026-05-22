@@ -82,10 +82,6 @@ extern "C"{
 /*==================================================================================================
 *                                          CONSTANTS
 ==================================================================================================*/
-/* Ftm instance index for configuration PwmFtmCh_1 */
-#define FTM_PWM_IP_VS_0_I0_CH1_CFG      (0U)
-/* Ftm instance index for configuration PwmFtmCh_2 */
-#define FTM_PWM_IP_VS_0_I0_CH2_CFG      (0U)
 /* Ftm instance index for configuration PwmFtmCh_7 */
 #define FTM_PWM_IP_VS_0_I3_CH7_CFG      (3U)
 /* Ftm instance index for configuration PwmFtmCh_6 */
@@ -116,23 +112,6 @@ extern "C"{
 #ifndef FTM_PWM_IP_PRECOMPILE_SUPPORT
 #define PWM_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Pwm_MemMap.h"
-
-/*================================================================================================*/
-/* Ftm instance 0 User configuration structure */
-extern const Ftm_Pwm_Ip_UserCfgType Ftm_Pwm_Ip_VS_0_UserCfg0;
-
-/* Ftm instance 0 configuration structure */
-extern const Ftm_Pwm_Ip_InstanceCfgType Ftm_Pwm_Ip_VS_0_InstCfg0;
-
-/* Ftm instance 0 synchronization configuration structure */
-extern const Ftm_Pwm_Ip_SyncCfgType Ftm_Pwm_Ip_VS_0_SyncCfg0;
-
-/* Channel configurations for Ftm instance 0 */
-/* Ftm channel 1 configuration */
-extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I0_Ch1;
-
-/* Ftm channel 2 configuration */
-extern const Ftm_Pwm_Ip_ChannelConfigType Ftm_Pwm_Ip_VS_0_I0_Ch2;
 
 /*================================================================================================*/
 /* Ftm instance 3 User configuration structure */

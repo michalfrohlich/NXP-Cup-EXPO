@@ -122,7 +122,7 @@ extern "C"{
 #define PWM_INDEX                               (0U)
 
 /** @brief      Total number of Pwm logic channels configured. */
-#define PWM_CONFIG_LOGIC_CHANNELS               (6U)
+#define PWM_CONFIG_LOGIC_CHANNELS               (4U)
 
 #define PWM_HW_CHANNEL_NO                       (36U)
 
@@ -140,13 +140,9 @@ extern "C"{
                                                             NULL_PTR,\
                                                             NULL_PTR,\
                                                             NULL_PTR,\
-                                                            NULL_PTR,\
-                                                            NULL_PTR,\
                                                             NULL_PTR\
                                                         },\
                                                         {\
-                                                            (boolean)FALSE,\
-                                                            (boolean)FALSE,\
                                                             (boolean)FALSE,\
                                                             (boolean)FALSE,\
                                                             (boolean)FALSE,\
@@ -248,10 +244,8 @@ extern "C"{
 */
 #define Esc_Pwm                            ((Pwm_ChannelType)0U)
 #define Servo_Pwm                            ((Pwm_ChannelType)1U)
-#define Motor_1_Speed                            ((Pwm_ChannelType)2U)
-#define Motor_2_Speed                            ((Pwm_ChannelType)3U)
-#define LinearCamera_Clk                            ((Pwm_ChannelType)4U)
-#define Esc2_Pwm                            ((Pwm_ChannelType)5U)
+#define LinearCamera_Clk                            ((Pwm_ChannelType)3U)
+#define Esc2_Pwm                            ((Pwm_ChannelType)2U)
 
 /**
 * @brief        Symbolic name for configured channels - TPS_ECUC_02108 compliant.
@@ -259,10 +253,8 @@ extern "C"{
 */
 #define PwmConf_PwmChannel_Esc_Pwm          ((Pwm_ChannelType)0U)
 #define PwmConf_PwmChannel_Servo_Pwm          ((Pwm_ChannelType)1U)
-#define PwmConf_PwmChannel_Motor_1_Speed          ((Pwm_ChannelType)2U)
-#define PwmConf_PwmChannel_Motor_2_Speed          ((Pwm_ChannelType)3U)
-#define PwmConf_PwmChannel_LinearCamera_Clk          ((Pwm_ChannelType)4U)
-#define PwmConf_PwmChannel_Esc2_Pwm          ((Pwm_ChannelType)5U)
+#define PwmConf_PwmChannel_LinearCamera_Clk          ((Pwm_ChannelType)3U)
+#define PwmConf_PwmChannel_Esc2_Pwm          ((Pwm_ChannelType)2U)
 
 /*==================================================================================================
 *                                              ENUMS
