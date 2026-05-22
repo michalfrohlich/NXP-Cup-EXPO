@@ -154,11 +154,6 @@
   - applies motor command through PWM and an internal ESC state machine on both configured ESC outputs
   - exposes one explicit dual-output API: `EscInit(primary, secondary, ...)`, `EscSetSpeed(primary, secondary)`, and `EscSetBrake(primary, secondary)`
 
-### Optional braking path present in repo
-- `services/braking.c`
-  - uses `ultrasonic.c` and `hbridge.c`
-  - remains a legacy DC motor path and is not part of the active BLDC mode path
-
 ## Interrupt / callback-driven pieces
 - `timebase.c`: `EmuTimer_Notification()`, `UsTimer_Notification()`
 - `linear_camera.c`: `NewCameraFrame()`, `CameraClock()`, `CameraAdcFinished()`
@@ -173,7 +168,6 @@
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_control_linear.c`, `src/servo.c`
 - Motor control: `src/esc.c`
-- Legacy DC motor path: `src/hbridge.c`
 - Serial debug: `src/services/serial_debug.c`
 - Sensors / IO: `src/linear_camera.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/buttons.c`, `src/display.c`, `src/rgb_led.c`
 

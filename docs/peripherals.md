@@ -23,7 +23,6 @@ Notes:
 | Secondary ESC command output | `Pwm` | `src/esc.c`, `src/app/car_config.h` |
 | Servo steering output | `Pwm` | `src/servo.c`, `src/app/car_config.h` |
 | Linear camera pixel clock | `Pwm` notification-driven clocking | `src/linear_camera.c`, `src/app/car_config.h` |
-| Legacy H-bridge motor speed | `Pwm` | `src/hbridge.c`, `include/hbridge.h` |
 
 Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
@@ -32,7 +31,7 @@ Notes:
 - The standalone servo rate test changes how often application code calls `Steer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
 - The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
-- The old H-bridge PWM channels remain generated, but they are no longer part of the active BLDC motor-control path.
+- Unused legacy motor PWM/GPIO channels may remain generated until removed through the S32DS MEX GUI.
 
 ## Timers / capture
 | Purpose | Driver/module | Key files |

@@ -313,7 +313,7 @@ void UI_SetRunState(boolean running, boolean fail)
 void UI_Task(Ultrasonic_StatusType ultraStatus,
              uint32 ultraIrqCount,
              uint32 ultraTicks,
-             Braking_StateType brakeState,
+             uint8 brakeState,
              float lastDistanceCm)
 {
     (void)ultraStatus;

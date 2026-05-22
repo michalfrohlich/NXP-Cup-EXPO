@@ -3,7 +3,6 @@
 
 #include "Platform_Types.h"
 #include "ultrasonic.h"
-#include "../services/braking.h"
 
 /* Pages (modes) user can select */
 typedef enum
@@ -39,7 +38,7 @@ void UI_SetTelemetry(int speedPct);
 void UI_Task(Ultrasonic_StatusType ultraStatus,
              uint32 ultraIrqCount,
              uint32 ultraTicks,
-             Braking_StateType brakeState,
+             uint8 brakeState,
              float lastDistanceCm);
 
 boolean   UI_IsInTerminal(void);

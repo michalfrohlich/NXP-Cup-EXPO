@@ -30,7 +30,7 @@
 | Peripheral clock | Value | Notes |
 | --- | --- | --- |
 | ADC0_CLK | 48 MHz | Used by camera / pot ADC paths |
-| FTM0_CLK | 8 MHz | PWM/H-bridge related generated config exists |
+| FTM0_CLK | 8 MHz | Generated timer clock available for FTM0 PWM channels |
 | FTM1_CLK | 8 MHz | ICU config uses FTM1 for ultrasonic echo capture |
 | FTM2_CLK | 8 MHz | Linear camera pixel clock PWM uses FTM2 |
 | FTM3_CLK | 8 MHz | Dual ESC outputs and servo PWM use FTM3 |
@@ -52,8 +52,8 @@
 | `Esc_Pwm` | FTM3 CH6, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
 | `Esc2_Pwm` | FTM3 CH2, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
 | `Servo_Pwm` | FTM3 CH7, period 40000, clk 8 MHz / div 4 | `8 MHz / 4 / 40000 = 50 Hz` |
-| `Motor_1_Speed` | FTM0 CH1, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (legacy H-bridge) |
-| `Motor_2_Speed` | FTM0 CH2, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (legacy H-bridge) |
+| `Motor_1_Speed` | FTM0 CH1, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (unused legacy motor PWM) |
+| `Motor_2_Speed` | FTM0 CH2, period 2000, clk 8 MHz / div 4 | `8 MHz / 4 / 2000 = 1 kHz` (unused legacy motor PWM) |
 | `LinearCamera_Clk` | FTM2 CH0, period 1000, clk 8 MHz / div 1 | `8 MHz / 1 / 1000 = 8 kHz` |
 
 ## Confirmed app-side timing assumptions

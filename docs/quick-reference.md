@@ -34,9 +34,8 @@
 
 ## Major modules
 - App orchestration: `src/app/app_modes.c`, `src/app/user_interface.c`, `src/app/vision_debug.c`
-- Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`, `src/services/braking.c`
+- Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`
 - Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`, `src/services/serial_debug.c`
-- Legacy DC motor code remains in `src/hbridge.c`, but the active build now uses dual BLDC ESC PWM outputs instead.
 
 ## Vision V2 snapshot
 - Shared output packet: `VisionOutput_t` in `src/app/main_types.h`
@@ -54,7 +53,6 @@
 ## Confirmed peripheral usage
 - ADC: onboard potentiometer and linear camera sampling
 - PWM: dual ESC outputs, servo, camera pixel clock
-- Legacy H-bridge PWM channels remain in generated config, but they are no longer part of the active BLDC drive path.
 - GPT: millisecond timebase, microsecond delay, camera shutter timing, receiver timing support
 - ICU: ultrasonic echo timestamping, receiver signal capture
 - I2C: SSD1306-style OLED display (`0x3C`)
