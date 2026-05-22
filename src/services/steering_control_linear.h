@@ -1,9 +1,6 @@
 #pragma once
 
-/* IMPORTANT:
-   SteeringOutput_t is already defined in main_types.h.
-   Do NOT redefine it here, or you get "conflicting types" errors.
-*/
+/* SteeringOutput_t and VisionOutput_t are defined in main_types.h. */
 #include "../app/main_types.h"
 
 #include "vision_linear_v2.h"
@@ -16,14 +13,17 @@ typedef struct
     /* PID memory */
     float i_term;          /* integral accumulator */
     float prev_error;      /* last error for derivative */
+    float err_filt;        /* filtered steering error */
+    float d_error;         /* filtered error used by derivative */
+    float d_term;          /* filtered derivative term */
 
-    /* Tunings (defaults come from car_config.h in Init) */
+    /* Tunings, defaulted from car_config.h in Init. */
     float kp;
     float ki;
     float kd;
     float iTermClamp;
 
-    /* Extra steering aggressiveness multiplier */
+    /* Extra steering aggressiveness multiplier. */
     float steerScale;
 
 } SteeringLinearState_t;
@@ -34,7 +34,7 @@ typedef struct
 void SteeringLinear_Init(SteeringLinearState_t *s);
 void SteeringLinear_Reset(SteeringLinearState_t *s);
 
-/* Keep SAME signature as your original project (so UI won’t break) */
+/* Keep SAME signature as the original project so UI callers do not break. */
 void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, float steerScale);
 
 SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
