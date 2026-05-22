@@ -12,6 +12,7 @@
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
+- `APP_TEST_SERVO_RATE_TEST` is a standalone servo-only timing test for the period-latched steering output.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
 - `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
@@ -35,6 +36,7 @@
 5. The selected mode runs forever
 6. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
 7. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
+8. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Steer()` commands at a selectable software cadence
 
 ## Runtime-selectable tests mode
 - `APP_TEST_NXP_CUP_TESTS` adds a simple test menu driven by the onboard potentiometer.
@@ -49,6 +51,14 @@
   - the menu includes `Serial tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
   - serial tuning writes into a shared RAM-backed runtime tune block that persists for the current power cycle, and the generic camera/servo drive path now reads that block when entering `Cam Servo` and `Simple test drv`
 - `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
+
+## Servo Rate Test
+- `APP_TEST_SERVO_RATE_TEST` is meant to isolate servo command timing from camera, ESC, ultrasonic, and steering-controller code.
+- `SW2` cycles the software command rate through `10 Hz`, `50 Hz`, `100 Hz`, and `250 Hz`.
+- `SW3` cycles the command source through potentiometer control, one-unit fine sweep, and larger step sweep.
+- The OLED shows the selected rate, selected command source, current `Steer()` command, PWM-period callback count, and an `OK` / `BUF` / `NOISR` status.
+- The RGB LED is green while the servo driver/callback path keeps up, and red if the PWM-period callback is not firing or if a new command slot arrives while the previous command is still buffered.
+- The physical PWM frame is still the generated `50 Hz` servo PWM. This test changes how often handwritten code publishes new desired steering commands into the period-latched servo driver.
 
 ## NXP Cup mode
 - `APP_TEST_NXP_CUP` is a profile-driven competition flow built on the current camera, vision, steering, and ultrasonic paths.

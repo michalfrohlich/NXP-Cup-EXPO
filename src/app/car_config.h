@@ -12,13 +12,15 @@
 #define APP_TEST_NXP_CUP                  0
 #define APP_TEST_RACE_MODE                0
 #define APP_TEST_HONOR_LAP                0
-#define APP_TEST_NXP_CUP_TESTS            1
+#define APP_TEST_SERVO_RATE_TEST          1
+#define APP_TEST_NXP_CUP_TESTS            0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
     (APP_TEST_NXP_CUP) + \
     (APP_TEST_RACE_MODE) + \
     (APP_TEST_HONOR_LAP) + \
+    (APP_TEST_SERVO_RATE_TEST) + \
     (APP_TEST_NXP_CUP_TESTS) \
 )
 

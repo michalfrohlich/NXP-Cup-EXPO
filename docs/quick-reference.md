@@ -12,14 +12,16 @@
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
 - Invalid or missing selection is a configuration error.
-- Current repository state selects `APP_TEST_NXP_CUP_TESTS = 1`.
+- Current repository state selects `APP_TEST_SERVO_RATE_TEST = 1` for servo timing debugging.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
 - `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
 - `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
+- `APP_TEST_SERVO_RATE_TEST` is a standalone servo timing/debug mode for checking the period-latched servo behavior without camera or ESC activity.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode for the rest of the interactive test screens.
 - `APP_TEST_HONOR_LAP` is available as a standalone compile-time mode for automatic line following with ultrasonic obstacle slowing/stopping.
 - The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Simple test drv`, `Serial tune`, `Ultra+ESC`, and `Receiver - x`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
+- `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
 - `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
 - `Serial tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in `tools/matlab/linear_camera_dashboard_viewer.m` and `tools/matlab/linear_camera_single_graph_viewer.m`.

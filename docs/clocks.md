@@ -67,6 +67,7 @@
 | Camera debug display period | `src/app/car_config.h` | `100 ms` |
 | Steering update period | `src/app/car_config.h` | `10 ms` |
 | Servo handwritten period-latched update | `src/servo.c` | next `50 Hz` PWM frame |
+| Servo rate test software command cadence | `src/app/app_modes.c` | selectable `10 / 50 / 100 / 250 Hz`; physical PWM output remains `50 Hz` |
 | Race display period | `src/app/car_config.h` | `200 ms` |
 | Camera shutter GPT logical channel | `src/app/car_config.h` | 1 |
 | Camera frame interval ticks | `src/app/car_config.h` | 160000 |

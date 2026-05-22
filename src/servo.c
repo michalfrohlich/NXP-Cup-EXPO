@@ -43,6 +43,9 @@ static volatile boolean ServoInitialized = FALSE;
 static volatile uint16 ServoAppliedDutyCycle = 0U;
 static volatile uint16 ServoPendingDutyCycle = 0U;
 static volatile boolean ServoPendingUpdate = FALSE;
+static volatile uint32 ServoCommandRequestCount = 0U;
+static volatile uint32 ServoPeriodCallbackCount = 0U;
+static volatile uint32 ServoAppliedUpdateCount = 0U;
 /*==================================================================================================
 *                                      GLOBAL CONSTANTS
 ==================================================================================================*/
@@ -111,6 +114,9 @@ void ServoInit(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinD
     ServoAppliedDutyCycle = ServoInstance.MedDutyCycle;
     ServoPendingDutyCycle = ServoInstance.MedDutyCycle;
     ServoPendingUpdate = FALSE;
+    ServoCommandRequestCount = 0U;
+    ServoPeriodCallbackCount = 0U;
+    ServoAppliedUpdateCount = 0U;
     ServoInitialized = TRUE;
     Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoAppliedDutyCycle);
     Pwm_EnableNotification(ServoInstance.ServoPwmChannel, PWM_FALLING_EDGE);
@@ -124,6 +130,7 @@ void Steer(int Direction){
         return;
     }
 
+    ServoCommandRequestCount++;
     ServoDutyCycle = Servo_CalcDuty(Direction);
     Servo_PublishPendingDuty(ServoDutyCycle);
 }
@@ -134,6 +141,7 @@ void SteerLeft(void){
         return;
     }
 
+    ServoCommandRequestCount++;
     Servo_PublishPendingDuty(ServoInstance.MinDutyCycle);
 }
 
@@ -143,6 +151,7 @@ void SteerRight(void){
         return;
     }
 
+    ServoCommandRequestCount++;
     Servo_PublishPendingDuty(ServoInstance.MaxDutyCycle);
 }
 
@@ -152,12 +161,20 @@ void SteerStraight(void){
         return;
     }
 
+    ServoCommandRequestCount++;
     Servo_PublishPendingDuty(ServoInstance.MedDutyCycle);
 }
 
 void Servo_Period_Finished(void)
 {
-    if ((ServoInitialized != TRUE) || (ServoPendingUpdate != TRUE))
+    if (ServoInitialized != TRUE)
+    {
+        return;
+    }
+
+    ServoPeriodCallbackCount++;
+
+    if (ServoPendingUpdate != TRUE)
     {
         return;
     }
@@ -165,6 +182,25 @@ void Servo_Period_Finished(void)
     Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoPendingDutyCycle);
     ServoAppliedDutyCycle = ServoPendingDutyCycle;
     ServoPendingUpdate = FALSE;
+    ServoAppliedUpdateCount++;
+}
+
+void ServoGetDebugSnapshot(ServoDebugSnapshot *Snapshot)
+{
+    if (Snapshot == NULL_PTR)
+    {
+        return;
+    }
+
+    SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
+    Snapshot->Initialized = ServoInitialized;
+    Snapshot->AppliedDutyCycle = ServoAppliedDutyCycle;
+    Snapshot->PendingDutyCycle = ServoPendingDutyCycle;
+    Snapshot->PendingUpdate = ServoPendingUpdate;
+    Snapshot->CommandRequestCount = ServoCommandRequestCount;
+    Snapshot->PeriodCallbackCount = ServoPeriodCallbackCount;
+    Snapshot->AppliedUpdateCount = ServoAppliedUpdateCount;
+    SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
 }
 
 #ifdef __cplusplus

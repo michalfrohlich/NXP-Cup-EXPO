@@ -34,6 +34,17 @@ typedef struct{
     uint16 MaxDutyCycle;    /*maximum left steer  (the higher the duty cycle, the more it steers left)*/
     uint16 MedDutyCycle;    /*centered    (needed if left and right steering angles are not equal physically for any reason)*/
 }Servo;
+
+typedef struct
+{
+    boolean Initialized;
+    uint16 AppliedDutyCycle;
+    uint16 PendingDutyCycle;
+    boolean PendingUpdate;
+    uint32 CommandRequestCount;
+    uint32 PeriodCallbackCount;
+    uint32 AppliedUpdateCount;
+} ServoDebugSnapshot;
 /*==================================================================================================
 *                                       LOCAL MACROS
 ==================================================================================================*/
@@ -66,6 +77,7 @@ void SteerLeft(void);    /*sets the duty cycle to the configured maximum*/
 void SteerRight(void);/*sets the duty cycle to the configured minimum*/
 void SteerStraight(void);    /*sets the duty cycle to the configured middle*/
 void Servo_Period_Finished(void);
+void ServoGetDebugSnapshot(ServoDebugSnapshot *Snapshot);
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS
