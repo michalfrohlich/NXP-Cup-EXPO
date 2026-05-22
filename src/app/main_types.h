@@ -19,25 +19,6 @@ extern "C" {
 #include "Std_Types.h"
 
 /* =========================================================
-   Car state (your app state machine)
-   ---------------------------------------------------------
-   - IDLE: stopped, waiting for SW2
-   - ARMING: waiting START_DELAY_MS
-   - RUN: driving
-   - INTERSECTION_COMMIT: special behavior for intersections
-========================================================= */
-typedef enum
-{
-    CAR_INIT = 0,
-    CAR_IDLE,
-    CAR_ARMING,
-    CAR_RUN,
-    CAR_INTERSECTION_COMMIT,
-    CAR_ERROR
-} CarMode_t;
-
-
-/* =========================================================
    Output from the VISION module (camera -> lane info)
    ---------------------------------------------------------
    Shared packet filled by vision and consumed by steering/app modes.

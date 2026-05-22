@@ -192,16 +192,6 @@ typedef struct
     uint8 steeringBaseSpeed;
 } LinearCameraTestState_t;
 
-typedef struct
-{
-    CarMode_t mode;
-    uint32 startGoMs;
-    uint32 armDoneMs;
-    uint32 nextDisplayMs;
-    sint16 currentCmdPct;
-    uint8 lastPotLevel;
-} EscRunState_t;
-
 typedef enum
 {
     ESC_TEST_STATE_DISARMED = 0,
@@ -576,8 +566,6 @@ static void runtime_test_update(RuntimeTestId_t testId,
                                 boolean modeNextPressed,
                                 uint8 potLevel);
 static void runtime_test_exit(RuntimeTestId_t testId);
-static void esc_enter(EscRunState_t *st, uint32 nowMs);
-static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3, uint8 pot);
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile);
 static void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile);
 static void camservo_enter(CamServoState_t *st, uint32 nowMs);
@@ -2965,120 +2953,6 @@ static void runtime_test_exit(RuntimeTestId_t testId)
         default:
             linear_camera_test_exit();
             break;
-    }
-}
-
-static void esc_enter(EscRunState_t *st, uint32 nowMs)
-{
-    st->mode = CAR_INIT;
-    st->startGoMs = 0u;
-    st->armDoneMs = nowMs + ESC_ARM_TIME_MS;
-    st->nextDisplayMs = nowMs;
-    st->currentCmdPct = 0;
-    st->lastPotLevel = (uint8)POT_CENTER_RAW;
-
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
-    Esc_StopNeutral();
-}
-
-static void esc_update(EscRunState_t *st, uint32 nowMs, boolean sw2, boolean sw3, uint8 pot)
-{
-    st->lastPotLevel = pot;
-
-    if (time_reached(nowMs, st->armDoneMs) != TRUE)
-    {
-        st->currentCmdPct = 0;
-        Esc_StopNeutral();
-        StatusLed_Blue();
-        return;
-    }
-
-    if (st->mode == CAR_INIT)
-    {
-        st->mode = CAR_IDLE;
-    }
-
-    if (sw3 == TRUE)
-    {
-        st->mode = CAR_IDLE;
-        st->currentCmdPct = 0;
-        Esc_StopNeutral();
-        StatusLed_Blue();
-        return;
-    }
-
-    if ((st->mode == CAR_IDLE) && (sw2 == TRUE))
-    {
-        st->mode = CAR_ARMING;
-        st->startGoMs = nowMs + START_DELAY_MS;
-
-        Esc_SetLogicalSpeed(0, 0);
-        EscSetBrake(0U, 0U);
-    }
-
-    if ((st->mode == CAR_ARMING) && (time_reached(nowMs, st->startGoMs) == TRUE))
-    {
-        st->mode = CAR_RUN;
-    }
-
-    if (st->mode != CAR_RUN)
-    {
-        st->currentCmdPct = 0;
-        Esc_StopNeutral();
-    }
-    else
-    {
-        sint32 cmdPct;
-
-        if (pot <= (uint8)POT_CENTER_RAW)
-        {
-            uint16 denom = (uint16)(POT_CENTER_RAW - POT_LEFT_RAW);
-
-            if (denom == 0u)
-            {
-                denom = 1u;
-            }
-
-            cmdPct = -((sint32)((uint8)POT_CENTER_RAW - pot) * 100) / (sint32)denom;
-        }
-        else
-        {
-            uint16 denom = (uint16)(POT_RIGHT_RAW - POT_CENTER_RAW);
-
-            if (denom == 0u)
-            {
-                denom = 1u;
-            }
-
-            cmdPct = ((sint32)(pot - (uint8)POT_CENTER_RAW) * 100) / (sint32)denom;
-        }
-
-        if ((cmdPct < (sint32)MOTOR_DEADBAND_PCT) &&
-            (cmdPct > -((sint32)MOTOR_DEADBAND_PCT)))
-        {
-            cmdPct = 0;
-        }
-
-        st->currentCmdPct = (sint16)cmdPct;
-        EscSetBrake(0U, 0U);
-        Esc_SetLogicalSpeed((int)cmdPct, (int)cmdPct);
-    }
-
-    if (st->mode == CAR_RUN)
-    {
-        StatusLed_Green();
-    }
-    else if (st->mode == CAR_ARMING)
-    {
-        StatusLed_Cyan();
-    }
-    else if (st->mode == CAR_ERROR)
-    {
-        StatusLed_Red();
-    }
-    else
-    {
-        StatusLed_Blue();
     }
 }
 
