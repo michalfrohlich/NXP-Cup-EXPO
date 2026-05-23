@@ -10,6 +10,8 @@ extern "C" {
 #include "CDD_I2c.h"
 #include "display.h"
 
+/* Unused non-blocking OLED transport retained for reference. */
+
 #define DISPLAY_ASYNC_FRAME_DATA_BYTES   (CharacterRows * CharacterColumns * 8U)
 #define DISPLAY_ASYNC_FRAME_TOTAL_BYTES  (DISPLAY_ASYNC_FRAME_DATA_BYTES + 1U)
 

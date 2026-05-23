@@ -1,9 +1,7 @@
 #pragma once
 
 /* SteeringOutput_t and VisionOutput_t are defined in main_types.h. */
-#include "../app/main_types.h"
-
-#include "vision_linear_v2.h"
+#include "main_types.h"
 
 /* =========================================================
    Controller internal state
@@ -17,7 +15,7 @@ typedef struct
     float d_error;         /* filtered error used by derivative */
     float d_term;          /* filtered derivative term */
 
-    /* Tunings, defaulted from car_config.h in Init. */
+    /* Tunings, defaulted from control_defaults.h in Init. */
     float kp;
     float ki;
     float kd;

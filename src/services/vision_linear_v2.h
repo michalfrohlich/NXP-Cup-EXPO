@@ -17,96 +17,11 @@ extern "C" {
 #endif
 
 #include "Platform_Types.h"
-#include "../app/main_types.h"
-#include "../app/car_config.h"
-
-/* ----------------------------- Tunables ----------------------------- */
-
-#ifndef VISION_LINEAR_BUFFER_SIZE
-#define VISION_LINEAR_BUFFER_SIZE            (CAM_EFFECTIVE_PIXELS)
-#endif
-
-#ifndef VISION_LINEAR_CONF_CONTRAST_THRESHOLD
-#define VISION_LINEAR_CONF_CONTRAST_THRESHOLD (450U)
-#endif
-
-#ifndef VISION_LINEAR_CONF_EDGE_LOW
-#define VISION_LINEAR_CONF_EDGE_LOW          (70U)
-#endif
-
-#ifndef VISION_LINEAR_CONF_EDGE_HIGH
-#define VISION_LINEAR_CONF_EDGE_HIGH         (220U)
-#endif
-
-#ifndef VISION_LINEAR_CONF_EDGE_WEIGHT_PCT
-#define VISION_LINEAR_CONF_EDGE_WEIGHT_PCT   (80U)
-#endif
-
-#ifndef VISION_LINEAR_CONF_CONTRAST_WEIGHT_PCT
-#define VISION_LINEAR_CONF_CONTRAST_WEIGHT_PCT (20U)
-#endif
-
-#ifndef VISION_LINEAR_MIN_WEAK_EDGE
-#define VISION_LINEAR_MIN_WEAK_EDGE          (80U)
-#endif
-
-#ifndef VISION_LINEAR_MIN_STRONG_EDGE
-#define VISION_LINEAR_MIN_STRONG_EDGE        (140U)
-#endif
-
-#ifndef VISION_LINEAR_EDGE_HIGH_PCT
-#define VISION_LINEAR_EDGE_HIGH_PCT          (45U)
-#endif
-
-#ifndef VISION_LINEAR_EDGE_LOW_PCT
-#define VISION_LINEAR_EDGE_LOW_PCT           (55U)
-#endif
-
-#ifndef VISION_LINEAR_NOMINAL_LANE_WIDTH
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH     (82U)
-#endif
-
-#ifndef VISION_LINEAR_LANE_WIDTH_TOL_PCT
-#define VISION_LINEAR_LANE_WIDTH_TOL_PCT     (20U)
-#endif
-
-#ifndef VISION_LINEAR_SPLIT_MARGIN_PX
-#define VISION_LINEAR_SPLIT_MARGIN_PX        (10U)
-#endif
-
-#ifndef VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT
-#define VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT (3U)
-#endif
-
-#ifndef VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE
-#define VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE (35U)
-#endif
-
-#ifndef VISION_FINISH_WIDTH_MIN_PCT
-#define VISION_FINISH_WIDTH_MIN_PCT          (50U)
-#endif
-
-#ifndef VISION_FINISH_WIDTH_MAX_PCT
-#define VISION_FINISH_WIDTH_MAX_PCT          (150U)
-#endif
-
-#ifndef VISION_FINISH_CENTER_TOL_PCT
-#define VISION_FINISH_CENTER_TOL_PCT         (15U)
-#endif
-
-#ifndef VISION_FINISH_INNER_WIDTH_MM
-#define VISION_FINISH_INNER_WIDTH_MM         (510U)
-#endif
-
-#ifndef VISION_FINISH_CENTER_GAP_MM
-#define VISION_FINISH_CENTER_GAP_MM          (74U)
-#endif
+#include "main_types.h"
+#include "camera_config.h"
+#include "vision_config.h"
 
 #define VISION_LINEAR_INVALID_IDX            (255U)
-
-#ifndef VLIN_MAX_EDGE_CANDIDATES
-#define VLIN_MAX_EDGE_CANDIDATES             (12U)
-#endif
 
 /* ----------------------------- Output types ----------------------------- */
 

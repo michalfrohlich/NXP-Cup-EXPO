@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include "Platform_Types.h"
-#include "../src/services/vision_linear_v2.h"
+#include "../services/vision_linear_v2.h"
 
 /* Debug screens */
 typedef enum

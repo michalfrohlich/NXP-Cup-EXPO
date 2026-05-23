@@ -1,5 +1,7 @@
 #include "display_async.h"
 
+/* Unused non-blocking OLED transport retained for reference. */
+
 #define DISPLAY_I2C_ADDRESS         (0x3CU)
 #define DISPLAY_CTRL_ALL_DATA       (0x40U)
 #define DISPLAY_CTRL_COMMAND_STREAM (0x00U)

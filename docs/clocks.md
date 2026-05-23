@@ -68,7 +68,7 @@
 | Servo rate test software command cadence | `src/app/app_modes.c` | selectable `10 / 50 / 100 / 250 Hz`; physical PWM output remains `50 Hz` |
 | Race display period | `src/app/car_config.h` | `200 ms` |
 | Camera shutter GPT logical channel | `src/app/car_config.h` | 1 |
-| Camera frame interval ticks | `src/app/car_config.h` | 160000 |
+| Camera frame interval ticks | `include/camera_config.h` | 160000 |
 | Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 800 |
 | EmuTimer period | `src/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
 | UsTimer period base | generated GPT + LPIT config, `src/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |

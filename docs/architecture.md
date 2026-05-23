@@ -4,6 +4,11 @@
 - `src/main.c` calls `App_RunSelectedMode()` and never returns.
 - `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/car_config.h`.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
+- `src/app/app_modes.c` owns the current app-level runtime init helpers after `Board_InitDrivers()`.
+- `include/main_types.h` defines the shared vision/control/app handoff packets.
+- `include/camera_config.h` defines camera frame timing and geometry shared by the S32K camera driver and vision service.
+- `include/vision_config.h` defines vision detector tunables used by the vision service and debug code.
+- `include/control_defaults.h` defines default steering-control tunings used by the control service and app runtime tune initialization.
 - `src/services/serial_debug.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model
@@ -32,7 +37,7 @@
 1. `main()`
 2. `App_RunSelectedMode()`
 3. Exactly one compile-time mode is selected in `car_config.h`
-4. That mode performs common runtime init (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
+4. That mode performs common runtime init through app-owned helpers (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
 5. The selected mode runs forever
 6. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
 7. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
@@ -108,6 +113,7 @@
   - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
+  - reads default PID, steering shaping, and controller speed-policy values from `include/control_defaults.h`
   - applies filtered-error and filtered-derivative shaping (with confidence-aware error filtering) before PID output
   - resets controller memory when vision reports track lost to avoid stale integral/derivative carry-over
   - carries the active integral clamp in controller state, so per-mode and per-profile integral clamp settings are real runtime inputs
@@ -172,6 +178,7 @@
 - Sensors / IO: `src/linear_camera.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/buttons.c`, `src/display.c`, `src/rgb_led.c`
 
 ## Current vision notes
-- The public vision handoff is `VisionOutput_t` in `src/app/main_types.h`.
+- The public vision handoff is `VisionOutput_t` in `include/main_types.h`; `src/app/main_types.h` is only a compatibility shim.
 - The current finish detector is gap-based, not region-based.
 - The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.
+- `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/app_modes.c`.

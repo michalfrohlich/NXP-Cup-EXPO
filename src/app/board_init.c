@@ -10,16 +10,6 @@
 #include "Gpt.h"
 #include "Adc.h"
 
-#include "timebase.h"
-#include "onboard_pot.h"
-#include "ultrasonic.h"
-#include "esc.h"
-#include "servo.h"
-#include "display.h"
-#include "linear_camera.h"
-#include "rgb_led.h"
-
-#include "car_config.h"
 #include "../services/serial_debug.h"
 
 void Board_InitDrivers(void)
@@ -64,26 +54,4 @@ void Board_InitDrivers(void)
     Pwm_Init(NULL_PTR);
 
     SerialDebug_Init();
-}
-
-void Board_InitCommonApp(void)
-{
-    Board_InitDrivers();
-    Timebase_Init();
-    OnboardPot_Init();
-    Ultrasonic_Init();
-
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
-    ServoInit(SERVO_PWM_CH, 3300U, 1700U, 2500U);
-
-    DisplayInit(0U, STD_ON);
-    LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
-
-    RgbLed_ChangeColor((RgbLed_Color){ .r=true, .g=false, .b=false });
-    for (volatile uint32 i = 0; i < 700000u; i++) { }
-    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=true, .b=false });
-    for (volatile uint32 i = 0; i < 600000u; i++) { }
-    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=true });
-    for (volatile uint32 i = 0; i < 500000u; i++) { }
-    RgbLed_ChangeColor((RgbLed_Color){ .r=false, .g=false, .b=false });
 }

@@ -2,9 +2,12 @@
 /*
   car_config.h
   ============
-  Single source of truth for build-time mode selection and tuning constants.
+  Build-time mode selection plus app-level hardware aliases and profile constants.
 */
 
+#include "camera_config.h"
+#include "control_defaults.h"
+#include "vision_config.h"
 #include "Pwm_Cfg.h"
 
 /* =========================================================
@@ -56,9 +59,6 @@
 #define SERVO_TEST_LPF_ALPHA              0.45f
 #define SERVO_TEST_UPDATE_MS              5u
 
-#define STEER_SIGN                        (+1)
-#define STEER_CMD_CLAMP                   140
-
 /* Pot constants (required by ESC-only working mode) */
 #define POT_LEFT_RAW                      0
 #define POT_CENTER_RAW                    128
@@ -102,144 +102,17 @@
 #define CAM_ADC_GROUP                     0U
 #define CAM_SHUTTER_PCR                   97U
 
-/* Camera timing.
-   CAM_FRAME_INTERVAL_TICKS controls the time between frame readouts. */
-#define CAM_FRAME_INTERVAL_TICKS          160000U
-
-/* Sensor geometry.
-   The camera still captures all 128 physical pixels, but vision/debug use a
-   symmetric centered window and ignore a couple of pixels on both edges. */
-#define CAM_N_PIXELS                      128u
-#define CAM_TRIM_LEFT_PX                  2u
-#define CAM_TRIM_RIGHT_PX                 2u
-#define CAM_EFFECTIVE_PIXELS             (CAM_N_PIXELS - CAM_TRIM_LEFT_PX - CAM_TRIM_RIGHT_PX)
-
 /* Camera test / debug loop settings. */
 #define CAM_DEBUG_UI_PERIOD_MS            5u
 #define CAM_SERVO_CONTROL_PERIOD_MS       5u
 #define V2_WHITE_SAT_U8                   220u
 #define CAM_DEBUG_PAUSE_HOLD_MS           1000U
 
-/* Line detector candidate buffer sizes.
-   Increase if the scene can legitimately contain more edge/region candidates. */
-#define VLIN_MAX_EDGE_CANDIDATES          12U
-
-/* Vision V2 line-detection tuning. */
-/* Minimum filtered brightness span in one frame.
-   Raise this to ignore weak/flat scenes more aggressively.
-   Lower it if the detector drops the line in dim lighting. */
-#define VISION_LINEAR_MIN_CONTRAST        650U
-
-/* Minimum accepted weak edge magnitude.
-   Raise this to reject noise and tiny reflections.
-   Lower it if real line edges are too often missed. */
-#define VISION_LINEAR_MIN_WEAK_EDGE       32U
-
-/* Minimum accepted strong edge magnitude.
-   This is the floor for the hysteresis "strong edge" threshold.
-   Raise it to demand cleaner edges, lower it for weaker signals. */
-#define VISION_LINEAR_MIN_STRONG_EDGE     40U
-
-/* Strong edge threshold as percent of the strongest gradient in the frame.
-   Higher = fewer edge candidates.
-   Lower = more edge candidates. */
-#define VISION_LINEAR_EDGE_HIGH_PCT       40U
-
-/* Weak edge threshold as percent of the strong threshold.
-   Higher = only candidates close to strong edges survive.
-   Lower = hysteresis becomes more permissive. */
-#define VISION_LINEAR_EDGE_LOW_PCT        55U
-
-/* Expected distance between the two detected inner track edges in pixels.
-   Used both for lane-pair selection and to estimate track center when only
-   one edge is visible. Tune this when camera height changes. */
-#define VISION_LINEAR_NOMINAL_LANE_WIDTH  90U
-
-/* Allowed lane-width deviation around VISION_LINEAR_NOMINAL_LANE_WIDTH.
-   Candidate left/right edge pairs outside this percentage window are rejected
-   outright instead of being considered as a valid lane. */
-#define VISION_LINEAR_LANE_WIDTH_TOL_PCT  20U
-
-/* Single-edge recovery confidence handling.
-   If only one lane edge is visible for a few consecutive frames, keep the
-   current geometry estimate but reduce confidence to indicate degraded track
-   quality. This does not change the estimated lane center by itself.
-   - STREAK_LIMIT: number of consecutive TRACK_LEFT/RIGHT frames allowed before
-     confidence is stepped down.
-   - LOW_CONFIDENCE: confidence reported once the streak limit is exceeded. */
-#define VISION_LINEAR_SINGLE_EDGE_STREAK_LIMIT   3U
-#define VISION_LINEAR_SINGLE_EDGE_LOW_CONFIDENCE 35U
-
-/* Keep the dynamic left/right split point away from the extreme image edges.
-   Raise this if the edge pixels are unreliable or noisy. */
-#define VISION_LINEAR_SPLIT_MARGIN_PX     10U
-
-/* Finish-line detector.
-   Geometry is referenced to the inner lane width between the two detected
-   black lane borders, measured approximately through the middle of the 20 mm
-   border stripes:
-     10 mm + 124 mm + 94 mm + 74 mm + 94 mm + 124 mm + 10 mm
-   = 530 mm effective width.
-   Expected finish gap is scaled from the currently detected lane width. */
-#define VISION_FINISH_INNER_WIDTH_MM      530U
-#define VISION_FINISH_CENTER_GAP_MM        74U
-
-/* Finish-line detector tolerance.
-   Expected bar width and center gap are scaled from the current detected lane
-   width using the geometry above. A measured width/gap is accepted if it lies within:
-     expected * MIN_PCT / 100  ..  expected * MAX_PCT / 100 */
-#define VISION_FINISH_WIDTH_MIN_PCT       70U
-#define VISION_FINISH_WIDTH_MAX_PCT       130U
-
-/* Maximum allowed offset of the detected finish-gap midpoint from the lane
-   midpoint, expressed as a percent of the current lane width.
-   Lower values reduce false positives from off-center gaps. */
-#define VISION_FINISH_CENTER_TOL_PCT      15U
-
 /* =========================================================
    Full car safety
 ========================================================= */
 #define LINE_LOST_COAST_MS                2000u
 #define SPEED_LOST_LINE                   20   //I guess If the line is lost it should be zero test this because Idle mode seems to be this speed but idk for now
-
-/* =========================================================
-   PID (Vision V2 error is normalized -1..+1)
-========================================================= */
-/* What changing each does (quick tuning notes):
-
-  Described below :
-*/
-
-
-// - KP: higher = stronger centering, too high = oscillation / weave
-#define KP                                4.5f
-// - KD: higher = more damping, too high = twitchy/jitter (amplifies noise)
-#define KD                                2.0f
-//   - KI: fixes steady drift/bias, too high = slow weave + wind-up
-#define KI                                0.03f
-//   - ITERM_CLAMP: caps integral; higher = more bias correction but more wind-up risk
-#define ITERM_CLAMP                       0.3f
-//   - STEER_CENTER_ERR_DEADBAND: ignores tiny center errors (reduces straight-line twitch)
-#define STEER_CENTER_ERR_DEADBAND         0.07f
-//   - STEER_LPF_ALPHA: higher = smoother steering, but adds lag (can miss corners)
-#define STEER_LPF_ALPHA                   0.60f
-//   - STEER_ERROR_LPF_ALPHA: low-pass filter alpha for vision error before PID
-#define STEER_ERROR_LPF_ALPHA             0.30f
-//   - STEER_D_INPUT_ALPHA: smoothing for derivative input
-#define STEER_D_INPUT_ALPHA               0.55f
-//   - STEER_DTERM_LPF_ALPHA: smoothing for derivative output
-#define STEER_DTERM_LPF_ALPHA             0.35f
-//   - STEER_DTERM_CLAMP: hard cap on derivative term to limit spikes
-#define STEER_DTERM_CLAMP                 4.0f
-
-
-
-/* =========================================================
-   Speed policy
-========================================================= */
-#define SPEED_MIN                         18
-#define SPEED_MAX                         60
-#define SPEED_SLOW_PER_STEER              25
 
 #define FULLMODE_SLOW_SPEED_PCT           12
 

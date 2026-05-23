@@ -6,13 +6,16 @@
 ## Main entry points
 - `src/main.c`: process entry; calls `App_RunSelectedMode()`.
 - `src/app/app_modes.c`: compile-time mode dispatcher plus the `APP_TEST_NXP_CUP_TESTS` runtime test menu and the standalone `APP_TEST_NXP_CUP` competition flow.
-- `src/app/board_init.c`: RTD/MCAL driver bring-up and common hardware init.
-- `src/app/car_config.h`: compile-time mode selection and main tuning constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
+- `src/app/board_init.c`: RTD/MCAL driver bring-up.
+- `src/app/car_config.h`: compile-time mode selection, generated PWM/channel routing aliases, and app/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
+- `include/main_types.h`: shared domain packets passed between vision, control, and app code.
+- `include/camera_config.h`: shared camera frame timing and geometry constants used by the camera driver and vision processing.
+- `include/vision_config.h`: vision detector tuning constants.
+- `include/control_defaults.h`: default steering PID, steering shaping, and controller speed policy constants.
 
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
 - Invalid or missing selection is a configuration error.
-- Current repository state selects `APP_TEST_SERVO_RATE_TEST = 1` for servo timing debugging.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
 - `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
 - `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
@@ -33,12 +36,13 @@
 - In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules
-- App orchestration: `src/app/app_modes.c`, `src/app/user_interface.c`, `src/app/vision_debug.c`
+- App orchestration: `src/app/app_modes.c`, `src/app/vision_debug.c`
 - Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`
 - Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`, `src/services/serial_debug.c`
+- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are excluded from the current CLI build; active runtime menu/HUD code lives in `src/app/app_modes.c`, and active OLED writes use `src/display.c`.
 
 ## Vision V2 snapshot
-- Shared output packet: `VisionOutput_t` in `src/app/main_types.h`
+- Shared output packet: `VisionOutput_t` in `include/main_types.h`
 - Processing pipeline in `src/services/vision_linear_v2.c`:
   - filtered signal
   - signed gradient
@@ -62,6 +66,8 @@
 - `src/`, `include/`: handwritten hardware modules
 - `src/app/`: application modes and board init
 - `src/services/`: vision and control logic
+- `include/main_types.h`, `include/camera_config.h`, `include/vision_config.h`, `include/control_defaults.h`: shared domain packets and service-level configuration
+- `src/unused/`: retained inactive modules excluded from the current managed make build
 - `generate/`: generated RTD/MCAL configuration
 - `board/`: generated board/pin configuration
 - `RTD/`: local RTD driver sources/headers

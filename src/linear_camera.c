@@ -3,7 +3,7 @@ extern "C" {
 #endif
 
 #include "linear_camera.h"
-#include "app/car_config.h"
+#include "camera_config.h"
 #include "Adc_Types.h"
 
 static volatile LinearCamera LinearCameraInstance;

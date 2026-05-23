@@ -1,5 +1,10 @@
 #include "serial_debug.h"
 
+/* Temporary S32K UART transport.
+ * This module still reaches below the generated UART API for RX polling and
+ * should be treated as board-specific bring-up/debug code, not portable logic.
+ */
+
 #include "CDD_Uart.h"
 #include "S32K144.h"
 
