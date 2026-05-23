@@ -2,9 +2,10 @@
 
 ## Top-level structure
 - `src/main.c` calls `App_RunSelectedMode()` and never returns.
-- `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/car_config.h`.
+- `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/car_config.h` and dispatches to a dedicated mode module.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
-- `src/app/app_modes.c` owns the current app-level runtime init helpers after `Board_InitDrivers()`.
+- `src/app/app_common.c` owns shared app-level runtime init helpers after `Board_InitDrivers()`.
+- `src/app/app_internal.h` is a private app-layer header for shared mode state, helper declarations, and the static mode contract.
 - `include/domain/main_types.h` defines the shared vision/control/app handoff packets.
 - `include/config/camera_config.h` defines camera frame timing and geometry shared by the S32K camera driver and vision service.
 - `include/config/vision_config.h` defines vision detector tunables used by the vision service and debug code.
@@ -14,6 +15,15 @@
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
 - Standalone compile-time modes still own the top-level loop, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
+- `app_modes.c` is intentionally only the compile-time flavor dispatcher.
+- Dedicated app modules own mode behavior:
+  - `bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
+  - `bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
+  - `mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
+  - `mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
+  - `mode_race.c`: standalone race/honor-lap production flow.
+  - `mode_servo_rate.c`: standalone servo timing test.
+  - `bench_serial_tune.c`: UART/OLED runtime tuning UI used by the bench menu.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
@@ -26,7 +36,7 @@
   - periodic state-machine updates
   - interrupt callbacks wired to RTD notifications
 
-## LED conventions in `app_modes.c`
+## LED conventions in app modes
 - Red: error or fault
 - Yellow: degraded / paused / missing valid sensor data
 - Blue: idle, setup, menu, or manual standby
@@ -37,11 +47,24 @@
 1. `main()`
 2. `App_RunSelectedMode()`
 3. Exactly one compile-time mode is selected in `car_config.h`
-4. That mode performs common runtime init through app-owned helpers (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
-5. The selected mode runs forever
-6. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
-7. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
-8. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Steer()` commands at a selectable software cadence
+4. `app_modes.c` dispatches to one mode module
+5. That mode performs common runtime init through app-owned helpers (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
+6. The selected mode runs forever
+7. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
+8. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
+9. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Steer()` commands at a selectable software cadence
+
+## Mode lifecycle
+- Standalone mode lifecycle:
+  - `App_RunSelectedMode()` selects one build flavor.
+  - The selected `mode_*.c` module calls `App_InitRuntimeCore()` or `App_InitRuntimeCommon()`.
+  - The mode performs its own hardware-specific init.
+  - The mode enters its forever loop.
+- Runtime bench lifecycle:
+  - `bench_menu.c` initializes common runtime hardware and draws the pot-driven menu.
+  - Entering a menu item calls that test's `enter(nowMs)` helper.
+  - The menu host repeatedly calls that test's `update(...)` helper while active.
+  - Leaving a menu item calls that test's `exit()` helper and returns to the menu.
 
 ## Runtime-selectable tests mode
 - `APP_TEST_NXP_CUP_TESTS` adds a simple test menu driven by the onboard potentiometer.
@@ -100,7 +123,7 @@
   - stores each completed sample in `CameraAdcFinished()` into handwritten ping-pong frame buffers
   - disables PWM notifications again as soon as the frame is complete, so there are no camera clock-edge interrupts between frames
   - exposes a neutral debug-counters snapshot for requested frames, frame starts, capture events, completed frames, and dropped frames
-- `app_modes.c`
+- `bench_tests.c`
   - the linear-camera waiting screen consumes the driver debug-counters snapshot instead of several driver-internal counter getters
   - the waiting screen is rendered once before `LinearCameraStartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
   - consumes completed camera frames as soon as `LinearCameraGetLatestFrame()` reports a ready buffer, while UI/debug/control housekeeping remains separately rate-limited
@@ -121,7 +144,7 @@
   - applies steering through PWM
 
 ### Honor lap path
-- `app_modes.c`
+- `mode_honor_lap.c`
   - reuses the linear camera debug/servo path for continuous line following
   - keeps the OLED active in linear-camera debug mode even before first valid frame by showing camera trigger/DMA/ADC counters
   - overrides steering tunings with the `HONOR_*` constants from `car_config.h`
@@ -131,7 +154,7 @@
   - can reduce commanded speed through the `HONOR_SLOW*` and `HONOR_STOP_*` thresholds
 
 ### Race mode path
-- `app_modes.c`
+- `mode_race.c`
   - initializes the dual-ESC path, servo, camera, steering, and ultrasonic once at mode entry
   - runs a deterministic ordered loop:
     - consume the newest completed camera frame if one is ready
@@ -144,14 +167,16 @@
 ### Manual / motor path
 - `onboard_pot.c`
   - samples the potentiometer through ADC
-- `app_modes.c`
+- `bench_menu.c` and `bench_tests.c`
   - uses a dedicated standalone ESC test with hold-to-arm/disarm, hold-to-stop, selectable both/ESC1/ESC2/differential output modes, and a low capped potentiometer speed command
   - draws an ESC test screen with state, selected output mode, direction, pot level, and both ESC commands
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
   - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning honor-lap obstacle stopping
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
+- `mode_nxp_cup.c`
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
+- `bench_tests.c`
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `debug/serial_debug.c`
   - still provides the blocking shell-style serial path used by `Serial tune`
@@ -169,7 +194,8 @@
 - `esc.c`: `Esc_Period_Finished()`
 
 ## Key implementation files
-- App control: `src/app/app_modes.c`, `src/app/car_config.h`
+- App dispatch and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/car_config.h`
+- App modes: `src/app/bench_menu.c`, `src/app/bench_tests.c`, `src/app/bench_serial_tune.c`, `src/app/mode_nxp_cup.c`, `src/app/mode_honor_lap.c`, `src/app/mode_race.c`, `src/app/mode_servo_rate.c`
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_control_linear.c`, `src/drivers/servo.c`
@@ -181,4 +207,4 @@
 - The public vision handoff is `VisionOutput_t` in `include/domain/main_types.h`.
 - The current finish detector is gap-based, not region-based.
 - The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.
-- `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/app_modes.c`.
+- `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/bench_menu.c` and the mode-specific app modules.
