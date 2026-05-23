@@ -1,5 +1,53 @@
-Debug_FLASH/
-Debug_RAM/
+# S32 Design Studio / managed build outputs
+/Debug*/
+/Release*/
+
+# Binary and intermediate build artifacts
 *.o
+*.obj
+*.d
+*.dep
 *.elf
+*.axf
 *.map
+*.bin
+*.hex
+*.s19
+*.srec
+*.mot
+*.lst
+*.list
+*.dis
+*.siz
+*.su
+*.args
+
+# Local debugger / runtime output
+*.log
+*.trace
+*.prof
+*.gcda
+*.gcno
+
+# Editor, merge, and temporary files
+*~
+*.bak
+*.tmp
+*.temp
+*.orig
+*.rej
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# MATLAB local autosaves from debug/viewer scripts
+*.asv
+
+# S32DS/Eclipse workspace metadata belongs outside the project.
+# Project metadata is intentionally tracked: .project, .cproject, .settings/.
+/.metadata/
