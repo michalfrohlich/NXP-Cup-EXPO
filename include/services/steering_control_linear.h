@@ -1,7 +1,7 @@
 #pragma once
 
 /* SteeringOutput_t and VisionOutput_t are defined in main_types.h. */
-#include "main_types.h"
+#include "domain/main_types.h"
 
 /* =========================================================
    Controller internal state

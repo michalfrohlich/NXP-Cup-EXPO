@@ -1,4 +1,4 @@
-#include "onboard_pot.h"
+#include "drivers/onboard_pot.h"
 #include "Adc.h"
 
 /* Symbolic group for the onboard pot.

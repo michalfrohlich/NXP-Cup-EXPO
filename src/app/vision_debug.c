@@ -1,5 +1,5 @@
 #include "vision_debug.h"
-#include "display.h"
+#include "drivers/display.h"
 #include <stdio.h>
 #include <stdarg.h>
 

@@ -1,26 +1,26 @@
 #include "app_modes.h"
-#include "main_types.h"
+#include "domain/main_types.h"
 #include "car_config.h"
 #include "board_init.h"
 #include <stdio.h>
 #include <string.h>
 
-#include "timebase.h"
-#include "buttons.h"
-#include "onboard_pot.h"
-#include "receiver.h"
-#include "servo.h"
-#include "esc.h"
-#include "linear_camera.h"
-#include "display.h"
-#include "ultrasonic.h"
+#include "drivers/timebase.h"
+#include "drivers/buttons.h"
+#include "drivers/onboard_pot.h"
+#include "drivers/receiver.h"
+#include "drivers/servo.h"
+#include "drivers/esc.h"
+#include "drivers/linear_camera.h"
+#include "drivers/display.h"
+#include "drivers/ultrasonic.h"
 
-#include "../services/vision_linear_v2.h"
-#include "rgb_led.h"
-#include "../services/steering_control_linear.h"
-#include "../services/steering_smoothing.h"
+#include "services/vision_linear_v2.h"
+#include "drivers/rgb_led.h"
+#include "services/steering_control_linear.h"
+#include "services/steering_smoothing.h"
 #include "vision_debug.h"
-#include "../services/serial_debug.h"
+#include "debug/serial_debug.h"
 
 #define VDBG_WHITE_MAX_FULL_SCALE     (4095U)
 #define VDBG_WHITE_MAX_MIN_ZOOM       (400U)

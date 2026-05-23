@@ -4,8 +4,8 @@
  * The active runtime menus/HUD are currently implemented in app_modes.c.
  */
 
-#include "display.h"
-#include "timebase.h"
+#include "drivers/display.h"
+#include "drivers/timebase.h"
 
 #define UI_MAIN_ITEMS        (6u)
 #define UI_VISIBLE_LINES     (3u)

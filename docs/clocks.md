@@ -64,14 +64,14 @@
 | Default display refresh period | `src/app/car_config.h` | `20 ms` |
 | Camera debug display period | `src/app/car_config.h` | `100 ms` |
 | Steering update period | `src/app/car_config.h` | `10 ms` |
-| Servo handwritten period-latched update | `src/servo.c` | next `50 Hz` PWM frame |
+| Servo handwritten period-latched update | `src/drivers/servo.c` | next `50 Hz` PWM frame |
 | Servo rate test software command cadence | `src/app/app_modes.c` | selectable `10 / 50 / 100 / 250 Hz`; physical PWM output remains `50 Hz` |
 | Race display period | `src/app/car_config.h` | `200 ms` |
 | Camera shutter GPT logical channel | `src/app/car_config.h` | 1 |
-| Camera frame interval ticks | `include/camera_config.h` | 160000 |
-| Linear camera helper clock | `include/linear_camera.h` | 8 MHz source / period 800 |
-| EmuTimer period | `src/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
-| UsTimer period base | generated GPT + LPIT config, `src/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |
+| Camera frame interval ticks | `include/config/camera_config.h` | 160000 |
+| Linear camera helper clock | `include/drivers/linear_camera.h` | 8 MHz source / period 800 |
+| EmuTimer period | `src/drivers/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
+| UsTimer period base | generated GPT + LPIT config, `src/drivers/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |
 | Servo test update period | `src/app/car_config.h` | `5 ms` |
 | Camera steering hold after line loss | `src/app/car_config.h` | `350 ms` |
 | ESC arm time | `src/app/car_config.h` | `3000 ms` |
@@ -94,5 +94,5 @@
 - `UsTimer` has been verified against generated config:
   - GPT logical channel `3` maps to `LPIT0 CH2`
   - `LPIT0_CLK` is `8 MHz`
-  - `src/timebase.c` using `ticksPerUs = 8` is consistent with generated config
+  - `src/drivers/timebase.c` using `ticksPerUs = 8` is consistent with generated config
 - The previous `48 MHz` wording was a handwritten comment error, not a generated-config mismatch.

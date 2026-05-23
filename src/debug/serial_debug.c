@@ -1,4 +1,4 @@
-#include "serial_debug.h"
+#include "debug/serial_debug.h"
 
 /* Temporary S32K UART transport.
  * This module still reaches below the generated UART API for RX polling and

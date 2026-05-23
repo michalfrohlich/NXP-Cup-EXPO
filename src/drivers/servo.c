@@ -20,7 +20,7 @@ extern "C" {
 * 2) needed interfaces from external units
 * 3) internal and external interfaces from this unit
 ==================================================================================================*/
-#include "servo.h"
+#include "drivers/servo.h"
 #include "SchM_Pwm.h"
 
 /*==================================================================================================

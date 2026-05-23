@@ -5,7 +5,7 @@
 * raw -> filtered -> 1D Sobel derivative -> hysteresis edges -> inner edge selection
 *==================================================================================================*/
 
-#include "vision_linear_v2.h"
+#include "services/vision_linear_v2.h"
 
 /* ----------------------------- Internal State ----------------------------- */
 

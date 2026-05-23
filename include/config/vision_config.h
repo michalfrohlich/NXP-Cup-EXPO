@@ -6,7 +6,7 @@
   software detector and are shared by app debug code and vision processing.
 */
 
-#include "camera_config.h"
+#include "config/camera_config.h"
 
 #define VISION_LINEAR_BUFFER_SIZE         (CAM_EFFECTIVE_PIXELS)
 

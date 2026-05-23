@@ -5,11 +5,11 @@
 - `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/car_config.h`.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
 - `src/app/app_modes.c` owns the current app-level runtime init helpers after `Board_InitDrivers()`.
-- `include/main_types.h` defines the shared vision/control/app handoff packets.
-- `include/camera_config.h` defines camera frame timing and geometry shared by the S32K camera driver and vision service.
-- `include/vision_config.h` defines vision detector tunables used by the vision service and debug code.
-- `include/control_defaults.h` defines default steering-control tunings used by the control service and app runtime tune initialization.
-- `src/services/serial_debug.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
+- `include/domain/main_types.h` defines the shared vision/control/app handoff packets.
+- `include/config/camera_config.h` defines camera frame timing and geometry shared by the S32K camera driver and vision service.
+- `include/config/vision_config.h` defines vision detector tunables used by the vision service and debug code.
+- `include/config/control_defaults.h` defines default steering-control tunings used by the control service and app runtime tune initialization.
+- `src/debug/serial_debug.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
@@ -113,7 +113,7 @@
   - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
-  - reads default PID, steering shaping, and controller speed-policy values from `include/control_defaults.h`
+  - reads default PID, steering shaping, and controller speed-policy values from `include/config/control_defaults.h`
   - applies filtered-error and filtered-derivative shaping (with confidence-aware error filtering) before PID output
   - resets controller memory when vision reports track lost to avoid stale integral/derivative carry-over
   - carries the active integral clamp in controller state, so per-mode and per-profile integral clamp settings are real runtime inputs
@@ -153,7 +153,7 @@
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
-- `services/serial_debug.c`
+- `debug/serial_debug.c`
   - still provides the blocking shell-style serial path used by `Serial tune`
   - now also exposes a small non-blocking TX queue so camera telemetry can be drained in the background from the runtime camera tests
 - `esc.c`
@@ -172,13 +172,13 @@
 - App control: `src/app/app_modes.c`, `src/app/car_config.h`
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
-- Steering: `src/services/steering_control_linear.c`, `src/servo.c`
-- Motor control: `src/esc.c`
-- Serial debug: `src/services/serial_debug.c`
-- Sensors / IO: `src/linear_camera.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/buttons.c`, `src/display.c`, `src/rgb_led.c`
+- Steering: `src/services/steering_control_linear.c`, `src/drivers/servo.c`
+- Motor control: `src/drivers/esc.c`
+- Serial debug: `src/debug/serial_debug.c`
+- Sensors / IO: `src/drivers/linear_camera.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/buttons.c`, `src/drivers/display.c`, `src/drivers/rgb_led.c`
 
 ## Current vision notes
-- The public vision handoff is `VisionOutput_t` in `include/main_types.h`; `src/app/main_types.h` is only a compatibility shim.
+- The public vision handoff is `VisionOutput_t` in `include/domain/main_types.h`.
 - The current finish detector is gap-based, not region-based.
 - The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.
 - `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/app_modes.c`.

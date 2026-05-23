@@ -4,7 +4,7 @@
 #include "Std_Types.h"
 #include "Dio.h"
 #include "Icu.h"
-#include "timebase.h"
+#include "drivers/timebase.h"
 
 /* Channels */
 #define ULTRA_DIO_TRIG_CHANNEL    (DioConf_DioChannel_PTE15_UltraTrig)

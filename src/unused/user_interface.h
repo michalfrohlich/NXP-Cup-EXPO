@@ -6,7 +6,7 @@
  */
 
 #include "Platform_Types.h"
-#include "ultrasonic.h"
+#include "drivers/ultrasonic.h"
 
 /* Pages (modes) user can select */
 typedef enum

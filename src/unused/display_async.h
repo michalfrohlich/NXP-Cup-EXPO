@@ -8,7 +8,7 @@ extern "C" {
 #include "PlatformTypes.h"
 #include "Std_Types.h"
 #include "CDD_I2c.h"
-#include "display.h"
+#include "drivers/display.h"
 
 /* Unused non-blocking OLED transport retained for reference. */
 

@@ -3,8 +3,8 @@
 ## ADC
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Linear camera pixel sampling | `Adc` software-triggered single-sample group with per-sample notification | `src/linear_camera.c`, `include/linear_camera.h`, `src/app/board_init.c` |
-| Onboard potentiometer sampling | `Adc` blocking group conversion | `src/onboard_pot.c`, `include/onboard_pot.h` |
+| Linear camera pixel sampling | `Adc` software-triggered single-sample group with per-sample notification | `src/drivers/linear_camera.c`, `include/drivers/linear_camera.h`, `src/app/board_init.c` |
+| Onboard potentiometer sampling | `Adc` blocking group conversion | `src/drivers/onboard_pot.c`, `include/drivers/onboard_pot.h` |
 
 Notes:
 - `board_init.c` performs ADC init and calibration.
@@ -19,10 +19,10 @@ Notes:
 ## PWM
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Primary ESC command output | `Pwm` | `src/esc.c`, `src/app/car_config.h` |
-| Secondary ESC command output | `Pwm` | `src/esc.c`, `src/app/car_config.h` |
-| Servo steering output | `Pwm` | `src/servo.c`, `src/app/car_config.h` |
-| Linear camera pixel clock | `Pwm` notification-driven clocking | `src/linear_camera.c`, `src/app/car_config.h` |
+| Primary ESC command output | `Pwm` | `src/drivers/esc.c`, `src/app/car_config.h` |
+| Secondary ESC command output | `Pwm` | `src/drivers/esc.c`, `src/app/car_config.h` |
+| Servo steering output | `Pwm` | `src/drivers/servo.c`, `src/app/car_config.h` |
+| Linear camera pixel clock | `Pwm` notification-driven clocking | `src/drivers/linear_camera.c`, `src/app/car_config.h` |
 
 Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
@@ -35,11 +35,11 @@ Notes:
 ## Timers / capture
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| 1 ms system tick | `Gpt` | `src/timebase.c` |
-| Microsecond one-shot delay | `Gpt` | `src/timebase.c` |
-| Linear camera shutter timing | `Gpt` | `src/linear_camera.c`, `src/app/car_config.h` |
-| Receiver sync / period timing | `Gpt` + `Icu` | `src/receiver.c`, `include/receiver.h` |
-| Ultrasonic echo measurement | `Icu` timestamp capture | `src/ultrasonic.c`, `include/ultrasonic.h` |
+| 1 ms system tick | `Gpt` | `src/drivers/timebase.c` |
+| Microsecond one-shot delay | `Gpt` | `src/drivers/timebase.c` |
+| Linear camera shutter timing | `Gpt` | `src/drivers/linear_camera.c`, `src/app/car_config.h` |
+| Receiver sync / period timing | `Gpt` + `Icu` | `src/drivers/receiver.c`, `include/drivers/receiver.h` |
+| Ultrasonic echo measurement | `Icu` timestamp capture | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
 
 Notes:
 - `timebase.c` documents GPT channel `2` for the ms tick and channel `3` for the microsecond helper.
@@ -51,7 +51,7 @@ Notes:
 ## I2C
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| OLED display writes | `CDD_I2c` | `src/display.c`, `include/display.h`, `src/app/board_init.c` |
+| OLED display writes | `CDD_I2c` | `src/drivers/display.c`, `include/drivers/display.h`, `src/app/board_init.c` |
 | OLED display non-blocking transport (unused) | `CDD_I2c` async state machine | `src/unused/display_async.c`, `src/unused/display_async.h` |
 
 Notes:
@@ -63,10 +63,10 @@ Notes:
 ## DIO / GPIO
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Buttons SW2/SW3 and toggle switch `swPcb` | `Dio` | `src/buttons.c`, `include/buttons.h` |
-| RGB LED | `Dio` | `src/rgb_led.c`, `include/rgb_led.h` |
-| Ultrasonic trigger | `Dio` | `src/ultrasonic.c`, `include/ultrasonic.h` |
-| Linear camera shutter line | `Dio` | `src/linear_camera.c`, `src/app/car_config.h` |
+| Buttons SW2/SW3 and toggle switch `swPcb` | `Dio` | `src/drivers/buttons.c`, `include/drivers/buttons.h` |
+| RGB LED | `Dio` | `src/drivers/rgb_led.c`, `include/drivers/rgb_led.h` |
+| Ultrasonic trigger | `Dio` | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
+| Linear camera shutter line | `Dio` | `src/drivers/linear_camera.c`, `src/app/car_config.h` |
 
 Notes:
 - `swPcb` is generated as GPIO input on `PTA12` and is consumed from handwritten code through the `buttons` module.
@@ -76,7 +76,7 @@ Notes:
 ## UART
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/services/serial_debug.c`, `src/services/serial_debug.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
+| Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/debug/serial_debug.c`, `include/debug/serial_debug.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
 
 Notes:
 - `PTC6` / `PTC7` are routed in `.mex` as `LPUART1_RX` / `LPUART1_TX` and applied by generated `Port_Init()`.

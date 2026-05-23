@@ -17,9 +17,9 @@ extern "C" {
 #endif
 
 #include "Platform_Types.h"
-#include "main_types.h"
-#include "camera_config.h"
-#include "vision_config.h"
+#include "domain/main_types.h"
+#include "config/camera_config.h"
+#include "config/vision_config.h"
 
 #define VISION_LINEAR_INVALID_IDX            (255U)
 

@@ -1,4 +1,4 @@
-#include "steering_smoothing.h"
+#include "services/steering_smoothing.h"
 
 static sint16 abs_s16(sint16 x)
 {

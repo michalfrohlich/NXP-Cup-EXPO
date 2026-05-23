@@ -8,10 +8,10 @@
 - `src/app/app_modes.c`: compile-time mode dispatcher plus the `APP_TEST_NXP_CUP_TESTS` runtime test menu and the standalone `APP_TEST_NXP_CUP` competition flow.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
 - `src/app/car_config.h`: compile-time mode selection, generated PWM/channel routing aliases, and app/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
-- `include/main_types.h`: shared domain packets passed between vision, control, and app code.
-- `include/camera_config.h`: shared camera frame timing and geometry constants used by the camera driver and vision processing.
-- `include/vision_config.h`: vision detector tuning constants.
-- `include/control_defaults.h`: default steering PID, steering shaping, and controller speed policy constants.
+- `include/domain/main_types.h`: shared domain packets passed between vision, control, and app code.
+- `include/config/camera_config.h`: shared camera frame timing and geometry constants used by the camera driver and vision processing.
+- `include/config/vision_config.h`: vision detector tuning constants.
+- `include/config/control_defaults.h`: default steering PID, steering shaping, and controller speed policy constants.
 
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
@@ -38,11 +38,12 @@
 ## Major modules
 - App orchestration: `src/app/app_modes.c`, `src/app/vision_debug.c`
 - Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`
-- Hardware-facing modules: `src/linear_camera.c`, `src/esc.c`, `src/servo.c`, `src/onboard_pot.c`, `src/ultrasonic.c`, `src/receiver.c`, `src/display.c`, `src/buttons.c`, `src/rgb_led.c`, `src/timebase.c`, `src/services/serial_debug.c`
-- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are excluded from the current CLI build; active runtime menu/HUD code lives in `src/app/app_modes.c`, and active OLED writes use `src/display.c`.
+- Hardware-facing modules: `src/drivers/linear_camera.c`, `src/drivers/esc.c`, `src/drivers/servo.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/display.c`, `src/drivers/buttons.c`, `src/drivers/rgb_led.c`, `src/drivers/timebase.c`
+- Debug transport: `src/debug/serial_debug.c`
+- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are excluded from the current CLI build; active runtime menu/HUD code lives in `src/app/app_modes.c`, and active OLED writes use `src/drivers/display.c`.
 
 ## Vision V2 snapshot
-- Shared output packet: `VisionOutput_t` in `include/main_types.h`
+- Shared output packet: `VisionOutput_t` in `include/domain/main_types.h`
 - Processing pipeline in `src/services/vision_linear_v2.c`:
   - filtered signal
   - signed gradient
@@ -64,9 +65,15 @@
 
 ## Important directories
 - `src/`, `include/`: handwritten hardware modules
+- `src/drivers/`: hardware-facing driver implementations
 - `src/app/`: application modes and board init
 - `src/services/`: vision and control logic
-- `include/main_types.h`, `include/camera_config.h`, `include/vision_config.h`, `include/control_defaults.h`: shared domain packets and service-level configuration
+- `src/debug/`: debug/tuning transports and instrumentation helpers
+- `include/drivers/`: public hardware-facing module APIs
+- `include/services/`: public service/algorithm APIs
+- `include/debug/`: public debug/tuning transport APIs
+- `include/domain/`: shared domain packets
+- `include/config/`: shared compile-time configuration and defaults
 - `src/unused/`: retained inactive modules excluded from the current managed make build
 - `generate/`: generated RTD/MCAL configuration
 - `board/`: generated board/pin configuration

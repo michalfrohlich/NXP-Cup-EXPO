@@ -2,8 +2,8 @@
 extern "C" {
 #endif
 
-#include "linear_camera.h"
-#include "camera_config.h"
+#include "drivers/linear_camera.h"
+#include "config/camera_config.h"
 #include "Adc_Types.h"
 
 static volatile LinearCamera LinearCameraInstance;

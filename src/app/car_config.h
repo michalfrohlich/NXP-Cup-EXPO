@@ -5,9 +5,9 @@
   Build-time mode selection plus app-level hardware aliases and profile constants.
 */
 
-#include "camera_config.h"
-#include "control_defaults.h"
-#include "vision_config.h"
+#include "config/camera_config.h"
+#include "config/control_defaults.h"
+#include "config/vision_config.h"
 #include "Pwm_Cfg.h"
 
 /* =========================================================

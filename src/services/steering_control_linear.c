@@ -1,5 +1,5 @@
-#include "steering_control_linear.h"
-#include "control_defaults.h"
+#include "services/steering_control_linear.h"
+#include "config/control_defaults.h"
 
 /* =========================================================
    Helpers

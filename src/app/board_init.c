@@ -10,7 +10,7 @@
 #include "Gpt.h"
 #include "Adc.h"
 
-#include "../services/serial_debug.h"
+#include "debug/serial_debug.h"
 
 void Board_InitDrivers(void)
 {

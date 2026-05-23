@@ -34,7 +34,7 @@ extern "C" {
 #include "Platform.h"
 #include "Port.h"
 #include "CDD_I2c.h"
-#include "display.h"
+#include "drivers/display.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
