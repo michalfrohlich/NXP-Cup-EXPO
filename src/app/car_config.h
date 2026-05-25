@@ -18,6 +18,7 @@
 #define APP_TEST_RACE_MODE                0
 #define APP_TEST_HONOR_LAP                0
 #define APP_TEST_SERVO_RATE_TEST          0
+#define APP_TEST_TEENSY_IMU_TEST          0
 #define APP_TEST_NXP_CUP_TESTS            1
 
 #define APP_MODE_COUNT ( \
@@ -26,6 +27,7 @@
     (APP_TEST_RACE_MODE) + \
     (APP_TEST_HONOR_LAP) + \
     (APP_TEST_SERVO_RATE_TEST) + \
+    (APP_TEST_TEENSY_IMU_TEST) + \
     (APP_TEST_NXP_CUP_TESTS) \
 )
 
@@ -47,10 +49,10 @@
 #define CAM_UART_STREAM_PERIOD_MS         200u
 
 /* =========================================================
-   Teensy IMU bridge test
+   Teensy IMU SPI display test
 ========================================================= */
-/* S32K receives a 45-byte packet from Teensy and displays it.
-   Keep the timeout short so unplugged SPI shows WAIT quickly. */
+/* S32K test for the Teensy IMU SPI packet.
+   It validates packet timing and shows IMU/camera/SD status on the display. */
 #define TEENSY_IMU_PACKET_STALE_MS        200u
 #define TEENSY_IMU_TEST_DISPLAY_MS        100u
 

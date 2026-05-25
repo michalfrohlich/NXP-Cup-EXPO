@@ -1,4 +1,4 @@
-# Teensy IMU Integration In S32DS
+# Teensy IMU SPI Display Test In S32DS
 
 This project now keeps the Teensy IMU integration inside the S32K source layout:
 
@@ -24,7 +24,12 @@ The driver is ready for SPI bytes, but this repo does not yet have generated S32
 TeensyImu_SubmitRxBytes(rxBytes, TEENSY_IMU_PACKET_BYTES, Timebase_GetMs());
 ```
 
-The runtime test is already in the NXP Cup tests menu as `Teensy IMU`.
+The test is available in two ways:
+
+- Runtime test menu: keep `APP_TEST_NXP_CUP_TESTS = 1` and select `Teensy IMU`.
+- Direct build mode: set `APP_TEST_TEENSY_IMU_TEST = 1` and all other `APP_TEST_*` flags to `0`.
+
+Full packet and two-board test documentation is in `docs/teensy-imu-spi.md`.
 
 ## Display Test
 
