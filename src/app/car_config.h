@@ -47,6 +47,14 @@
 #define CAM_UART_STREAM_PERIOD_MS         200u
 
 /* =========================================================
+   Teensy IMU bridge test
+========================================================= */
+/* S32K receives a 45-byte packet from Teensy and displays it.
+   Keep the timeout short so unplugged SPI shows WAIT quickly. */
+#define TEENSY_IMU_PACKET_STALE_MS        200u
+#define TEENSY_IMU_TEST_DISPLAY_MS        100u
+
+/* =========================================================
    Servo
 ========================================================= */
 #define SERVO_PWM_CH                      Servo_Pwm

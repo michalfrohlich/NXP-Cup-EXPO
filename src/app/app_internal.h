@@ -17,11 +17,13 @@
 #include "drivers/linear_camera.h"
 #include "drivers/display.h"
 #include "drivers/ultrasonic.h"
+#include "drivers/teensy_imu.h"
 
 #include "services/vision_linear_v2.h"
 #include "drivers/rgb_led.h"
 #include "services/steering_control_linear.h"
 #include "services/steering_smoothing.h"
+#include "services/imu_motion.h"
 #include "vision_debug.h"
 #include "debug/serial_debug.h"
 
@@ -72,6 +74,7 @@ typedef enum
     RUNTIME_TEST_SERIAL_TUNE,
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
+    RUNTIME_TEST_TEENSY_IMU,
     RUNTIME_TEST_COUNT
 } RuntimeTestId_t;
 
@@ -93,6 +96,13 @@ typedef struct
 {
     uint32 nextRefreshMs;
 } ReceiverTestState_t;
+
+typedef struct
+{
+    TeensyImuSnapshot_t lastSnapshot;
+    uint32 nextDisplayMs;
+    boolean demoEnabled;
+} TeensyImuTestState_t;
 
 typedef enum
 {
@@ -406,6 +416,7 @@ typedef struct
 } RuntimeTuneState_t;
 
 extern ReceiverTestState_t g_receiverTest;
+extern TeensyImuTestState_t g_teensyImuTest;
 extern UltrasonicTestState_t g_ultrasonicTest;
 extern UltrasonicEscTestState_t g_ultrasonicEscTest;
 extern ServoTestState_t g_servoTest;
@@ -454,6 +465,9 @@ void serial_tune_test_exit(void);
 void receiver_test_enter(uint32 nowMs);
 void receiver_test_update(uint32 nowMs);
 void receiver_test_exit(void);
+void teensy_imu_test_enter(uint32 nowMs);
+void teensy_imu_test_update(uint32 nowMs, boolean sw2Pressed);
+void teensy_imu_test_exit(void);
 void ultrasonic_test_enter(uint32 nowMs);
 void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed);
 void ultrasonic_test_exit(void);

@@ -1,6 +1,7 @@
 #include "app_internal.h"
 
 ReceiverTestState_t g_receiverTest;
+TeensyImuTestState_t g_teensyImuTest;
 UltrasonicTestState_t g_ultrasonicTest;
 UltrasonicEscTestState_t g_ultrasonicEscTest;
 ServoTestState_t g_servoTest;
@@ -59,7 +60,8 @@ const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
     "Simple test drv",
     "Serial tune    ",
     "Ultra+ESC      ",
-    "Receiver - x   "
+    "Receiver - x   ",
+    "Teensy IMU     "
 };
 
 const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] =
