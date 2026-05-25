@@ -207,8 +207,8 @@ void StatusLed_Off(void)
 
 void Esc_StopNeutral(void)
 {
-    EscSetBrake(0U, 0U);
-    EscSetSpeed(ESC_TRUE_NEUTRAL_CMD, ESC_TRUE_NEUTRAL_CMD);
+    Esc_SetBrake(0U, 0U);
+    Esc_SetSpeed(ESC_TRUE_NEUTRAL_CMD, ESC_TRUE_NEUTRAL_CMD);
 }
 
 static int esc_apply_neutral_offset(int logicalCmd)
@@ -232,7 +232,7 @@ void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd)
     const int primaryPhysicalCmd = esc_apply_neutral_offset(primaryLogicalCmd);
     const int secondaryPhysicalCmd = esc_apply_neutral_offset(secondaryLogicalCmd);
 
-    EscSetSpeed(primaryPhysicalCmd, secondaryPhysicalCmd);
+    Esc_SetSpeed(primaryPhysicalCmd, secondaryPhysicalCmd);
 }
 
 void RuntimeTune_InitDefaults(void)

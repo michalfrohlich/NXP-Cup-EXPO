@@ -1,7 +1,7 @@
 #pragma once
 
-/* SteeringOutput_t and VisionOutput_t are defined in main_types.h. */
-#include "domain/main_types.h"
+/* VehicleControlOutput_t and VisionOutput_t are defined in vehicle_types.h. */
+#include "domain/vehicle_types.h"
 
 /* =========================================================
    Controller internal state
@@ -24,18 +24,18 @@ typedef struct
     /* Extra steering aggressiveness multiplier. */
     float steerScale;
 
-} SteeringLinearState_t;
+} SteeringControllerState_t;
 
 /* =========================================================
    API
 ========================================================= */
-void SteeringLinear_Init(SteeringLinearState_t *s);
-void SteeringLinear_Reset(SteeringLinearState_t *s);
+void SteeringController_Init(SteeringControllerState_t *s);
+void SteeringController_Reset(SteeringControllerState_t *s);
 
 /* Keep SAME signature as the original project so UI callers do not break. */
-void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, float steerScale);
+void SteeringController_SetTunings(SteeringControllerState_t *s, float kp, float kd, float steerScale);
 
-SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
+VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
                                         const VisionOutput_t *r,
                                         float dt_seconds,
                                         uint8 base_speed);

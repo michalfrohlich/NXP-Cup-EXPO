@@ -12,13 +12,13 @@ static void nxp_cup_obstacle_stop_motor(void)
 
 static void nxp_cup_launch_motor(int logicalCmd)
 {
-    EscSetBrake(0U, 0U);
+    Esc_SetBrake(0U, 0U);
     Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
 
     for (uint8 pulse = 1U; pulse < (uint8)ESC_LAUNCH_PULSE_COUNT; pulse++)
     {
         busy_delay((uint32)ESC_LAUNCH_PULSE_DELAY_TICKS);
-        EscSetBrake(0U, 0U);
+        Esc_SetBrake(0U, 0U);
         Esc_SetLogicalSpeed(logicalCmd, logicalCmd);
     }
 }
@@ -422,7 +422,7 @@ void mode_nxp_cup(void)
                 g_nxpCup.nextAutoSpeedMs = 0U;
 
                 nxp_cup_ultra_enter(&g_nxpCup.ultraSt, nowMs);
-                EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+                Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
                 g_nxpCup.escRearmDoneMs = nowMs + ESC_ARM_TIME_MS + NXP_ESC_EXTRA_SETTLE_MS;
                 g_nxpCup.state = NXP_CUP_STATE_ESC_REARM;
                 continue;

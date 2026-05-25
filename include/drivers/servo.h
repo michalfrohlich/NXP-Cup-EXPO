@@ -71,13 +71,13 @@ typedef struct
 *                                   LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/
 
-void ServoInit(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinDutyCycle, uint16 MedDutyCycle);
-void Steer(int Direction);    /*takes a value between -100 (left) and 100 (right) and translates it into a duty cycle*/
+void Servo_Init(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinDutyCycle, uint16 MedDutyCycle);
+void Servo_SetSteer(int Direction);    /*takes a value between -100 (left) and 100 (right) and translates it into a duty cycle*/
 void SteerLeft(void);    /*sets the duty cycle to the configured maximum*/
 void SteerRight(void);/*sets the duty cycle to the configured minimum*/
 void SteerStraight(void);    /*sets the duty cycle to the configured middle*/
 void Servo_Period_Finished(void);
-void ServoGetDebugSnapshot(ServoDebugSnapshot *Snapshot);
+void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot);
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS

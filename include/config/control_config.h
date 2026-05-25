@@ -2,7 +2,7 @@
 /*
   Steering-control tunings shared by app modes and the control service.
 
-  App modes may override SteeringLinearState_t at runtime; this header keeps the
+  App modes may override SteeringControllerState_t at runtime; this header keeps the
   control service independent from app-private configuration headers.
 */
 
@@ -23,7 +23,7 @@
 #define STEER_DTERM_LPF_ALPHA             0.35f
 #define STEER_DTERM_CLAMP                 4.0f
 
-/* Baseline speed policy applied by SteeringLinear_UpdateV2(). */
+/* Baseline speed policy applied by SteeringController_Update(). */
 #define SPEED_MIN                         18
 #define SPEED_MAX                         60
 #define SPEED_SLOW_PER_STEER              25

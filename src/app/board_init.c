@@ -10,7 +10,7 @@
 #include "Gpt.h"
 #include "Adc.h"
 
-#include "debug/serial_debug.h"
+#include "debug/uart_host_link.h"
 
 void Board_InitDrivers(void)
 {
@@ -53,5 +53,5 @@ void Board_InitDrivers(void)
 
     Pwm_Init(NULL_PTR);
 
-    SerialDebug_Init();
+    UartHost_Init();
 }

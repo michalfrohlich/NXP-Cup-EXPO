@@ -76,13 +76,13 @@ typedef struct{
 /*==================================================================================================
 *                                   LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/
-void EscInit(Pwm_ChannelType PrimaryEscPwmChannel,
+void Esc_Init(Pwm_ChannelType PrimaryEscPwmChannel,
              Pwm_ChannelType SecondaryEscPwmChannel,
              uint16 MinDutyCycle,
              uint16 MedDutyCycle,
              uint16 MaxDutyCycle);
-void EscSetSpeed(int PrimarySpeed, int SecondarySpeed);
-void EscSetBrake(uint8 PrimaryBrake, uint8 SecondaryBrake);
+void Esc_SetSpeed(int PrimarySpeed, int SecondarySpeed);
+void Esc_SetBrake(uint8 PrimaryBrake, uint8 SecondaryBrake);
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS

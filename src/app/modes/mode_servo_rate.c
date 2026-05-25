@@ -14,7 +14,7 @@ static void servo_rate_test_enter(uint32 nowMs)
 {
     (void)memset(&g_servoRateTest, 0, sizeof(g_servoRateTest));
 
-    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
     g_servoRateTest.freqId = SERVO_RATE_TEST_FREQ_50HZ;
@@ -28,7 +28,7 @@ static void servo_rate_test_enter(uint32 nowMs)
     g_servoRateTest.startMs = nowMs;
     g_servoRateTest.noPwmCallbackFault = FALSE;
     g_servoRateTest.bufferedLagFault = FALSE;
-    ServoGetDebugSnapshot(&g_servoRateTest.servoDbg);
+    Servo_GetDebugSnapshot(&g_servoRateTest.servoDbg);
 
     servo_rate_test_draw(&g_servoRateTest);
     StatusLed_Green();
@@ -71,7 +71,7 @@ static void servo_rate_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3
 
     periodMs = g_servoRateTestPeriodMs[g_servoRateTest.freqId];
     g_servoRateTest.lastPotLevel = potLevel;
-    ServoGetDebugSnapshot(&g_servoRateTest.servoDbg);
+    Servo_GetDebugSnapshot(&g_servoRateTest.servoDbg);
 
     if (((uint32)(nowMs - g_servoRateTest.startMs) > 100U) &&
         (g_servoRateTest.servoDbg.PeriodCallbackCount == 0U))
@@ -114,8 +114,8 @@ static void servo_rate_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3
             g_servoRateTest.sweepDirection = 1;
         }
 
-        Steer((int)g_servoRateTest.command);
-        ServoGetDebugSnapshot(&g_servoRateTest.servoDbg);
+        Servo_SetSteer((int)g_servoRateTest.command);
+        Servo_GetDebugSnapshot(&g_servoRateTest.servoDbg);
         g_servoRateTest.nextCommandMs = nowMs + (uint32)periodMs;
     }
 

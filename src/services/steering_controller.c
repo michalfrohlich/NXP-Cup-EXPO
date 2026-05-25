@@ -1,4 +1,4 @@
-#include "services/steering_control_linear.h"
+#include "services/steering_controller.h"
 #include "config/control_config.h"
 
 /* =========================================================
@@ -45,11 +45,11 @@ static float deadzone_f(float x, float dz)
 /* =========================================================
    Init / Reset
 ========================================================= */
-void SteeringLinear_Init(SteeringLinearState_t *s)
+void SteeringController_Init(SteeringControllerState_t *s)
 {
-    if (s == (SteeringLinearState_t*)0) { return; }
+    if (s == (SteeringControllerState_t*)0) { return; }
 
-    SteeringLinear_Reset(s);
+    SteeringController_Reset(s);
 
     /* Baseline tunings come from control_config.h, but app modes may override the state. */
     s->kp = (float)KP;
@@ -64,9 +64,9 @@ void SteeringLinear_Init(SteeringLinearState_t *s)
 #endif
 }
 
-void SteeringLinear_Reset(SteeringLinearState_t *s)
+void SteeringController_Reset(SteeringControllerState_t *s)
 {
-    if (s == (SteeringLinearState_t*)0) { return; }
+    if (s == (SteeringControllerState_t*)0) { return; }
 
     s->i_term = 0.0f;
     s->prev_error = 0.0f;
@@ -78,9 +78,9 @@ void SteeringLinear_Reset(SteeringLinearState_t *s)
 /* =========================================================
    Runtime tuning
 ========================================================= */
-void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, float steerScale)
+void SteeringController_SetTunings(SteeringControllerState_t *s, float kp, float kd, float steerScale)
 {
-    if (s == (SteeringLinearState_t*)0) { return; }
+    if (s == (SteeringControllerState_t*)0) { return; }
 
     s->kp = clamp_f(kp, 0.0f, 20.0f);
     s->kd = clamp_f(kd, 0.0f, 20.0f);
@@ -90,7 +90,7 @@ void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, flo
 }
 
 /* =========================================================
-   SteeringLinear_UpdateV2
+   SteeringController_Update
    ---------------------------------------------------------
    r->error is expected in [-1..+1].
    Output:
@@ -98,23 +98,23 @@ void SteeringLinear_SetTunings(SteeringLinearState_t *s, float kp, float kd, flo
      - out.throttle_pct slowed down when steering hard
      - out.brake TRUE if line is lost
 ========================================================= */
-SteeringOutput_t SteeringLinear_UpdateV2(SteeringLinearState_t *s,
+VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
                                         const VisionOutput_t *r,
                                         float dt_seconds,
                                         uint8 base_speed)
 {
-    SteeringOutput_t out;
+    VehicleControlOutput_t out;
     out.brake = FALSE;
     out.throttle_pct = 0u;
     out.steer_cmd = 0;
 
-    if ((s == (SteeringLinearState_t*)0) ||
+    if ((s == (SteeringControllerState_t*)0) ||
         (r == (const VisionOutput_t*)0) ||
         (r->status == VISION_TRACK_LOST))
     {
-        if (s != (SteeringLinearState_t*)0)
+        if (s != (SteeringControllerState_t*)0)
         {
-            SteeringLinear_Reset(s);
+            SteeringController_Reset(s);
         }
 
         out.brake = TRUE;

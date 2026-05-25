@@ -160,7 +160,7 @@ boolean VisionDebug_WantsVisionDebugData(const VisionDebug_State_t *st)
 }
 
 void VisionDebug_PrepareVisionDbg(const VisionDebug_State_t *st,
-                                  VisionLinear_DebugOut_t *dbg,
+                                  LineDetector_DebugOut_t *dbg,
                                   uint16 *filteredOutBuf,
                                   sint16 *gradientOutBuf)
 {
@@ -190,7 +190,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
                       const uint16 *filteredU16,
                       const sint16 *gradientS16,
                       const VisionOutput_t *result,
-                      const VisionLinear_DebugOut_t *dbg)
+                      const LineDetector_DebugOut_t *dbg)
 {
     static uint8 plotPct[VISION_LINEAR_BUFFER_SIZE];
 

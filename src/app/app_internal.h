@@ -2,7 +2,7 @@
 #define APP_INTERNAL_H
 
 #include "app_modes.h"
-#include "domain/main_types.h"
+#include "domain/vehicle_types.h"
 #include "app_config.h"
 #include "config/actuator_config.h"
 #include "config/board_config.h"
@@ -21,13 +21,13 @@
 #include "drivers/ultrasonic.h"
 #include "drivers/teensy_imu.h"
 
-#include "services/vision_linear_v2.h"
+#include "services/line_detector.h"
 #include "drivers/rgb_led.h"
-#include "services/steering_control_linear.h"
+#include "services/steering_controller.h"
 #include "services/steering_smoothing.h"
 #include "services/imu_motion.h"
 #include "vision_debug.h"
-#include "debug/serial_debug.h"
+#include "debug/uart_host_link.h"
 
 typedef enum
 {
@@ -159,11 +159,11 @@ typedef struct
 typedef struct
 {
     VisionDebug_State_t vdbg;
-    SteeringLinearState_t ctrl;
+    SteeringControllerState_t ctrl;
     Sw2Tracker_t sw2Tracker;
     LinearCameraFrame processedFrame;
     VisionOutput_t result;
-    VisionLinear_DebugOut_t dbg;
+    LineDetector_DebugOut_t dbg;
     uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
     sint16 gradientBuf[VISION_LINEAR_BUFFER_SIZE];
     sint16 steerRaw;
@@ -239,10 +239,10 @@ typedef enum
 typedef struct
 {
     VisionDebug_State_t vdbg;
-    SteeringLinearState_t ctrl;
+    SteeringControllerState_t ctrl;
     LinearCameraFrame processedFrame;
     VisionOutput_t result;
-    VisionLinear_DebugOut_t dbg;
+    LineDetector_DebugOut_t dbg;
     uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
     sint16 gradientBuf[VISION_LINEAR_BUFFER_SIZE];
     boolean haveValidVision;
@@ -337,7 +337,7 @@ typedef enum
 typedef struct
 {
     RacePhase_t phase;
-    SteeringLinearState_t ctrl;
+    SteeringControllerState_t ctrl;
     LinearCameraFrame processedFrame;
     VisionOutput_t result;
     uint32 nextControlMs;

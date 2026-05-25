@@ -28,7 +28,7 @@ Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `include/config/board_config.h`.
 - The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTB10`; both run at the same generated `50 Hz` period.
 - Handwritten ESC calls pass both ESC commands explicitly; same-speed driving uses equal primary and secondary arguments, while differential steering can pass different values.
-- The standalone servo rate test changes how often application code calls `Steer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
+- The standalone servo rate test changes how often application code calls `Servo_SetSteer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
 - The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
 
@@ -76,15 +76,15 @@ Notes:
 ## UART
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/debug/serial_debug.c`, `include/debug/serial_debug.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
+| Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/debug/uart_host_link.c`, `include/debug/uart_host_link.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
 
 Notes:
 - `PTC6` / `PTC7` are routed in `.mex` as `LPUART1_RX` / `LPUART1_TX` and applied by generated `Port_Init()`.
 - The UART peripheral is generated from `.mex` as logical UART channel `0` on `LPUART1`, using `LPUART1_CLK` and `115200 8N1`.
-- `SerialDebug_Init()` runs from `board_init.c` after generated driver init and calls `Uart_Init(NULL_PTR)`.
+- `UartHost_Init()` runs from `board_init.c` after generated driver init and calls `Uart_Init(NULL_PTR)`.
 - The service keeps a small direct RX-ready/read path because the generated UART driver is configured for interrupt mode and the tuning shell currently uses polling-style single-byte reads.
 - TODO: replace the proof-of-concept direct RX polling with generated UART async receive once `LPUART1` interrupt routing/callback buffering is configured in `.mex`.
-- The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `SerialDebug_ServiceTx()` / `SerialDebug_EnqueueBytes()` for non-blocking background streaming.
+- The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `UartHost_ServiceTx()` / `UartHost_EnqueueBytes()` for non-blocking background streaming.
 - The `Serial tune` runtime bench item uses this handwritten UART path; it shows shadow PID values on the OLED and echoes received UART lines.
 - `RUNTIME_TEST_LINEAR_CAMERA` and `RUNTIME_TEST_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.
 - That debug UART stream is rate-limited in `src/app/app_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.

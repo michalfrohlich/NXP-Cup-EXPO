@@ -114,23 +114,23 @@ static void serial_tune_draw(const SerialTuneState_t *st)
 
 static void serial_tune_print_pid_menu(void)
 {
-    SerialDebug_WriteLine("");
-    SerialDebug_WriteLine("=== PID Tune Menu ===");
-    SerialDebug_WriteLine("p - edit KP");
-    SerialDebug_WriteLine("i - edit KI");
-    SerialDebug_WriteLine("d - edit KD");
-    SerialDebug_WriteLine("s - servo menu");
-    SerialDebug_WriteString("menu> ");
+    UartHost_WriteLine("");
+    UartHost_WriteLine("=== PID Tune Menu ===");
+    UartHost_WriteLine("p - edit KP");
+    UartHost_WriteLine("i - edit KI");
+    UartHost_WriteLine("d - edit KD");
+    UartHost_WriteLine("s - servo menu");
+    UartHost_WriteString("menu> ");
 }
 
 static void serial_tune_print_servo_menu(void)
 {
-    SerialDebug_WriteLine("");
-    SerialDebug_WriteLine("=== Servo Tune Menu ===");
-    SerialDebug_WriteLine("c - edit clamp");
-    SerialDebug_WriteLine("l - edit LPF");
-    SerialDebug_WriteLine("p - PID menu");
-    SerialDebug_WriteString("servo> ");
+    UartHost_WriteLine("");
+    UartHost_WriteLine("=== Servo Tune Menu ===");
+    UartHost_WriteLine("c - edit clamp");
+    UartHost_WriteLine("l - edit LPF");
+    UartHost_WriteLine("p - PID menu");
+    UartHost_WriteString("servo> ");
 }
 
 static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
@@ -138,41 +138,41 @@ static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
     switch (screen)
     {
         case SERIAL_TUNE_SCREEN_EDIT_KP:
-            SerialDebug_WriteLine("");
-            SerialDebug_WriteLine("Editing KP");
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing KP");
             break;
         case SERIAL_TUNE_SCREEN_EDIT_KI:
-            SerialDebug_WriteLine("");
-            SerialDebug_WriteLine("Editing KI");
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing KI");
             break;
         case SERIAL_TUNE_SCREEN_EDIT_KD:
-            SerialDebug_WriteLine("");
-            SerialDebug_WriteLine("Editing KD");
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing KD");
             break;
         case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
-            SerialDebug_WriteLine("");
-            SerialDebug_WriteLine("Editing SERVO CLAMP");
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing SERVO CLAMP");
             break;
         case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
-            SerialDebug_WriteLine("");
-            SerialDebug_WriteLine("Editing SERVO LPF");
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing SERVO LPF");
             break;
         default:
             return;
     }
 
-    SerialDebug_WriteLine("Type digits and optional decimal point.");
-    SerialDebug_WriteString("Press ");
-    SerialDebug_WriteChar(SERIAL_TUNE_COMMIT_CHAR);
-    SerialDebug_WriteLine(" to save, q to cancel.");
-    SerialDebug_WriteString("edit> ");
+    UartHost_WriteLine("Type digits and optional decimal point.");
+    UartHost_WriteString("Press ");
+    UartHost_WriteChar(SERIAL_TUNE_COMMIT_CHAR);
+    UartHost_WriteLine(" to save, q to cancel.");
+    UartHost_WriteString("edit> ");
 }
 
 static void serial_tune_echo_char(char ch)
 {
-    SerialDebug_WriteString("RX: ");
-    SerialDebug_WriteChar(ch);
-    SerialDebug_WriteString("\r\n");
+    UartHost_WriteString("RX: ");
+    UartHost_WriteChar(ch);
+    UartHost_WriteString("\r\n");
 }
 
 static boolean serial_tune_parse_value(const char *text, float *value)
@@ -395,8 +395,8 @@ static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch)
             serial_tune_print_pid_menu();
             break;
         default:
-            SerialDebug_WriteLine("Unknown key. Press q for menu.");
-            SerialDebug_WriteString("menu> ");
+            UartHost_WriteLine("Unknown key. Press q for menu.");
+            UartHost_WriteString("menu> ");
             break;
     }
 }
@@ -423,8 +423,8 @@ static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch)
             serial_tune_print_servo_menu();
             break;
         default:
-            SerialDebug_WriteLine("Unknown key.");
-            SerialDebug_WriteString("servo> ");
+            UartHost_WriteLine("Unknown key.");
+            UartHost_WriteString("servo> ");
             break;
     }
 }
@@ -443,7 +443,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
 
     if (ch == 'q')
     {
-        SerialDebug_WriteLine("Edit cancelled.");
+        UartHost_WriteLine("Edit cancelled.");
         if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
             (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
         {
@@ -462,7 +462,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
         {
             st->inputLen--;
             st->inputBuf[st->inputLen] = '\0';
-            SerialDebug_WriteString("\b \b");
+            UartHost_WriteString("\b \b");
         }
         return;
     }
@@ -475,9 +475,9 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
 
             if (serial_tune_parse_int_value(st->inputBuf, &parsedIntValue) != TRUE)
             {
-                SerialDebug_WriteLine("");
-                SerialDebug_WriteLine("Invalid number.");
-                SerialDebug_WriteString("edit> ");
+                UartHost_WriteLine("");
+                UartHost_WriteLine("Invalid number.");
+                UartHost_WriteString("edit> ");
                 return;
             }
 
@@ -488,9 +488,9 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
         {
             if (serial_tune_parse_value(st->inputBuf, &parsedValue) != TRUE)
             {
-                SerialDebug_WriteLine("");
-                SerialDebug_WriteLine("Invalid number.");
-                SerialDebug_WriteString("edit> ");
+                UartHost_WriteLine("");
+                UartHost_WriteLine("Invalid number.");
+                UartHost_WriteString("edit> ");
                 return;
             }
 
@@ -532,8 +532,8 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
 
         label = serial_tune_active_label(st);
         (void)snprintf(lineBuf, sizeof(lineBuf), "%s updated.", label);
-        SerialDebug_WriteLine("");
-        SerialDebug_WriteLine(lineBuf);
+        UartHost_WriteLine("");
+        UartHost_WriteLine(lineBuf);
         if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
             (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
         {
@@ -563,7 +563,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
             st->inputBuf[st->inputLen] = ch;
             st->inputLen++;
             st->inputBuf[st->inputLen] = '\0';
-            SerialDebug_WriteChar(ch);
+            UartHost_WriteChar(ch);
         }
         return;
     }
@@ -583,30 +583,30 @@ void serial_tune_test_enter(uint32 nowMs)
 
     serial_tune_draw(&g_serialTune);
     StatusLed_Blue();
-    SerialDebug_WriteLine("");
-    SerialDebug_WriteLine("=== Serial Tune Mode ===");
-    SerialDebug_WriteLine("Open terminal at 115200 8N1.");
-    SerialDebug_WriteString("Send '");
-    SerialDebug_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
-    SerialDebug_WriteLine("' to connect.");
-    SerialDebug_WriteString("> ");
+    UartHost_WriteLine("");
+    UartHost_WriteLine("=== Serial Tune Mode ===");
+    UartHost_WriteLine("Open terminal at 115200 8N1.");
+    UartHost_WriteString("Send '");
+    UartHost_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
+    UartHost_WriteLine("' to connect.");
+    UartHost_WriteString("> ");
 }
 
 void serial_tune_test_update(void)
 {
     char rxChar;
 
-    while (SerialDebug_TryReadChar(&rxChar) == TRUE)
+    while (UartHost_TryReadChar(&rxChar) == TRUE)
     {
         if (g_serialTune.connected != TRUE)
         {
             if (rxChar != SERIAL_TUNE_CONNECT_CHAR)
             {
                 serial_tune_echo_char(rxChar);
-                SerialDebug_WriteString("Send '");
-                SerialDebug_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
-                SerialDebug_WriteLine("' to connect.");
-                SerialDebug_WriteString("> ");
+                UartHost_WriteString("Send '");
+                UartHost_WriteChar(SERIAL_TUNE_CONNECT_CHAR);
+                UartHost_WriteLine("' to connect.");
+                UartHost_WriteString("> ");
                 continue;
             }
 
@@ -633,6 +633,6 @@ void serial_tune_test_update(void)
 
 void serial_tune_test_exit(void)
 {
-    SerialDebug_WriteLine("");
-    SerialDebug_WriteLine("Leaving Serial Tune.");
+    UartHost_WriteLine("");
+    UartHost_WriteLine("Leaving Serial Tune.");
 }

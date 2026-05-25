@@ -1,11 +1,11 @@
 /*==================================================================================================
-* vision_linear_v2.c
+* line_detector.c
 *
 * Stage 1 redesign:
 * raw -> filtered -> 1D Sobel derivative -> hysteresis edges -> inner edge selection
 *==================================================================================================*/
 
-#include "services/vision_linear_v2.h"
+#include "services/line_detector.h"
 
 /* ----------------------------- Internal State ----------------------------- */
 
@@ -15,17 +15,17 @@ static uint8 s_singleEdgeStreak = 0U;
 
 /* ----------------------------- Helpers ----------------------------- */
 
-static uint16 VisionLinear_AbsU16(sint16 value)
+static uint16 LineDetector_AbsU16(sint16 value)
 {
     return (value < 0) ? (uint16)(-value) : (uint16)value;
 }
 
-static uint16 VisionLinear_AbsDiffU8(uint8 a, uint8 b)
+static uint16 LineDetector_AbsDiffU8(uint8 a, uint8 b)
 {
     return (a >= b) ? (uint16)(a - b) : (uint16)(b - a);
 }
 
-static uint8 VisionLinear_ScaleToPct(uint16 value, uint16 low, uint16 high)
+static uint8 LineDetector_ScaleToPct(uint16 value, uint16 low, uint16 high)
 {
     if (value <= low)
     {
@@ -45,22 +45,22 @@ static uint8 VisionLinear_ScaleToPct(uint16 value, uint16 low, uint16 high)
     return (uint8)(((uint32)(value - low) * 100U) / (uint32)(high - low));
 }
 
-static uint8 VisionLinear_ComputeContrastConfidence(uint16 contrast)
+static uint8 LineDetector_ComputeContrastConfidence(uint16 contrast)
 {
     uint16 threshold = VISION_LINEAR_CONF_CONTRAST_THRESHOLD;
     uint16 high = (threshold < 32768U) ? (uint16)(threshold * 2U) : 65535U;
 
-    return VisionLinear_ScaleToPct(contrast, threshold, high);
+    return LineDetector_ScaleToPct(contrast, threshold, high);
 }
 
-static uint8 VisionLinear_ComputeEdgeStrengthConfidence(uint16 edgeStrength)
+static uint8 LineDetector_ComputeEdgeStrengthConfidence(uint16 edgeStrength)
 {
-    return VisionLinear_ScaleToPct(edgeStrength,
+    return LineDetector_ScaleToPct(edgeStrength,
                                    VISION_LINEAR_CONF_EDGE_LOW,
                                    VISION_LINEAR_CONF_EDGE_HIGH);
 }
 
-static uint8 VisionLinear_BlendConfidence(uint8 edgeStrengthConfidence,
+static uint8 LineDetector_BlendConfidence(uint8 edgeStrengthConfidence,
                                           uint8 contrastConfidence)
 {
     uint16 edgeWeight = VISION_LINEAR_CONF_EDGE_WEIGHT_PCT;
@@ -76,7 +76,7 @@ static uint8 VisionLinear_BlendConfidence(uint8 edgeStrengthConfidence,
                     ((uint32)contrastConfidence * contrastWeight)) / weightSum);
 }
 
-static uint8 VisionLinear_ClampSplitPoint(float center)
+static uint8 LineDetector_ClampSplitPoint(float center)
 {
     uint8 splitPoint = (uint8)center;
     uint8 minSplit = VISION_LINEAR_SPLIT_MARGIN_PX;
@@ -94,7 +94,7 @@ static uint8 VisionLinear_ClampSplitPoint(float center)
     return splitPoint;
 }
 
-static void VisionLinear_FilterSignal(const uint16 *pixels, uint16 *filtered)
+static void LineDetector_FilterSignal(const uint16 *pixels, uint16 *filtered)
 {
     uint16 i;
 
@@ -120,7 +120,7 @@ static void VisionLinear_FilterSignal(const uint16 *pixels, uint16 *filtered)
     filtered[VISION_LINEAR_BUFFER_SIZE - 1U] = pixels[VISION_LINEAR_BUFFER_SIZE - 1U];
 }
 
-static void VisionLinear_ComputeGradient(const uint16 *filtered,
+static void LineDetector_ComputeGradient(const uint16 *filtered,
                                          sint16 *gradient,
                                          uint16 *maxAbsGradient)
 {
@@ -150,7 +150,7 @@ static void VisionLinear_ComputeGradient(const uint16 *filtered,
         gradient[i] = (sint16)value;
 
         {
-            uint16 magnitude = VisionLinear_AbsU16(gradient[i]);
+            uint16 magnitude = LineDetector_AbsU16(gradient[i]);
             if (magnitude > maxGradient)
             {
                 maxGradient = magnitude;
@@ -163,16 +163,16 @@ static void VisionLinear_ComputeGradient(const uint16 *filtered,
     *maxAbsGradient = maxGradient;
 }
 
-static uint8 VisionLinear_IsLocalMaximum(const sint16 *gradient, uint16 idx)
+static uint8 LineDetector_IsLocalMaximum(const sint16 *gradient, uint16 idx)
 {
-    uint16 current = VisionLinear_AbsU16(gradient[idx]);
-    uint16 left = VisionLinear_AbsU16(gradient[idx - 1U]);
-    uint16 right = VisionLinear_AbsU16(gradient[idx + 1U]);
+    uint16 current = LineDetector_AbsU16(gradient[idx]);
+    uint16 left = LineDetector_AbsU16(gradient[idx - 1U]);
+    uint16 right = LineDetector_AbsU16(gradient[idx + 1U]);
 
     return ((current >= left) && (current > right)) ? 1U : 0U;
 }
 
-static uint8 VisionLinear_WidthMatchesFinish(uint8 width, uint8 expectedWidth)
+static uint8 LineDetector_WidthMatchesFinish(uint8 width, uint8 expectedWidth)
 {
     uint16 minWidth;
     uint16 maxWidth;
@@ -197,7 +197,7 @@ static uint8 VisionLinear_WidthMatchesFinish(uint8 width, uint8 expectedWidth)
     return (((uint16)width >= minWidth) && ((uint16)width <= maxWidth)) ? 1U : 0U;
 }
 
-static uint8 VisionLinear_WidthMatchesLane(uint8 width)
+static uint8 LineDetector_WidthMatchesLane(uint8 width)
 {
     uint16 minWidth;
     uint16 maxWidth;
@@ -212,9 +212,9 @@ static uint8 VisionLinear_WidthMatchesLane(uint8 width)
 
 /* ----------------------------- Internal Implementation ----------------------------- */
 
-static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
+static void LineDetector_ProcessImpl(const uint16 *pixels,
                                           VisionOutput_t *out,
-                                          VisionLinear_DebugOut_t *dbg)
+                                          LineDetector_DebugOut_t *dbg)
 {
     uint16 filteredLocal[VISION_LINEAR_BUFFER_SIZE];
     sint16 gradientLocal[VISION_LINEAR_BUFFER_SIZE];
@@ -254,21 +254,21 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     uint8 baseConfidence = 0U;
     uint8 lineStatusFactor = 0U;
 
-    if ((dbg != (VisionLinear_DebugOut_t*)0) &&
+    if ((dbg != (LineDetector_DebugOut_t*)0) &&
         ((dbg->mask & (uint32)VLIN_DBG_FILTERED) != 0u) &&
         (dbg->filteredOut != (uint16*)0))
     {
         filtered = dbg->filteredOut;
     }
 
-    if ((dbg != (VisionLinear_DebugOut_t*)0) &&
+    if ((dbg != (LineDetector_DebugOut_t*)0) &&
         ((dbg->mask & (uint32)VLIN_DBG_GRADIENT) != 0u) &&
         (dbg->gradientOut != (sint16*)0))
     {
         gradient = dbg->gradientOut;
     }
 
-    VisionLinear_FilterSignal(pixels, filtered);
+    LineDetector_FilterSignal(pixels, filtered);
 
     for (i = 0U; i < VISION_LINEAR_BUFFER_SIZE; i++)
     {
@@ -277,8 +277,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     }
 
     contrast = (uint16)(maxVal - minVal);
-    VisionLinear_ComputeGradient(filtered, gradient, &maxAbsGradient);
-    contrastConfidence = VisionLinear_ComputeContrastConfidence(contrast);
+    LineDetector_ComputeGradient(filtered, gradient, &maxAbsGradient);
+    contrastConfidence = LineDetector_ComputeContrastConfidence(contrast);
 
     edgeHighThreshold = (uint16)(((uint32)maxAbsGradient * VISION_LINEAR_EDGE_HIGH_PCT) / 100U);
     if (edgeHighThreshold < VISION_LINEAR_MIN_STRONG_EDGE)
@@ -292,10 +292,10 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         edgeLowThreshold = VISION_LINEAR_MIN_WEAK_EDGE;
     }
 
-    splitPoint = s_isLocked ? VisionLinear_ClampSplitPoint(s_lastTrackCenter)
+    splitPoint = s_isLocked ? LineDetector_ClampSplitPoint(s_lastTrackCenter)
                             : (VISION_LINEAR_BUFFER_SIZE / 2U);
 
-    if (dbg != (VisionLinear_DebugOut_t*)0)
+    if (dbg != (LineDetector_DebugOut_t*)0)
     {
         if ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u)
         {
@@ -337,10 +337,10 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
 
     for (i = 2U; i < (VISION_LINEAR_BUFFER_SIZE - 2U); i++)
     {
-        uint16 strength = VisionLinear_AbsU16(gradient[i]);
+        uint16 strength = LineDetector_AbsU16(gradient[i]);
         uint8 isCandidate = 0U;
 
-        if ((strength >= edgeLowThreshold) && (VisionLinear_IsLocalMaximum(gradient, i) != 0U))
+        if ((strength >= edgeLowThreshold) && (LineDetector_IsLocalMaximum(gradient, i) != 0U))
         {
             if (strength >= edgeHighThreshold)
             {
@@ -348,8 +348,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
             }
             else
             {
-                uint16 leftStrength = VisionLinear_AbsU16(gradient[i - 1U]);
-                uint16 rightStrength = VisionLinear_AbsU16(gradient[i + 1U]);
+                uint16 leftStrength = LineDetector_AbsU16(gradient[i - 1U]);
+                uint16 rightStrength = LineDetector_AbsU16(gradient[i + 1U]);
 
                 if ((leftStrength >= edgeHighThreshold) || (rightStrength >= edgeHighThreshold))
                 {
@@ -362,7 +362,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         {
             sint8 polarity = (gradient[i] >= 0) ? 1 : -1;
 
-            if ((dbg != (VisionLinear_DebugOut_t*)0) &&
+            if ((dbg != (LineDetector_DebugOut_t*)0) &&
                 ((dbg->mask & (uint32)VLIN_DBG_EDGES) != 0u) &&
                 (dbg->edgeCount < VLIN_MAX_EDGE_CANDIDATES))
             {
@@ -439,10 +439,10 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                 {
                     uint8 width = (uint8)(rightIdx - leftIdx);
                     uint8 center = (uint8)((leftIdx + rightIdx) / 2U);
-                    if (VisionLinear_WidthMatchesLane(width) != 0U)
+                    if (LineDetector_WidthMatchesLane(width) != 0U)
                     {
-                        uint16 widthErr = VisionLinear_AbsDiffU8(width, (uint8)VISION_LINEAR_NOMINAL_LANE_WIDTH);
-                        uint16 centerErr = VisionLinear_AbsDiffU8(center, splitPoint);
+                        uint16 widthErr = LineDetector_AbsDiffU8(width, (uint8)VISION_LINEAR_NOMINAL_LANE_WIDTH);
+                        uint16 centerErr = LineDetector_AbsDiffU8(center, splitPoint);
                         uint16 strengthSum = (uint16)(leftCandidateStrengths[li] + rightCandidateStrengths[ri]);
                         sint32 score = (sint32)((uint32)widthErr * 8UL) +
                                        (sint32)centerErr -
@@ -473,7 +473,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
     out->leftLineIdx = bestLeftIdx;
     out->rightLineIdx = bestRightIdx;
 
-    if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
+    if ((dbg != (LineDetector_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
     {
         dbg->leftInnerEdgeIdx = bestLeftIdx;
         dbg->rightInnerEdgeIdx = bestRightIdx;
@@ -486,8 +486,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         if ((bestLeftIdx != VISION_LINEAR_INVALID_IDX) && (bestRightIdx != VISION_LINEAR_INVALID_IDX))
         {
             uint16 selectedStrength = (bestLeftStrength < bestRightStrength) ? bestLeftStrength : bestRightStrength;
-            edgeStrengthConfidence = VisionLinear_ComputeEdgeStrengthConfidence(selectedStrength);
-            baseConfidence = VisionLinear_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
+            edgeStrengthConfidence = LineDetector_ComputeEdgeStrengthConfidence(selectedStrength);
+            baseConfidence = LineDetector_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
             lineStatusFactor = 100U;
             out->status = VISION_TRACK_BOTH;
             out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
@@ -497,8 +497,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         else if (bestLeftIdx != VISION_LINEAR_INVALID_IDX)
         {
             float simulatedRight = (float)bestLeftIdx + (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
-            edgeStrengthConfidence = VisionLinear_ComputeEdgeStrengthConfidence(bestLeftStrength);
-            baseConfidence = VisionLinear_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
+            edgeStrengthConfidence = LineDetector_ComputeEdgeStrengthConfidence(bestLeftStrength);
+            baseConfidence = LineDetector_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
             lineStatusFactor = 50U;
             out->status = VISION_TRACK_LEFT;
             out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
@@ -511,8 +511,8 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         else if (bestRightIdx != VISION_LINEAR_INVALID_IDX)
         {
             float simulatedLeft = (float)bestRightIdx - (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
-            edgeStrengthConfidence = VisionLinear_ComputeEdgeStrengthConfidence(bestRightStrength);
-            baseConfidence = VisionLinear_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
+            edgeStrengthConfidence = LineDetector_ComputeEdgeStrengthConfidence(bestRightStrength);
+            baseConfidence = LineDetector_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
             lineStatusFactor = 50U;
             out->status = VISION_TRACK_RIGHT;
             out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
@@ -566,13 +566,13 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
                     uint8 gap = (uint8)(rightGapEdge - leftGapEdge);
                     uint8 gapCenter = (uint8)((leftGapEdge + rightGapEdge) / 2U);
                     uint8 laneCenter = (uint8)((bestLeftIdx + bestRightIdx) / 2U);
-                    uint16 gapError = VisionLinear_AbsDiffU8(gap, expectedFinishGap);
-                    uint16 centerError = VisionLinear_AbsDiffU8(gapCenter, laneCenter);
+                    uint16 gapError = LineDetector_AbsDiffU8(gap, expectedFinishGap);
+                    uint16 centerError = LineDetector_AbsDiffU8(gapCenter, laneCenter);
                     uint16 maxCenterError = ((uint16)laneWidth * (uint16)VISION_FINISH_CENTER_TOL_PCT) / 100U;
 
                     if ((gap > 0U) &&
                         (centerError <= maxCenterError) &&
-                        (VisionLinear_WidthMatchesFinish(gap, expectedFinishGap) != 0U) &&
+                        (LineDetector_WidthMatchesFinish(gap, expectedFinishGap) != 0U) &&
                         (gapError < bestGapError))
                     {
                         bestGapError = gapError;
@@ -595,7 +595,7 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
         s_isLocked = 1U;
     }
 
-    if ((dbg != (VisionLinear_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
+    if ((dbg != (LineDetector_DebugOut_t*)0) && ((dbg->mask & (uint32)VLIN_DBG_STATS) != 0u))
     {
         dbg->laneWidth = laneWidth;
         dbg->expectedFinishGap = expectedFinishGap;
@@ -609,21 +609,21 @@ static void VisionLinear_ProcessFrameImpl(const uint16 *pixels,
 
 /* ----------------------------- Public API ----------------------------- */
 
-void VisionLinear_InitV2(void)
+void LineDetector_Init(void)
 {
     s_lastTrackCenter = (float)(VISION_LINEAR_BUFFER_SIZE / 2U);
     s_isLocked = 0U;
     s_singleEdgeStreak = 0U;
 }
 
-void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out)
+void LineDetector_Process(const uint16 *pixels, VisionOutput_t *out)
 {
-    VisionLinear_ProcessFrameImpl(pixels, out, (VisionLinear_DebugOut_t*)0);
+    LineDetector_ProcessImpl(pixels, out, (LineDetector_DebugOut_t*)0);
 }
 
-void VisionLinear_ProcessFrameEx(const uint16 *pixels,
+void LineDetector_ProcessDebug(const uint16 *pixels,
                                  VisionOutput_t *out,
-                                 VisionLinear_DebugOut_t *dbg)
+                                 LineDetector_DebugOut_t *dbg)
 {
-    VisionLinear_ProcessFrameImpl(pixels, out, dbg);
+    LineDetector_ProcessImpl(pixels, out, dbg);
 }

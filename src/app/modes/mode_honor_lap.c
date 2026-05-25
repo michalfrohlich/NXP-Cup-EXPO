@@ -48,7 +48,7 @@ static void honor_lap_enter(uint32 nowMs)
 
     (void)memset(&g_honorLap, 0, sizeof(g_honorLap));
 
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     armStartMs = Timebase_GetMs();
@@ -125,7 +125,7 @@ static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLev
         g_honorLap.commandedSpeedPct = 0;
     }
 
-    EscSetBrake(0U, 0U);
+    Esc_SetBrake(0U, 0U);
     Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct),
                         (int)(-g_honorLap.commandedSpeedPct));
 

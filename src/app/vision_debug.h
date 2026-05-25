@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include "Platform_Types.h"
-#include "services/vision_linear_v2.h"
+#include "services/line_detector.h"
 
 /* Debug screens */
 typedef enum
@@ -38,7 +38,7 @@ void VisionDebug_OnTick(VisionDebug_State_t *st,
                         boolean modeNextPressed);
 boolean VisionDebug_WantsVisionDebugData(const VisionDebug_State_t *st);
 void VisionDebug_PrepareVisionDbg(const VisionDebug_State_t *st,
-                                  VisionLinear_DebugOut_t *dbg,
+                                  LineDetector_DebugOut_t *dbg,
                                   uint16 *filteredOutBuf,
                                   sint16 *gradientOutBuf);
 void VisionDebug_Draw(const VisionDebug_State_t *st,
@@ -46,7 +46,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
                       const uint16 *filteredU16,
                       const sint16 *gradientS16,
                       const VisionOutput_t *result,
-                      const VisionLinear_DebugOut_t *dbg);
+                      const LineDetector_DebugOut_t *dbg);
 
 #ifdef __cplusplus
 }

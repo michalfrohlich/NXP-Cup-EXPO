@@ -1,6 +1,6 @@
 #pragma once
 /*
-  main_types.h
+  vehicle_types.h
   ============
   Shared domain packets used between modules.
 
@@ -54,7 +54,7 @@ typedef struct
 /* Output from the controller module. */
 typedef struct
 {
-    /* Steering command in Steer() units. */
+    /* Steering command in Servo_SetSteer() units. */
     sint16 steer_cmd;
 
     /* Motor throttle percent (0..100). */
@@ -62,7 +62,7 @@ typedef struct
 
     /* TRUE = brake motor, FALSE = allow driving. */
     boolean brake;
-} SteeringOutput_t;
+} VehicleControlOutput_t;
 
 #ifdef __cplusplus
 }

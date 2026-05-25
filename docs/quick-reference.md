@@ -17,7 +17,7 @@
 - `include/config/board_config.h`: generated PWM/channel routing aliases and board-specific input/device addresses.
 - `include/config/actuator_config.h`: servo and ESC physical calibration values.
 - `include/config/sensor_config.h`: camera geometry/timing and ultrasonic sensor calibration/validity limits.
-- `include/domain/main_types.h`: shared domain packets passed between vision, control, and app code.
+- `include/domain/vehicle_types.h`: shared domain packets passed between vision, control, and app code.
 - `include/config/vision_config.h`: vision detector tuning constants.
 - `include/config/control_config.h`: baseline steering PID, steering shaping, and controller speed policy constants.
 
@@ -39,7 +39,7 @@
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
 - Camera consumers process a newly completed frame when `LinearCameraGetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
 - `Cam+Servo` and `Simple test drv` now consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
-- Steering PID uses the active `KP/KD/KI/ITERM_CLAMP` values plus the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringLinear_UpdateV2()` before app-level servo smoothing is applied.
+- Steering PID uses the active `KP/KD/KI/ITERM_CLAMP` values plus the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied.
 - `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
@@ -47,14 +47,14 @@
 - App dispatch/shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`
 - App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_imu.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - App vision debug UI: `src/app/vision_debug.c`
-- Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`
+- Vision / control: `src/services/line_detector.c`, `src/services/steering_controller.c`, `src/services/steering_smoothing.c`
 - Hardware-facing modules: `src/drivers/linear_camera.c`, `src/drivers/esc.c`, `src/drivers/servo.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/display.c`, `src/drivers/buttons.c`, `src/drivers/rgb_led.c`, `src/drivers/timebase.c`
-- Debug transport: `src/debug/serial_debug.c`
-- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are excluded from the current CLI build; active runtime menu/HUD code lives in `src/app/modes/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
+- Debug transport: `src/debug/uart_host_link.c`
+- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are not called by the active runtime; active menu/HUD code lives in `src/app/modes/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
 
 ## Vision V2 snapshot
-- Shared output packet: `VisionOutput_t` in `include/domain/main_types.h`
-- Processing pipeline in `src/services/vision_linear_v2.c`:
+- Shared output packet: `VisionOutput_t` in `include/domain/vehicle_types.h`
+- Processing pipeline in `src/services/line_detector.c`:
   - filtered signal
   - signed gradient
   - edge candidates

@@ -10,10 +10,10 @@
 - `include/config/board_config.h` owns board routing aliases that may reference generated RTD/MCAL symbols.
 - `include/config/actuator_config.h` owns servo and ESC physical calibration values.
 - `include/config/sensor_config.h` owns sensor geometry, timing, conversion, and validity-limit constants.
-- `include/domain/main_types.h` defines the shared vision/control/app handoff packets.
+- `include/domain/vehicle_types.h` defines the shared vision/control/app handoff packets.
 - `include/config/vision_config.h` defines vision detector tunables used by the vision service and debug code.
 - `include/config/control_config.h` defines baseline steering-control tunings used by the control service and app runtime tune initialization.
-- `src/debug/serial_debug.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
+- `src/debug/uart_host_link.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
@@ -56,7 +56,7 @@
 6. The selected mode runs forever
 7. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
 8. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
-9. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Steer()` commands at a selectable software cadence
+9. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Servo_SetSteer()` commands at a selectable software cadence
 
 ## Mode lifecycle
 - Standalone mode lifecycle:
@@ -88,7 +88,7 @@
 - `APP_TEST_SERVO_RATE_TEST` is meant to isolate servo command timing from camera, ESC, ultrasonic, and steering-controller code.
 - `SW2` cycles the software command rate through `10 Hz`, `50 Hz`, `100 Hz`, and `250 Hz`.
 - `SW3` cycles the command source through potentiometer control, one-unit fine sweep, and larger step sweep.
-- The OLED shows the selected rate, selected command source, current `Steer()` command, PWM-period callback count, and an `OK` / `BUF` / `NOISR` status.
+- The OLED shows the selected rate, selected command source, current `Servo_SetSteer()` command, PWM-period callback count, and an `OK` / `BUF` / `NOISR` status.
 - The RGB LED is green while the servo driver/callback path keeps up, and red if the PWM-period callback is not firing or if a new command slot arrives while the previous command is still buffered.
 - The physical PWM frame is still the generated `50 Hz` servo PWM. This test changes how often handwritten code publishes new desired steering commands into the period-latched servo driver.
 
@@ -132,13 +132,13 @@
   - the waiting screen is rendered once before `LinearCameraStartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
   - consumes completed camera frames as soon as `LinearCameraGetLatestFrame()` reports a ready buffer, while UI/debug/control housekeeping remains separately rate-limited
   - the runtime `Camera` / `Cam Servo` tests now opportunistically queue one compact UART telemetry packet per processed frame, dropping packets instead of blocking if the software TX queue is full
-- `services/vision_linear_v2.c`
+- `services/line_detector.c`
   - filters the frame
   - computes a 1D gradient
   - selects lane edges / track center from signed edge candidates
   - computes confidence from selected-edge strength, contrast, and line-status state
   - detects the finish line from the inner white gap
-- `services/steering_control_linear.c`
+- `services/steering_controller.c`
   - converts vision error to steering command
   - reads baseline PID, steering shaping, and controller speed-policy values from `include/config/control_config.h`
   - applies filtered-error and filtered-derivative shaping (with confidence-aware error filtering) before PID output
@@ -182,12 +182,12 @@
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
 - `bench_tests.c`
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
-- `debug/serial_debug.c`
+- `debug/uart_host_link.c`
   - still provides the blocking shell-style serial path used by `Serial tune`
   - now also exposes a small non-blocking TX queue so camera telemetry can be drained in the background from the runtime camera tests
 - `esc.c`
   - applies motor command through PWM and an internal ESC state machine on both configured ESC outputs
-  - exposes one explicit dual-output API: `EscInit(primary, secondary, ...)`, `EscSetSpeed(primary, secondary)`, and `EscSetBrake(primary, secondary)`
+  - exposes one explicit dual-output API: `Esc_Init(primary, secondary, ...)`, `Esc_SetSpeed(primary, secondary)`, and `Esc_SetBrake(primary, secondary)`
 
 ## Interrupt / callback-driven pieces
 - `timebase.c`: `EmuTimer_Notification()`, `UsTimer_Notification()`
@@ -201,14 +201,14 @@
 - App dispatch, config, and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/app_config.h`, `include/config/board_config.h`, `include/config/actuator_config.h`, `include/config/sensor_config.h`
 - App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_imu.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - Board bring-up: `src/app/board_init.c`
-- Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
-- Steering: `src/services/steering_control_linear.c`, `src/drivers/servo.c`
+- Vision: `src/services/line_detector.c`, `src/app/vision_debug.c`
+- Steering: `src/services/steering_controller.c`, `src/drivers/servo.c`
 - Motor control: `src/drivers/esc.c`
-- Serial debug: `src/debug/serial_debug.c`
+- Serial debug: `src/debug/uart_host_link.c`
 - Sensors / IO: `src/drivers/linear_camera.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/buttons.c`, `src/drivers/display.c`, `src/drivers/rgb_led.c`
 
 ## Current vision notes
-- The public vision handoff is `VisionOutput_t` in `include/domain/main_types.h`.
+- The public vision handoff is `VisionOutput_t` in `include/domain/vehicle_types.h`.
 - The current finish detector is gap-based, not region-based.
 - The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.
-- `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/modes/bench_menu.c` and the mode-specific app modules.
+- `src/unused/user_interface.c` is a retained legacy UI module not called by the active runtime; the active menu/HUD code is implemented in `src/app/modes/bench_menu.c` and the mode-specific app modules.

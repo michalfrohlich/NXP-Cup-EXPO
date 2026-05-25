@@ -14,10 +14,10 @@ static void race_mode_enter(uint32 nowMs)
     g_raceMode.armDoneMs = nowMs + ESC_ARM_TIME_MS;
     g_raceMode.lastDistanceMs = nowMs;
 
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
-    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
     if (LinearCameraIsBusy() == TRUE)
@@ -27,10 +27,10 @@ static void race_mode_enter(uint32 nowMs)
 
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
     LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
-    VisionLinear_InitV2();
+    LineDetector_Init();
 
-    SteeringLinear_Init(&g_raceMode.ctrl);
-    SteeringLinear_Reset(&g_raceMode.ctrl);
+    SteeringController_Init(&g_raceMode.ctrl);
+    SteeringController_Reset(&g_raceMode.ctrl);
 
     Ultrasonic_Init();
 
@@ -57,7 +57,7 @@ static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
     (void)memcpy(st->processedFrame.Values,
                  &latestFrame->Values[CAM_TRIM_LEFT_PX],
                  ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
-    VisionLinear_ProcessFrame(st->processedFrame.Values, &st->result);
+    LineDetector_Process(st->processedFrame.Values, &st->result);
     st->haveValidVision = TRUE;
 }
 
@@ -176,10 +176,10 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
         {
             float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            SteeringOutput_t out;
+            VehicleControlOutput_t out;
 
             controllerBaseSpeed = (st->currentSpeedPct > 0) ? (uint8)st->currentSpeedPct : FULL_AUTO_SPEED_PCT;
-            out = SteeringLinear_UpdateV2(&st->ctrl, &st->result, dt, controllerBaseSpeed);
+            out = SteeringController_Update(&st->ctrl, &st->result, dt, controllerBaseSpeed);
             st->steerRaw = (sint16)out.steer_cmd;
 
             if (((st->steerRaw < 0) ? (sint16)(-st->steerRaw) : st->steerRaw) <= 2)
@@ -200,7 +200,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
             st->steerOut = SteeringSmooth_ClampS16(st->steerOut,
                                                    (sint16)(-STEER_CMD_CLAMP),
                                                    (sint16)(+STEER_CMD_CLAMP));
-            Steer((int)st->steerOut);
+            Servo_SetSteer((int)st->steerOut);
         }
         else
         {
@@ -290,7 +290,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         }
         else
         {
-            EscSetBrake(0U, 0U);
+            Esc_SetBrake(0U, 0U);
             Esc_SetLogicalSpeed((int)(-st->currentSpeedPct),
                                 (int)(-st->currentSpeedPct));
         }

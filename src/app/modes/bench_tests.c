@@ -294,7 +294,7 @@ void ultrasonic_esc_test_enter(uint32 nowMs)
 {
     (void)memset(&g_ultrasonicEscTest, 0, sizeof(g_ultrasonicEscTest));
 
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     Ultrasonic_Init();
@@ -363,7 +363,7 @@ void ultrasonic_esc_test_update(uint32 nowMs)
         g_ultrasonicEscTest.commandedSpeedPct =
             honor_speed_from_distance(g_ultrasonicEscTest.hasValidDistance,
                                       g_ultrasonicEscTest.lastDistanceCm);
-    EscSetBrake(0U, 0U);
+    Esc_SetBrake(0U, 0U);
     Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
                         (int)(-g_ultrasonicEscTest.commandedSpeedPct));
     }
@@ -424,7 +424,7 @@ void servo_test_enter(uint32 nowMs)
 {
     (void)memset(&g_servoTest, 0, sizeof(g_servoTest));
 
-    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
     g_servoTest.configured = FALSE;
@@ -523,7 +523,7 @@ void servo_test_update(uint32 nowMs, boolean sw2Pressed, uint8 potLevel)
             g_servoTest.steerOut = g_servoTest.steerRaw;
         }
 
-        Steer((int)g_servoTest.steerOut);
+        Servo_SetSteer((int)g_servoTest.steerOut);
     }
 
     if (g_servoTest.useSmoothing == TRUE)
@@ -555,7 +555,7 @@ void esc_test_enter(uint32 nowMs)
 
     g_escTest.mode = ESC_TEST_MODE_BOTH;
     g_escTest.nextDisplayMs = nowMs;
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     esc_test_disarm(&g_escTest);
     esc_test_draw(&g_escTest);
 }
@@ -748,7 +748,7 @@ static void esc_test_apply_outputs(EscManualTestState_t *st)
         }
     }
 
-    EscSetBrake(0U, 0U);
+    Esc_SetBrake(0U, 0U);
     Esc_SetLogicalSpeed((int)st->primaryCmdPct, (int)st->secondaryCmdPct);
 }
 
@@ -846,9 +846,9 @@ void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
     g_linearCameraTest.steeringBaseSpeed = 20U;
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
     LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
-    VisionLinear_InitV2();
+    LineDetector_Init();
     VisionDebug_Init(&g_linearCameraTest.vdbg, 3200U);
-    SerialDebug_ClearTxQueue();
+    UartHost_ClearTxQueue();
 
     g_linearCameraTest.nextUiMs = nowMs;
     g_linearCameraTest.nextSteerMs = nowMs + STEER_UPDATE_MS;
@@ -857,10 +857,10 @@ void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
 
     if (servoEnabled == TRUE)
     {
-        ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+        Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
         SteerStraight();
-        SteeringLinear_Init(&g_linearCameraTest.ctrl);
-        SteeringLinear_Reset(&g_linearCameraTest.ctrl);
+        SteeringController_Init(&g_linearCameraTest.ctrl);
+        SteeringController_Reset(&g_linearCameraTest.ctrl);
     }
 
     /* Push the first visible OLED frame before enabling the camera ISR load.
@@ -1032,7 +1032,7 @@ static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
     }
     packet[CAM_UART_STREAM_PACKET_BYTES - 1U] = checksum;
 
-    if (SerialDebug_EnqueueBytes(packet, CAM_UART_STREAM_PACKET_BYTES) != TRUE)
+    if (UartHost_EnqueueBytes(packet, CAM_UART_STREAM_PACKET_BYTES) != TRUE)
     {
         g_linearCameraTest.streamDropCount++;
     }
@@ -1078,7 +1078,7 @@ static void linear_camera_test_process_latest_frame(uint32 nowMs)
                  &latestFrame->Values[CAM_TRIM_LEFT_PX],
                  ((size_t)VISION_LINEAR_BUFFER_SIZE *
                   sizeof(g_linearCameraTest.processedFrame.Values[0])));
-    VisionLinear_ProcessFrameEx(g_linearCameraTest.processedFrame.Values,
+    LineDetector_ProcessDebug(g_linearCameraTest.processedFrame.Values,
                                 &g_linearCameraTest.result,
                                 &g_linearCameraTest.dbg);
 
@@ -1099,7 +1099,7 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
     boolean sw2ClickHandled = FALSE;
     boolean screenTogglePressed;
 
-    SerialDebug_ServiceTx();
+    UartHost_ServiceTx();
     linear_camera_test_process_latest_frame(nowMs);
 
     if ((uint32)(nowMs - g_linearCameraTest.nextUiMs) < CAM_DEBUG_UI_PERIOD_MS)
@@ -1162,8 +1162,8 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
         else
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            SteeringOutput_t out =
-                SteeringLinear_UpdateV2(&g_linearCameraTest.ctrl,
+            VehicleControlOutput_t out =
+                SteeringController_Update(&g_linearCameraTest.ctrl,
                                         &g_linearCameraTest.result,
                                         dt,
                                         g_linearCameraTest.steeringBaseSpeed);
@@ -1191,7 +1191,7 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
                                                                   (sint16)(-STEER_CMD_CLAMP),
                                                                   (sint16)(+STEER_CMD_CLAMP));
 
-            Steer((int)g_linearCameraTest.steerOut);
+            Servo_SetSteer((int)g_linearCameraTest.steerOut);
         }
     }
 
@@ -1207,7 +1207,7 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
                 (g_linearCameraTest.dbg.filteredOut != NULL_PTR) ? g_linearCameraTest.filteredBuf : NULL_PTR;
             const sint16 *pGradient =
                 (g_linearCameraTest.dbg.gradientOut != NULL_PTR) ? g_linearCameraTest.gradientBuf : NULL_PTR;
-            const VisionLinear_DebugOut_t *pDbg =
+            const LineDetector_DebugOut_t *pDbg =
                 (g_linearCameraTest.dbg.mask != (uint32)VLIN_DBG_NONE) ? &g_linearCameraTest.dbg : NULL_PTR;
 
             g_linearCameraTest.displayDirty = FALSE;
@@ -1238,7 +1238,7 @@ void linear_camera_test_exit(void)
         LinearCameraStopStream();
     }
 
-    SerialDebug_ClearTxQueue();
+    UartHost_ClearTxQueue();
     StatusLed_Blue();
 }
 static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *profile)
@@ -1250,13 +1250,13 @@ static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *
 
     st->activeTune = *profile;
 
-    SteeringLinear_SetTunings(&st->ctrl,
+    SteeringController_SetTunings(&st->ctrl,
                               profile->kp,
                               profile->kd,
                               1.0f);
     st->ctrl.ki = profile->ki;
     st->ctrl.iTermClamp = profile->iTermClamp;
-    SteeringLinear_Reset(&st->ctrl);
+    SteeringController_Reset(&st->ctrl);
 
     st->steerRaw = 0;
     st->steerFilt = 0;
@@ -1266,7 +1266,7 @@ static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *
 
 void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile)
 {
-    ServoInit(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
     if (LinearCameraIsBusy() == TRUE)
@@ -1276,11 +1276,11 @@ void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTun
 
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
     LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
-    VisionLinear_InitV2();
+    LineDetector_Init();
     VisionDebug_Init(&st->vdbg, (uint8)V2_WHITE_SAT_U8);
 
-    SteeringLinear_Init(&st->ctrl);
-    SteeringLinear_Reset(&st->ctrl);
+    SteeringController_Init(&st->ctrl);
+    SteeringController_Reset(&st->ctrl);
 
     (void)memset(&st->processedFrame, 0, sizeof(st->processedFrame));
     (void)memset(&st->result, 0, sizeof(st->result));
@@ -1332,7 +1332,7 @@ static void camservo_process_latest_frame(CamServoState_t *st, uint32 nowMs)
     (void)memcpy(st->processedFrame.Values,
                  &latestFrame->Values[CAM_TRIM_LEFT_PX],
                  ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
-    VisionLinear_ProcessFrameEx(st->processedFrame.Values, &st->result, &st->dbg);
+    LineDetector_ProcessDebug(st->processedFrame.Values, &st->result, &st->dbg);
     st->haveValidVision = TRUE;
     st->lastFrameMs = nowMs;
     st->displayDirty = TRUE;
@@ -1375,7 +1375,7 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            SteeringOutput_t out = SteeringLinear_UpdateV2(&st->ctrl,
+            VehicleControlOutput_t out = SteeringController_Update(&st->ctrl,
                                                            &st->result,
                                                            dt,
                                                            st->activeTune.baseSpeedPct);
@@ -1405,7 +1405,7 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
                                                (sint16)(-st->activeTune.steerClamp),
                                                (sint16)(+st->activeTune.steerClamp));
 
-        Steer((int)st->steerOut);
+        Servo_SetSteer((int)st->steerOut);
     }
 
     if ((st->haveValidVision == TRUE) &&
@@ -1414,7 +1414,7 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
     {
         const uint16 *pFiltered = (st->dbg.filteredOut != NULL_PTR) ? st->filteredBuf : NULL_PTR;
         const sint16 *pGradient = (st->dbg.gradientOut != NULL_PTR) ? st->gradientBuf : NULL_PTR;
-        const VisionLinear_DebugOut_t *pDbg =
+        const LineDetector_DebugOut_t *pDbg =
             (st->dbg.mask != (uint32)VLIN_DBG_NONE) ? &st->dbg : NULL_PTR;
 
         st->nextDisplayMs = nowMs + CAM_DEBUG_DISPLAY_PERIOD_MS;
@@ -1437,7 +1437,7 @@ void simple_drive_test_enter(uint32 nowMs)
 {
     (void)memset(&g_simpleDriveTest, 0, sizeof(g_simpleDriveTest));
 
-    EscInit(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
+    Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
     camservo_enter(&g_simpleDriveTest.camSt, nowMs);
@@ -1498,7 +1498,7 @@ void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Press
             g_simpleDriveTest.autoSpeedPct = 100;
         }
 
-        EscSetBrake(0U, 0U);
+        Esc_SetBrake(0U, 0U);
         Esc_SetLogicalSpeed((int)(-g_simpleDriveTest.autoSpeedPct),
                             (int)(-g_simpleDriveTest.autoSpeedPct));
     }

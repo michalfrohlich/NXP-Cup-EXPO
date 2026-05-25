@@ -1,5 +1,5 @@
 /*==================================================================================================
-* vision_linear_v2.h
+* line_detector.h
 *
 * Stage 1 redesign pipeline for the 1x128 linear camera:
 * - receive raw ADC pixels
@@ -9,15 +9,15 @@
 * - detect the inner track edges (left rising edge, right falling edge)
 *==================================================================================================*/
 
-#ifndef VISION_LINEAR_V2_H
-#define VISION_LINEAR_V2_H
+#ifndef LINE_DETECTOR_H
+#define LINE_DETECTOR_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "Platform_Types.h"
-#include "domain/main_types.h"
+#include "domain/vehicle_types.h"
 #include "config/sensor_config.h"
 #include "config/vision_config.h"
 
@@ -30,7 +30,7 @@ typedef struct
     uint8 idx;
     sint8 polarity; /* +1 rising, -1 falling */
     uint16 strength;
-} VisionLinear_DebugEdge_t;
+} LineDetector_DebugEdge_t;
 
 typedef enum
 {
@@ -39,7 +39,7 @@ typedef enum
     VLIN_DBG_GRADIENT  = 1u << 1,
     VLIN_DBG_STATS     = 1u << 2,
     VLIN_DBG_EDGES     = 1u << 3
-} VisionLinear_DebugMask_t;
+} LineDetector_DebugMask_t;
 
 typedef struct
 {
@@ -68,19 +68,19 @@ typedef struct
 
     /* Edge candidates (valid if VLIN_DBG_EDGES) */
     uint8 edgeCount;
-    VisionLinear_DebugEdge_t edges[VLIN_MAX_EDGE_CANDIDATES];
-} VisionLinear_DebugOut_t;
+    LineDetector_DebugEdge_t edges[VLIN_MAX_EDGE_CANDIDATES];
+} LineDetector_DebugOut_t;
 
 /* ----------------------------- API ----------------------------- */
 
-void VisionLinear_InitV2(void);
-void VisionLinear_ProcessFrame(const uint16 *pixels, VisionOutput_t *out);
-void VisionLinear_ProcessFrameEx(const uint16 *pixels,
+void LineDetector_Init(void);
+void LineDetector_Process(const uint16 *pixels, VisionOutput_t *out);
+void LineDetector_ProcessDebug(const uint16 *pixels,
                                  VisionOutput_t *out,
-                                 VisionLinear_DebugOut_t *dbg);
+                                 LineDetector_DebugOut_t *dbg);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* VISION_LINEAR_V2_H */
+#endif /* LINE_DETECTOR_H */

@@ -39,7 +39,7 @@ extern "C" {
 *                                      LOCAL VARIABLES
 ==================================================================================================*/
 static Servo ServoInstance;
-static volatile boolean ServoInitialized = FALSE;
+static volatile boolean Servo_Initialized = FALSE;
 static volatile uint16 ServoAppliedDutyCycle = 0U;
 static volatile uint16 ServoPendingDutyCycle = 0U;
 static volatile boolean ServoPendingUpdate = FALSE;
@@ -106,7 +106,7 @@ static void Servo_PublishPendingDuty(uint16 ServoDutyCycle)
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
 
-void ServoInit(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinDutyCycle, uint16 MedDutyCycle ){
+void Servo_Init(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinDutyCycle, uint16 MedDutyCycle ){
     ServoInstance.ServoPwmChannel = ServoPwmChannel;
     ServoInstance.MaxDutyCycle = MaxDutyCycle;
     ServoInstance.MinDutyCycle = MinDutyCycle;
@@ -117,15 +117,15 @@ void ServoInit(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinD
     ServoCommandRequestCount = 0U;
     ServoPeriodCallbackCount = 0U;
     ServoAppliedUpdateCount = 0U;
-    ServoInitialized = TRUE;
+    Servo_Initialized = TRUE;
     Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoAppliedDutyCycle);
     Pwm_EnableNotification(ServoInstance.ServoPwmChannel, PWM_FALLING_EDGE);
 }
 
-void Steer(int Direction){
+void Servo_SetSteer(int Direction){
     uint16 ServoDutyCycle;
 
-    if (ServoInitialized != TRUE)
+    if (Servo_Initialized != TRUE)
     {
         return;
     }
@@ -136,7 +136,7 @@ void Steer(int Direction){
 }
 
 void SteerLeft(void){
-    if (ServoInitialized != TRUE)
+    if (Servo_Initialized != TRUE)
     {
         return;
     }
@@ -146,7 +146,7 @@ void SteerLeft(void){
 }
 
 void SteerRight(void){
-    if (ServoInitialized != TRUE)
+    if (Servo_Initialized != TRUE)
     {
         return;
     }
@@ -156,7 +156,7 @@ void SteerRight(void){
 }
 
 void SteerStraight(void){
-    if (ServoInitialized != TRUE)
+    if (Servo_Initialized != TRUE)
     {
         return;
     }
@@ -167,7 +167,7 @@ void SteerStraight(void){
 
 void Servo_Period_Finished(void)
 {
-    if (ServoInitialized != TRUE)
+    if (Servo_Initialized != TRUE)
     {
         return;
     }
@@ -185,7 +185,7 @@ void Servo_Period_Finished(void)
     ServoAppliedUpdateCount++;
 }
 
-void ServoGetDebugSnapshot(ServoDebugSnapshot *Snapshot)
+void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot)
 {
     if (Snapshot == NULL_PTR)
     {
@@ -193,7 +193,7 @@ void ServoGetDebugSnapshot(ServoDebugSnapshot *Snapshot)
     }
 
     SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
-    Snapshot->Initialized = ServoInitialized;
+    Snapshot->Initialized = Servo_Initialized;
     Snapshot->AppliedDutyCycle = ServoAppliedDutyCycle;
     Snapshot->PendingDutyCycle = ServoPendingDutyCycle;
     Snapshot->PendingUpdate = ServoPendingUpdate;

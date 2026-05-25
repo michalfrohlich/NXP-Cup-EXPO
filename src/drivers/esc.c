@@ -86,7 +86,7 @@ static void SetPwm(volatile Esc *EscInstance, int EscSpeedCommand)
     }
 }
 
-static void EscInitOne(volatile Esc *EscInstance,
+static void Esc_InitOne(volatile Esc *EscInstance,
                        Pwm_ChannelType EscPwmChannel,
                        uint16 MinDutyCycle,
                        uint16 MedDutyCycle,
@@ -205,24 +205,24 @@ void Esc_Period_Finished(void){
 *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
 
-void EscInit(Pwm_ChannelType PrimaryEscPwmChannel,
+void Esc_Init(Pwm_ChannelType PrimaryEscPwmChannel,
              Pwm_ChannelType SecondaryEscPwmChannel,
              uint16 MinDutyCycle,
              uint16 MedDutyCycle,
              uint16 MaxDutyCycle)
 {
-    EscInitOne(&EscInstances[0], PrimaryEscPwmChannel, MinDutyCycle, MedDutyCycle, MaxDutyCycle);
-    EscInitOne(&EscInstances[1], SecondaryEscPwmChannel, MinDutyCycle, MedDutyCycle, MaxDutyCycle);
+    Esc_InitOne(&EscInstances[0], PrimaryEscPwmChannel, MinDutyCycle, MedDutyCycle, MaxDutyCycle);
+    Esc_InitOne(&EscInstances[1], SecondaryEscPwmChannel, MinDutyCycle, MedDutyCycle, MaxDutyCycle);
     Pwm_EnableNotification(EscInstances[0].Channel, PWM_FALLING_EDGE);/*updates both ESC state machines from the shared 50 Hz cadence*/
 }
 
-void EscSetSpeed(int PrimarySpeed, int SecondarySpeed)
+void Esc_SetSpeed(int PrimarySpeed, int SecondarySpeed)
 {
     EscInstances[0].Speed = EscClampSpeed(PrimarySpeed);
     EscInstances[1].Speed = EscClampSpeed(SecondarySpeed);
 }
 
-void EscSetBrake(uint8 PrimaryBrake, uint8 SecondaryBrake)
+void Esc_SetBrake(uint8 PrimaryBrake, uint8 SecondaryBrake)
 {
     EscInstances[0].Brake = (PrimaryBrake != 0U) ? 1U : 0U;
     EscInstances[1].Brake = (SecondaryBrake != 0U) ? 1U : 0U;
