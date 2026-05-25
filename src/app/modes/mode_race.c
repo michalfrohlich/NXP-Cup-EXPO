@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static void race_mode_enter(uint32 nowMs)
 {

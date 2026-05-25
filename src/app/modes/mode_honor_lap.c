@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm)
 {

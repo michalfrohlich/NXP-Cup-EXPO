@@ -16,7 +16,7 @@ Main S32K files:
 
 - `include/drivers/teensy_imu.h`
 - `src/drivers/teensy_imu.c`
-- `src/app/bench_teensy_imu.c`
+- `src/app/modes/bench_teensy_imu.c`
 - `docs/teensy-imu-spi.md`
 
 ## What Runs On The Teensy
@@ -218,7 +218,7 @@ Teensy SPI packet -> S32K -> DisplayText/DisplayValue -> S32K display
 The display screen is drawn in:
 
 ```text
-src/app/bench_teensy_imu.c
+src/app/modes/bench_teensy_imu.c
 ```
 
 It uses the existing display driver:

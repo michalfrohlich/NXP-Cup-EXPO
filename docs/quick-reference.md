@@ -7,10 +7,11 @@
 - `src/main.c`: process entry; calls `App_RunSelectedMode()`.
 - `src/app/app_modes.c`: compile-time mode dispatcher.
 - `src/app/app_common.c`: shared app runtime init, status LED helpers, display text helper, and ESC logical-speed helper.
-- `src/app/bench_menu.c`: `APP_TEST_NXP_CUP_TESTS` runtime test menu host and standalone linear-camera wrapper.
-- `src/app/bench_tests.c`: reusable bench test implementations used by the runtime menu.
-- `src/app/mode_nxp_cup.c`, `src/app/mode_honor_lap.c`, `src/app/mode_race.c`, `src/app/mode_servo_rate.c`: standalone app mode implementations.
-- `src/app/bench_serial_tune.c`: UART/OLED tuning test used by the runtime menu.
+- `src/app/modes/bench_menu.c`: `APP_TEST_NXP_CUP_TESTS` runtime test menu host and standalone linear-camera wrapper.
+- `src/app/modes/bench_tests.c`: reusable bench test implementations used by the runtime menu.
+- `src/app/modes/bench_serial_tune.c`: UART/OLED tuning test used by the runtime menu.
+- `src/app/modes/bench_teensy_imu.c`: Teensy IMU SPI display bench item and standalone test mode.
+- `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`: standalone app mode implementations.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
 - `src/app/car_config.h`: compile-time mode selection, generated PWM/channel routing aliases, and app/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
 - `include/domain/main_types.h`: shared domain packets passed between vision, control, and app code.
@@ -42,12 +43,12 @@
 
 ## Major modules
 - App dispatch/shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`
-- App modes: `src/app/bench_menu.c`, `src/app/bench_tests.c`, `src/app/bench_serial_tune.c`, `src/app/mode_nxp_cup.c`, `src/app/mode_honor_lap.c`, `src/app/mode_race.c`, `src/app/mode_servo_rate.c`
+- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_imu.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - App vision debug UI: `src/app/vision_debug.c`
 - Vision / control: `src/services/vision_linear_v2.c`, `src/services/steering_control_linear.c`, `src/services/steering_smoothing.c`
 - Hardware-facing modules: `src/drivers/linear_camera.c`, `src/drivers/esc.c`, `src/drivers/servo.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/display.c`, `src/drivers/buttons.c`, `src/drivers/rgb_led.c`, `src/drivers/timebase.c`
 - Debug transport: `src/debug/serial_debug.c`
-- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are excluded from the current CLI build; active runtime menu/HUD code lives in `src/app/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
+- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are excluded from the current CLI build; active runtime menu/HUD code lives in `src/app/modes/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
 
 ## Vision V2 snapshot
 - Shared output packet: `VisionOutput_t` in `include/domain/main_types.h`
@@ -73,7 +74,8 @@
 ## Important directories
 - `src/`, `include/`: handwritten hardware modules
 - `src/drivers/`: hardware-facing driver implementations
-- `src/app/`: application dispatcher, shared app runtime helpers, mode modules, and board init
+- `src/app/`: application dispatcher, shared app runtime helpers, private app header, config, and board init
+- `src/app/modes/`: standalone app modes and runtime bench-mode implementations
 - `src/services/`: vision and control logic
 - `src/debug/`: debug/tuning transports and instrumentation helpers
 - `include/drivers/`: public hardware-facing module APIs

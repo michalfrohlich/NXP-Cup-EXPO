@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
 {

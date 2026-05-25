@@ -6,7 +6,7 @@ This project now keeps the Teensy IMU integration inside the S32K source layout:
 - `src/drivers/teensy_imu.c`
 - `include/services/imu_motion.h`
 - `src/services/imu_motion.c`
-- `src/app/bench_teensy_imu.c`
+- `src/app/modes/bench_teensy_imu.c`
 
 ## Why It Is Split This Way
 

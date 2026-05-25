@@ -17,13 +17,14 @@
 - Standalone compile-time modes still own the top-level loop, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
 - `app_modes.c` is intentionally only the compile-time flavor dispatcher.
 - Dedicated app modules own mode behavior:
-  - `bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
-  - `bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
-  - `mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
-  - `mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
-  - `mode_race.c`: standalone race/honor-lap production flow.
-  - `mode_servo_rate.c`: standalone servo timing test.
-  - `bench_serial_tune.c`: UART/OLED runtime tuning UI used by the bench menu.
+  - `modes/bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
+  - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
+  - `modes/bench_teensy_imu.c`: Teensy IMU SPI display bench item and standalone test mode.
+  - `modes/mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
+  - `modes/mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
+  - `modes/mode_race.c`: standalone race/honor-lap production flow.
+  - `modes/mode_servo_rate.c`: standalone servo timing test.
+  - `modes/bench_serial_tune.c`: UART/OLED runtime tuning UI used by the bench menu.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
@@ -61,7 +62,7 @@
   - The mode performs its own hardware-specific init.
   - The mode enters its forever loop.
 - Runtime bench lifecycle:
-  - `bench_menu.c` initializes common runtime hardware and draws the pot-driven menu.
+  - `modes/bench_menu.c` initializes common runtime hardware and draws the pot-driven menu.
   - Entering a menu item calls that test's `enter(nowMs)` helper.
   - The menu host repeatedly calls that test's `update(...)` helper while active.
   - Leaving a menu item calls that test's `exit()` helper and returns to the menu.
@@ -195,7 +196,7 @@
 
 ## Key implementation files
 - App dispatch and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/car_config.h`
-- App modes: `src/app/bench_menu.c`, `src/app/bench_tests.c`, `src/app/bench_serial_tune.c`, `src/app/mode_nxp_cup.c`, `src/app/mode_honor_lap.c`, `src/app/mode_race.c`, `src/app/mode_servo_rate.c`
+- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_imu.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_control_linear.c`, `src/drivers/servo.c`
@@ -207,4 +208,4 @@
 - The public vision handoff is `VisionOutput_t` in `include/domain/main_types.h`.
 - The current finish detector is gap-based, not region-based.
 - The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.
-- `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/bench_menu.c` and the mode-specific app modules.
+- `src/unused/user_interface.c` is a retained legacy UI module excluded from the current CLI build; the active runtime menu/HUD code is implemented in `src/app/modes/bench_menu.c` and the mode-specific app modules.

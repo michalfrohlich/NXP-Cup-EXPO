@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static sint16 servo_rate_test_pot_to_command(uint8 potLevel);
 static void servo_rate_test_enter(uint32 nowMs);

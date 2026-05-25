@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static void serial_tune_draw(const SerialTuneState_t *st)
 {

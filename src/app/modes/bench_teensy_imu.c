@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static boolean teensy_imu_packet_is_fresh(const TeensyImuSnapshot_t *snapshot, uint32 nowMs)
 {

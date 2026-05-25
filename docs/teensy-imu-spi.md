@@ -28,7 +28,7 @@ Then select `Teensy IMU` from the display test menu.
 The menu link is here:
 
 - `src/app/app_common.c`: adds `"Teensy IMU"` to `g_testsMenuItems`.
-- `src/app/bench_menu.c`: calls `teensy_imu_test_enter/update/exit`.
+- `src/app/modes/bench_menu.c`: calls `teensy_imu_test_enter/update/exit`.
 
 ### Option 2: Direct Build Mode
 
@@ -55,9 +55,9 @@ This is useful when you only want to test the IMU display path and do not want t
 | `src/drivers/teensy_imu.c` | Validates/decode bytes from SPI and stores the latest good packet. |
 | `include/services/imu_motion.h` | Defines converted IMU values in normal units. |
 | `src/services/imu_motion.c` | Converts fixed-point packet values to `g`, `deg/s`, degrees, temperature, and slip estimate. |
-| `src/app/bench_teensy_imu.c` | S32K display test screen and direct test mode loop. |
+| `src/app/modes/bench_teensy_imu.c` | S32K display test screen and direct test mode loop. |
 | `src/app/app_modes.c` | Build-mode dispatcher. Shows the direct IMU test mode. |
-| `src/app/bench_menu.c` | Runtime test dispatcher. Shows the IMU test when using NXP Cup tests. |
+| `src/app/modes/bench_menu.c` | Runtime test dispatcher. Shows the IMU test when using NXP Cup tests. |
 | `src/app/car_config.h` | Build flag and display timing config. |
 
 ## Teensy To S32K Packet

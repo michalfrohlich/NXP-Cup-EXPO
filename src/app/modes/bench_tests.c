@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static void esc_test_start_arming(EscManualTestState_t *st, uint32 nowMs);
 static void esc_test_disarm(EscManualTestState_t *st);

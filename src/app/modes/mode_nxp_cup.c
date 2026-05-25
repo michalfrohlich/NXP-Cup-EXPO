@@ -1,4 +1,4 @@
-#include "app_internal.h"
+#include "../app_internal.h"
 
 static void nxp_cup_idle_motor(void)
 {
