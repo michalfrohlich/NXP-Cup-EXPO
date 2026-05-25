@@ -20,7 +20,10 @@ typedef struct
     float tempC;
 } ImuMotionSample_t;
 
+/* Convert packet fixed-point units into normal engineering units. */
 void ImuMotion_FromPacket(const TeensyImuPacket_t *packet, ImuMotionSample_t *out);
+
+/* First slip metric for MATLAB/control work: measured lateral minus expected. */
 float ImuMotion_EstimateSlipG(const ImuMotionSample_t *sample, float speedMps);
 
 #endif /* IMU_MOTION_H */

@@ -46,6 +46,7 @@ static uint8 checksum_packet(const uint8 *bytes, uint16 length)
 {
     uint8 checksum = 0U;
 
+    /* Match Teensy: XOR payload bytes, not sync or checksum. */
     for (uint16 i = 2U; i < (uint16)(length - 1U); i++)
     {
         checksum ^= bytes[i];
@@ -84,6 +85,7 @@ boolean TeensyImu_DecodePacket(const uint8 *bytes, uint16 length, TeensyImuPacke
         return FALSE;
     }
 
+    /* Teensy sends little-endian fields; decode explicitly. */
     packet.sync0 = bytes[0];
     packet.sync1 = bytes[1];
     packet.version = bytes[2];
@@ -125,6 +127,7 @@ boolean TeensyImu_SubmitRxBytes(const uint8 *bytes, uint16 length, uint32 nowMs)
 {
     TeensyImuPacket_t packet;
 
+    /* This is the single handoff point for real SPI receive bytes. */
     if (TeensyImu_DecodePacket(bytes, length, &packet) != TRUE)
     {
         g_teensyImuSnapshot.errorCount++;
@@ -157,6 +160,7 @@ void TeensyImu_InjectDemoSample(uint32 nowMs)
 
     (void)memset(bytes, 0, sizeof(bytes));
 
+    /* Demo yaw sweeps so the display visibly changes without SPI. */
     yawCdeg = (sint16)(((sint32)(seq % 360U) - 180) * 100);
 
     bytes[0] = (uint8)TEENSY_IMU_SYNC0;

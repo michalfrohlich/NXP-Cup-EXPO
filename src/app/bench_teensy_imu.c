@@ -7,6 +7,7 @@ static boolean teensy_imu_packet_is_fresh(const TeensyImuSnapshot_t *snapshot, u
         return FALSE;
     }
 
+    /* Treat stale SPI data like unplugged SPI. */
     return (((uint32)(nowMs - snapshot->lastRxMs)) <= (uint32)TEENSY_IMU_PACKET_STALE_MS) ? TRUE : FALSE;
 }
 
@@ -24,6 +25,7 @@ static void teensy_imu_draw_packet(const TeensyImuTestState_t *st)
 {
     const TeensyImuPacket_t *p = &st->lastSnapshot.packet;
 
+    /* R10/P10/Y10 are degrees x10 for display-friendly decimals. */
     DisplayTextPadded(0U, "IMU OK  SQ:");
     DisplayValue(0U, (int)p->sequence, 4U, 11U);
 
@@ -63,6 +65,7 @@ void teensy_imu_test_update(uint32 nowMs, boolean sw2Pressed)
             (g_teensyImuTest.demoEnabled == TRUE) ? FALSE : TRUE;
     }
 
+    /* SW2 demo proves parser/display before generated SPI is connected. */
     if (g_teensyImuTest.demoEnabled == TRUE)
     {
         TeensyImu_InjectDemoSample(nowMs);

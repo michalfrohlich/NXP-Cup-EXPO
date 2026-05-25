@@ -10,6 +10,7 @@ void ImuMotion_FromPacket(const TeensyImuPacket_t *packet, ImuMotionSample_t *ou
         return;
     }
 
+    /* Keep all unit scaling here so app/control code reads clean values. */
     out->axG = (float)packet->axMg * 0.001f;
     out->ayG = (float)packet->ayMg * 0.001f;
     out->azG = (float)packet->azMg * 0.001f;
@@ -35,6 +36,7 @@ float ImuMotion_EstimateSlipG(const ImuMotionSample_t *sample, float speedMps)
         return 0.0f;
     }
 
+    /* Positive result means measured lateral accel is above the simple model. */
     yawRateRadS = sample->gzDps * DEG_TO_RAD_F;
     expectedLatMps2 = speedMps * yawRateRadS;
     measuredLatMps2 = sample->lateralG * GRAVITY_MPS2;
