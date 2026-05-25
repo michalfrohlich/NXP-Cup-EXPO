@@ -16,7 +16,7 @@ There are two ways to run the same S32K display test.
 
 ### Option 1: From The NXP Cup Test Menu
 
-Keep this in `src/app/car_config.h`:
+Keep this in `src/app/app_config.h`:
 
 ```c
 #define APP_TEST_NXP_CUP_TESTS            1
@@ -32,7 +32,7 @@ The menu link is here:
 
 ### Option 2: Direct Build Mode
 
-Set this in `src/app/car_config.h`:
+Set this in `src/app/app_config.h`:
 
 ```c
 #define APP_TEST_NXP_CUP_TESTS            0
@@ -58,7 +58,7 @@ This is useful when you only want to test the IMU display path and do not want t
 | `src/app/modes/bench_teensy_imu.c` | S32K display test screen and direct test mode loop. |
 | `src/app/app_modes.c` | Build-mode dispatcher. Shows the direct IMU test mode. |
 | `src/app/modes/bench_menu.c` | Runtime test dispatcher. Shows the IMU test when using NXP Cup tests. |
-| `src/app/car_config.h` | Build flag and display timing config. |
+| `src/app/app_config.h` | Build flag and display timing config. |
 
 ## Teensy To S32K Packet
 
@@ -266,7 +266,7 @@ Proves the S32K screen and parser display path compile and run before SPI hardwa
 
 Steps:
 
-1. In `src/app/car_config.h`, set:
+1. In `src/app/app_config.h`, set:
 
 ```c
 #define APP_TEST_NXP_CUP_TESTS            0
@@ -302,7 +302,7 @@ Proves the IMU test is wired into the normal NXP Cup runtime test menu.
 
 Steps:
 
-1. In `src/app/car_config.h`, set:
+1. In `src/app/app_config.h`, set:
 
 ```c
 #define APP_TEST_NXP_CUP_TESTS            1

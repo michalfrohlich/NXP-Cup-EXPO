@@ -1,4 +1,5 @@
 #include "debug/serial_debug.h"
+#include "config/board_config.h"
 
 /* Temporary S32K UART transport.
  * This module still reaches below the generated UART API for RX polling and
@@ -8,7 +9,6 @@
 #include "CDD_Uart.h"
 #include "S32K144.h"
 
-#define SERIAL_DEBUG_UART_CHANNEL 0U
 #define SERIAL_DEBUG_WRITE_TIMEOUT_US 10000U
 
 static boolean g_serialDebugInitialized = FALSE;

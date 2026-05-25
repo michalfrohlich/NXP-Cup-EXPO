@@ -1,11 +1,6 @@
 #include "drivers/onboard_pot.h"
+#include "config/board_config.h"
 #include "Adc.h"
-
-/* Symbolic group for the onboard pot.
- * This must match the group name generated in Adc_VS_0_PBcfg.h
- * (configured to use ADC0_EXT12 on the EVB).
- */
-#define ONBOARD_POT_ADC_GROUP   AdcGroup_pot
 
 /* Expression to watch for debugging (shows the last raw ADC value). */
 volatile uint16_t adc_raw;

@@ -112,7 +112,7 @@ NXP_Cup
 ```
 
 4. Refresh the project in Project Explorer if new files do not appear.
-5. Open `src/app/car_config.h`.
+5. Open `src/app/app_config.h`.
 6. Pick one mode:
 
 Direct IMU screen:
@@ -283,7 +283,7 @@ The packet itself stores angles as degrees x100, but the display divides by 10 t
 
 Use direct mode when you only want this IMU screen.
 
-In `src/app/car_config.h`:
+In `src/app/app_config.h`:
 
 ```c
 #define APP_TEST_LINEAR_CAMERA_TEST       0
@@ -303,7 +303,7 @@ Press `SW2` to toggle demo packets. Demo mode proves the display and parser work
 
 Use menu mode when you want it with the other tests.
 
-In `src/app/car_config.h`:
+In `src/app/app_config.h`:
 
 ```c
 #define APP_TEST_TEENSY_IMU_TEST          0

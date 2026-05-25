@@ -2,11 +2,11 @@
 /*
   Vision V2 line-detection tunables.
 
-  Camera geometry/timing lives in camera_config.h. These values tune the
+  Camera geometry/timing lives in sensor_config.h. These values tune the
   software detector and are shared by app debug code and vision processing.
 */
 
-#include "config/camera_config.h"
+#include "config/sensor_config.h"
 
 #define VISION_LINEAR_BUFFER_SIZE         (CAM_EFFECTIVE_PIXELS)
 

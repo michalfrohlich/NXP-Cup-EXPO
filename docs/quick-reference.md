@@ -13,11 +13,13 @@
 - `src/app/modes/bench_teensy_imu.c`: Teensy IMU SPI display bench item and standalone test mode.
 - `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`: standalone app mode implementations.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
-- `src/app/car_config.h`: compile-time mode selection, generated PWM/channel routing aliases, and app/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
+- `src/app/app_config.h`: compile-time mode selection and app behavior/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
+- `include/config/board_config.h`: generated PWM/channel routing aliases and board-specific input/device addresses.
+- `include/config/actuator_config.h`: servo and ESC physical calibration values.
+- `include/config/sensor_config.h`: camera geometry/timing and ultrasonic sensor calibration/validity limits.
 - `include/domain/main_types.h`: shared domain packets passed between vision, control, and app code.
-- `include/config/camera_config.h`: shared camera frame timing and geometry constants used by the camera driver and vision processing.
 - `include/config/vision_config.h`: vision detector tuning constants.
-- `include/config/control_defaults.h`: default steering PID, steering shaping, and controller speed policy constants.
+- `include/config/control_config.h`: baseline steering PID, steering shaping, and controller speed policy constants.
 
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
@@ -74,7 +76,7 @@
 ## Important directories
 - `src/`, `include/`: handwritten hardware modules
 - `src/drivers/`: hardware-facing driver implementations
-- `src/app/`: application dispatcher, shared app runtime helpers, private app header, config, and board init
+- `src/app/`: application dispatcher, shared app runtime helpers, private app header, app config, and board init
 - `src/app/modes/`: standalone app modes and runtime bench-mode implementations
 - `src/services/`: vision and control logic
 - `src/debug/`: debug/tuning transports and instrumentation helpers

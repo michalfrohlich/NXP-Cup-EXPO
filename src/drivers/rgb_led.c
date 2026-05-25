@@ -1,5 +1,5 @@
 #include "drivers/rgb_led.h"
-#include "Dio_Cfg.h"   /* Contains DioConf_DioChannel_* symbolic names */
+#include "config/board_config.h"
 
 /*
  * S32K144EVB RGB LED is active-low:
@@ -10,11 +10,6 @@ static inline Dio_LevelType RgbLed_LevelFromBool(bool on)
 {
     return on ? (Dio_LevelType)STD_LOW : (Dio_LevelType)STD_HIGH;
 }
-
-/* Bind to generated symbolic names */
-#define RGB_LED_DIO_CH_R   (DioConf_DioChannel_DioChannel_LED_R)
-#define RGB_LED_DIO_CH_G   (DioConf_DioChannel_DioChannel_LED_G)
-#define RGB_LED_DIO_CH_B   (DioConf_DioChannel_DioChannel_LED_B)
 
 void RgbLed_SetChannel(RgbLed_Channel ch, bool on)
 {

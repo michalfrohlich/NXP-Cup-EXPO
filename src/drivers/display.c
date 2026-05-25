@@ -35,6 +35,7 @@ extern "C" {
 #include "Port.h"
 #include "CDD_I2c.h"
 #include "drivers/display.h"
+#include "config/board_config.h"
 /*==================================================================================================
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
@@ -42,7 +43,6 @@ extern "C" {
 /*==================================================================================================
  *                                       LOCAL MACROS
 ==================================================================================================*/
-#define DisplayI2cAddress 0x3C
 
 /*==================================================================================================
  *                                      LOCAL CONSTANTS
@@ -197,10 +197,10 @@ I2c_DataType ThreeByteCommandBuffer[4U] = {0x00};
 I2c_DataType DataBuffer[2U] = {0xC0};/*control byte for one data byte is 0xC0*/
 I2c_DataType AllDataBuffer[CharacterRows*CharacterColumns * 8U + 1U]= {0x40};/*control byte for multiple data bytes is 0x40*/
 
-I2c_RequestType OneByteCommandRequest ={DisplayI2cAddress, FALSE, FALSE, FALSE, FALSE, 2U, I2C_SEND_DATA, OneByteCommandBuffer};
-I2c_RequestType TwoByteCommandRequest = {DisplayI2cAddress, FALSE, FALSE, FALSE, FALSE, 3U, I2C_SEND_DATA, TwoByteCommandBuffer};
-I2c_RequestType ThreeByteCommandRequest = {DisplayI2cAddress, FALSE, FALSE, FALSE, FALSE, 4U, I2C_SEND_DATA, ThreeByteCommandBuffer};
-I2c_RequestType OptimizedDataWriteRequest = {DisplayI2cAddress, FALSE, FALSE, FALSE, FALSE, CharacterRows*CharacterColumns*8U+1U, I2C_SEND_DATA, AllDataBuffer};
+I2c_RequestType OneByteCommandRequest ={DISPLAY_I2C_ADDRESS, FALSE, FALSE, FALSE, FALSE, 2U, I2C_SEND_DATA, OneByteCommandBuffer};
+I2c_RequestType TwoByteCommandRequest = {DISPLAY_I2C_ADDRESS, FALSE, FALSE, FALSE, FALSE, 3U, I2C_SEND_DATA, TwoByteCommandBuffer};
+I2c_RequestType ThreeByteCommandRequest = {DISPLAY_I2C_ADDRESS, FALSE, FALSE, FALSE, FALSE, 4U, I2C_SEND_DATA, ThreeByteCommandBuffer};
+I2c_RequestType OptimizedDataWriteRequest = {DISPLAY_I2C_ADDRESS, FALSE, FALSE, FALSE, FALSE, CharacterRows*CharacterColumns*8U+1U, I2C_SEND_DATA, AllDataBuffer};
 
 /*==================================================================================================
  *                                   LOCAL FUNCTION PROTOTYPES

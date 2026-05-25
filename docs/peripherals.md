@@ -19,13 +19,13 @@ Notes:
 ## PWM
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
-| Primary ESC command output | `Pwm` | `src/drivers/esc.c`, `src/app/car_config.h` |
-| Secondary ESC command output | `Pwm` | `src/drivers/esc.c`, `src/app/car_config.h` |
-| Servo steering output | `Pwm` | `src/drivers/servo.c`, `src/app/car_config.h` |
-| Linear camera pixel clock | `Pwm` notification-driven clocking | `src/drivers/linear_camera.c`, `src/app/car_config.h` |
+| Primary ESC command output | `Pwm` | `src/drivers/esc.c`, `include/config/board_config.h` |
+| Secondary ESC command output | `Pwm` | `src/drivers/esc.c`, `include/config/board_config.h` |
+| Servo steering output | `Pwm` | `src/drivers/servo.c`, `include/config/board_config.h` |
+| Linear camera pixel clock | `Pwm` notification-driven clocking | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
 
 Notes:
-- Logical PWM channel IDs used in handwritten code are defined in `src/app/car_config.h`.
+- Logical PWM channel IDs used in handwritten code are defined in `include/config/board_config.h`.
 - The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTB10`; both run at the same generated `50 Hz` period.
 - Handwritten ESC calls pass both ESC commands explicitly; same-speed driving uses equal primary and secondary arguments, while differential steering can pass different values.
 - The standalone servo rate test changes how often application code calls `Steer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
@@ -37,13 +37,13 @@ Notes:
 | --- | --- | --- |
 | 1 ms system tick | `Gpt` | `src/drivers/timebase.c` |
 | Microsecond one-shot delay | `Gpt` | `src/drivers/timebase.c` |
-| Linear camera shutter timing | `Gpt` | `src/drivers/linear_camera.c`, `src/app/car_config.h` |
+| Linear camera shutter timing | `Gpt` | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
 | Receiver sync / period timing | `Gpt` + `Icu` | `src/drivers/receiver.c`, `include/drivers/receiver.h` |
 | Ultrasonic echo measurement | `Icu` timestamp capture | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
 
 Notes:
 - `timebase.c` documents GPT channel `2` for the ms tick and channel `3` for the microsecond helper.
-- `ultrasonic.h` defines `ULTRA_ICU_ECHO_CHANNEL` and trigger DIO channel macros.
+- `include/config/board_config.h` defines the ultrasonic trigger DIO channel and ICU echo channel; `include/config/sensor_config.h` defines the current distance/timeout calibration.
 - `APP_TEST_HONOR_LAP` uses `ultrasonic.c` directly from `app_modes.c` to trigger measurements, consume fresh distance samples, and slow/stop the ESC command.
 - `APP_TEST_RACE_MODE` uses the same ultrasonic driver path, but only after finish detection switches the speed policy into the honor-lap stopping thresholds.
 - The standalone ultrasonic test mode and the `APP_TEST_NXP_CUP_TESTS` ultrasonic menu item both use `ultrasonic.c` directly from `app_modes.c` for a state-based diagnostic flow with enable delay, frequent retriggering, and `WAIT` / `SCAN` / `CLEAR` / `SLOW` / `STOP` display states.
@@ -66,7 +66,7 @@ Notes:
 | Buttons SW2/SW3 and toggle switch `swPcb` | `Dio` | `src/drivers/buttons.c`, `include/drivers/buttons.h` |
 | RGB LED | `Dio` | `src/drivers/rgb_led.c`, `include/drivers/rgb_led.h` |
 | Ultrasonic trigger | `Dio` | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
-| Linear camera shutter line | `Dio` | `src/drivers/linear_camera.c`, `src/app/car_config.h` |
+| Linear camera shutter line | `Dio` | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
 
 Notes:
 - `swPcb` is generated as GPIO input on `PTA12` and is consumed from handwritten code through the `buttons` module.
@@ -85,9 +85,9 @@ Notes:
 - The service keeps a small direct RX-ready/read path because the generated UART driver is configured for interrupt mode and the tuning shell currently uses polling-style single-byte reads.
 - TODO: replace the proof-of-concept direct RX polling with generated UART async receive once `LPUART1` interrupt routing/callback buffering is configured in `.mex`.
 - The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `SerialDebug_ServiceTx()` / `SerialDebug_EnqueueBytes()` for non-blocking background streaming.
-- `APP_TEST_SERIAL_TUNE` is the first compile-time mode that uses this handwritten UART path; it only shows shadow PID values on the OLED and echoes received UART lines.
+- The `Serial tune` runtime bench item uses this handwritten UART path; it shows shadow PID values on the OLED and echoes received UART lines.
 - `RUNTIME_TEST_LINEAR_CAMERA` and `RUNTIME_TEST_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.
-- That debug UART stream is rate-limited in `src/app/car_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.
+- That debug UART stream is rate-limited in `src/app/app_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.
 
 ## Not documented here
 - CAN / SPI are not documented because their use was not confirmed in handwritten project code.

@@ -15,7 +15,7 @@ typedef struct
     float d_error;         /* filtered error used by derivative */
     float d_term;          /* filtered derivative term */
 
-    /* Tunings, defaulted from control_defaults.h in Init. */
+    /* Tunings, initialized from control_config.h. */
     float kp;
     float ki;
     float kd;

@@ -7,7 +7,7 @@
   The application layer is allowed to call hardware drivers.
   It runs the main loop and state machine.
 
-  It chooses which mode runs based on car_config.h switches.
+  It chooses which mode runs based on app_config.h switches.
 */
 
 #ifdef __cplusplus

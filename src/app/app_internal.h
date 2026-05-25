@@ -3,7 +3,9 @@
 
 #include "app_modes.h"
 #include "domain/main_types.h"
-#include "car_config.h"
+#include "app_config.h"
+#include "config/actuator_config.h"
+#include "config/board_config.h"
 #include "board_init.h"
 #include <stdio.h>
 #include <string.h>
@@ -26,32 +28,6 @@
 #include "services/imu_motion.h"
 #include "vision_debug.h"
 #include "debug/serial_debug.h"
-
-#define VDBG_WHITE_MAX_FULL_SCALE     (4095U)
-#define VDBG_WHITE_MAX_MIN_ZOOM       (400U)
-
-#define RECEIVER_REFRESH_MS           (50U)
-#define TESTS_MENU_VISIBLE_LINES      (3U)
-#define TESTS_MENU_POT_STABLE_MS      (90U)
-#define TESTS_MENU_POT_HYSTERESIS     (6U)
-#define ESC_TEST_MAX_SPEED_PCT        (30U)
-#define ESC_TEST_LED_BLINK_MS         (250U)
-#define SERVO_RATE_TEST_DISPLAY_MS    (100U)
-#define SERVO_RATE_TEST_FINE_STEP     (1)
-#define SERVO_RATE_TEST_COARSE_STEP   (10)
-#define SERVO_RATE_TEST_MAX_CMD       (100)
-#define SERIAL_TUNE_CONNECT_CHAR      ('c')
-#define SERIAL_TUNE_COMMIT_CHAR       ('#')
-#define SERIAL_TUNE_INPUT_MAX_LEN     (12U)
-#define CAM_UART_STREAM_SYNC0         (0xA5U)
-#define CAM_UART_STREAM_SYNC1         (0x5AU)
-#define CAM_UART_STREAM_TYPE_FRAME    (0x43U)
-#define CAM_UART_STREAM_PACKET_BYTES  (10U + \
-                                       (3U * VISION_LINEAR_BUFFER_SIZE) + \
-                                       9U + \
-                                       6U + \
-                                       (4U * VLIN_MAX_EDGE_CANDIDATES) + \
-                                       1U)
 
 typedef enum
 {

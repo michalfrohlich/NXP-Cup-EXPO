@@ -1,14 +1,15 @@
 #pragma once
 /*
-  car_config.h
+  app_config.h
   ============
-  Build-time mode selection plus app-level hardware aliases and profile constants.
+  Application build selection and behavior/profile constants.
+
+  Board routing aliases live in config/board_config.h.
 */
 
-#include "config/camera_config.h"
-#include "config/control_defaults.h"
+#include "config/sensor_config.h"
+#include "config/control_config.h"
 #include "config/vision_config.h"
-#include "Pwm_Cfg.h"
 
 /* =========================================================
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
@@ -32,7 +33,7 @@
 )
 
 #if (APP_MODE_COUNT != 1)
-  #error "CONFIG ERROR: Enable EXACTLY ONE APP_TEST_* flag in car_config.h"
+  #error "CONFIG ERROR: Enable EXACTLY ONE APP_TEST_* flag in app_config.h"
 #endif
 
 /* =========================================================
@@ -57,43 +58,19 @@
 #define TEENSY_IMU_TEST_DISPLAY_MS        100u
 
 /* =========================================================
-   Servo
+   Servo test behavior
 ========================================================= */
-#define SERVO_PWM_CH                      Servo_Pwm
-#define SERVO_DUTY_MIN                    1650U
-#define SERVO_DUTY_MED                    2700U
-#define SERVO_DUTY_MAX                    3550U
 #define SERVO_TEST_CMD_CLAMP              70
 #define SERVO_TEST_RATE_MAX               8
 #define SERVO_TEST_DEADBAND               3
 #define SERVO_TEST_LPF_ALPHA              0.45f
 #define SERVO_TEST_UPDATE_MS              5u
 
-/* Pot constants (required by ESC-only working mode) */
-#define POT_LEFT_RAW                      0
-#define POT_CENTER_RAW                    128
-#define POT_RIGHT_RAW                     255
-
 /* =========================================================
-   ESC
+   ESC behavior
 ========================================================= */
-#define ESC_PWM_CH                        Esc_Pwm
-#define ESC_SECOND_PWM_CH                 Esc2_Pwm
-/* Generated second ESC output: FTM3 CH2 on PTB10. */
-
-/* ESC calibration values (timer compare) that arm correctly on your setup.
-   DO NOT change these to "25% speed".
-   Old attempt (did NOT arm): 409/614/819
-*/
-#define ESC_DUTY_MIN   1638U   /* was: 409U */
-#define ESC_DUTY_MED   2457U   /* was: 614U */
-#define ESC_DUTY_MAX   3276U   /* was: 819U */
-
 #define MOTOR_DEADBAND_PCT                6U
 #define ESC_ARM_TIME_MS                   3000u /* Try lowering later; keep stable for now */
-/* Logical ESC command that corresponds to physical neutral on your setup.
-   Keep at 0 if no offset compensation is needed. */
-#define ESC_TRUE_NEUTRAL_CMD              (-6)
 /* Extra launch writes improve ESC command latching on some setups. */
 #define ESC_LAUNCH_PULSE_COUNT            3U
 #define ESC_LAUNCH_PULSE_DELAY_TICKS      30000U
@@ -104,19 +81,48 @@
 #define NXP_CUP_ULTRA_STOP_HOLD_MS        350u
 
 /* =========================================================
-   Linear camera
+   Camera app/test behavior
 ========================================================= */
-/* Hardware routing for the line scan camera. */
-#define CAM_CLK_PWM_CH                    LinearCamera_Clk
-#define CAM_SHUTTER_GPT_CH                1U
-#define CAM_ADC_GROUP                     0U
-#define CAM_SHUTTER_PCR                   97U
-
-/* Camera test / debug loop settings. */
 #define CAM_DEBUG_UI_PERIOD_MS            5u
 #define CAM_SERVO_CONTROL_PERIOD_MS       5u
 #define V2_WHITE_SAT_U8                   220u
 #define CAM_DEBUG_PAUSE_HOLD_MS           1000U
+
+/* Vision debug display scaling. */
+#define VDBG_WHITE_MAX_FULL_SCALE         (4095U)
+#define VDBG_WHITE_MAX_MIN_ZOOM           (400U)
+
+/* Camera UART debug packet framing. */
+#define CAM_UART_STREAM_SYNC0             (0xA5U)
+#define CAM_UART_STREAM_SYNC1             (0x5AU)
+#define CAM_UART_STREAM_TYPE_FRAME        (0x43U)
+#define CAM_UART_STREAM_PACKET_BYTES      (10U + \
+                                           (3U * VISION_LINEAR_BUFFER_SIZE) + \
+                                           9U + \
+                                           6U + \
+                                           (4U * VLIN_MAX_EDGE_CANDIDATES) + \
+                                           1U)
+
+/* =========================================================
+   Runtime bench tests
+========================================================= */
+#define RECEIVER_REFRESH_MS               (50U)
+
+#define TESTS_MENU_VISIBLE_LINES          (3U)
+#define TESTS_MENU_POT_STABLE_MS          (90U)
+#define TESTS_MENU_POT_HYSTERESIS         (6U)
+
+#define ESC_TEST_MAX_SPEED_PCT            (30U)
+#define ESC_TEST_LED_BLINK_MS             (250U)
+
+#define SERVO_RATE_TEST_DISPLAY_MS        (100U)
+#define SERVO_RATE_TEST_FINE_STEP         (1)
+#define SERVO_RATE_TEST_COARSE_STEP       (10)
+#define SERVO_RATE_TEST_MAX_CMD           (100)
+
+#define SERIAL_TUNE_CONNECT_CHAR          ('c')
+#define SERIAL_TUNE_COMMIT_CHAR           ('#')
+#define SERIAL_TUNE_INPUT_MAX_LEN         (12U)
 
 /* =========================================================
    Full car safety

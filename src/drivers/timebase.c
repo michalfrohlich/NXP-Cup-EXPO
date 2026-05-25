@@ -1,13 +1,11 @@
 #include "drivers/timebase.h"
+#include "config/board_config.h"
 #include "Gpt.h"
 
 /* ===================== Millisecond timebase (EmuTimer, GPT channel 2) ===================== */
 
 /* Free-running millisecond tick */
 volatile uint32 g_SystemMs = 0u;
-
-/* GPT channel ID used for the ms tick (matches your Gpt config) */
-#define MS_TIMER_CHANNEL   ((Gpt_ChannelType)2u)
 
 /* Initialize the GPT timer that drives the millisecond timebase.
  * GPT channel 2 is configured in ConfigTools at 8 MHz tick frequency,
@@ -59,8 +57,6 @@ void Timebase_DelayMs(uint32 delayMs)
  *  - Mode:          GPT_CH_MODE_ONESHOT
  *  - Tick freq:     8 MHz (LPIT0 clock from generated config)
  */
-#define US_TIMER_CHANNEL   ((Gpt_ChannelType)3u)
-
 /* Flag set to TRUE when UsTimer elapsed (notification fired) */
 volatile boolean g_UsTimerElapsed = FALSE;
 

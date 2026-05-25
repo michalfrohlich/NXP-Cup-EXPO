@@ -2,14 +2,17 @@
 
 ## Top-level structure
 - `src/main.c` calls `App_RunSelectedMode()` and never returns.
-- `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/car_config.h` and dispatches to a dedicated mode module.
+- `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/app_config.h` and dispatches to a dedicated mode module.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
 - `src/app/app_common.c` owns shared app-level runtime init helpers after `Board_InitDrivers()`.
 - `src/app/app_internal.h` is a private app-layer header for shared mode state, helper declarations, and the static mode contract.
+- `src/app/app_config.h` owns app build selection and behavior/profile constants.
+- `include/config/board_config.h` owns board routing aliases that may reference generated RTD/MCAL symbols.
+- `include/config/actuator_config.h` owns servo and ESC physical calibration values.
+- `include/config/sensor_config.h` owns sensor geometry, timing, conversion, and validity-limit constants.
 - `include/domain/main_types.h` defines the shared vision/control/app handoff packets.
-- `include/config/camera_config.h` defines camera frame timing and geometry shared by the S32K camera driver and vision service.
 - `include/config/vision_config.h` defines vision detector tunables used by the vision service and debug code.
-- `include/config/control_defaults.h` defines default steering-control tunings used by the control service and app runtime tune initialization.
+- `include/config/control_config.h` defines baseline steering-control tunings used by the control service and app runtime tune initialization.
 - `src/debug/serial_debug.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model
@@ -47,7 +50,7 @@
 ## Current control flow
 1. `main()`
 2. `App_RunSelectedMode()`
-3. Exactly one compile-time mode is selected in `car_config.h`
+3. Exactly one compile-time mode is selected in `app_config.h`
 4. `app_modes.c` dispatches to one mode module
 5. That mode performs common runtime init through app-owned helpers (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
 6. The selected mode runs forever
@@ -137,7 +140,7 @@
   - detects the finish line from the inner white gap
 - `services/steering_control_linear.c`
   - converts vision error to steering command
-  - reads default PID, steering shaping, and controller speed-policy values from `include/config/control_defaults.h`
+  - reads baseline PID, steering shaping, and controller speed-policy values from `include/config/control_config.h`
   - applies filtered-error and filtered-derivative shaping (with confidence-aware error filtering) before PID output
   - resets controller memory when vision reports track lost to avoid stale integral/derivative carry-over
   - carries the active integral clamp in controller state, so per-mode and per-profile integral clamp settings are real runtime inputs
@@ -148,7 +151,7 @@
 - `mode_honor_lap.c`
   - reuses the linear camera debug/servo path for continuous line following
   - keeps the OLED active in linear-camera debug mode even before first valid frame by showing camera trigger/DMA/ADC counters
-  - overrides steering tunings with the `HONOR_*` constants from `car_config.h`
+  - overrides steering tunings with the `HONOR_*` constants from `app_config.h`
   - arms both ESC outputs at startup, then commands forward speed from the honor-lap distance policy
 - `ultrasonic.c`
   - provides periodic obstacle distance samples
@@ -195,7 +198,7 @@
 - `esc.c`: `Esc_Period_Finished()`
 
 ## Key implementation files
-- App dispatch and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/car_config.h`
+- App dispatch, config, and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/app_config.h`, `include/config/board_config.h`, `include/config/actuator_config.h`, `include/config/sensor_config.h`
 - App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_imu.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/vision_linear_v2.c`, `src/app/vision_debug.c`

@@ -1,5 +1,5 @@
 #include "services/steering_control_linear.h"
-#include "config/control_defaults.h"
+#include "config/control_config.h"
 
 /* =========================================================
    Helpers
@@ -51,7 +51,7 @@ void SteeringLinear_Init(SteeringLinearState_t *s)
 
     SteeringLinear_Reset(s);
 
-    /* Defaults come from control_defaults.h, but app modes may override the state. */
+    /* Baseline tunings come from control_config.h, but app modes may override the state. */
     s->kp = (float)KP;
     s->kd = (float)KD;
     s->ki = (float)KI;
