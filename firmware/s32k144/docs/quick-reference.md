@@ -35,7 +35,7 @@
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
 - `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
 - `Serial tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
-- `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in `tools/matlab/linear_camera_dashboard_viewer.m` and `tools/matlab/linear_camera_single_graph_viewer.m`.
+- `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
 - Camera consumers process a newly completed frame when `LinearCameraGetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
 - `Cam+Servo` and `Simple test drv` now consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
@@ -85,7 +85,7 @@
 - `include/debug/`: public debug/tuning transport APIs
 - `include/domain/`: shared domain packets
 - `include/config/`: shared compile-time configuration and defaults
-- `src/unused/`: retained inactive modules excluded from the current managed make build
+- `src/unused/`: retained inactive modules not called by the active runtime
 - `generate/`: generated RTD/MCAL configuration
 - `board/`: generated board/pin configuration
 - `RTD/`: local RTD driver sources/headers

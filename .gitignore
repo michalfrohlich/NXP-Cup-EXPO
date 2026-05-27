@@ -1,6 +1,6 @@
 # S32 Design Studio / managed build outputs
-/Debug*/
-/Release*/
+**/Debug_*/
+**/Release_*/
 
 # Binary and intermediate build artifacts
 *.o
@@ -50,4 +50,4 @@ __pycache__/
 
 # S32DS/Eclipse workspace metadata belongs outside the project.
 # Project metadata is intentionally tracked: .project, .cproject, .settings/.
-/.metadata/
+.metadata/

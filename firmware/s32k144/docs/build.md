@@ -12,8 +12,10 @@
 
 ## CLI build
 - Use `mingw32-make`, not plain `make`.
-- Verified build command:
+- Verified build command from `firmware/s32k144/`:
   - `C:\msys64\ucrt64\bin\mingw32-make.exe -C Debug_FLASH all`
+- Verified build command from the repository root:
+  - `C:\msys64\ucrt64\bin\mingw32-make.exe -C firmware/s32k144/Debug_FLASH all`
 - If `arm-none-eabi-gcc` is not found, add this toolchain directory to `PATH`:
   - `C:\NXP\S32DS.3.6.3\S32DS\build_tools\gcc_v10.2\gcc-10.2-arm32-eabi\bin`
 - The shell may also need these MSYS directories on `PATH`:

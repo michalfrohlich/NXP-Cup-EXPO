@@ -57,7 +57,7 @@ Notes:
 Notes:
 - `display.c` uses I2C address `0x3C`.
 - The display code is written for a 128x32 SSD1306-style display.
-- `src/unused/display_async.c` is retained for reference and excluded from the current CLI build. It adds double-buffered non-blocking refresh (`I2c_AsyncTransmit` + `I2c_GetStatus`) with latest-frame-wins queuing.
+- `src/unused/display_async.c` is retained for reference and not called by the active runtime. It adds double-buffered non-blocking refresh (`I2c_AsyncTransmit` + `I2c_GetStatus`) with latest-frame-wins queuing.
 - In `APP_TEST_RACE_MODE`, OLED initialization is allowed only during the ESC-arm phase. After that, `swPcb` can only enable refreshes on an already-initialized display, so the blocking display bring-up cannot stall the active race loop.
 
 ## DIO / GPIO
