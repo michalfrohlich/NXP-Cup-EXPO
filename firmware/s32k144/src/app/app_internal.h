@@ -19,14 +19,12 @@
 #include "drivers/linear_camera.h"
 #include "drivers/display.h"
 #include "drivers/ultrasonic.h"
-#include "drivers/teensy_imu.h"
 #include "drivers/teensy_link.h"
 
 #include "services/line_detector.h"
 #include "drivers/rgb_led.h"
 #include "services/steering_controller.h"
 #include "services/steering_smoothing.h"
-#include "services/imu_motion.h"
 #include "vision_debug.h"
 #include "debug/uart_host_link.h"
 
@@ -37,7 +35,6 @@ typedef enum
     APP_BUILD_MODE_RACE_MODE,
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_SERVO_RATE_TEST,
-    APP_BUILD_MODE_TEENSY_IMU_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
     APP_BUILD_MODE_NXP_CUP_TESTS
 } AppBuildMode_t;
@@ -53,7 +50,7 @@ typedef enum
     RUNTIME_TEST_SERIAL_TUNE,
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
-    RUNTIME_TEST_TEENSY_IMU,
+    RUNTIME_TEST_TEENSY_LINK,
     RUNTIME_TEST_COUNT
 } RuntimeTestId_t;
 
@@ -75,13 +72,6 @@ typedef struct
 {
     uint32 nextRefreshMs;
 } ReceiverTestState_t;
-
-typedef struct
-{
-    TeensyImuSnapshot_t lastSnapshot;
-    uint32 nextDisplayMs;
-    boolean demoEnabled;
-} TeensyImuTestState_t;
 
 typedef enum
 {
@@ -395,7 +385,6 @@ typedef struct
 } RuntimeTuneState_t;
 
 extern ReceiverTestState_t g_receiverTest;
-extern TeensyImuTestState_t g_teensyImuTest;
 extern UltrasonicTestState_t g_ultrasonicTest;
 extern UltrasonicEscTestState_t g_ultrasonicEscTest;
 extern ServoTestState_t g_servoTest;
@@ -444,9 +433,9 @@ void serial_tune_test_exit(void);
 void receiver_test_enter(uint32 nowMs);
 void receiver_test_update(uint32 nowMs);
 void receiver_test_exit(void);
-void teensy_imu_test_enter(uint32 nowMs);
-void teensy_imu_test_update(uint32 nowMs, boolean sw2Pressed);
-void teensy_imu_test_exit(void);
+void teensy_link_test_enter(uint32 nowMs);
+void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed);
+void teensy_link_test_exit(void);
 void ultrasonic_test_enter(uint32 nowMs);
 void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed);
 void ultrasonic_test_exit(void);
@@ -477,7 +466,6 @@ void mode_nxp_cup(void);
 void mode_honor_lap(void);
 void mode_race_mode(void);
 void mode_servo_rate_test(void);
-void mode_teensy_imu_test(void);
 void mode_teensy_link_test(void);
 
 sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);

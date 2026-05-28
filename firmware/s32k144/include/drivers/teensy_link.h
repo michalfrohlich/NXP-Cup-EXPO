@@ -40,6 +40,22 @@ typedef struct
 
 typedef struct
 {
+    float axG;
+    float ayG;
+    float azG;
+    float gxDps;
+    float gyDps;
+    float gzDps;
+    float rollDeg;
+    float pitchDeg;
+    float yawDeg;
+    float accelNormG;
+    float lateralG;
+    float tempC;
+} TeensyLinkImuMotion_t;
+
+typedef struct
+{
     uint16 controlLoopSeq;
     uint16 controlDtUs;
     uint8 appMode;
@@ -100,6 +116,8 @@ void TeensyLink_Init(void);
 Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t *in);
 boolean TeensyLink_GetSnapshot(TeensyLinkSnapshot_t *outSnapshot);
 boolean TeensyLink_GetDiagnostics(TeensyLinkDiagnostics_t *outDiagnostics);
+boolean TeensyLink_ImuToMotion(const TeensyLinkImuData_t *imu, TeensyLinkImuMotion_t *outMotion);
+float TeensyLink_EstimateSlipG(const TeensyLinkImuMotion_t *motion, float speedMps);
 
 #ifdef __cplusplus
 }

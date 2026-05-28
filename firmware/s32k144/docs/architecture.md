@@ -22,7 +22,7 @@
 - Dedicated app modules own mode behavior:
   - `modes/bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
   - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
-  - `modes/bench_teensy_imu.c`: Teensy IMU SPI display bench item and standalone test mode.
+  - `modes/bench_teensy_link.c`: S32K-master Teensy SPI link bring-up mode and runtime test menu item.
   - `modes/mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
   - `modes/mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
   - `modes/mode_race.c`: standalone race/honor-lap production flow.
@@ -199,7 +199,7 @@
 
 ## Key implementation files
 - App dispatch, config, and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/app_config.h`, `include/config/board_config.h`, `include/config/actuator_config.h`, `include/config/sensor_config.h`
-- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_imu.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
+- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/line_detector.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_controller.c`, `src/drivers/servo.c`

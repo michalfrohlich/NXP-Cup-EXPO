@@ -36,6 +36,10 @@ extern "C" {
 #define TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY   (1u << 2)
 #define TEENSY_LINK_CAMERA_FLAG_SOURCE_S32K     (1u << 3)
 
+#define TEENSY_LINK_LOGGER_FLAG_READY           (1u << 0)
+#define TEENSY_LINK_LOGGER_FLAG_WRITING         (1u << 1)
+#define TEENSY_LINK_LOGGER_FLAG_ERROR           (1u << 2)
+
 #define TEENSY_LINK_S32K_ACK_TEENSY_SEQ_OFF     (0u)
 #define TEENSY_LINK_S32K_CONTROL_SEQ_OFF        (2u)
 #define TEENSY_LINK_S32K_CONTROL_DT_US_OFF      (4u)

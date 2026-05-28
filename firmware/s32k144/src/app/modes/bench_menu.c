@@ -36,8 +36,8 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             receiver_test_enter(nowMs);
             break;
 
-        case RUNTIME_TEST_TEENSY_IMU:
-            teensy_imu_test_enter(nowMs);
+        case RUNTIME_TEST_TEENSY_LINK:
+            teensy_link_test_enter(nowMs);
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:
@@ -87,8 +87,8 @@ static void runtime_test_update(RuntimeTestId_t testId,
             receiver_test_update(nowMs);
             break;
 
-        case RUNTIME_TEST_TEENSY_IMU:
-            teensy_imu_test_update(nowMs, sw2Pressed);
+        case RUNTIME_TEST_TEENSY_LINK:
+            teensy_link_test_update(nowMs, sw2Pressed);
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:
@@ -134,8 +134,8 @@ static void runtime_test_exit(RuntimeTestId_t testId)
             receiver_test_exit();
             break;
 
-        case RUNTIME_TEST_TEENSY_IMU:
-            teensy_imu_test_exit();
+        case RUNTIME_TEST_TEENSY_LINK:
+            teensy_link_test_exit();
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:

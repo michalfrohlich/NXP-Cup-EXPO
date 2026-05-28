@@ -10,8 +10,6 @@ AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_HONOR_LAP;
 #elif APP_TEST_SERVO_RATE_TEST
     return APP_BUILD_MODE_SERVO_RATE_TEST;
-#elif APP_TEST_TEENSY_IMU_TEST
-    return APP_BUILD_MODE_TEENSY_IMU_TEST;
 #elif APP_TEST_TEENSY_LINK_TEST
     return APP_BUILD_MODE_TEENSY_LINK_TEST;
 #elif APP_TEST_RACE_MODE
@@ -45,10 +43,6 @@ void App_RunSelectedMode(void)
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             mode_servo_rate_test();
-            break;
-
-        case APP_BUILD_MODE_TEENSY_IMU_TEST:
-            mode_teensy_imu_test();
             break;
 
         case APP_BUILD_MODE_TEENSY_LINK_TEST:

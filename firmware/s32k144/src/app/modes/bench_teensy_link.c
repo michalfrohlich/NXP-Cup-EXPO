@@ -177,7 +177,7 @@ static void teensy_link_test_draw_imu(void)
     DisplayTextPadded(3U, "SD:  DROP:");
     DisplayText(3U,
                 ((g_teensyLinkTest.snapshot.loggerFlags &
-                  (uint16)TEENSY_LINK_FLAG_LOGGER_READY) != 0U) ? "Y" : "N",
+                  (uint16)TEENSY_LINK_LOGGER_FLAG_READY) != 0U) ? "Y" : "N",
                 1U,
                 3U);
     DisplayValue(3U, (int)g_teensyLinkTest.snapshot.loggerDropCount, 5U, 10U);
@@ -206,20 +206,61 @@ static void teensy_link_test_draw(void)
     }
 }
 
+void teensy_link_test_enter(uint32 nowMs)
+{
+    TeensyLink_Init();
+    (void)memset(&g_teensyLinkTest, 0, sizeof(g_teensyLinkTest));
+
+    g_teensyLinkTest.nextServiceMs = nowMs;
+    g_teensyLinkTest.nextDisplayMs = nowMs;
+    teensy_link_test_fill_default_input(nowMs);
+    teensy_link_test_draw();
+    StatusLed_Blue();
+}
+
+void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed)
+{
+    if (sw2Pressed == TRUE)
+    {
+        g_teensyLinkTest.page =
+            (uint8)((g_teensyLinkTest.page + 1U) % (uint8)TEENSY_LINK_TEST_PAGE_COUNT);
+        g_teensyLinkTest.nextDisplayMs = nowMs;
+    }
+
+    while (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
+    {
+        g_teensyLinkTest.controlSeq++;
+        teensy_link_test_fill_default_input(nowMs);
+        (void)TeensyLink_Service5ms(nowMs, &g_teensyLinkTest.input);
+        g_teensyLinkTest.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+    }
+
+    (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);
+    (void)TeensyLink_GetDiagnostics(&g_teensyLinkTest.diag);
+    teensy_link_test_update_led();
+
+    if (time_reached(nowMs, g_teensyLinkTest.nextDisplayMs) == TRUE)
+    {
+        g_teensyLinkTest.nextDisplayMs = nowMs + TEENSY_LINK_TEST_DISPLAY_MS;
+        teensy_link_test_draw();
+    }
+}
+
+void teensy_link_test_exit(void)
+{
+    DisplayClear();
+    DisplayTextPadded(0U, "TLINK EXIT");
+    DisplayRefresh();
+    StatusLed_Blue();
+}
+
 void mode_teensy_link_test(void)
 {
     uint32 nextButtonsMs;
 
     App_InitRuntimeCommon();
-    TeensyLink_Init();
-    (void)memset(&g_teensyLinkTest, 0, sizeof(g_teensyLinkTest));
-
-    g_teensyLinkTest.nextServiceMs = Timebase_GetMs();
-    g_teensyLinkTest.nextDisplayMs = Timebase_GetMs();
+    teensy_link_test_enter(Timebase_GetMs());
     nextButtonsMs = Timebase_GetMs();
-    teensy_link_test_fill_default_input(Timebase_GetMs());
-    teensy_link_test_draw();
-    StatusLed_Blue();
 
     for (;;)
     {
@@ -235,29 +276,6 @@ void mode_teensy_link_test(void)
         sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
         (void)Buttons_WasPressed(BUTTON_ID_SW3);
 
-        if (sw2Pressed == TRUE)
-        {
-            g_teensyLinkTest.page =
-                (uint8)((g_teensyLinkTest.page + 1U) % (uint8)TEENSY_LINK_TEST_PAGE_COUNT);
-            g_teensyLinkTest.nextDisplayMs = nowMs;
-        }
-
-        while (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
-        {
-            g_teensyLinkTest.controlSeq++;
-            teensy_link_test_fill_default_input(nowMs);
-            (void)TeensyLink_Service5ms(nowMs, &g_teensyLinkTest.input);
-            g_teensyLinkTest.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
-        }
-
-        (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);
-        (void)TeensyLink_GetDiagnostics(&g_teensyLinkTest.diag);
-        teensy_link_test_update_led();
-
-        if (time_reached(nowMs, g_teensyLinkTest.nextDisplayMs) == TRUE)
-        {
-            g_teensyLinkTest.nextDisplayMs = nowMs + TEENSY_LINK_TEST_DISPLAY_MS;
-            teensy_link_test_draw();
-        }
+        teensy_link_test_update(nowMs, sw2Pressed);
     }
 }

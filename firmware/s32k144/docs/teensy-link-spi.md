@@ -3,16 +3,25 @@
 This is the S32K master-side bring-up path for the new full-duplex Teensy SPI
 link.
 
-## Build Mode
+## Run Modes
 
-The dedicated compile-time mode is:
+The link test can run from the normal runtime bench menu. With:
+
+```c
+#define APP_TEST_NXP_CUP_TESTS            1
+```
+
+select `Teensy Link` on the OLED menu and turn the mode switch on.
+
+The dedicated compile-time mode is also available:
 
 ```c
 #define APP_TEST_TEENSY_LINK_TEST         1
 ```
 
-It boots directly into `mode_teensy_link_test()`, runs the SPI exchange every
-5 ms, and uses SW2 to cycle OLED pages:
+Both paths run the same `teensy_link_test_enter/update/exit` logic. The
+standalone mode boots directly into `mode_teensy_link_test()`. The test runs
+the SPI exchange every 5 ms and uses SW2 to cycle OLED pages:
 
 - link status,
 - camera 0 result,

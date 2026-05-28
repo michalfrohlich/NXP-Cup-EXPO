@@ -6,6 +6,10 @@
 #include "Spi.h"
 #include "Spi_Cfg.h"
 #include "Dio_Cfg.h"
+#include "../../../../shared/protocol/teensy_link_crc.h"
+
+#define TEENSY_LINK_DEG_TO_RAD_F  (0.0174532925f)
+#define TEENSY_LINK_GRAVITY_MPS2  (9.80665f)
 
 static Spi_DataBufferType g_teensyLinkTx[TEENSY_LINK_FRAME_BYTES];
 static Spi_DataBufferType g_teensyLinkRx[TEENSY_LINK_FRAME_BYTES];
@@ -41,30 +45,6 @@ static uint16 read_u16_le(const uint8 *bytes, uint16 offset)
 static sint16 read_s16_le(const uint8 *bytes, uint16 offset)
 {
     return (sint16)read_u16_le(bytes, offset);
-}
-
-static uint16 crc16_ccitt_false(const uint8 *bytes, uint16 length)
-{
-    uint16 crc = 0xFFFFU;
-
-    for (uint16 i = 0U; i < length; i++)
-    {
-        crc ^= (uint16)((uint16)bytes[i] << 8U);
-
-        for (uint8 bit = 0U; bit < 8U; bit++)
-        {
-            if ((crc & 0x8000U) != 0U)
-            {
-                crc = (uint16)((crc << 1U) ^ 0x1021U);
-            }
-            else
-            {
-                crc = (uint16)(crc << 1U);
-            }
-        }
-    }
-
-    return crc;
 }
 
 static sint8 clamp_s16_to_s8(sint16 value)
@@ -179,7 +159,7 @@ static void build_s32k_frame(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
 
     write_u16_le(payload, TEENSY_LINK_S32K_DIAG_FLAGS_OFF, flags);
 
-    crc = crc16_ccitt_false(tx, (uint16)TEENSY_LINK_CRC_OFFSET);
+    crc = TeensyLink_Crc16CcittFalse(tx, (uint16)TEENSY_LINK_CRC_OFFSET);
     write_u16_le(tx, (uint16)TEENSY_LINK_CRC_OFFSET, crc);
 }
 
@@ -199,7 +179,7 @@ static boolean validate_teensy_frame(const uint8 *rx)
         return FALSE;
     }
 
-    expectedCrc = crc16_ccitt_false(rx, (uint16)TEENSY_LINK_CRC_OFFSET);
+    expectedCrc = TeensyLink_Crc16CcittFalse(rx, (uint16)TEENSY_LINK_CRC_OFFSET);
     actualCrc = read_u16_le(rx, (uint16)TEENSY_LINK_CRC_OFFSET);
 
     if (expectedCrc != actualCrc)
@@ -351,4 +331,44 @@ boolean TeensyLink_GetDiagnostics(TeensyLinkDiagnostics_t *outDiagnostics)
 
     *outDiagnostics = g_teensyLinkDiag;
     return TRUE;
+}
+
+boolean TeensyLink_ImuToMotion(const TeensyLinkImuData_t *imu, TeensyLinkImuMotion_t *outMotion)
+{
+    if ((imu == NULL_PTR) || (outMotion == NULL_PTR))
+    {
+        return FALSE;
+    }
+
+    outMotion->axG = (float)imu->axMg * 0.001f;
+    outMotion->ayG = (float)imu->ayMg * 0.001f;
+    outMotion->azG = (float)imu->azMg * 0.001f;
+    outMotion->gxDps = (float)imu->gxDps10 * 0.1f;
+    outMotion->gyDps = (float)imu->gyDps10 * 0.1f;
+    outMotion->gzDps = (float)imu->gzDps10 * 0.1f;
+    outMotion->rollDeg = (float)imu->rollCdeg * 0.01f;
+    outMotion->pitchDeg = (float)imu->pitchCdeg * 0.01f;
+    outMotion->yawDeg = (float)imu->yawCdeg * 0.01f;
+    outMotion->accelNormG = (float)imu->accelNormMg * 0.001f;
+    outMotion->lateralG = (float)imu->lateralMg * 0.001f;
+    outMotion->tempC = (float)imu->tempC10 * 0.1f;
+    return TRUE;
+}
+
+float TeensyLink_EstimateSlipG(const TeensyLinkImuMotion_t *motion, float speedMps)
+{
+    float yawRateRadS;
+    float expectedLatMps2;
+    float measuredLatMps2;
+
+    if (motion == NULL_PTR)
+    {
+        return 0.0f;
+    }
+
+    yawRateRadS = motion->gzDps * TEENSY_LINK_DEG_TO_RAD_F;
+    expectedLatMps2 = speedMps * yawRateRadS;
+    measuredLatMps2 = motion->lateralG * TEENSY_LINK_GRAVITY_MPS2;
+
+    return (measuredLatMps2 - expectedLatMps2) / TEENSY_LINK_GRAVITY_MPS2;
 }
