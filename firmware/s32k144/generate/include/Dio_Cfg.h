@@ -279,6 +279,11 @@ extern "C" {
 *
 */
 #define DioConf_DioChannel_DioChannel_LED_B  ((uint16)0x0060U)
+/**
+* @brief          Symbolic name for the channel TeensyReady.
+*
+*/
+#define DioConf_DioChannel_TeensyReady  ((uint16)0x006eU)
 /* ---------- DioPort_E ---------- */
 
 /**

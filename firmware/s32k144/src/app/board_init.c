@@ -4,6 +4,7 @@
 #include "Mcl.h"
 #include "Platform.h"
 #include "Port.h"
+#include "Spi.h"
 #include "CDD_I2c.h"
 #include "Pwm.h"
 #include "Icu.h"
@@ -35,6 +36,7 @@ void Board_InitDrivers(void)
     Platform_Init(NULL_PTR);
     Port_Init(NULL_PTR);
     Mcl_Init(NULL_PTR);
+    Spi_Init(NULL_PTR);
     I2c_Init(NULL_PTR);
     Icu_Init(NULL_PTR);
     Gpt_Init(NULL_PTR);

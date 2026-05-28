@@ -46,6 +46,10 @@ extern "C"
 #if defined(I2C_CHANNEL_0_USED) || defined(I2C_CHANNEL_1_USED) || defined(I2C_CHANNEL_2_USED) || defined(I2C_CHANNEL_3_USED)|| defined(I2C_CHANNEL_4_USED) || defined(I2C_CHANNEL_5_USED) || defined(I2C_CHANNEL_6_USED) || defined(I2C_CHANNEL_7_USED)
     #define USE_I2C_MODULE
 #endif
+#include "Flexio_Spi_Ip_CfgDefines.h"
+#if defined(SPI_CHANNEL_0_USED) || defined(SPI_CHANNEL_1_USED) || defined(SPI_CHANNEL_2_USED) || defined(SPI_CHANNEL_3_USED)|| defined(SPI_CHANNEL_4_USED) || defined(SPI_CHANNEL_5_USED) || defined(SPI_CHANNEL_6_USED) || defined(SPI_CHANNEL_7_USED)
+    #define USE_SPI_MODULE
+#endif
 #include "Flexio_Uart_Ip_CfgDefines.h"
 #if defined(UART_CHANNEL_0_USED) || defined(UART_CHANNEL_1_USED) || defined(UART_CHANNEL_2_USED) || defined(UART_CHANNEL_3_USED)|| defined(UART_CHANNEL_4_USED) || defined(UART_CHANNEL_5_USED) || defined(UART_CHANNEL_6_USED) || defined(UART_CHANNEL_7_USED)
     #define USE_UART_MODULE

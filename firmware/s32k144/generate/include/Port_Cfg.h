@@ -718,6 +718,11 @@ PORT_CONFIG_VS_0_PB \
 #define PortConf_PortPin_BLUE_pin 15
 #define PortConf_PortPin_Uart_Rx 16
 #define PortConf_PortPin_Uart_Tx 17
+#define PortConf_PortPin_TeensySpiSck 18
+#define PortConf_PortPin_TeensySpiMiso 19
+#define PortConf_PortPin_TeensySpiMosi 20
+#define PortConf_PortPin_TeensySpiCs 21
+#define PortConf_PortPin_TeensyReady 22
 
 /**
 * @brief Number of available pad modes options
@@ -737,12 +742,12 @@ PORT_CONFIG_VS_0_PB \
 /**
 * @brief The maximum number of configured pins
 */
-#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)18)
+#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)23)
 
 /**
  * @brief Number of UnUsed pin array
 */
-#define PORT_MAX_UNUSED_PADS_U16    (66U)
+#define PORT_MAX_UNUSED_PADS_U16    (61U)
 
 /**
 * @brief Port driver Pre-Compile configuration switch

@@ -40,6 +40,11 @@
                <pin_label pin_num="75" pin_signal="PTB10" label="esc2"/>
                <pin_label pin_num="80" pin_signal="PTC7" label="UART TX"/>
                <pin_label pin_num="84" pin_signal="PTE6" label="servo"/>
+               <pin_label pin_num="24" pin_signal="PTD14" label="Teensy ready"/>
+               <pin_label pin_num="66" pin_signal="PTB14" label="TeensySpiSck"/>
+               <pin_label pin_num="65" pin_signal="PTB15" label="TeensySpiMiso"/>
+               <pin_label pin_num="64" pin_signal="PTB16" label="TeensySpiMosi"/>
+               <pin_label pin_num="63" pin_signal="PTB17" label="TeensySpiCs"/>
             </pin_labels>
          </pins_profile>
          <functions_list>
@@ -169,6 +174,31 @@
                   <pin peripheral="LPUART1" signal="lpuart1_tx" pin_num="80" pin_signal="PTC7">
                      <pin_features>
                         <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="LPSPI1" signal="lpspi1_sout" pin_num="64" pin_signal="PTB16">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="LPSPI1" signal="lpspi1_sin" pin_num="65" pin_signal="PTB15">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="LPSPI1" signal="lpspi1_sck" pin_num="66" pin_signal="PTB14">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="LPSPI1" signal="lpspi1_pcs3" pin_num="63" pin_signal="PTB17">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="PORTD" signal="port, 14" pin_num="24" pin_signal="PTD14">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
                      </pin_features>
                   </pin>
                </pins>
@@ -475,6 +505,16 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.driver.spi" description="Spi is not found in the toolchain/IDE project. The project will not compile!" problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data type="Boolean">true</data>
+               </feature>
+            </dependency>
+            <dependency resourceType="SWComponent" resourceId="platform.driver.spi" description="An unsupported version of the Spi in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. The project might not compile correctly." problem_level="1" source="Peripherals">
+               <feature name="version" evaluation="equivalent">
+                  <data type="Version">1.0.0</data>
+               </feature>
+            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -521,6 +561,9 @@
             <file path="generate/include/Flexio_Pwm_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/Flexio_Pwm_Ip_CfgDefines.h" update_enabled="true"/>
             <file path="generate/include/Flexio_Pwm_Ip_VS_0_PBcfg.h" update_enabled="true"/>
+            <file path="generate/include/Flexio_Spi_Ip_Cfg.h" update_enabled="true"/>
+            <file path="generate/include/Flexio_Spi_Ip_CfgDefines.h" update_enabled="true"/>
+            <file path="generate/include/Flexio_Spi_Ip_VS_0_PBcfg.h" update_enabled="true"/>
             <file path="generate/include/Flexio_Uart_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/Flexio_Uart_Ip_CfgDefines.h" update_enabled="true"/>
             <file path="generate/include/Flexio_Uart_Ip_Defines.h" update_enabled="true"/>
@@ -556,6 +599,8 @@
             <file path="generate/include/Lpit_Icu_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/Lpit_Icu_Ip_Defines.h" update_enabled="true"/>
             <file path="generate/include/Lpit_Icu_Ip_VS_0_PBcfg.h" update_enabled="true"/>
+            <file path="generate/include/Lpspi_Ip_Cfg.h" update_enabled="true"/>
+            <file path="generate/include/Lpspi_Ip_VS_0_PBcfg.h" update_enabled="true"/>
             <file path="generate/include/Lptmr_Gpt_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/Lptmr_Gpt_Ip_Cfg_Defines.h" update_enabled="true"/>
             <file path="generate/include/Lptmr_Gpt_Ip_VS_0_PBcfg.h" update_enabled="true"/>
@@ -597,6 +642,10 @@
             <file path="generate/include/SRtc_Ip_Cfg_Defines.h" update_enabled="true"/>
             <file path="generate/include/SRtc_Ip_VS_0_PBcfg.h" update_enabled="true"/>
             <file path="generate/include/Soc_Ips.h" update_enabled="true"/>
+            <file path="generate/include/Spi_Cfg.h" update_enabled="true"/>
+            <file path="generate/include/Spi_Ipw_Cfg.h" update_enabled="true"/>
+            <file path="generate/include/Spi_Ipw_VS_0_PBcfg.h" update_enabled="true"/>
+            <file path="generate/include/Spi_VS_0_PBcfg.h" update_enabled="true"/>
             <file path="generate/include/System_Ip_Cfg.h" update_enabled="true"/>
             <file path="generate/include/System_Ip_CfgDefines.h" update_enabled="true"/>
             <file path="generate/include/Trgmux_Ip_Cfg.h" update_enabled="true"/>
@@ -624,6 +673,7 @@
             <file path="generate/src/Flexio_I2c_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Flexio_Mcl_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Flexio_Pwm_Ip_VS_0_PBcfg.c" update_enabled="true"/>
+            <file path="generate/src/Flexio_Spi_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Flexio_Uart_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Ftm_Gpt_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Ftm_Icu_Ip_VS_0_PBcfg.c" update_enabled="true"/>
@@ -640,6 +690,7 @@
             <file path="generate/src/LPit_Gpt_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Lpi2c_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Lpit_Icu_Ip_VS_0_PBcfg.c" update_enabled="true"/>
+            <file path="generate/src/Lpspi_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Lptmr_Gpt_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Lptmr_Icu_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Lpuart_Uart_Ip_VS_0_PBcfg.c" update_enabled="true"/>
@@ -660,6 +711,8 @@
             <file path="generate/src/Ram_Ip_Cfg.c" update_enabled="true"/>
             <file path="generate/src/Ram_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/SRtc_Ip_VS_0_PBcfg.c" update_enabled="true"/>
+            <file path="generate/src/Spi_Ipw_VS_0_PBcfg.c" update_enabled="true"/>
+            <file path="generate/src/Spi_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Trgmux_Ip_Cfg.c" update_enabled="true"/>
             <file path="generate/src/Trgmux_Ip_VS_0_PBcfg.c" update_enabled="true"/>
             <file path="generate/src/Uart_Ipw_VS_0_PBcfg.c" update_enabled="true"/>
@@ -749,6 +802,11 @@
                                     <struct name="3">
                                        <setting name="Name" value="DioChannel_LED_B"/>
                                        <setting name="DioChannelId" value="0"/>
+                                       <array name="DioChannelEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="4">
+                                       <setting name="Name" value="TeensyReady"/>
+                                       <setting name="DioChannelId" value="14"/>
                                        <array name="DioChannelEcucPartitionRef"/>
                                     </struct>
                                  </array>
@@ -1083,6 +1141,72 @@
                                        <setting name="PortPinModeChangeable" value="true"/>
                                        <setting name="PortPinId" value="18"/>
                                        <setting name="PortPinPcr" value="71"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                              <struct name="9">
+                                 <setting name="Name" value="SpiPins"/>
+                                 <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
+                                 <array name="PortPin">
+                                    <struct name="0">
+                                       <setting name="Name" value="TeensySpiSck"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="19"/>
+                                       <setting name="PortPinPcr" value="46"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="1">
+                                       <setting name="Name" value="TeensySpiMiso"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="20"/>
+                                       <setting name="PortPinPcr" value="47"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="2">
+                                       <setting name="Name" value="TeensySpiMosi"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="21"/>
+                                       <setting name="PortPinPcr" value="48"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="3">
+                                       <setting name="Name" value="TeensySpiCs"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="22"/>
+                                       <setting name="PortPinPcr" value="49"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="4">
+                                       <setting name="Name" value="TeensyReady"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="23"/>
+                                       <setting name="PortPinPcr" value="110"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
@@ -1620,6 +1744,10 @@
                                     <struct name="8">
                                        <setting name="Name" value="Lpuart1ClockReferencePoint"/>
                                        <setting name="McuClockFrequencySelect" value="LPUART1_CLK"/>
+                                    </struct>
+                                    <struct name="9">
+                                       <setting name="Name" value="Lpspi1ClockReferencePoint"/>
+                                       <setting name="McuClockFrequencySelect" value="LPSPI1_CLK"/>
                                     </struct>
                                  </array>
                               </struct>
@@ -3456,6 +3584,167 @@
                            <setting name="ModuleId" value="255"/>
                            <setting name="VendorId" value="43"/>
                            <setting name="VendorApiInfix" value=""/>
+                           <setting name="ArReleaseMajorVersion" value="4"/>
+                           <setting name="ArReleaseMinorVersion" value="7"/>
+                           <setting name="ArReleaseRevisionVersion" value="0"/>
+                           <setting name="SwMajorVersion" value="2"/>
+                           <setting name="SwMinorVersion" value="0"/>
+                           <setting name="SwPatchVersion" value="0"/>
+                        </struct>
+                     </config_set>
+                  </instance>
+                  <instance name="Spi" uuid="e463b9cc-08ac-4faa-9529-8c58d1581238" type="Spi" type_id="Spi" mode="autosar" enabled="true" comment="" custom_name_enabled="false" editing_lock="false">
+                     <config_set name="Spi">
+                        <setting name="Name" value="Spi"/>
+                        <struct name="ConfigTimeSupport" quick_selection="Default">
+                           <setting name="POST_BUILD_VARIANT_USED" value="false"/>
+                           <setting name="IMPLEMENTATION_CONFIG_VARIANT" value="VARIANT-PRE-COMPILE"/>
+                        </struct>
+                        <array name="SpiDemEventParameterRefs"/>
+                        <struct name="SpiDriver">
+                           <setting name="Name" value="SpiDriver"/>
+                           <array name="SpiMaxChannel">
+                              <setting name="0" value="1"/>
+                           </array>
+                           <array name="SpiMaxJob">
+                              <setting name="0" value="1"/>
+                           </array>
+                           <array name="SpiMaxSequence">
+                              <setting name="0" value="1"/>
+                           </array>
+                           <array name="SpiChannel">
+                              <struct name="0">
+                                 <setting name="Name" value="TeensySpiFrameChannel"/>
+                                 <setting name="SpiChannelId" value="0"/>
+                                 <setting name="SpiChannelType" value="EB"/>
+                                 <setting name="SpiDataWidth" value="8"/>
+                                 <array name="SpiDefaultData">
+                                    <setting name="0" value="1"/>
+                                 </array>
+                                 <setting name="SpiEbMaxLength" value="128"/>
+                                 <setting name="SpiIbNBuffers" value="4"/>
+                                 <setting name="SpiTransferStart" value="MSB"/>
+                                 <array name="SpiChannelHalfDuplexDirection"/>
+                                 <array name="SpiChannelEcucPartitionRef"/>
+                              </struct>
+                           </array>
+                           <array name="SpiExternalDevice">
+                              <struct name="0">
+                                 <setting name="Name" value="TeensySpiDevice"/>
+                                 <setting name="SpiBaudrate" value="2000000"/>
+                                 <setting name="SpiCsIdentifier" value="PCS3"/>
+                                 <setting name="SpiCsPolarity" value="LOW"/>
+                                 <array name="SpiCsSelection">
+                                    <setting name="0" value="CS_VIA_PERIPHERAL_ENGINE"/>
+                                 </array>
+                                 <setting name="SpiDataShiftEdge" value="TRAILING"/>
+                                 <setting name="SpiEnableCs" value="true"/>
+                                 <setting name="SpiHwUnit" value="CSIB0"/>
+                                 <setting name="SpiShiftClockIdleLevel" value="LOW"/>
+                                 <setting name="SpiTimeClk2Cs" value="0.000001"/>
+                                 <setting name="SpiTimeCs2Clk" value="0.000001"/>
+                                 <setting name="SpiTimeCs2Cs" value="0.000001"/>
+                                 <setting name="SpiDeviceHalfDuplexSupport" value="false"/>
+                                 <setting name="SpiTransferWidth" value="TRANSFER_1_BIT"/>
+                                 <setting name="SpiHalfDuplexPinSelect" value="HALF_DUPLEX_SIN"/>
+                                 <setting name="SpiCsBehavior" value="CS_KEEP_ASSERTED"/>
+                                 <array name="SpiDeviceEcucPartitionRef"/>
+                              </struct>
+                           </array>
+                           <array name="SpiJob">
+                              <struct name="0">
+                                 <setting name="Name" value="TeensySpiJob"/>
+                                 <array name="SpiJobEndNotification">
+                                    <setting name="0" value="NULL_PTR"/>
+                                 </array>
+                                 <array name="SpiJobStartNotification">
+                                    <setting name="0" value="NULL_PTR"/>
+                                 </array>
+                                 <setting name="SpiJobId" value="0"/>
+                                 <setting name="SpiJobPriority" value="0"/>
+                                 <setting name="SpiDeviceAssignment" value="/Spi/Spi/SpiDriver/TeensySpiDevice"/>
+                                 <array name="SpiChannelList">
+                                    <struct name="0">
+                                       <setting name="Name" value="TeensySpiChannelList"/>
+                                       <setting name="SpiChannelIndex" value="0"/>
+                                       <setting name="SpiChannelAssignment" value="/Spi/Spi/SpiDriver/TeensySpiFrameChannel"/>
+                                    </struct>
+                                 </array>
+                              </struct>
+                           </array>
+                           <array name="SpiSequence">
+                              <struct name="0">
+                                 <setting name="Name" value="TeensySpiSequence"/>
+                                 <setting name="SpiInterruptibleSequence" value="false"/>
+                                 <array name="SpiSeqEndNotification">
+                                    <setting name="0" value="NULL_PTR"/>
+                                 </array>
+                                 <setting name="SpiSequenceId" value="0"/>
+                                 <setting name="SpiEnableDmaFastTransfer" value="false"/>
+                                 <array name="SpiJobAssignment">
+                                    <setting name="0" value="/Spi/Spi/SpiDriver/TeensySpiJob"/>
+                                 </array>
+                              </struct>
+                           </array>
+                        </struct>
+                        <struct name="SpiGeneral">
+                           <setting name="Name" value="SpiGeneral"/>
+                           <setting name="SpiMulticoreSupport" value="false"/>
+                           <setting name="SpiCancelApi" value="true"/>
+                           <setting name="SpiChannelBuffersAllowed" value="1"/>
+                           <setting name="SpiDevErrorDetect" value="true"/>
+                           <setting name="SpiHwStatusApi" value="true"/>
+                           <setting name="SpiInterruptibleSeqAllowed" value="false"/>
+                           <setting name="SpiLevelDelivered" value="0"/>
+                           <array name="SpiMainFunctionPeriod">
+                              <setting name="0" value="0.001"/>
+                           </array>
+                           <setting name="SpiSupportConcurrentSyncTransmit" value="false"/>
+                           <setting name="SpiVersionInfoApi" value="true"/>
+                           <setting name="SpiGlobalDmaEnable" value="false"/>
+                           <setting name="SpiTimeoutMethod" value="OSIF_COUNTER_DUMMY"/>
+                           <setting name="SpiTransmitTimeout" value="50000"/>
+                           <array name="SpiEcucPartitionRef"/>
+                           <array name="SpiKernelEcucPartitionRef"/>
+                           <array name="SpiPhyUnit">
+                              <struct name="0">
+                                 <setting name="Name" value="TeensySpiPhyUnit"/>
+                                 <setting name="SpiPhyUnitMapping" value="LPSPI_1"/>
+                                 <setting name="SpiPinConfiguration" value="0"/>
+                                 <setting name="SpiSamplePoint" value="0"/>
+                                 <setting name="SpiPhyUnitClockRef" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/Lpspi1ClockReferencePoint"/>
+                                 <array name="SpiPhyUnitAlternateClockRef"/>
+                                 <setting name="SpiPhyUnitMode" value="SPI_MASTER"/>
+                                 <setting name="SpiPhyUnitSync" value="true"/>
+                                 <setting name="SpiPhyUnitAsyncUseDma" value="false"/>
+                                 <array name="SpiPhyTxDmaChannel"/>
+                                 <array name="SpiPhyRxDmaChannel"/>
+                                 <array name="SpiMaxDmaFastTransfer"/>
+                                 <array name="SpiFlexioTxAndClkChannelsConfig"/>
+                                 <array name="SpiFlexioRxAndCsChannelsConfig"/>
+                              </struct>
+                           </array>
+                        </struct>
+                        <struct name="SpiPublishedInformation" quick_selection="Default">
+                           <setting name="Name" value="SpiPublishedInformation"/>
+                           <setting name="SpiMaxHwUnit" value="0"/>
+                        </struct>
+                        <struct name="SpiAutosarExt" quick_selection="Default">
+                           <setting name="Name" value="SpiAutosarExt"/>
+                           <setting name="SpiEnableUserModeSupport" value="false"/>
+                           <setting name="SpiEnableDmaFastTransferSupport" value="false"/>
+                           <setting name="SpiHalfDuplexModeSupport" value="false"/>
+                           <setting name="SpiAllowBigSizeCollections" value="false"/>
+                           <setting name="SpiEnableHWUnitAsyncMode" value="false"/>
+                           <setting name="SpiJobStartNotificationEnable" value="false"/>
+                           <setting name="SpiDisableDemReportErrorStatus" value="false"/>
+                           <setting name="SpiFlexioEnable" value="false"/>
+                        </struct>
+                        <struct name="CommonPublishedInformation" quick_selection="Default">
+                           <setting name="Name" value="CommonPublishedInformation"/>
+                           <setting name="ModuleId" value="83"/>
+                           <setting name="VendorId" value="43"/>
+                           <array name="VendorApiInfix"/>
                            <setting name="ArReleaseMajorVersion" value="4"/>
                            <setting name="ArReleaseMinorVersion" value="7"/>
                            <setting name="ArReleaseRevisionVersion" value="0"/>
