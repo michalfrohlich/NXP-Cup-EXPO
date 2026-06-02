@@ -43,7 +43,8 @@
 /* =========================================================
    Serial debug board routing
 ========================================================= */
-#define UART_HOST_UART_CHANNEL         (0U)
+#define UART_HOST_UART_CHANNEL            (0U)
+#define ESP_UART_LINK_UART_CHANNEL        (1U)
 
 /* =========================================================
    Servo board routing

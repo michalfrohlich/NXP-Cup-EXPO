@@ -20,6 +20,7 @@
 #include "drivers/display.h"
 #include "drivers/ultrasonic.h"
 #include "drivers/teensy_link.h"
+#include "drivers/esp_uart_link.h"
 
 #include "services/line_detector.h"
 #include "drivers/rgb_led.h"
@@ -36,6 +37,7 @@ typedef enum
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_SERVO_RATE_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
+    APP_BUILD_MODE_ESP_LINK_TEST,
     APP_BUILD_MODE_NXP_CUP_TESTS
 } AppBuildMode_t;
 
@@ -506,6 +508,7 @@ void mode_honor_lap(void);
 void mode_race_mode(void);
 void mode_servo_rate_test(void);
 void mode_teensy_link_test(void);
+void mode_esp_link_test(void);
 
 sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 
