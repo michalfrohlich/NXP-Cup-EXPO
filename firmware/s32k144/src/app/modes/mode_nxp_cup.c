@@ -225,8 +225,6 @@ void mode_nxp_cup(void)
         boolean systemBad = FALSE;
         uint8 potLevel;
 
-        App_ServiceBackground(nowMs);
-
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {
             Buttons_Update();

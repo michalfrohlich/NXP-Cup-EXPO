@@ -5,13 +5,43 @@
 
 typedef struct
 {
+    uint32 nextServiceMs;
     uint32 nextDisplayMs;
+    uint16 controlSeq;
     uint8 page;
+    TeensyLinkS32kInputs_t input;
     TeensyLinkSnapshot_t snapshot;
     TeensyLinkDiagnostics_t diag;
 } TeensyLinkTestState_t;
 
 static TeensyLinkTestState_t g_teensyLinkTest;
+
+static void teensy_link_test_fill_default_input(void)
+{
+    TeensyLinkS32kInputs_t *in = &g_teensyLinkTest.input;
+
+    (void)memset(in, 0, sizeof(*in));
+
+    in->controlLoopSeq = g_teensyLinkTest.controlSeq;
+    in->controlDtUs = (uint16)((uint16)TEENSY_LINK_SERVICE_PERIOD_MS * 1000U);
+    in->appMode = (uint8)APP_BUILD_MODE_NXP_CUP_TESTS;
+    in->appState = (uint8)RUNTIME_TEST_TEENSY_LINK;
+
+    for (uint8 i = 0U; i < (uint8)TEENSY_LINK_CAMERA_COUNT; i++)
+    {
+        in->camera[i].errorPct = 0;
+        in->camera[i].status = (uint8)VISION_TRACK_LOST;
+        in->camera[i].feature = (uint8)VISION_FEATURE_NONE;
+        in->camera[i].confidence = 0U;
+        in->camera[i].leftLineIdx = 255U;
+        in->camera[i].rightLineIdx = 255U;
+        in->camera[i].ageMs = 255U;
+        in->camera[i].flags = (uint8)(TEENSY_LINK_CAMERA_FLAG_SOURCE_S32K |
+                                      TEENSY_LINK_CAMERA_FLAG_STALE);
+    }
+
+    in->ultrasonicAgeMs = 65535U;
+}
 
 static const char *teensy_link_status_text(const TeensyLinkSnapshot_t *snapshot,
                                            const TeensyLinkDiagnostics_t *diag)
@@ -186,9 +216,12 @@ static void teensy_link_test_draw(void)
 
 void teensy_link_test_enter(uint32 nowMs)
 {
+    TeensyLink_Init();
     (void)memset(&g_teensyLinkTest, 0, sizeof(g_teensyLinkTest));
 
+    g_teensyLinkTest.nextServiceMs = nowMs;
     g_teensyLinkTest.nextDisplayMs = nowMs;
+    teensy_link_test_fill_default_input();
     (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);
     (void)TeensyLink_GetDiagnostics(&g_teensyLinkTest.diag);
     teensy_link_test_draw();
@@ -202,6 +235,14 @@ void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed)
         g_teensyLinkTest.page =
             (uint8)((g_teensyLinkTest.page + 1U) % (uint8)TEENSY_LINK_TEST_PAGE_COUNT);
         g_teensyLinkTest.nextDisplayMs = nowMs;
+    }
+
+    while (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
+    {
+        g_teensyLinkTest.controlSeq++;
+        teensy_link_test_fill_default_input();
+        (void)TeensyLink_Service5ms(nowMs, &g_teensyLinkTest.input);
+        g_teensyLinkTest.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
     }
 
     (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);
@@ -221,32 +262,4 @@ void teensy_link_test_exit(void)
     DisplayTextPadded(0U, "TLINK EXIT");
     DisplayRefresh();
     StatusLed_Blue();
-}
-
-void mode_teensy_link_test(void)
-{
-    uint32 nextButtonsMs;
-
-    App_InitRuntimeCommon();
-    teensy_link_test_enter(Timebase_GetMs());
-    nextButtonsMs = Timebase_GetMs();
-
-    for (;;)
-    {
-        uint32 nowMs = Timebase_GetMs();
-        boolean sw2Pressed;
-
-        App_ServiceBackground(nowMs);
-
-        while (time_reached(nowMs, nextButtonsMs) == TRUE)
-        {
-            Buttons_Update();
-            nextButtonsMs += BUTTONS_PERIOD_MS;
-        }
-
-        sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-        (void)Buttons_WasPressed(BUTTON_ID_SW3);
-
-        teensy_link_test_update(nowMs, sw2Pressed);
-    }
 }

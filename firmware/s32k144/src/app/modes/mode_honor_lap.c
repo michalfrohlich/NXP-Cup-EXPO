@@ -54,7 +54,6 @@ static void honor_lap_enter(uint32 nowMs)
     armStartMs = Timebase_GetMs();
     while ((uint32)(Timebase_GetMs() - armStartMs) < ESC_ARM_TIME_MS)
     {
-        App_ServiceBackground(Timebase_GetMs());
         Esc_StopNeutral();
     }
 
@@ -173,8 +172,6 @@ void mode_honor_lap(void)
         uint32 nowMs = Timebase_GetMs();
         boolean sw3Pressed = FALSE;
         uint8 potLevel;
-
-        App_ServiceBackground(nowMs);
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {

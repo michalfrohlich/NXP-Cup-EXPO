@@ -261,8 +261,6 @@ void mode_nxp_cup_tests(void)
         boolean modeSwitchOn;
         uint8 potLevel;
 
-        App_ServiceBackground(nowMs);
-
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {
             Buttons_Update();
@@ -318,8 +316,6 @@ void mode_linear_camera_test(void)
         uint32 nowMs = Timebase_GetMs();
         boolean sw3Pressed;
         uint8 potLevel;
-
-        App_ServiceBackground(nowMs);
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {

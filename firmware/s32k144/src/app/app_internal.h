@@ -457,8 +457,6 @@ void Esc_StopNeutral(void);
 void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd);
 void busy_delay(volatile uint32 ticks);
 void display_power_stabilize_delay(void);
-void App_InitBackgroundServices(uint32 nowMs);
-void App_ServiceBackground(uint32 nowMs);
 void App_InitRuntimeCore(void);
 void App_InitRuntimeCommon(void);
 void DisplayTextPadded(uint16 displayLine, const char *text);

@@ -9,9 +9,9 @@ The S32K is the main controller and SPI master. The Teensy 4.1 is the sensor
 board and SPI slave. Every S32K service tick sends one fixed 128-byte command
 frame and receives one fixed 128-byte Teensy telemetry frame at the same time.
 
-The S32K starts and services this SPI link from app startup. The OLED bench
-test is only a display/debug view; it is not required to start communication.
-There is no Python display path for this test.
+The S32K services this SPI link only while the Teensy link test is active. Use
+either the compile-time direct mode or the runtime OLED bench test. There is no
+Python display path for this test.
 
 ## What To Open
 
@@ -53,8 +53,8 @@ C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\hardware\shield-v2-pinout.md
 | Shared CRC | `shared/protocol/teensy_link_crc.h` |
 | S32K driver API | `firmware/s32k144/include/drivers/teensy_link.h` |
 | S32K driver implementation | `firmware/s32k144/src/drivers/teensy_link.c` |
-| S32K background service | `firmware/s32k144/src/app/app_common.c` |
-| S32K OLED debug viewer | `firmware/s32k144/src/app/modes/bench_teensy_link.c` |
+| S32K test service/viewer | `firmware/s32k144/src/app/modes/bench_teensy_link.c` |
+| S32K direct compile-time mode | `firmware/s32k144/src/app/modes/mode_teensy_link.c` |
 | S32K app mode selection | `firmware/s32k144/src/app/app_config.h` |
 | S32K runtime menu | `firmware/s32k144/src/app/modes/bench_menu.c` |
 | Teensy pins and timing | `firmware/teensy/include/teensy_config.h` |
@@ -132,7 +132,7 @@ the payload. If not, it increments error counters and keeps the last good data.
 
 ## S32K To Teensy Values
 
-The S32K background service sends control and vehicle-state data to the Teensy:
+The S32K test sends control and vehicle-state data to the Teensy:
 
 | Value | Purpose |
 |---|---|
@@ -150,11 +150,9 @@ The S32K background service sends control and vehicle-state data to the Teensy:
 | ultrasonic distance, age, flags | Lets Teensy log obstacle detection |
 | diag flags | Link and diagnostic flags from the S32K side |
 
-The fields are filled from the current mode when that data exists. For example,
-race mode sends race phase, steering, target/current speed, ESC commands, S32K
-camera result, and ultrasonic distance. The test menu sends the selected test
-id and fills only the fields owned by that active test. Missing fields stay
-zero or stale.
+In the current test-owned implementation, the S32K sends the active app/test id,
+sequence, ACK, stale S32K camera slots, and zero actuator values. The reserved
+fields stay available for future race-mode integration.
 
 Camera slots use this compact wire format:
 
@@ -281,14 +279,15 @@ Build and flash the S32K as usual from S32 Design Studio.
 2. Upload the Teensy firmware.
 3. Open the Teensy serial monitor.
 4. Upload the S32K firmware.
-5. Press Resume / run the S32K firmware.
-6. Confirm Teensy serial `s32k` becomes nonzero and `rx` increases.
-7. Optionally open the S32K OLED menu, select `Teensy Link`, and turn the mode
-   switch on.
+5. If `APP_TEST_TEENSY_LINK_TEST` is enabled, press Resume / run the S32K
+   firmware and it will boot directly into the link test.
+6. If `APP_TEST_NXP_CUP_TESTS` is enabled, select `Teensy Link` on the S32K OLED
+   menu and turn the mode switch on.
+7. Confirm Teensy serial `s32k` becomes nonzero and `rx` increases.
 8. Press SW2 to cycle the display pages.
 
-The important startup check is step 6. If `s32k=0 rx=0` after the S32K is
-running, the S32K is not clocking SPI or the SCK/CS/MOSI wiring is wrong.
+The important check is step 7. If `s32k=0 rx=0` while the link test is running,
+the S32K is not clocking SPI or the SCK/CS/MOSI wiring is wrong.
 
 The S32K OLED pages are:
 
@@ -323,11 +322,11 @@ Expected:
 
 ### 2. S32K-only disconnected test
 
-Run the S32K firmware without the Teensy connected.
+Run the S32K `Teensy Link` test without the Teensy connected.
 
 Expected:
 
-- If the optional OLED viewer is opened, status stays `WAIT`.
+- OLED status stays `WAIT`.
 - LED stays blue or moves to stale if an old frame existed.
 - This proves the missing Teensy path does not crash the S32K.
 
@@ -339,12 +338,13 @@ Expected:
 
 - Teensy serial `rx` increases.
 - Teensy serial `s32k` becomes nonzero.
-- If the optional S32K `Teensy Link` viewer is opened, `TLINK` changes to `OK`,
-  `S32`/`TEN` sequence values change, and `TLINK RX 128B` good count increases.
+- S32K `TLINK` changes to `OK`.
+- `S32`/`TEN` sequence values change.
+- S32K `TLINK RX 128B` good count increases.
 
 ### 4. MOSI direction test
 
-Check the Teensy serial monitor while the S32K firmware is running.
+Check the Teensy serial monitor while the S32K link test is running.
 
 Expected:
 
@@ -352,8 +352,8 @@ Expected:
 - `err` does not increase quickly.
 - `app`, `speed`, `servo`, or `ultra` fields change when the S32K state changes.
 
-If the optional S32K OLED viewer receives Teensy data but Teensy `rx` stays 0,
-MISO may be correct but MOSI/CS/SCK to the Teensy is wrong.
+If the S32K OLED receives Teensy data but Teensy `rx` stays 0, MISO may be
+correct but MOSI/CS/SCK to the Teensy is wrong.
 
 ### 5. MISO direction test
 

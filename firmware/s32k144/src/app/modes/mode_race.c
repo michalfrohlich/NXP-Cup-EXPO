@@ -420,8 +420,6 @@ void mode_race_mode(void)
         boolean stopPressed;
         boolean displaySwitchOn;
 
-        App_ServiceBackground(nowMs);
-
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {
             Buttons_Update();

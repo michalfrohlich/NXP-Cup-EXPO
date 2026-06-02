@@ -5,13 +5,13 @@ link.
 
 ## Run Modes
 
-The Teensy link now starts during S32K app startup. `App_InitRuntimeCore()`
-calls `App_InitBackgroundServices()`, and each app loop calls
-`App_ServiceBackground()`. That service clocks one 128-byte S32K-master SPI
-transfer every 5 ms, no matter which app or test is selected.
+The Teensy link is test-owned for this bring-up step. Normal app modes do not
+clock SPI globally. SPI starts in one of two cases:
 
-The OLED test is only a debug viewer. It does not initialize the link and it
-does not own the SPI transfer.
+- `APP_TEST_TEENSY_LINK_TEST` is selected at compile time. The S32K boots
+  directly into `mode_teensy_link_test()` from `mode_teensy_link.c`.
+- `APP_TEST_NXP_CUP_TESTS` is selected and the `Teensy Link` runtime bench test
+  is entered from the OLED menu.
 
 The viewer can run from the normal runtime bench menu. With:
 
@@ -28,9 +28,9 @@ The dedicated compile-time mode is also available:
 ```
 
 Both paths run the same `teensy_link_test_enter/update/exit` logic. The
-standalone mode boots directly into `mode_teensy_link_test()`. The shared
-background service still performs the SPI exchange; the test only reads the
-latest snapshot and uses SW2 to cycle OLED pages:
+standalone mode boots directly into `mode_teensy_link_test()`. Entering the
+test calls `TeensyLink_Init()`, then the update loop clocks the SPI exchange
+every 5 ms and uses SW2 to cycle OLED pages:
 
 - link status,
 - camera 0 result,
@@ -120,7 +120,7 @@ include/drivers/teensy_link.h
 src/drivers/teensy_link.c
 ```
 
-The app background service in `src/app/app_common.c` calls:
+The bench/direct test update path calls:
 
 ```c
 TeensyLink_Service5ms(nowMs, &input);
@@ -133,22 +133,21 @@ The driver uses:
 - `Dio_ReadChannel(DioConf_DioChannel_TeensyReady)`.
 
 `Board_InitDrivers()` initializes the generated SPI driver with `Spi_Init(NULL_PTR)`.
-
-The bench test in `src/app/modes/bench_teensy_link.c` only calls
-`TeensyLink_GetSnapshot()` and `TeensyLink_GetDiagnostics()`.
+`src/app/modes/bench_teensy_link.c` owns the test state, input packet, and
+periodic service call. `src/app/modes/mode_teensy_link.c` is only the
+compile-time direct wrapper around that same test.
 
 ## OLED Acceptance Test
 
-Use the S32K OLED only when you want to view the counters locally. The link
-should already be active before this screen is opened.
+Use the S32K OLED while the Teensy serial monitor is open.
 
 1. Upload the Teensy PlatformIO project from `firmware/teensy`.
 2. Build and flash the S32K project from `firmware/s32k144`.
-3. Press Resume / run the S32K firmware in S32 Design Studio.
+3. Either enable `APP_TEST_TEENSY_LINK_TEST` for direct boot, or leave
+   `APP_TEST_NXP_CUP_TESTS` enabled and enter the `Teensy Link` menu item.
 4. Check the Teensy serial monitor. `s32k` should become nonzero and `rx`
-   should increase without selecting any OLED test.
-5. Optionally select `Teensy Link` on the OLED menu and turn the mode switch on.
-6. Press SW2 to cycle pages.
+   should increase while the test is running.
+5. Press SW2 to cycle pages.
 
 Expected OLED behavior:
 
