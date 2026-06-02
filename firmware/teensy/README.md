@@ -84,9 +84,18 @@ Other Teensy shield pins from the schematic:
 Full run instructions are in `../../docs/protocols/teensy-s32k-128b-spi-test.md`.
 The full shield pinout is in `../../hardware/shield-v2-pinout.md`.
 
-The current `TeensyLinkSpiSlave` keeps the polling slave structure from the
-bring-up sketch, but now transfers the v1 128-byte frame and decodes MOSI from
-the S32K. If the 2 MHz bench link is unstable with the current wiring, first
-lower the S32K SPI baud rate for bring-up. For final high-rate use, replace only
-this transport with a hardware SPI slave implementation while keeping the same
-public API.
+The current `TeensyLinkSpiSlave` configures the Teensy 4.1 LPSPI4 hardware as a
+mode-0 SPI slave on pins 10/11/12/13. It keeps the same public API as the
+original bring-up transport, but the 128-byte frame is now moved by the hardware
+peripheral and a short ISR instead of software bit-banging SCK/MOSI/MISO.
+
+The first hardware validation should use a logic analyzer:
+
+- S32K clocks exactly 128 bytes.
+- SPI mode is mode 0.
+- CS pin 10 stays asserted for the full frame.
+- MISO begins with the expected frame sync bytes, not a dummy leading byte.
+- CRC/protocol error counters stay stable while `rx` increments.
+
+If the bench link is unstable, first lower the S32K SPI baud rate and confirm
+the first-byte alignment before changing the shared 128-byte protocol.
