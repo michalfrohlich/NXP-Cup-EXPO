@@ -25,12 +25,20 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
    - Timing and link-health expectations
    - Suggested first hardware checks
 
-2. **[Shared protocol header](../../shared/protocol/teensy_link_protocol.h)**
+2. **[Two-board 128-byte SPI test](teensy-s32k-128b-spi-test.md)**
+   - VS Code and S32 Design Studio folders to open
+   - S32K to Teensy wiring table
+   - PlatformIO commands for the Teensy
+   - OLED pages and expected pass/fail behavior
+   - Specific bench tests for MOSI, MISO, missing camera, stale, and CRC paths
+   - Pointer to the shield V2 pinout in `hardware/shield-v2-pinout.md`
+
+3. **[Shared protocol header](../../shared/protocol/teensy_link_protocol.h)**
    - Versioned 128-byte frame contract
    - Header, payload, flag, and offset definitions
    - Two-camera result slots and IMU/logger fields
 
-3. **[Shared CRC helper](../../shared/protocol/teensy_link_crc.h)**
+4. **[Shared CRC helper](../../shared/protocol/teensy_link_crc.h)**
    - Portable CRC-16/CCITT-FALSE implementation used by both sides
 
 ### Quick Facts
@@ -70,7 +78,8 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 - **S32K Driver**: `firmware/s32k144/src/drivers/teensy_link.c`
 - **S32K API**: `firmware/s32k144/include/drivers/teensy_link.h`
 - **S32K Bring-up Test**: `firmware/s32k144/src/app/modes/bench_teensy_link.c`
+- **Teensy PlatformIO Project**: `firmware/teensy/platformio.ini`
 
 ---
 
-**Status**: Complete for V1 competition | Last Updated: May 2026
+**Status**: Complete for V1 bench bring-up | Last Updated: June 2026

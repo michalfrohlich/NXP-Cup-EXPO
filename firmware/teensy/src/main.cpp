@@ -15,6 +15,8 @@ static uint32_t lastSensorMs = 0U;
 static uint32_t nextSensorUs = 0U;
 static uint32_t nextSerialMs = 0U;
 
+static_assert(TEENSY_LINK_FRAME_BYTES == 128U, "S32K link frame must stay 128 bytes");
+
 static void publishFrame(uint32_t nowMs)
 {
     uint16_t ackS32kSeq = s32kSnapshot.valid ? s32kSnapshot.frameSeq : 0U;
@@ -44,8 +46,7 @@ static void updateMockSensors(uint32_t nowMs)
                             TEENSY_LINK_STATUS_ACCEL_TRUSTED |
                             TEENSY_LINK_STATUS_YAW_RELATIVE;
     telemetry.componentMask = TEENSY_LINK_COMPONENT_IMU |
-                              TEENSY_LINK_COMPONENT_CAMERA0 |
-                              TEENSY_LINK_COMPONENT_CAMERA1;
+                              TEENSY_LINK_COMPONENT_CAMERA0;
 
     telemetry.imu.axG = 0.01f;
     telemetry.imu.ayG = 0.04f;
@@ -69,14 +70,8 @@ static void updateMockSensors(uint32_t nowMs)
     telemetry.camera[0].ageMs = 3U;
     telemetry.camera[0].flags = TEENSY_LINK_CAMERA_FLAG_VALID | TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY;
 
-    telemetry.camera[1].errorPct = 6;
-    telemetry.camera[1].status = TEENSY_LINK_CAMERA_STATUS_TRACK_OK;
-    telemetry.camera[1].feature = 3U;
-    telemetry.camera[1].confidence = 88U;
-    telemetry.camera[1].leftLineIdx = 40U;
-    telemetry.camera[1].rightLineIdx = 88U;
-    telemetry.camera[1].ageMs = 4U;
-    telemetry.camera[1].flags = TEENSY_LINK_CAMERA_FLAG_VALID | TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY;
+    /* Camera 1 is intentionally missing for the bench fault path. */
+    TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
 
     telemetry.loggerFlags = 0U;
     telemetry.loggerDropCount = 0U;
@@ -99,7 +94,17 @@ static void printLinkStatus(uint32_t nowMs)
     Serial.print(" err=");
     Serial.print(s32kSpi.protocolErrorCount());
     Serial.print(" timeout=");
-    Serial.println(s32kSpi.timeoutCount());
+    Serial.print(s32kSpi.timeoutCount());
+    Serial.print(" app=");
+    Serial.print(s32kSnapshot.valid ? s32kSnapshot.appMode : 0U);
+    Serial.print(" speed=");
+    Serial.print(s32kSnapshot.valid ? s32kSnapshot.targetSpeedPct : 0);
+    Serial.print("/");
+    Serial.print(s32kSnapshot.valid ? s32kSnapshot.currentSpeedPct : 0);
+    Serial.print(" servo=");
+    Serial.print(s32kSnapshot.valid ? s32kSnapshot.servoCmd : 0);
+    Serial.print(" ultra=");
+    Serial.println(s32kSnapshot.valid ? s32kSnapshot.ultrasonicDistanceCm10 : 0U);
 }
 
 void setup()

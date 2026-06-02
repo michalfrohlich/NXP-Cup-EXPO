@@ -111,104 +111,31 @@ void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed)
 
     active = (time_reached(nowMs, g_ultrasonicTest.ultraEnableMs) == TRUE) ? TRUE : FALSE;
 
-    if (active != TRUE)
-    {
-        g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
-        g_ultrasonicTest.modeUntilMs = 0U;
-    }
-    else if (g_ultrasonicTest.mode != ULTRA_TEST_MODE_CUTOFF)
-    {
-        if (g_ultrasonicTest.haveValidDistance == TRUE)
-        {
-            if (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM)
-            {
-                g_ultrasonicTest.mode = ULTRA_TEST_MODE_CUTOFF;
-            }
-            else
-            {
-                switch (g_ultrasonicTest.mode)
-                {
-                    case ULTRA_TEST_MODE_STOP_HOLD:
-                        if ((g_ultrasonicTest.modeUntilMs != 0U) &&
-                            (time_reached(nowMs, g_ultrasonicTest.modeUntilMs) == TRUE))
-                        {
-                            if (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
-                            {
-                                g_ultrasonicTest.mode = ULTRA_TEST_MODE_CRAWL;
-                            }
-                            else
-                            {
-                                g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
-                            }
-                            g_ultrasonicTest.modeUntilMs = 0U;
-                        }
-                        break;
-
-                    case ULTRA_TEST_MODE_CRAWL:
-                        break;
-
-                    case ULTRA_TEST_MODE_CLEAR:
-                    default:
-                        if (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM)
-                        {
-                            g_ultrasonicTest.mode = ULTRA_TEST_MODE_STOP_HOLD;
-                            g_ultrasonicTest.modeUntilMs = nowMs + (uint32)NXP_CUP_ULTRA_STOP_HOLD_MS;
-                        }
-                        break;
-                }
-            }
-        }
-    }
-
     if ((active == TRUE) && (g_ultrasonicTest.haveValidDistance == TRUE))
     {
         inStopRange = (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM) ? TRUE : FALSE;
         inSlowRange = ((g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM) &&
                        (inStopRange != TRUE)) ? TRUE : FALSE;
 
-        if (inSlowRange == TRUE)
-        {
-            if (g_ultrasonicTest.slowRangeSinceMs == 0U)
-            {
-                g_ultrasonicTest.slowRangeSinceMs = nowMs;
-            }
-        }
-        else
-        {
-            g_ultrasonicTest.slowRangeSinceMs = 0U;
-        }
-
         if (inStopRange == TRUE)
         {
-            if (g_ultrasonicTest.stopRangeSinceMs == 0U)
-            {
-                g_ultrasonicTest.stopRangeSinceMs = nowMs;
-            }
-        }
-        else
-        {
-            g_ultrasonicTest.stopRangeSinceMs = 0U;
-        }
-
-        if ((g_ultrasonicTest.stopRangeSinceMs != 0U) &&
-            (((uint32)(nowMs - g_ultrasonicTest.stopRangeSinceMs)) >= 10U))
-        {
+            g_ultrasonicTest.mode = ULTRA_TEST_MODE_CUTOFF;
             StatusLed_Red();
         }
-        else if ((g_ultrasonicTest.slowRangeSinceMs != 0U) &&
-                 (((uint32)(nowMs - g_ultrasonicTest.slowRangeSinceMs)) >= 80U))
+        else if (inSlowRange == TRUE)
         {
+            g_ultrasonicTest.mode = ULTRA_TEST_MODE_CRAWL;
             StatusLed_Yellow();
         }
         else
         {
+            g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
             StatusLed_Green();
         }
     }
     else
     {
-        g_ultrasonicTest.slowRangeSinceMs = 0U;
-        g_ultrasonicTest.stopRangeSinceMs = 0U;
+        g_ultrasonicTest.mode = ULTRA_TEST_MODE_CLEAR;
 
         if (st == ULTRA_STATUS_ERROR)
         {
@@ -252,8 +179,7 @@ void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed)
     {
         DisplayText(2U, "MODE: SCAN", 10U, 0U);
     }
-    else if ((g_ultrasonicTest.mode == ULTRA_TEST_MODE_STOP_HOLD) ||
-             (g_ultrasonicTest.mode == ULTRA_TEST_MODE_CUTOFF))
+    else if (g_ultrasonicTest.mode == ULTRA_TEST_MODE_CUTOFF)
     {
         DisplayText(2U, "MODE: STOP", 10U, 0U);
     }
@@ -297,6 +223,9 @@ void ultrasonic_esc_test_enter(uint32 nowMs)
     Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     Esc_StopNeutral();
 
+    Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
+    SteerStraight();
+
     Ultrasonic_Init();
     g_ultrasonicEscTest.armDoneMs = nowMs + ESC_ARM_TIME_MS;
     g_ultrasonicEscTest.nextUltraTrigMs = nowMs;
@@ -304,11 +233,12 @@ void ultrasonic_esc_test_enter(uint32 nowMs)
     g_ultrasonicEscTest.lastDistanceMs = nowMs;
     g_ultrasonicEscTest.lastDistanceCm = 0.0f;
     g_ultrasonicEscTest.commandedSpeedPct = 0;
+    g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CLEAR;
 
     DisplayTextPadded(0U, "ULTRA+ESC TEST");
     DisplayTextPadded(1U, "ARM  D: ---cm");
-    DisplayTextPadded(2U, "SPD:   0%");
-    DisplayTextPadded(3U, "TRIG:  AGE:");
+    DisplayTextPadded(2U, "SPD:   0 T: 60");
+    DisplayTextPadded(3U, "45 LOW 8 STOP");
     DisplayRefresh();
     StatusLed_Blue();
 }
@@ -319,7 +249,7 @@ void ultrasonic_esc_test_update(uint32 nowMs)
         ((uint32)HONOR_ULTRA_TRIGGER_PERIOD_MS * 2U) + (uint32)ULTRA_TIMEOUT_MS;
     Ultrasonic_StatusType st;
     float distanceCm = 0.0f;
-    const char *modeText = "RUN ";
+    const char *modeText = "WAIT";
 
     Ultrasonic_Task();
 
@@ -355,17 +285,63 @@ void ultrasonic_esc_test_update(uint32 nowMs)
     if (time_reached(nowMs, g_ultrasonicEscTest.armDoneMs) != TRUE)
     {
         g_ultrasonicEscTest.commandedSpeedPct = 0;
+        g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CLEAR;
         Esc_StopNeutral();
+        SteerStraight();
         modeText = "ARM ";
+        StatusLed_Blue();
+    }
+    else if (st == ULTRA_STATUS_ERROR)
+    {
+        g_ultrasonicEscTest.commandedSpeedPct = 0;
+        g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CUTOFF;
+        Esc_StopNeutral();
+        SteerStraight();
+        modeText = "ERR ";
+        StatusLed_Red();
+    }
+    else if (g_ultrasonicEscTest.hasValidDistance != TRUE)
+    {
+        g_ultrasonicEscTest.commandedSpeedPct = 0;
+        g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CLEAR;
+        Esc_StopNeutral();
+        SteerStraight();
+        modeText = "WAIT";
+        StatusLed_Yellow();
     }
     else
     {
-        g_ultrasonicEscTest.commandedSpeedPct =
-            honor_speed_from_distance(g_ultrasonicEscTest.hasValidDistance,
-                                      g_ultrasonicEscTest.lastDistanceCm);
-    Esc_SetBrake(0U, 0U);
-    Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
-                        (int)(-g_ultrasonicEscTest.commandedSpeedPct));
+        if (g_ultrasonicEscTest.lastDistanceCm <= (float)ULTRA_ESC_TEST_STOP_CM)
+        {
+            g_ultrasonicEscTest.commandedSpeedPct = 0;
+            g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CUTOFF;
+            Esc_StopNeutral();
+            SteerStraight();
+            modeText = "STOP";
+            StatusLed_Red();
+        }
+        else if (g_ultrasonicEscTest.lastDistanceCm <= (float)ULTRA_ESC_TEST_SLOW_CM)
+        {
+            g_ultrasonicEscTest.commandedSpeedPct = (sint32)ULTRA_ESC_TEST_LOW_SPEED_PCT;
+            g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CRAWL;
+            Esc_SetBrake(0U, 0U);
+            Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
+                                (int)(-g_ultrasonicEscTest.commandedSpeedPct));
+            SteerStraight();
+            modeText = "LOW ";
+            StatusLed_Yellow();
+        }
+        else
+        {
+            g_ultrasonicEscTest.commandedSpeedPct = (sint32)ULTRA_ESC_TEST_FAST_SPEED_PCT;
+            g_ultrasonicEscTest.mode = ULTRA_TEST_MODE_CLEAR;
+            Esc_SetBrake(0U, 0U);
+            Esc_SetLogicalSpeed((int)(-g_ultrasonicEscTest.commandedSpeedPct),
+                                (int)(-g_ultrasonicEscTest.commandedSpeedPct));
+            SteerStraight();
+            modeText = "FAST";
+            StatusLed_Green();
+        }
     }
 
     if (time_reached(nowMs, g_ultrasonicEscTest.nextDisplayMs) != TRUE)
@@ -388,36 +364,20 @@ void ultrasonic_esc_test_update(uint32 nowMs)
         DisplayText(1U, "ERR", 3U, 8U);
     }
 
-    DisplayTextPadded(2U, "SPD:   0%");
+    DisplayTextPadded(2U, "SPD:   0 T: 60");
     DisplayValue(2U, (int)g_ultrasonicEscTest.commandedSpeedPct, 3U, 4U);
     DisplayText(2U, "%", 1U, 7U);
+    DisplayValue(2U, (int)HONOR_ULTRA_TRIGGER_PERIOD_MS, 2U, 14U);
 
-    DisplayTextPadded(3U, "TRIG:  AGE:");
-    DisplayValue(3U, (int)HONOR_ULTRA_TRIGGER_PERIOD_MS, 3U, 5U);
-    DisplayValue(3U, (int)(nowMs - g_ultrasonicEscTest.lastDistanceMs), 4U, 12U);
+    DisplayTextPadded(3U, "45 LOW 8 STOP");
     DisplayRefresh();
-
-    if (time_reached(nowMs, g_ultrasonicEscTest.armDoneMs) != TRUE)
-    {
-        StatusLed_Blue();
-    }
-    else if (st == ULTRA_STATUS_ERROR)
-    {
-        StatusLed_Red();
-    }
-    else if (g_ultrasonicEscTest.hasValidDistance == TRUE)
-    {
-        StatusLed_Green();
-    }
-    else
-    {
-        StatusLed_Yellow();
-    }
 }
 
 void ultrasonic_esc_test_exit(void)
 {
     Esc_StopNeutral();
+    SteerStraight();
+    StatusLed_Off();
 }
 
 void servo_test_enter(uint32 nowMs)

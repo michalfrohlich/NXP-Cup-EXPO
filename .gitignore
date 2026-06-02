@@ -44,6 +44,7 @@ desktop.ini
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pio/
 
 # MATLAB local autosaves from debug/viewer scripts
 *.asv

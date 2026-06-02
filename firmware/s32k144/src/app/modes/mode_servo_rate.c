@@ -186,6 +186,8 @@ void mode_servo_rate_test(void)
         boolean sw3Pressed;
         uint8 potLevel;
 
+        App_ServiceBackground(nowMs);
+
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {
             Buttons_Update();

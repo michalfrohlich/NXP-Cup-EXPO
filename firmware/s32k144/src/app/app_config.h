@@ -66,11 +66,12 @@
 /* Extra launch writes improve ESC command latching on some setups. */
 #define ESC_LAUNCH_PULSE_COUNT            3U
 #define ESC_LAUNCH_PULSE_DELAY_TICKS      30000U
-#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   1u
+#define NXP_CUP_ULTRA_TRIGGER_PERIOD_MS   ULTRA_TRIGGER_PERIOD_MS
 #define NXP_ULTRA_ENABLE_AFTER_RUN_MS     2000u
-#define NXP_CUP_ULTRA_STOP_CM             35.0f
-#define NXP_CUP_ULTRA_CRAWL_STOP_CM       10.0f
+#define NXP_CUP_ULTRA_STOP_CM             45.0f
+#define NXP_CUP_ULTRA_CRAWL_STOP_CM       8.0f
 #define NXP_CUP_ULTRA_STOP_HOLD_MS        350u
+#define OBSTACLE_LOW_SPEED_PCT            5
 
 /* =========================================================
    Camera app/test behavior
@@ -106,6 +107,15 @@
 
 #define ESC_TEST_MAX_SPEED_PCT            (30U)
 #define ESC_TEST_LED_BLINK_MS             (250U)
+
+#define ULTRA_ESC_TEST_FAST_SPEED_PCT     (50)
+#define ULTRA_ESC_TEST_LOW_SPEED_PCT      (OBSTACLE_LOW_SPEED_PCT)
+#define ULTRA_ESC_TEST_SLOW_CM            (45.0f)
+#define ULTRA_ESC_TEST_STOP_CM            (8.0f)
+
+#define VICTORY_LAP_APPROACH_SPEED_PCT    (HONOR_BASE_SPEED_PCT)
+#define VICTORY_LAP_POLE_CM               (8.0f)
+#define VICTORY_LAP_DISPLAY_MS            (100U)
 
 #define SERVO_RATE_TEST_DISPLAY_MS        (100U)
 #define SERVO_RATE_TEST_FINE_STEP         (1)
@@ -166,19 +176,19 @@
 #define NXP_CUP_SLOW_SPEED_PCT            16
 
 #define NXP_CUP_ULTRASONIC_ENABLE         1
-#define NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD   (-8)
+#define NXP_CUP_ULTRA_CRAWL_LOGICAL_CMD   (-(OBSTACLE_LOW_SPEED_PCT))
 #define NXP_CUP_RAMP_DOWN_STEP_PCT        100
 
 /* =========================================================
    Honor Lap mode
 ========================================================= */
 #define HONOR_BASE_SPEED_PCT              10
-#define HONOR_SLOW1_SPEED_PCT             5
+#define HONOR_SLOW1_SPEED_PCT             OBSTACLE_LOW_SPEED_PCT
 #define HONOR_SLOW2_SPEED_PCT             3
 #define HONOR_STOP_SPEED_PCT              0
 
-#define HONOR_ULTRA_TRIGGER_PERIOD_MS     60u
-#define HONOR_SLOW1_DISTANCE_CM           30.0f
+#define HONOR_ULTRA_TRIGGER_PERIOD_MS     ULTRA_TRIGGER_PERIOD_MS
+#define HONOR_SLOW1_DISTANCE_CM           45.0f
 #define HONOR_SLOW2_DISTANCE_CM           15.0f
 #define HONOR_STOP_DISTANCE_CM             8.0f
 

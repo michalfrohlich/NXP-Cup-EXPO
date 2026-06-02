@@ -4,7 +4,7 @@
 - `src/main.c` calls `App_RunSelectedMode()` and never returns.
 - `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/app_config.h` and dispatches to a dedicated mode module.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
-- `src/app/app_common.c` owns shared app-level runtime init helpers after `Board_InitDrivers()`.
+- `src/app/app_common.c` owns shared app-level runtime init helpers after `Board_InitDrivers()` and the background Teensy SPI service.
 - `src/app/app_internal.h` is a private app-layer header for shared mode state, helper declarations, and the static mode contract.
 - `src/app/app_config.h` owns app build selection and behavior/profile constants.
 - `include/config/board_config.h` owns board routing aliases that may reference generated RTD/MCAL symbols.
@@ -22,7 +22,7 @@
 - Dedicated app modules own mode behavior:
   - `modes/bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
   - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
-  - `modes/bench_teensy_link.c`: S32K-master Teensy SPI link bring-up mode and runtime test menu item.
+  - `modes/bench_teensy_link.c`: S32K-master Teensy SPI link OLED debug viewer and runtime test menu item.
   - `modes/mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
   - `modes/mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
   - `modes/mode_race.c`: standalone race/honor-lap production flow.
@@ -39,6 +39,10 @@
   - polling against `Timebase_GetMs()`
   - periodic state-machine updates
   - interrupt callbacks wired to RTD notifications
+- The Teensy SPI link is a shared background service. `App_InitRuntimeCore()`
+  initializes it once after board/timebase init, and each mode loop calls
+  `App_ServiceBackground()` so the S32K keeps clocking 128-byte SPI frames even
+  when no OLED test is selected.
 
 ## LED conventions in app modes
 - Red: error or fault
@@ -53,10 +57,11 @@
 3. Exactly one compile-time mode is selected in `app_config.h`
 4. `app_modes.c` dispatches to one mode module
 5. That mode performs common runtime init through app-owned helpers (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
-6. The selected mode runs forever
-7. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
-8. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
-9. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Servo_SetSteer()` commands at a selectable software cadence
+6. Shared background services are initialized, including the Teensy SPI link
+7. The selected mode runs forever and services the background link each loop
+8. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
+9. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
+10. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Servo_SetSteer()` commands at a selectable software cadence
 
 ## Mode lifecycle
 - Standalone mode lifecycle:
@@ -77,7 +82,8 @@
   - the dedicated `swPcb` toggle switch enters or leaves the selected test
   - `swPcb` is treated as a maintained level input, not a click-style button event
   - the menu includes an `Ultrasonic` runtime test that, after a short enable delay, classifies the measured distance into `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP`, with `SW2` resetting the test state
-  - the menu includes an `Ultra+ESC` runtime test that uses the ultrasonic stopping logic from honor lap without camera or servo
+  - the menu includes an `Ultra+ESC` runtime test that centers the servo, drives both ESC outputs at 50% when clear, slows at 45 cm, and fully stops at 8 cm
+  - the menu includes a `Victory Lap` runtime test that approaches a pole with ultrasonic and then runs a Mario-style victory note sequence for future motor-music support
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
   - the menu includes `Serial tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
@@ -156,6 +162,7 @@
 - `ultrasonic.c`
   - provides periodic obstacle distance samples
   - can reduce commanded speed through the `HONOR_SLOW*` and `HONOR_STOP_*` thresholds
+  - holds steering straight once the obstacle is inside the first slow threshold
 
 ### Race mode path
 - `mode_race.c`
@@ -166,7 +173,24 @@
     - update steering and speed commands
   - rate-limits the ESC command with the existing ramp constants
   - switches from race-speed policy to honor-lap obstacle-stop policy after confirmed finish detection
+  - holds steering straight during the honor phase when ultrasonic sees an obstacle inside the slow threshold
   - only renders OLED telemetry when `swPcb` enables debug display
+
+### Teensy SPI link path
+- `app_common.c`
+  - calls `TeensyLink_Init()` from `App_InitBackgroundServices()`
+  - calls `TeensyLink_Service5ms()` from `App_ServiceBackground()`
+  - fills the S32K-to-Teensy packet from the currently active mode state
+  - keeps camera 1 stale until a second camera source is added
+- `teensy_link.c`
+  - builds the fixed 128-byte S32K frame
+  - clocks the SPI transfer as S32K master
+  - validates CRC/header on the Teensy frame
+  - stores the latest decoded snapshot and diagnostics
+- `bench_teensy_link.c`
+  - reads the shared snapshot/diagnostics
+  - displays RX counters, sequence numbers, stale/live state, and error counts
+  - does not start or own the SPI communication
 
 ### Manual / motor path
 - `onboard_pot.c`
@@ -175,7 +199,8 @@
   - uses a dedicated standalone ESC test with hold-to-arm/disarm, hold-to-stop, selectable both/ESC1/ESC2/differential output modes, and a low capped potentiometer speed command
   - draws an ESC test screen with state, selected output mode, direction, pot level, and both ESC commands
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
-  - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning honor-lap obstacle stopping
+  - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning obstacle slowing and stop behavior
+  - exposes a `Victory Lap` runtime test in `APP_TEST_NXP_CUP_TESTS` for pole-triggered fanfare behavior
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
 - `mode_nxp_cup.c`

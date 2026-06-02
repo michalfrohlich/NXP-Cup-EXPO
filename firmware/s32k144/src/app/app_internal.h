@@ -39,6 +39,8 @@ typedef enum
     APP_BUILD_MODE_NXP_CUP_TESTS
 } AppBuildMode_t;
 
+AppBuildMode_t App_GetSelectedBuildMode(void);
+
 typedef enum
 {
     RUNTIME_TEST_LINEAR_CAMERA = 0,
@@ -51,6 +53,7 @@ typedef enum
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
     RUNTIME_TEST_TEENSY_LINK,
+    RUNTIME_TEST_VICTORY_LAP,
     RUNTIME_TEST_COUNT
 } RuntimeTestId_t;
 
@@ -103,7 +106,39 @@ typedef struct
     float lastDistanceCm;
     sint32 commandedSpeedPct;
     boolean hasValidDistance;
+    UltrasonicTestMode_t mode;
 } UltrasonicEscTestState_t;
+
+typedef enum
+{
+    VICTORY_LAP_PHASE_ARM = 0,
+    VICTORY_LAP_PHASE_APPROACH,
+    VICTORY_LAP_PHASE_NOTE,
+    VICTORY_LAP_PHASE_GAP,
+    VICTORY_LAP_PHASE_DONE
+} VictoryLapPhase_t;
+
+typedef struct
+{
+    uint16 hz;
+    uint16 durationMs;
+    uint16 gapMs;
+} VictoryLapNote_t;
+
+typedef struct
+{
+    VictoryLapPhase_t phase;
+    uint32 armDoneMs;
+    uint32 nextUltraTrigMs;
+    uint32 nextDisplayMs;
+    uint32 noteUntilMs;
+    uint32 lastDistanceMs;
+    float lastDistanceCm;
+    sint32 commandedSpeedPct;
+    uint8 noteIndex;
+    uint16 currentNoteHz;
+    boolean hasValidDistance;
+} VictoryLapTestState_t;
 
 typedef struct
 {
@@ -387,6 +422,7 @@ typedef struct
 extern ReceiverTestState_t g_receiverTest;
 extern UltrasonicTestState_t g_ultrasonicTest;
 extern UltrasonicEscTestState_t g_ultrasonicEscTest;
+extern VictoryLapTestState_t g_victoryLapTest;
 extern ServoTestState_t g_servoTest;
 extern ServoRateTestState_t g_servoRateTest;
 extern EscManualTestState_t g_escTest;
@@ -421,6 +457,8 @@ void Esc_StopNeutral(void);
 void Esc_SetLogicalSpeed(int primaryLogicalCmd, int secondaryLogicalCmd);
 void busy_delay(volatile uint32 ticks);
 void display_power_stabilize_delay(void);
+void App_InitBackgroundServices(uint32 nowMs);
+void App_ServiceBackground(uint32 nowMs);
 void App_InitRuntimeCore(void);
 void App_InitRuntimeCommon(void);
 void DisplayTextPadded(uint16 displayLine, const char *text);
@@ -442,6 +480,9 @@ void ultrasonic_test_exit(void);
 void ultrasonic_esc_test_enter(uint32 nowMs);
 void ultrasonic_esc_test_update(uint32 nowMs);
 void ultrasonic_esc_test_exit(void);
+void victory_lap_test_enter(uint32 nowMs);
+void victory_lap_test_update(uint32 nowMs);
+void victory_lap_test_exit(void);
 void servo_test_enter(uint32 nowMs);
 void servo_test_update(uint32 nowMs, boolean sw2Pressed, uint8 potLevel);
 void servo_test_exit(void);

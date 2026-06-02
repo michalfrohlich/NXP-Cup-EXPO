@@ -20,6 +20,9 @@
 #define ULTRA_MIN_DISTANCE_CM             (3.0f)
 #define ULTRA_MAX_DISTANCE_CM             (400.0f)
 
+/* HC-SR04-style modules need about 60 ms between triggers. */
+#define ULTRA_TRIGGER_PERIOD_MS           (60u)
+
 /* 25 ms timeout: (25 ms * 34300 cm/s) / 2 = 428 cm max detection.
    At 2 MHz, this is 50,000 ticks and fits in 16-bit FTM. */
 #define ULTRA_TIMEOUT_MS                  (25u)

@@ -1,60 +1,17 @@
 #include "../app_internal.h"
 
 #define TEENSY_LINK_TEST_DISPLAY_MS       (100U)
-#define TEENSY_LINK_TEST_PAGE_COUNT       (4U)
+#define TEENSY_LINK_TEST_PAGE_COUNT       (5U)
 
 typedef struct
 {
-    uint32 nextServiceMs;
     uint32 nextDisplayMs;
-    uint16 controlSeq;
     uint8 page;
-    TeensyLinkS32kInputs_t input;
     TeensyLinkSnapshot_t snapshot;
     TeensyLinkDiagnostics_t diag;
 } TeensyLinkTestState_t;
 
 static TeensyLinkTestState_t g_teensyLinkTest;
-
-static void teensy_link_test_fill_default_input(uint32 nowMs)
-{
-    TeensyLinkS32kInputs_t *in = &g_teensyLinkTest.input;
-
-    (void)memset(in, 0, sizeof(*in));
-
-    in->controlLoopSeq = g_teensyLinkTest.controlSeq;
-    in->controlDtUs = 5000U;
-    in->appMode = (uint8)APP_BUILD_MODE_TEENSY_LINK_TEST;
-    in->appState = 0U;
-    in->safetyFlags = 0U;
-
-    for (uint8 i = 0U; i < (uint8)TEENSY_LINK_CAMERA_COUNT; i++)
-    {
-        in->camera[i].errorPct = 0;
-        in->camera[i].status = (uint8)VISION_TRACK_LOST;
-        in->camera[i].feature = (uint8)VISION_FEATURE_NONE;
-        in->camera[i].confidence = 0U;
-        in->camera[i].leftLineIdx = 255U;
-        in->camera[i].rightLineIdx = 255U;
-        in->camera[i].ageMs = 255U;
-        in->camera[i].flags = (uint8)TEENSY_LINK_CAMERA_FLAG_STALE;
-    }
-
-    in->steerRaw = 0;
-    in->steerFilt = 0;
-    in->steerOut = 0;
-    in->targetSpeedPct = 0;
-    in->currentSpeedPct = 0;
-    in->escPrimaryLogical = 0;
-    in->escSecondaryLogical = 0;
-    in->servoCmd = 0;
-    in->actuatorFlags = 0U;
-    in->ultrasonicDistanceCm10 = 0U;
-    in->ultrasonicAgeMs = 255U;
-    in->ultrasonicFlags = 0U;
-
-    (void)nowMs;
-}
 
 static const char *teensy_link_status_text(const TeensyLinkSnapshot_t *snapshot,
                                            const TeensyLinkDiagnostics_t *diag)
@@ -184,6 +141,24 @@ static void teensy_link_test_draw_imu(void)
     DisplayRefresh();
 }
 
+static void teensy_link_test_draw_rx_data(void)
+{
+    DisplayTextPadded(0U, "TLINK RX 128B");
+
+    DisplayTextPadded(1U, "SEQ:    ACK:");
+    DisplayValue(1U, (int)g_teensyLinkTest.snapshot.teensySeq, 4U, 4U);
+    DisplayValue(1U, (int)g_teensyLinkTest.snapshot.ackS32kSeq, 4U, 12U);
+
+    DisplayTextPadded(2U, "GOOD:    TX:");
+    DisplayValue(2U, (int)(g_teensyLinkTest.diag.goodFrameCount % 10000U), 4U, 5U);
+    DisplayValue(2U, (int)(g_teensyLinkTest.diag.txCount % 1000U), 3U, 13U);
+
+    DisplayTextPadded(3U, "CRC:    SPI:");
+    DisplayValue(3U, (int)(g_teensyLinkTest.diag.crcErrorCount % 10000U), 4U, 4U);
+    DisplayValue(3U, (int)(g_teensyLinkTest.diag.spiErrorCount % 1000U), 3U, 13U);
+    DisplayRefresh();
+}
+
 static void teensy_link_test_draw(void)
 {
     DisplayClear();
@@ -199,6 +174,9 @@ static void teensy_link_test_draw(void)
         case 3U:
             teensy_link_test_draw_imu();
             break;
+        case 4U:
+            teensy_link_test_draw_rx_data();
+            break;
         case 0U:
         default:
             teensy_link_test_draw_link();
@@ -208,12 +186,11 @@ static void teensy_link_test_draw(void)
 
 void teensy_link_test_enter(uint32 nowMs)
 {
-    TeensyLink_Init();
     (void)memset(&g_teensyLinkTest, 0, sizeof(g_teensyLinkTest));
 
-    g_teensyLinkTest.nextServiceMs = nowMs;
     g_teensyLinkTest.nextDisplayMs = nowMs;
-    teensy_link_test_fill_default_input(nowMs);
+    (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);
+    (void)TeensyLink_GetDiagnostics(&g_teensyLinkTest.diag);
     teensy_link_test_draw();
     StatusLed_Blue();
 }
@@ -225,14 +202,6 @@ void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed)
         g_teensyLinkTest.page =
             (uint8)((g_teensyLinkTest.page + 1U) % (uint8)TEENSY_LINK_TEST_PAGE_COUNT);
         g_teensyLinkTest.nextDisplayMs = nowMs;
-    }
-
-    while (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
-    {
-        g_teensyLinkTest.controlSeq++;
-        teensy_link_test_fill_default_input(nowMs);
-        (void)TeensyLink_Service5ms(nowMs, &g_teensyLinkTest.input);
-        g_teensyLinkTest.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
     }
 
     (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);
@@ -266,6 +235,8 @@ void mode_teensy_link_test(void)
     {
         uint32 nowMs = Timebase_GetMs();
         boolean sw2Pressed;
+
+        App_ServiceBackground(nowMs);
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {

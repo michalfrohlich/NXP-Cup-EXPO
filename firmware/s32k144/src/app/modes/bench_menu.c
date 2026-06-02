@@ -40,6 +40,10 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             teensy_link_test_enter(nowMs);
             break;
 
+        case RUNTIME_TEST_VICTORY_LAP:
+            victory_lap_test_enter(nowMs);
+            break;
+
         case RUNTIME_TEST_LINEAR_CAMERA:
         default:
             linear_camera_test_enter(nowMs);
@@ -91,6 +95,10 @@ static void runtime_test_update(RuntimeTestId_t testId,
             teensy_link_test_update(nowMs, sw2Pressed);
             break;
 
+        case RUNTIME_TEST_VICTORY_LAP:
+            victory_lap_test_update(nowMs);
+            break;
+
         case RUNTIME_TEST_LINEAR_CAMERA:
         default:
             linear_camera_test_update(nowMs, modeNextPressed, potLevel);
@@ -136,6 +144,10 @@ static void runtime_test_exit(RuntimeTestId_t testId)
 
         case RUNTIME_TEST_TEENSY_LINK:
             teensy_link_test_exit();
+            break;
+
+        case RUNTIME_TEST_VICTORY_LAP:
+            victory_lap_test_exit();
             break;
 
         case RUNTIME_TEST_LINEAR_CAMERA:
@@ -249,6 +261,8 @@ void mode_nxp_cup_tests(void)
         boolean modeSwitchOn;
         uint8 potLevel;
 
+        App_ServiceBackground(nowMs);
+
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {
             Buttons_Update();
@@ -304,6 +318,8 @@ void mode_linear_camera_test(void)
         uint32 nowMs = Timebase_GetMs();
         boolean sw3Pressed;
         uint8 potLevel;
+
+        App_ServiceBackground(nowMs);
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {

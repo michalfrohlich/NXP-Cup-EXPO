@@ -4,14 +4,14 @@ Multi-board firmware repository for the NXP Cup car.
 
 ## Projects
 - `firmware/s32k144/`: S32K144 bare-metal control firmware built with S32 Design Studio and NXP RTD.
-- `firmware/teensy/`: placeholder for future Teensy camera/IMU/perception firmware.
-- `firmware/esp32/`: placeholder for future ESP32 wireless bridge / PC UI firmware.
+- `firmware/teensy/`: Teensy 4.1 PlatformIO firmware for the S32K SPI link and sensor bring-up.
+- `firmware/esp32/`: ESP32 wireless bridge placeholder with the current shield pin plan.
 
 ## Shared Areas
 - `shared/protocol/`: future cross-board command, telemetry, and packet contracts.
 - `tools/`: host-side utilities such as MATLAB telemetry viewers.
 - `docs/`: system-level documentation for the multi-board car.
-- `hardware/`: hardware notes, pinouts, and schematics when available.
+- `hardware/`: hardware notes, pinouts, and schematic references.
 
 ## S32K Build
 From the repository root:

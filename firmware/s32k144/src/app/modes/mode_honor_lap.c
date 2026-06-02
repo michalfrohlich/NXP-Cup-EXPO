@@ -54,6 +54,7 @@ static void honor_lap_enter(uint32 nowMs)
     armStartMs = Timebase_GetMs();
     while ((uint32)(Timebase_GetMs() - armStartMs) < ESC_ARM_TIME_MS)
     {
+        App_ServiceBackground(Timebase_GetMs());
         Esc_StopNeutral();
     }
 
@@ -125,6 +126,12 @@ static void honor_lap_update(uint32 nowMs, boolean modeNextPressed, uint8 potLev
         g_honorLap.commandedSpeedPct = 0;
     }
 
+    if ((g_honorLap.hasValidDistance == TRUE) &&
+        (g_honorLap.lastDistanceCm <= (float)HONOR_SLOW1_DISTANCE_CM))
+    {
+        SteerStraight();
+    }
+
     Esc_SetBrake(0U, 0U);
     Esc_SetLogicalSpeed((int)(-g_honorLap.commandedSpeedPct),
                         (int)(-g_honorLap.commandedSpeedPct));
@@ -166,6 +173,8 @@ void mode_honor_lap(void)
         uint32 nowMs = Timebase_GetMs();
         boolean sw3Pressed = FALSE;
         uint8 potLevel;
+
+        App_ServiceBackground(nowMs);
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {

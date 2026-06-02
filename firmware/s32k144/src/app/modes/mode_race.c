@@ -115,6 +115,7 @@ static void race_mode_update_ultrasonic(RaceModeState_t *st, uint32 nowMs)
 static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean stopPressed)
 {
     uint8 controllerBaseSpeed;
+    boolean holdStraightForObstacle = FALSE;
 
     if ((st == NULL_PTR) || (time_reached(nowMs, st->nextControlMs) != TRUE))
     {
@@ -169,11 +170,23 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         st->finishStreak = 0U;
     }
 
+    holdStraightForObstacle =
+        (boolean)((st->phase == RACE_PHASE_HONOR_RUN) &&
+                  (st->haveValidDistance == TRUE) &&
+                  (st->lastDistanceCm <= (float)HONOR_SLOW1_DISTANCE_CM));
+
     /* Steering is updated from the latest accepted vision result only inside
        the active race phases. Other phases stay neutral and centered. */
     if ((st->phase == RACE_PHASE_SPEED_RUN) || (st->phase == RACE_PHASE_HONOR_RUN))
     {
-        if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
+        if (holdStraightForObstacle == TRUE)
+        {
+            st->steerRaw = 0;
+            st->steerFilt = 0;
+            st->steerOut = 0;
+            SteerStraight();
+        }
+        else if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
         {
             float dt = ((float)STEER_UPDATE_MS) * 0.001f;
             VehicleControlOutput_t out;
@@ -406,6 +419,8 @@ void mode_race_mode(void)
         uint32 nowMs = Timebase_GetMs();
         boolean stopPressed;
         boolean displaySwitchOn;
+
+        App_ServiceBackground(nowMs);
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
         {

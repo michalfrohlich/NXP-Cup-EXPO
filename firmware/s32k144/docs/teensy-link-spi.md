@@ -5,7 +5,15 @@ link.
 
 ## Run Modes
 
-The link test can run from the normal runtime bench menu. With:
+The Teensy link now starts during S32K app startup. `App_InitRuntimeCore()`
+calls `App_InitBackgroundServices()`, and each app loop calls
+`App_ServiceBackground()`. That service clocks one 128-byte S32K-master SPI
+transfer every 5 ms, no matter which app or test is selected.
+
+The OLED test is only a debug viewer. It does not initialize the link and it
+does not own the SPI transfer.
+
+The viewer can run from the normal runtime bench menu. With:
 
 ```c
 #define APP_TEST_NXP_CUP_TESTS            1
@@ -20,13 +28,18 @@ The dedicated compile-time mode is also available:
 ```
 
 Both paths run the same `teensy_link_test_enter/update/exit` logic. The
-standalone mode boots directly into `mode_teensy_link_test()`. The test runs
-the SPI exchange every 5 ms and uses SW2 to cycle OLED pages:
+standalone mode boots directly into `mode_teensy_link_test()`. The shared
+background service still performs the SPI exchange; the test only reads the
+latest snapshot and uses SW2 to cycle OLED pages:
 
 - link status,
 - camera 0 result,
 - camera 1 result,
-- IMU/logger status.
+- IMU/logger status,
+- received 128-byte SPI frame counters.
+
+The menu item is named `Teensy Link`. It lives in the runtime test menu, not in
+a separate Project Explorer folder.
 
 ## Hardware Setup
 
@@ -42,6 +55,19 @@ The generated S32K SPI setup is:
 
 READY is diagnostic only. The S32K never blocks waiting for it.
 
+Connect it to the Teensy 4.1 like this:
+
+| S32K signal | S32K pin | Teensy 4.1 pin | Direction |
+|---|---:|---:|---|
+| SCK | PTB14 | 13 | S32K to Teensy |
+| MOSI / S32K SOUT | PTB16 | 11 | S32K to Teensy |
+| MISO / S32K SIN | PTB15 | 12 | Teensy to S32K |
+| CS / PCS3 | PTB17 | 10 | S32K to Teensy |
+| READY | PTD14 | 31 | Teensy to S32K |
+| GND | GND | GND | common reference |
+
+Both boards use 3.3 V logic. Do not route a 5 V signal into either SPI pin.
+
 ## SPI Timing
 
 - S32K is master.
@@ -53,6 +79,10 @@ READY is diagnostic only. The S32K never blocks waiting for it.
 - Synchronous blocking transfer for v1.
 
 At 2 MHz, the 128-byte transfer is about 512 us of wire time.
+
+If the first bench setup is unstable with long jumper wires, lower the S32K
+`TeensySpiDevice` baud rate in S32 Design Studio, regenerate, and test the same
+128-byte frame again. Keep the packet format unchanged.
 
 ## Frame Contract
 
@@ -90,7 +120,7 @@ include/drivers/teensy_link.h
 src/drivers/teensy_link.c
 ```
 
-The bring-up mode calls:
+The app background service in `src/app/app_common.c` calls:
 
 ```c
 TeensyLink_Service5ms(nowMs, &input);
@@ -103,3 +133,32 @@ The driver uses:
 - `Dio_ReadChannel(DioConf_DioChannel_TeensyReady)`.
 
 `Board_InitDrivers()` initializes the generated SPI driver with `Spi_Init(NULL_PTR)`.
+
+The bench test in `src/app/modes/bench_teensy_link.c` only calls
+`TeensyLink_GetSnapshot()` and `TeensyLink_GetDiagnostics()`.
+
+## OLED Acceptance Test
+
+Use the S32K OLED only when you want to view the counters locally. The link
+should already be active before this screen is opened.
+
+1. Upload the Teensy PlatformIO project from `firmware/teensy`.
+2. Build and flash the S32K project from `firmware/s32k144`.
+3. Press Resume / run the S32K firmware in S32 Design Studio.
+4. Check the Teensy serial monitor. `s32k` should become nonzero and `rx`
+   should increase without selecting any OLED test.
+5. Optionally select `Teensy Link` on the OLED menu and turn the mode switch on.
+6. Press SW2 to cycle pages.
+
+Expected OLED behavior:
+
+| Page | What it proves |
+|---|---|
+| `TLINK` | Link status, S32K sequence, Teensy sequence, READY, total errors |
+| `TLINK CAM0` | Teensy camera 0 slot decodes correctly |
+| `TLINK CAM1` | Missing/stale camera data is handled without breaking the link |
+| `TLINK IMU/LOG` | IMU and logger fields decode correctly |
+| `TLINK RX 128B` | 128-byte RX counters, ACK, CRC, and SPI errors |
+
+The RGB LED is green when the S32K sees live valid frames. Blue means no frame
+yet, yellow means stale data, and red means repeated protocol/SPI errors.

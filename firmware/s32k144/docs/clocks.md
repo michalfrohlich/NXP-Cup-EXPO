@@ -77,7 +77,7 @@
 | ESC arm time | `src/app/app_config.h` | `3000 ms` |
 | Full-auto speed ramp period | `src/app/app_config.h` | `20 ms` |
 | NXP Cup ESC extra settle | `src/app/app_config.h` | `1500 ms` |
-| NXP Cup ultrasonic trigger period | `src/app/app_config.h` | `1 ms` |
+| NXP Cup ultrasonic trigger period | `src/app/app_config.h` | `60 ms` |
 | NXP Cup ultrasonic enable delay after run starts | `src/app/app_config.h` | `2000 ms` |
 | NXP Cup ultrasonic stop-hold time | `src/app/app_config.h` | `350 ms` |
 | Receiver PPM thresholds | `src/app/app_modes.c` (`ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U)`) | At effective 12 MHz LPTMR tick: `0.975 / 1.475 / 1.975 / 2.167 ms` |
