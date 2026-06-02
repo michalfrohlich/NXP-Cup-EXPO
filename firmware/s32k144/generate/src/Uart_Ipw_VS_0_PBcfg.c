@@ -186,6 +186,32 @@ const Uart_Ipw_HwConfigType Uart_Ipw_xHwConfigPB_0_VS_0 =
     /* Pointer to the Ip configuration structure.*/
     &Uart_Ipw_IpChnConfigPB_0_VS_0
 };
+/**
+* @brief   The Ip configuration structure pointer
+*/
+const Uart_Ipw_IpConfigType Uart_Ipw_IpChnConfigPB_1_VS_0 =
+{
+    /* Lpuart Ip configuration structure  */
+    &Lpuart_Uart_Ip_xHwConfigPB_1_VS_0,
+    /* Flexio Ip configuration structure  */
+    NULL_PTR
+};
+
+
+/**
+* @brief    Hardware configuration for Uart Hardware - Configuration.
+*/
+const Uart_Ipw_HwConfigType Uart_Ipw_xHwConfigPB_1_VS_0 =
+{
+    /* Uart Hardware Channel.*/
+    2U,
+    /* Type of Hardware interface configured.*/
+    LPUART_IP,
+    /* User Callback */
+    NULL_PTR,
+    /* Pointer to the Ip configuration structure.*/
+    &Uart_Ipw_IpChnConfigPB_1_VS_0
+};
 #define UART_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Uart_MemMap.h"
 

@@ -99,7 +99,8 @@ extern "C"
 ==================================================================================================*/
 
 #define UART_IPW_CONFIG_VS_0_PB \
-extern const Uart_Ipw_HwConfigType Uart_Ipw_xHwConfigPB_0_VS_0;
+extern const Uart_Ipw_HwConfigType Uart_Ipw_xHwConfigPB_0_VS_0;\
+extern const Uart_Ipw_HwConfigType Uart_Ipw_xHwConfigPB_1_VS_0;
 
 #ifndef UART_IPW_LPUART_HW_USING
     #define UART_IPW_LPUART_HW_USING

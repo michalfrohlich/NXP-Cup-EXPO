@@ -100,6 +100,10 @@ extern "C"
     #define LPUART_UART_IP_INSTANCE_USING_1   1U
 #endif
 
+#ifndef LPUART_UART_IP_INSTANCE_USING_2
+    #define LPUART_UART_IP_INSTANCE_USING_2   2U
+#endif
+
 /*==================================================================================================
                                        LOCAL VARIABLES
 ==================================================================================================*/
@@ -118,7 +122,8 @@ extern "C"
 * @brief    Hardware configuration for Lpuart Uart Hardware - Configuration.
 */
 #define LPUART_UART_IP_CONFIG_VS_0_PB \
-extern const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_0_VS_0;
+extern const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_0_VS_0;\
+extern const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_1_VS_0;
 /*==================================================================================================
                                    LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/

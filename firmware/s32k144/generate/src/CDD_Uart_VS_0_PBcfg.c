@@ -173,6 +173,21 @@ const Uart_ChannelConfigType Uart_ChannelConfig_0 =
 };
 
 /**
+* @brief          Configuration for Uart Channel 1
+*
+*
+*/
+const Uart_ChannelConfigType Uart_ChannelConfig_1 =
+{
+    (uint8)1U, /* Uart Channel ID */
+#if (UART_MULTICORE_SUPPORT == STD_ON)
+    (uint32)UART_CORE_ID,   /* Core id on which the Uart channel has been assigned  */
+#endif
+    (uint32)8000000U, /* ChannelClockFrequency */
+    &Uart_Ipw_xHwConfigPB_1_VS_0    /* Pointer to the hardware configuration*/
+};
+
+/**
 * @brief          Uart Configuration data for UartConfig_0.
 *
 */
@@ -183,6 +198,8 @@ static const Uart_ConfigType Uart_xConfig=
 #endif
     {
         &Uart_ChannelConfig_0
+,
+        &Uart_ChannelConfig_1
     }
 };
 /**
