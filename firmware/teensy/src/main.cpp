@@ -1,3 +1,17 @@
+/*
+Commands to run in terminal for teensy
+
+cd /d C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
+pio run
+pio run -t upload
+pio device list
+pio device monitor -p COM3 -b 115200
+
+Must correct COM number and change directrory
+*/
+
+
+
 #include <Arduino.h>
 
 #include "comms/teensy_link_spi_slave.h"
