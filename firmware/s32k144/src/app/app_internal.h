@@ -395,11 +395,15 @@ typedef enum
     SERIAL_TUNE_SCREEN_WAIT = 0,
     SERIAL_TUNE_SCREEN_MENU,
     SERIAL_TUNE_SCREEN_SERVO_MENU,
+    SERIAL_TUNE_SCREEN_VISION_MENU,
     SERIAL_TUNE_SCREEN_EDIT_KP,
     SERIAL_TUNE_SCREEN_EDIT_KI,
     SERIAL_TUNE_SCREEN_EDIT_KD,
     SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP,
-    SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF
+    SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF,
+    SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST,
+    SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH,
+    SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW
 } SerialTuneScreen_t;
 
 typedef struct
@@ -410,6 +414,9 @@ typedef struct
     float kd;
     sint16 servoClamp;
     float servoLpfAlpha;
+    uint16 visionMinContrast;
+    uint8 visionEdgeHighPct;
+    uint8 visionEdgeLowPct;
     char inputBuf[SERIAL_TUNE_INPUT_MAX_LEN + 1U];
     uint8 inputLen;
     boolean connected;
@@ -418,6 +425,7 @@ typedef struct
 typedef struct
 {
     CamTuneProfile_t profile;
+    LineDetectorParams_t lineDetector;
     boolean initialized;
 } RuntimeTuneState_t;
 

@@ -1292,7 +1292,10 @@ static void camservo_process_latest_frame(CamServoState_t *st, uint32 nowMs)
     (void)memcpy(st->processedFrame.Values,
                  &latestFrame->Values[CAM_TRIM_LEFT_PX],
                  ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
-    LineDetector_ProcessDebug(st->processedFrame.Values, &st->result, &st->dbg);
+    LineDetector_ProcessDebugWithParams(st->processedFrame.Values,
+                                        &st->result,
+                                        &st->dbg,
+                                        &g_runtimeTune.lineDetector);
     st->haveValidVision = TRUE;
     st->lastFrameMs = nowMs;
     st->displayDirty = TRUE;

@@ -27,6 +27,13 @@ extern "C" {
 
 typedef struct
 {
+    uint16 minContrast;
+    uint8 edgeHighPct;
+    uint8 edgeLowPct;
+} LineDetectorParams_t;
+
+typedef struct
+{
     uint8 idx;
     sint8 polarity; /* +1 rising, -1 falling */
     uint16 strength;
@@ -75,9 +82,16 @@ typedef struct
 
 void LineDetector_Init(void);
 void LineDetector_Process(const uint16 *pixels, VisionOutput_t *out);
+void LineDetector_ProcessWithParams(const uint16 *pixels,
+                                    VisionOutput_t *out,
+                                    const LineDetectorParams_t *params);
 void LineDetector_ProcessDebug(const uint16 *pixels,
                                  VisionOutput_t *out,
                                  LineDetector_DebugOut_t *dbg);
+void LineDetector_ProcessDebugWithParams(const uint16 *pixels,
+                                         VisionOutput_t *out,
+                                         LineDetector_DebugOut_t *dbg,
+                                         const LineDetectorParams_t *params);
 
 #ifdef __cplusplus
 }
