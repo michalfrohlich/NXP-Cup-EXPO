@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^firmware/s32k144/(RTD|generate|board)/
+      - id: end-of-file-fixer
+        exclude: ^firmware/s32k144/(RTD|generate|board)/
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-yaml
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.7
+    hooks:
+      - id: clang-format
+        files: ^(firmware/s32k144/(src|include)/|firmware/teensy/(src|include)/|firmware/esp32/(src|include)/|shared/protocol/).*\.(c|h|cpp|hpp)$
+        exclude: ^firmware/s32k144/(RTD|generate|board)/
