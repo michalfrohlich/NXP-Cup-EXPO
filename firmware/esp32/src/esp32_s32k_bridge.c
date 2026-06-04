@@ -15,28 +15,98 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "freertos/task.h"
 #include "nvs_flash.h"
 
 #include "esp32_pin_config.h"
 
-#define ESP_BRIDGE_UART_PORT            UART_NUM_1
-#define ESP_BRIDGE_UART_RX_BUF_BYTES    (256)
-#define ESP_BRIDGE_UART_TX_BUF_BYTES    (256)
-#define ESP_BRIDGE_UART_RX_CHUNK_BYTES  (32U)
-#define ESP_BRIDGE_UART_RX_FRAME_MAX    (ESP_S32K_BUTTON_FRAME_LEN)
-#define ESP_BRIDGE_HTTP_BODY_MAX        (96U)
-#define ESP_BRIDGE_WIFI_TIMEOUT_MS      (10000U)
+#define ESP_BRIDGE_UART_PORT UART_NUM_1
+#define ESP_BRIDGE_UART_RX_BUF_BYTES (256)
+#define ESP_BRIDGE_UART_TX_BUF_BYTES (256)
+#define ESP_BRIDGE_UART_RX_CHUNK_BYTES (32U)
+#define ESP_BRIDGE_UART_RX_FRAME_MAX (ESP_S32K_BUTTON_FRAME_LEN)
+#define ESP_BRIDGE_UART_READ_TIMEOUT_MS (10U)
+#define ESP_BRIDGE_UART_IDLE_DELAY_MS (10U)
+#define ESP_BRIDGE_UART_TASK_STACK (4096U)
+#define ESP_BRIDGE_UART_TASK_PRIORITY (6U)
+#define ESP_BRIDGE_HTTP_BODY_MAX (96U)
+#define ESP_BRIDGE_WIFI_TIMEOUT_MS (10000U)
+#define ESP_BRIDGE_LOG_FIRST_FRAMES (5U)
+#define ESP_BRIDGE_LOG_EVERY_FRAMES (10U)
 
 static const char *TAG = "esp_s32k_bridge";
 static EventGroupHandle_t s_wifiEventGroup;
 static httpd_handle_t s_httpServer;
+static TaskHandle_t s_uartTaskHandle;
+static portMUX_TYPE s_statusLock = portMUX_INITIALIZER_UNLOCKED;
 static uint8_t s_uartRxFrame[ESP_BRIDGE_UART_RX_FRAME_MAX];
 static uint8_t s_uartRxLen;
 static bool s_uartRxActive;
-static uint16_t s_uartButtonFrames;
-static uint16_t s_uartProtocolErrors;
+static uint32_t s_uartButtonFrames;
+static uint32_t s_uartProtocolErrors;
+static uint32_t s_uartAckErrors;
+static EspS32kButtonFrame_t s_lastButtons;
+static bool s_wifiEnabled;
+static bool s_wifiConnected;
 
 #define WIFI_CONNECTED_BIT BIT0
+
+static void status_store_buttons(const EspS32kButtonFrame_t *buttons)
+{
+    if (buttons == NULL)
+    {
+        return;
+    }
+
+    portENTER_CRITICAL(&s_statusLock);
+    s_lastButtons = *buttons;
+    portEXIT_CRITICAL(&s_statusLock);
+}
+
+static uint32_t status_increment_rx_frames(void)
+{
+    uint32_t value;
+
+    portENTER_CRITICAL(&s_statusLock);
+    s_uartButtonFrames++;
+    value = s_uartButtonFrames;
+    portEXIT_CRITICAL(&s_statusLock);
+    return value;
+}
+
+static uint32_t status_increment_protocol_errors(void)
+{
+    uint32_t value;
+
+    portENTER_CRITICAL(&s_statusLock);
+    s_uartProtocolErrors++;
+    value = s_uartProtocolErrors;
+    portEXIT_CRITICAL(&s_statusLock);
+    return value;
+}
+
+static uint32_t status_increment_ack_errors(void)
+{
+    uint32_t value;
+
+    portENTER_CRITICAL(&s_statusLock);
+    s_uartAckErrors++;
+    value = s_uartAckErrors;
+    portEXIT_CRITICAL(&s_statusLock);
+    return value;
+}
+
+static bool should_log_rx_frame(uint32_t rxFrames)
+{
+    return (rxFrames <= ESP_BRIDGE_LOG_FIRST_FRAMES) ||
+           ((rxFrames % ESP_BRIDGE_LOG_EVERY_FRAMES) == 0U);
+}
+
+static TickType_t ticks_at_least_one(uint32_t delayMs)
+{
+    TickType_t ticks = pdMS_TO_TICKS(delayMs);
+    return (ticks > 0U) ? ticks : 1U;
+}
 
 static bool parse_u8_form_field(const char *body, const char *key, uint8_t *outValue)
 {
@@ -101,9 +171,7 @@ static esp_err_t send_ack_frame(const EspS32kAckFrame_t *ack)
         return ESP_ERR_INVALID_ARG;
     }
 
-    int written = uart_write_bytes(ESP_BRIDGE_UART_PORT,
-                                   (const char *)frame,
-                                   sizeof(frame));
+    int written = uart_write_bytes(ESP_BRIDGE_UART_PORT, (const char *)frame, sizeof(frame));
 
     return (written == (int)sizeof(frame)) ? ESP_OK : ESP_FAIL;
 }
@@ -119,24 +187,28 @@ static void handle_button_frame(const EspS32kButtonFrame_t *buttons)
     EspS32kAckFrame_t ack;
     const bool anyPressed = buttons->sw2Pressed || buttons->sw3Pressed || buttons->swPcbOn;
 
+    status_store_buttons(buttons);
     (void)gpio_set_level(ESP32_STATUS_LED_GPIO, anyPressed ? 1 : 0);
 
     ack = *buttons;
     if (send_ack_frame(&ack) == ESP_OK)
     {
-        s_uartButtonFrames++;
-        ESP_LOGI(TAG, "S32K buttons seq=%u sw2=%u sw3=%u swpcb=%u rx=%u err=%u",
-                 (unsigned)buttons->sequence,
-                 buttons->sw2Pressed ? 1U : 0U,
-                 buttons->sw3Pressed ? 1U : 0U,
-                 buttons->swPcbOn ? 1U : 0U,
-                 (unsigned)s_uartButtonFrames,
-                 (unsigned)s_uartProtocolErrors);
+        uint32_t rxFrames = status_increment_rx_frames();
+        if (should_log_rx_frame(rxFrames))
+        {
+            EspAppStatus_t status;
+            EspBridge_GetStatus(&status);
+            ESP_LOGI(TAG, "S32K buttons seq=%u t=%u sw2=%u sw3=%u swpcb=%u rx=%lu err=%lu",
+                     (unsigned)buttons->sequence, (unsigned)buttons->timestampMs,
+                     buttons->sw2Pressed ? 1U : 0U, buttons->sw3Pressed ? 1U : 0U,
+                     buttons->swPcbOn ? 1U : 0U, (unsigned long)rxFrames,
+                     (unsigned long)status.protocolErrors);
+        }
     }
     else
     {
-        s_uartProtocolErrors++;
-        ESP_LOGE(TAG, "UART ACK send failed");
+        uint32_t ackErrors = status_increment_ack_errors();
+        ESP_LOGE(TAG, "UART ACK send failed ackerr=%lu", (unsigned long)ackErrors);
     }
 }
 
@@ -159,7 +231,7 @@ static void consume_uart_test_byte(uint8_t byte)
 
     if (s_uartRxLen >= ESP_BRIDGE_UART_RX_FRAME_MAX)
     {
-        s_uartProtocolErrors++;
+        (void)status_increment_protocol_errors();
         reset_uart_test_parser();
         return;
     }
@@ -179,18 +251,15 @@ static void consume_uart_test_byte(uint8_t byte)
     }
     else
     {
-        s_uartProtocolErrors++;
-        ESP_LOGW(TAG, "Bad S32K UART frame len=%u err=%u",
-                 (unsigned)s_uartRxLen,
-                 (unsigned)s_uartProtocolErrors);
+        uint32_t protocolErrors = status_increment_protocol_errors();
+        ESP_LOGW(TAG, "Bad S32K UART frame len=%u err=%u", (unsigned)s_uartRxLen,
+                 (unsigned)protocolErrors);
     }
 
     reset_uart_test_parser();
 }
 
-static void wifi_event_handler(void *arg,
-                               esp_event_base_t eventBase,
-                               int32_t eventId,
+static void wifi_event_handler(void *arg, esp_event_base_t eventBase, int32_t eventId,
                                void *eventData)
 {
     (void)arg;
@@ -227,9 +296,7 @@ static esp_err_t pid_post_handler(httpd_req_t *req)
 
     while (received < req->content_len)
     {
-        int chunk = httpd_req_recv(req,
-                                   &body[received],
-                                   (size_t)req->content_len - received);
+        int chunk = httpd_req_recv(req, &body[received], (size_t)req->content_len - received);
         if (chunk <= 0)
         {
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "receive failed");
@@ -252,9 +319,7 @@ static esp_err_t pid_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "PID sent: P=%u I=%u D=%u",
-             (unsigned)pid.proportional,
-             (unsigned)pid.integral,
+    ESP_LOGI(TAG, "PID sent: P=%u I=%u D=%u", (unsigned)pid.proportional, (unsigned)pid.integral,
              (unsigned)pid.derivative);
 
     httpd_resp_set_type(req, "text/plain");
@@ -295,10 +360,8 @@ esp_err_t EspBridge_InitGpio(void)
     ret = gpio_config(&inputConfig);
     if (ret == ESP_OK)
     {
-        ESP_LOGI(TAG, "GPIO ready: status=%d buttons=%d/%d",
-                 ESP32_STATUS_LED_GPIO,
-                 ESP32_BUTTON1_GPIO,
-                 ESP32_BUTTON2_GPIO);
+        ESP_LOGI(TAG, "GPIO ready: status=%d buttons=%d/%d", ESP32_STATUS_LED_GPIO,
+                 ESP32_BUTTON1_GPIO, ESP32_BUTTON2_GPIO);
     }
 
     return ret;
@@ -344,12 +407,8 @@ esp_err_t EspBridge_InitUart(void)
         .source_clk = UART_SCLK_DEFAULT,
     };
 
-    esp_err_t ret = uart_driver_install(ESP_BRIDGE_UART_PORT,
-                                        ESP_BRIDGE_UART_RX_BUF_BYTES,
-                                        ESP_BRIDGE_UART_TX_BUF_BYTES,
-                                        0,
-                                        NULL,
-                                        0);
+    esp_err_t ret = uart_driver_install(ESP_BRIDGE_UART_PORT, ESP_BRIDGE_UART_RX_BUF_BYTES,
+                                        ESP_BRIDGE_UART_TX_BUF_BYTES, 0, NULL, 0);
     if (ret != ESP_OK)
     {
         return ret;
@@ -362,26 +421,24 @@ esp_err_t EspBridge_InitUart(void)
         return ret;
     }
 
-    ret = uart_set_pin(ESP_BRIDGE_UART_PORT,
-                       ESP32_UART_TX_GPIO,
-                       ESP32_UART_RX_GPIO,
-                       UART_PIN_NO_CHANGE,
-                       UART_PIN_NO_CHANGE);
+    ret = uart_set_pin(ESP_BRIDGE_UART_PORT, ESP32_UART_TX_GPIO, ESP32_UART_RX_GPIO,
+                       UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     if (ret != ESP_OK)
     {
         (void)uart_driver_delete(ESP_BRIDGE_UART_PORT);
         return ret;
     }
 
-    ESP_LOGI(TAG, "UART ready: port=%d tx=%d rx=%d baud=%u",
-             ESP_BRIDGE_UART_PORT,
-             ESP32_UART_TX_GPIO,
-             ESP32_UART_RX_GPIO,
-             (unsigned)ESP_S32K_UART_BAUD_RATE);
+    ESP_LOGI(TAG, "UART ready: port=%d tx=%d rx=%d baud=%u", ESP_BRIDGE_UART_PORT,
+             ESP32_UART_TX_GPIO, ESP32_UART_RX_GPIO, (unsigned)ESP_S32K_UART_BAUD_RATE);
 
     reset_uart_test_parser();
+    portENTER_CRITICAL(&s_statusLock);
     s_uartButtonFrames = 0U;
     s_uartProtocolErrors = 0U;
+    s_uartAckErrors = 0U;
+    (void)memset(&s_lastButtons, 0, sizeof(s_lastButtons));
+    portEXIT_CRITICAL(&s_statusLock);
 
     return ESP_OK;
 }
@@ -400,9 +457,7 @@ esp_err_t EspBridge_SendPidFrame(const EspS32kPidFrame_t *pid, size_t *outWritte
         return ESP_ERR_INVALID_ARG;
     }
 
-    int written = uart_write_bytes(ESP_BRIDGE_UART_PORT,
-                                   (const char *)frame,
-                                   sizeof(frame));
+    int written = uart_write_bytes(ESP_BRIDGE_UART_PORT, (const char *)frame, sizeof(frame));
     if (written < 0)
     {
         return ESP_FAIL;
@@ -428,7 +483,8 @@ esp_err_t EspBridge_ReadUart(uint8_t *data, size_t maxLength, size_t *outRead)
         return ESP_ERR_INVALID_ARG;
     }
 
-    int read = uart_read_bytes(ESP_BRIDGE_UART_PORT, data, maxLength, 0);
+    int read = uart_read_bytes(ESP_BRIDGE_UART_PORT, data, maxLength,
+                               ticks_at_least_one(ESP_BRIDGE_UART_READ_TIMEOUT_MS));
     if (read < 0)
     {
         return ESP_FAIL;
@@ -456,6 +512,65 @@ void EspBridge_ServiceUartTest(void)
     {
         consume_uart_test_byte(bytes[i]);
     }
+}
+
+static void uart_task(void *arg)
+{
+    (void)arg;
+
+    while (true)
+    {
+        EspBridge_ServiceUartTest();
+        vTaskDelay(ticks_at_least_one(ESP_BRIDGE_UART_IDLE_DELAY_MS));
+    }
+}
+
+esp_err_t EspBridge_StartUartTask(void)
+{
+    if (s_uartTaskHandle != NULL)
+    {
+        return ESP_OK;
+    }
+
+    BaseType_t created = xTaskCreate(uart_task, "s32k_uart", ESP_BRIDGE_UART_TASK_STACK, NULL,
+                                     ESP_BRIDGE_UART_TASK_PRIORITY, &s_uartTaskHandle);
+    if (created != pdPASS)
+    {
+        s_uartTaskHandle = NULL;
+        return ESP_ERR_NO_MEM;
+    }
+
+    ESP_LOGI(TAG, "UART service task started");
+    return ESP_OK;
+}
+
+void EspBridge_GetStatus(EspAppStatus_t *outStatus)
+{
+    if (outStatus == NULL)
+    {
+        return;
+    }
+
+    portENTER_CRITICAL(&s_statusLock);
+    outStatus->sw2Pressed = s_lastButtons.sw2Pressed;
+    outStatus->sw3Pressed = s_lastButtons.sw3Pressed;
+    outStatus->swPcbOn = s_lastButtons.swPcbOn;
+    outStatus->sequence = s_lastButtons.sequence;
+    outStatus->timestampMs = s_lastButtons.timestampMs;
+    outStatus->rxFrames = s_uartButtonFrames;
+    outStatus->protocolErrors = s_uartProtocolErrors;
+    outStatus->ackErrors = s_uartAckErrors;
+    outStatus->wifiEnabled = s_wifiEnabled;
+    outStatus->wifiConnected = s_wifiConnected;
+    portEXIT_CRITICAL(&s_statusLock);
+}
+
+void EspBridge_SetWifiStatus(bool enabled, bool connected)
+{
+    portENTER_CRITICAL(&s_statusLock);
+    s_wifiEnabled = enabled;
+    s_wifiConnected = connected;
+    portEXIT_CRITICAL(&s_statusLock);
 }
 
 esp_err_t EspBridge_InitWifi(const char *ssid, const char *password)
@@ -503,32 +618,25 @@ esp_err_t EspBridge_InitWifi(const char *ssid, const char *password)
         return ret;
     }
 
-    ret = esp_event_handler_instance_register(WIFI_EVENT,
-                                              ESP_EVENT_ANY_ID,
-                                              &wifi_event_handler,
-                                              NULL,
-                                              NULL);
+    ret = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler,
+                                              NULL, NULL);
     if (ret != ESP_OK)
     {
         return ret;
     }
 
-    ret = esp_event_handler_instance_register(IP_EVENT,
-                                              IP_EVENT_STA_GOT_IP,
-                                              &wifi_event_handler,
-                                              NULL,
-                                              NULL);
+    ret = esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler,
+                                              NULL, NULL);
     if (ret != ESP_OK)
     {
         return ret;
     }
 
-    wifi_config_t wifiConfig = { 0 };
+    wifi_config_t wifiConfig = {0};
     (void)strncpy((char *)wifiConfig.sta.ssid, ssid, sizeof(wifiConfig.sta.ssid) - 1U);
     if (password != NULL)
     {
-        (void)strncpy((char *)wifiConfig.sta.password,
-                      password,
+        (void)strncpy((char *)wifiConfig.sta.password, password,
                       sizeof(wifiConfig.sta.password) - 1U);
     }
 
@@ -551,10 +659,7 @@ esp_err_t EspBridge_InitWifi(const char *ssid, const char *password)
     }
 
     ESP_LOGI(TAG, "Connecting to Wi-Fi SSID %s", ssid);
-    EventBits_t bits = xEventGroupWaitBits(s_wifiEventGroup,
-                                           WIFI_CONNECTED_BIT,
-                                           pdFALSE,
-                                           pdFALSE,
+    EventBits_t bits = xEventGroupWaitBits(s_wifiEventGroup, WIFI_CONNECTED_BIT, pdFALSE, pdFALSE,
                                            pdMS_TO_TICKS(ESP_BRIDGE_WIFI_TIMEOUT_MS));
 
     return ((bits & WIFI_CONNECTED_BIT) != 0U) ? ESP_OK : ESP_ERR_TIMEOUT;
