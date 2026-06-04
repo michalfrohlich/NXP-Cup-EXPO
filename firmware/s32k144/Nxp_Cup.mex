@@ -527,6 +527,11 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
+            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
+               <feature name="enabled" evaluation="equal">
+                  <data>true</data>
+               </feature>
+            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -3626,7 +3631,7 @@
                                  <struct name="DetailModuleConfiguration">
                                     <setting name="Name" value="DetailModuleConfiguration"/>
                                     <setting name="UartHwChannel" value="LPUART_2"/>
-                                    <setting name="DesireBaudrate" value="LPUART_UART_BAUDRATE_115200"/>
+                                    <setting name="DesireBaudrate" value="LPUART_UART_BAUDRATE_460800"/>
                                     <setting name="CustomBaudrateMantissa" value="1"/>
                                     <setting name="CustomBaudrateDivisor" value="4"/>
                                     <setting name="UartInteruptDmaMethod" value="LPUART_UART_IP_USING_INTERRUPTS"/>

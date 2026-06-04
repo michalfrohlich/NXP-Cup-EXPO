@@ -5,35 +5,47 @@
 #include "Std_Types.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef struct
-{
-    boolean sw2Pressed;
-    boolean sw3Pressed;
-    boolean swPcbOn;
-    uint8 sequence;
-} EspUartLink_ButtonFrame_t;
+#define ESP_UART_LINK_TX_PERIOD_MS (50U)
 
-typedef EspUartLink_ButtonFrame_t EspUartLink_AckFrame_t;
+    typedef struct
+    {
+        boolean sw2Pressed;
+        boolean sw3Pressed;
+        boolean swPcbOn;
+        uint8 sequence;
+        uint16 timestampMs;
+    } EspUartLink_ButtonFrame_t;
 
-typedef struct
-{
-    uint16 txFrames;
-    uint16 rxAckFrames;
-    uint16 rxProtocolErrors;
-    uint16 txErrors;
-    uint32 lastAckMs;
-    boolean initialized;
-    boolean ackValid;
-} EspUartLink_Diagnostics_t;
+    typedef EspUartLink_ButtonFrame_t EspUartLink_AckFrame_t;
 
-void EspUartLink_Init(void);
-Std_ReturnType EspUartLink_SendButtons(const EspUartLink_ButtonFrame_t *buttons);
-void EspUartLink_Poll(uint32 nowMs);
-boolean EspUartLink_GetLastAck(EspUartLink_AckFrame_t *outAck);
-void EspUartLink_GetDiagnostics(EspUartLink_Diagnostics_t *outDiagnostics);
+    typedef struct
+    {
+        uint16 txFrames;
+        uint16 txQueuedFrames;
+        uint16 txOverwrites;
+        uint16 rxAckFrames;
+        uint16 rxProtocolErrors;
+        uint16 txErrors;
+        uint32 lastTxMs;
+        uint32 lastAckMs;
+        uint16 lastAckAgeMs;
+        boolean initialized;
+        boolean txBusy;
+        boolean txPending;
+        boolean ackValid;
+    } EspUartLink_Diagnostics_t;
+
+    void EspUartLink_Init(void);
+    Std_ReturnType EspUartLink_QueueButtons(const EspUartLink_ButtonFrame_t *buttons);
+    void EspUartLink_Service(uint32 nowMs);
+    Std_ReturnType EspUartLink_SendButtons(const EspUartLink_ButtonFrame_t *buttons);
+    void EspUartLink_Poll(uint32 nowMs);
+    boolean EspUartLink_GetLastAck(EspUartLink_AckFrame_t *outAck);
+    void EspUartLink_GetDiagnostics(EspUartLink_Diagnostics_t *outDiagnostics);
 
 #ifdef __cplusplus
 }

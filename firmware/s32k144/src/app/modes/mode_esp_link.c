@@ -1,19 +1,19 @@
 #include "../app_internal.h"
 
-#define ESP_LINK_BUTTON_SEND_PERIOD_MS    (50U)
-#define ESP_LINK_ACK_LIVE_MS              (250U)
-#define ESP_LINK_ERROR_HOLD_MS            (300U)
+#define ESP_LINK_ERROR_HOLD_MS (300U)
+#define ESP_LINK_TX_LIVE_MS (150U)
 
 void mode_esp_link_test(void)
 {
     uint32 nowMs;
     uint32 nextButtonsMs;
-    uint32 nextSendMs;
+    uint32 nextQueueMs;
     uint32 lastErrorMs = 0U;
     uint16 lastRxErrors = 0U;
+    uint16 lastTxErrors = 0U;
     uint8 nextSequence = 0U;
-    EspUartLink_ButtonFrame_t currentButtons = { FALSE, FALSE, FALSE, 0U };
-    EspUartLink_ButtonFrame_t lastSent = { FALSE, FALSE, FALSE, 0U };
+    EspUartLink_ButtonFrame_t currentButtons = {FALSE, FALSE, FALSE, 0U, 0U};
+    EspUartLink_ButtonFrame_t lastQueued = {FALSE, FALSE, FALSE, 0U, 0U};
 
     App_InitRuntimeCore();
     EspUartLink_Init();
@@ -21,13 +21,13 @@ void mode_esp_link_test(void)
 
     nowMs = Timebase_GetMs();
     nextButtonsMs = nowMs;
-    nextSendMs = nowMs;
+    nextQueueMs = nowMs;
 
     while (1)
     {
         EspUartLink_Diagnostics_t diag;
         boolean stateChanged;
-        boolean ackLive;
+        boolean txLive;
 
         nowMs = Timebase_GetMs();
 
@@ -41,16 +41,19 @@ void mode_esp_link_test(void)
         currentButtons.sw3Pressed = Buttons_IsPressed(BUTTON_ID_SW3);
         currentButtons.swPcbOn = Buttons_IsOn(BUTTON_ID_SWPCB);
 
-        stateChanged = (boolean)(((currentButtons.sw2Pressed != lastSent.sw2Pressed) ||
-                                  (currentButtons.sw3Pressed != lastSent.sw3Pressed) ||
-                                  (currentButtons.swPcbOn != lastSent.swPcbOn)) ? TRUE : FALSE);
+        stateChanged = (boolean)(((currentButtons.sw2Pressed != lastQueued.sw2Pressed) ||
+                                  (currentButtons.sw3Pressed != lastQueued.sw3Pressed) ||
+                                  (currentButtons.swPcbOn != lastQueued.swPcbOn))
+                                     ? TRUE
+                                     : FALSE);
 
-        if ((stateChanged == TRUE) || (time_reached(nowMs, nextSendMs) == TRUE))
+        if ((stateChanged == TRUE) || (time_reached(nowMs, nextQueueMs) == TRUE))
         {
             currentButtons.sequence = nextSequence;
-            if (EspUartLink_SendButtons(&currentButtons) == E_OK)
+            currentButtons.timestampMs = 0U;
+            if (EspUartLink_QueueButtons(&currentButtons) == E_OK)
             {
-                lastSent = currentButtons;
+                lastQueued = currentButtons;
                 nextSequence++;
                 if (nextSequence > 99U)
                 {
@@ -58,26 +61,29 @@ void mode_esp_link_test(void)
                 }
             }
 
-            nextSendMs = nowMs + ESP_LINK_BUTTON_SEND_PERIOD_MS;
+            nextQueueMs = nowMs + ESP_UART_LINK_TX_PERIOD_MS;
         }
 
-        EspUartLink_Poll(nowMs);
+        EspUartLink_Service(nowMs);
         EspUartLink_GetDiagnostics(&diag);
 
-        if (diag.rxProtocolErrors != lastRxErrors)
+        if ((diag.rxProtocolErrors != lastRxErrors) || (diag.txErrors != lastTxErrors))
         {
             lastRxErrors = diag.rxProtocolErrors;
+            lastTxErrors = diag.txErrors;
             lastErrorMs = nowMs;
         }
 
-        ackLive = (boolean)(((diag.ackValid == TRUE) &&
-                             ((uint32)(nowMs - diag.lastAckMs) < ESP_LINK_ACK_LIVE_MS)) ? TRUE : FALSE);
+        txLive = (boolean)(((diag.txFrames > 0U) &&
+                            ((uint32)(nowMs - diag.lastTxMs) < ESP_LINK_TX_LIVE_MS))
+                               ? TRUE
+                               : FALSE);
 
         if ((uint32)(nowMs - lastErrorMs) < ESP_LINK_ERROR_HOLD_MS)
         {
             StatusLed_Red();
         }
-        else if (ackLive == TRUE)
+        else if (txLive == TRUE)
         {
             StatusLed_Green();
         }

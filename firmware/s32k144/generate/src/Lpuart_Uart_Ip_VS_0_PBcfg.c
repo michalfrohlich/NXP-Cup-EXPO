@@ -176,11 +176,11 @@ const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_0_VS_0 =
 const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_1_VS_0 =
 {
     /* Actual baudrate */
-    115942,
+    470588,
     /* Baudrate mantissa*/
-    3U,
+    1U,
     /* Baudrate Divisor*/
-    23U,
+    17U,
     /* Parity type */
     LPUART_UART_IP_PARITY_DISABLED,
     /* Number of stop bits, 1 stop bit (default) or 2 stop bits */
