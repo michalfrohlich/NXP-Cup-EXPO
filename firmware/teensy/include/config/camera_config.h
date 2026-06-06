@@ -1,0 +1,22 @@
+#pragma once
+
+#include <stdint.h>
+
+#include "teensy_config.h"
+
+static constexpr uint16_t TEENSY_LINEAR_CAMERA_PIXEL_COUNT = 128U;
+static constexpr uint16_t TEENSY_LINEAR_CAMERA_READOUT_CLOCKS =
+    TEENSY_LINEAR_CAMERA_PIXEL_COUNT + 1U;
+
+static constexpr uint32_t TEENSY_LINEAR_CAMERA_PIXEL_CLOCK_HZ = 50000UL;
+static constexpr uint32_t TEENSY_LINEAR_CAMERA_FRAME_RATE_HZ = 100UL;
+static constexpr uint32_t TEENSY_LINEAR_CAMERA_DEBUG_PRINT_PERIOD_MS = 1000UL;
+static constexpr uint8_t TEENSY_LINEAR_CAMERA_ADC_BITS = 12U;
+
+static constexpr uint8_t TEENSY_LINEAR_CAMERA0_SI_PIN = TEENSY_CAM1_SI_PIN;
+static constexpr uint8_t TEENSY_LINEAR_CAMERA0_CLK_PIN = TEENSY_CAM1_CLK_PIN;
+static constexpr uint8_t TEENSY_LINEAR_CAMERA0_ANALOG_PIN = TEENSY_CAM1_ANALOG_PIN;
+
+static constexpr uint8_t TEENSY_LINEAR_CAMERA1_SI_PIN = TEENSY_CAM2_SI_PIN;
+static constexpr uint8_t TEENSY_LINEAR_CAMERA1_CLK_PIN = TEENSY_CAM2_CLK_PIN;
+static constexpr uint8_t TEENSY_LINEAR_CAMERA1_ANALOG_PIN = TEENSY_CAM2_ANALOG_PIN;
