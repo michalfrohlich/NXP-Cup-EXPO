@@ -44,6 +44,11 @@ static uint8_t scaleAdcSampleToByte(uint16_t sample)
 
 static void printScaledFrame8()
 {
+    if (TEENSY_LINEAR_CAMERA_DEBUG_PRINT_FRAME8 != true)
+    {
+        return;
+    }
+
     Serial.print(" frame8=");
     if (latestFrameValid != true)
     {
@@ -65,6 +70,11 @@ static void printScaledFrame8()
 
 static void printCameraDebugFrame(uint32_t nowMs)
 {
+    if (TEENSY_LINEAR_CAMERA_DEBUG_ENABLED != true)
+    {
+        return;
+    }
+
     LinearCameraDebugCounters counters = {};
 
     camera0.getDebugCounters(counters);
@@ -100,8 +110,16 @@ static void printCameraDebugFrame(uint32_t nowMs)
     Serial.print(counters.lastCaptureUs);
     Serial.print("/");
     Serial.print(counters.maxCaptureUs);
+    Serial.print(" capClk=");
+    Serial.print((uint32_t)((((uint64_t)counters.lastCaptureUs * camera0.pixelClockHz()) +
+                             500000ULL) /
+                            1000000ULL));
     Serial.print(" adcErr=");
     Serial.print(counters.adcErrorCount);
+    Serial.print(" dma=");
+    Serial.print(counters.dmaFrameCount);
+    Serial.print(" dmaErr=");
+    Serial.print(counters.dmaErrorCount);
 
     if (latestFrameValid == true)
     {
@@ -145,23 +163,42 @@ static void printCameraDebugFrame(uint32_t nowMs)
 
 void ModeCameraBringup_Setup()
 {
-    Serial.begin(TEENSY_SERIAL_BAUD);
-    while (!Serial && (millis() < 1200UL))
+    if (TEENSY_LINEAR_CAMERA_DEBUG_ENABLED == true)
     {
-    }
+        Serial.begin(TEENSY_LINEAR_CAMERA_DEBUG_SERIAL_BAUD);
+        while (!Serial && (millis() < 1200UL))
+        {
+        }
 
-    Serial.println("Teensy TSL1401CL camera bring-up");
-    Serial.println("Camera 0: SI=4 CLK=6 AO=A1/pin15, FlexPWM/ADC_ETC 50 kHz, 100 Hz raw acquisition");
+        Serial.println("Teensy TSL1401CL camera bring-up");
+        Serial.print("Camera 0: SI=4 CLK=6 AO=A1/pin15, FlexPWM/ADC_ETC ");
+        Serial.print(TEENSY_LINEAR_CAMERA_PIXEL_CLOCK_HZ);
+        Serial.print(" Hz, ");
+        Serial.print(TEENSY_LINEAR_CAMERA_FRAME_RATE_HZ);
+        Serial.println(" Hz DMA acquisition");
+        Serial.print("Debug: baud=");
+        Serial.print(TEENSY_LINEAR_CAMERA_DEBUG_SERIAL_BAUD);
+        Serial.print(" periodMs=");
+        Serial.print(TEENSY_LINEAR_CAMERA_DEBUG_PRINT_PERIOD_MS);
+        Serial.print(" frame8=");
+        Serial.println(TEENSY_LINEAR_CAMERA_DEBUG_PRINT_FRAME8 ? "on" : "off");
+    }
 
     if (camera0.begin(camera0Config) != true)
     {
-        Serial.println("Camera init failed");
+        if (TEENSY_LINEAR_CAMERA_DEBUG_ENABLED == true)
+        {
+            Serial.println("Camera init failed");
+        }
         return;
     }
 
     if (camera0.start() != true)
     {
-        Serial.println("Camera start failed");
+        if (TEENSY_LINEAR_CAMERA_DEBUG_ENABLED == true)
+        {
+            Serial.println("Camera start failed");
+        }
         return;
     }
 
@@ -181,7 +218,10 @@ void ModeCameraBringup_Loop()
     if (((int32_t)(nowMs - nextDebugPrintMs) >= 0) &&
         (camera0.isReadoutActive() != true))
     {
-        printCameraDebugFrame(nowMs);
+        if (TEENSY_LINEAR_CAMERA_DEBUG_ENABLED == true)
+        {
+            printCameraDebugFrame(nowMs);
+        }
         nextDebugPrintMs += TEENSY_LINEAR_CAMERA_DEBUG_PRINT_PERIOD_MS;
     }
 }

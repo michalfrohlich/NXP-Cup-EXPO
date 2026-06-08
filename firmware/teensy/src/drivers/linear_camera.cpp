@@ -20,6 +20,9 @@ static constexpr uint16_t FLEXPWM_TRIGGER_VAL4_ENABLE = (1U << 4);
 static constexpr uint16_t FLEXPWM2_SM2_MASK = (1U << 2);
 static constexpr uint8_t PWM_DUTY_50_PERCENT_8BIT = 128U;
 
+DMAMEM static uint16_t adcDmaSamples_[TEENSY_LINEAR_CAMERA_READOUT_CLOCKS]
+    __attribute__((aligned(32)));
+
 extern "C" void xbar_connect(unsigned int input, unsigned int output);
 
 bool LinearCamera::begin(const LinearCameraConfig &config)
@@ -36,14 +39,18 @@ bool LinearCamera::begin(const LinearCameraConfig &config)
     (void)memset(frameBuffers_, 0, sizeof(frameBuffers_));
     writeBufferIndex_ = 0U;
     readyBufferIndex_ = 0U;
+    readoutStartUs_ = 0U;
+    readoutTimeoutUs_ = 0U;
     sequence_ = 0U;
     latestFrameReady_ = false;
     adcEtcReady_ = false;
+    adcDmaReady_ = false;
 
     configurePins();
     configureAdc();
     adcEtcReady_ = configureAdcEtcTrigger();
-    if (adcEtcReady_ != true)
+    adcDmaReady_ = configureAdcDma();
+    if ((adcEtcReady_ != true) || (adcDmaReady_ != true))
     {
         status_ = LinearCameraStatus::Fault;
         return false;
@@ -71,6 +78,10 @@ bool LinearCamera::start()
 
 void LinearCamera::stop()
 {
+    if (adcDmaReady_ == true)
+    {
+        adcDma_.disable();
+    }
     stopPixelClock();
     if (config_.siPin != 0U)
     {
@@ -91,6 +102,12 @@ void LinearCamera::service(uint32_t nowUs)
         ((int32_t)(nowUs - nextFrameUs_) >= 0))
     {
         requestFrame(nowUs);
+        return;
+    }
+
+    if (phase_ == CapturePhase::ReadoutWindow)
+    {
+        serviceReadoutWindow(nowUs);
     }
 }
 
@@ -232,14 +249,41 @@ void LinearCamera::requestFrame(uint32_t nowUs)
     counters_.frameRequestCount++;
 
     phase_ = CapturePhase::ReadoutWindow;
-    if (captureFrameHardwareTriggered(frameBuffers_[writeBufferIndex_], nowUs) == true)
-    {
-        publishCapturedFrame(micros());
-    }
-    else
+    if (startFrameHardwareTriggered(nowUs) != true)
     {
         counters_.adcErrorCount++;
         finishReadoutWindow(micros());
+    }
+}
+
+void LinearCamera::serviceReadoutWindow(uint32_t nowUs)
+{
+    if (adcDma_.complete() == true)
+    {
+        (void)completeFrameHardwareTriggered(nowUs);
+        return;
+    }
+
+    if (adcDma_.error() == true)
+    {
+        adcDma_.clearError();
+        counters_.dmaErrorCount++;
+        abortFrameHardwareTriggered(nowUs);
+        return;
+    }
+
+    if ((ADC_ETC_DONE2_ERR_IRQ & ADC_ETC_ERROR_FLAG) != 0U)
+    {
+        ADC_ETC_DONE2_ERR_IRQ = ADC_ETC_ERROR_FLAG;
+        counters_.adcErrorCount++;
+        abortFrameHardwareTriggered(nowUs);
+        return;
+    }
+
+    if ((uint32_t)(nowUs - readoutStartUs_) > readoutTimeoutUs_)
+    {
+        counters_.dmaErrorCount++;
+        abortFrameHardwareTriggered(nowUs);
     }
 }
 
@@ -248,7 +292,8 @@ void LinearCamera::finishReadoutWindow(uint32_t nowUs)
     stopPixelClock();
     uint32_t periodUs = framePeriodUs();
     nextFrameUs_ += periodUs;
-    if ((periodUs == 0UL) || ((uint32_t)(nowUs - nextFrameUs_) > periodUs))
+    int32_t scheduleSlipUs = (int32_t)(nowUs - nextFrameUs_);
+    if ((periodUs == 0UL) || (scheduleSlipUs > (int32_t)periodUs))
     {
         nextFrameUs_ = nowUs + periodUs;
     }
@@ -308,7 +353,9 @@ bool LinearCamera::configureAdcEtcTrigger()
 
     ADC_ETC_DMA_CTRL &= ~ADC_ETC_DMA_CTRL_TRIQ_ENABLE(ADC_ETC_TRIGGER_INDEX);
     ADC_ETC_CTRL |= ADC_ETC_CTRL_TSC_BYPASS |
+                    ADC_ETC_CTRL_DMA_MODE_SEL |
                     ADC_ETC_CTRL_TRIG_ENABLE(1U << ADC_ETC_TRIGGER_INDEX);
+    ADC_ETC_DMA_CTRL |= ADC_ETC_DMA_CTRL_TRIQ_ENABLE(ADC_ETC_TRIGGER_INDEX);
 
     ADC1_CFG = ADC_CFG_ADTRG |
                ADC_CFG_MODE(2U) |
@@ -321,6 +368,45 @@ bool LinearCamera::configureAdcEtcTrigger()
     ADC1_HC0 = ADC_HC_ADCH(16U);
 
     return true;
+}
+
+bool LinearCamera::configureAdcDma()
+{
+    adcDma_.begin();
+    if (adcDma_.TCD == nullptr)
+    {
+        return false;
+    }
+
+    adcDma_.disable();
+    adcDma_.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC_ETC);
+    return true;
+}
+
+void LinearCamera::prepareAdcDmaTransfer()
+{
+    adcDma_.disable();
+    adcDma_.clearInterrupt();
+    adcDma_.clearComplete();
+    adcDma_.clearError();
+
+    (void)memset(adcDmaSamples_, 0, sizeof(adcDmaSamples_));
+    arm_dcache_delete(adcDmaSamples_, sizeof(adcDmaSamples_));
+
+    adcDma_.TCD->SADDR = (void *)&IMXRT_ADC_ETC.TRIG[ADC_ETC_TRIGGER_INDEX].RESULT_1_0;
+    adcDma_.TCD->SOFF = 0;
+    adcDma_.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1U) | DMA_TCD_ATTR_DSIZE(1U);
+    adcDma_.TCD->NBYTES_MLNO = sizeof(uint16_t);
+    adcDma_.TCD->SLAST = 0;
+    adcDma_.TCD->DADDR = adcDmaSamples_;
+    adcDma_.TCD->DOFF = sizeof(uint16_t);
+    adcDma_.TCD->CITER_ELINKNO = TEENSY_LINEAR_CAMERA_READOUT_CLOCKS;
+    adcDma_.TCD->DLASTSGA = 0;
+    adcDma_.TCD->BITER_ELINKNO = TEENSY_LINEAR_CAMERA_READOUT_CLOCKS;
+    adcDma_.TCD->CSR = DMA_TCD_CSR_DREQ;
+
+    adcDma_.triggerAtHardwareEvent(DMAMUX_SOURCE_ADC_ETC);
+    adcDma_.enable();
 }
 
 void LinearCamera::configurePixelClockTrigger()
@@ -352,46 +438,22 @@ void LinearCamera::clearAdcEtcFlags()
     ADC_ETC_DONE2_ERR_IRQ = ADC_ETC_ERROR_FLAG;
 }
 
-bool LinearCamera::waitForTriggeredSample(uint16_t &sample, uint32_t timeoutUs)
+bool LinearCamera::startFrameHardwareTriggered(uint32_t nowUs)
 {
-    uint32_t startUs = micros();
-
-    while ((ADC_ETC_DONE0_1_IRQ & ADC_ETC_DONE0_FLAG) == 0U)
-    {
-        if ((ADC_ETC_DONE2_ERR_IRQ & ADC_ETC_ERROR_FLAG) != 0U)
-        {
-            ADC_ETC_DONE2_ERR_IRQ = ADC_ETC_ERROR_FLAG;
-            return false;
-        }
-
-        if ((uint32_t)(micros() - startUs) > timeoutUs)
-        {
-            return false;
-        }
-    }
-
-    sample =
-        (uint16_t)(IMXRT_ADC_ETC.TRIG[ADC_ETC_TRIGGER_INDEX].RESULT_1_0 & 0x0FFFU);
-    ADC_ETC_DONE0_1_IRQ = ADC_ETC_DONE0_FLAG;
-    return true;
-}
-
-bool LinearCamera::captureFrameHardwareTriggered(LinearCameraFrame &frame, uint32_t nowUs)
-{
-    uint32_t captureStartUs = 0U;
-    uint32_t captureDurationUs = 0U;
     (void)nowUs;
 
-    if (adcEtcReady_ != true)
+    if ((adcEtcReady_ != true) || (adcDmaReady_ != true))
     {
         return false;
     }
 
     stopPixelClock();
     clearAdcEtcFlags();
+    prepareAdcDmaTransfer();
     counters_.readoutWindowCount++;
     counters_.siPulseCount++;
-    captureStartUs = micros();
+    readoutStartUs_ = micros();
+    readoutTimeoutUs_ = readoutWindowUs() + ADC_ETC_SAMPLE_TIMEOUT_US;
 
     digitalWriteFast(config_.siPin, HIGH);
     delayMicroseconds(SI_SETUP_US);
@@ -399,33 +461,46 @@ bool LinearCamera::captureFrameHardwareTriggered(LinearCameraFrame &frame, uint3
     delayMicroseconds(SI_HOLD_US);
     digitalWriteFast(config_.siPin, LOW);
 
-    for (uint16_t clockIndex = 0U; clockIndex < TEENSY_LINEAR_CAMERA_READOUT_CLOCKS; clockIndex++)
-    {
-        uint16_t sample = 0U;
-        if (waitForTriggeredSample(sample, ADC_ETC_SAMPLE_TIMEOUT_US) != true)
-        {
-            counters_.timingOverrunCount++;
-            stopPixelClock();
-            digitalWriteFast(config_.siPin, LOW);
-            return false;
-        }
+    return true;
+}
 
-        if (clockIndex < TEENSY_LINEAR_CAMERA_PIXEL_COUNT)
-        {
-            frame.values[clockIndex] = sample;
-            counters_.adcSampleCount++;
-        }
-    }
+bool LinearCamera::completeFrameHardwareTriggered(uint32_t nowUs)
+{
+    (void)nowUs;
+    LinearCameraFrame &frame = frameBuffers_[writeBufferIndex_];
 
     stopPixelClock();
     digitalWriteFast(config_.siPin, LOW);
+    adcDma_.clearComplete();
+    arm_dcache_delete(adcDmaSamples_, sizeof(adcDmaSamples_));
 
-    captureDurationUs = micros() - captureStartUs;
+    for (uint16_t pixelIndex = 0U; pixelIndex < TEENSY_LINEAR_CAMERA_PIXEL_COUNT; pixelIndex++)
+    {
+        frame.values[pixelIndex] = (uint16_t)(adcDmaSamples_[pixelIndex] & 0x0FFFU);
+        counters_.adcSampleCount++;
+    }
+    counters_.dmaFrameCount++;
+
+    uint32_t captureDurationUs = micros() - readoutStartUs_;
     counters_.lastCaptureUs = captureDurationUs;
     if (captureDurationUs > counters_.maxCaptureUs)
     {
         counters_.maxCaptureUs = captureDurationUs;
     }
+    if (captureDurationUs > readoutTimeoutUs_)
+    {
+        counters_.timingOverrunCount++;
+    }
 
+    publishCapturedFrame(micros());
     return true;
+}
+
+void LinearCamera::abortFrameHardwareTriggered(uint32_t nowUs)
+{
+    counters_.timingOverrunCount++;
+    adcDma_.disable();
+    stopPixelClock();
+    digitalWriteFast(config_.siPin, LOW);
+    finishReadoutWindow(nowUs);
 }

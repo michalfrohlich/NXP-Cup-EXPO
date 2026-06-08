@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <DMAChannel.h>
 #include <stdint.h>
 
 #include "config/camera_config.h"
@@ -30,6 +31,8 @@ struct LinearCameraDebugCounters
     uint32_t droppedFrameCount;
     uint32_t adcSampleCount;
     uint32_t adcErrorCount;
+    uint32_t dmaFrameCount;
+    uint32_t dmaErrorCount;
     uint32_t timingOverrunCount;
     uint32_t lastCaptureUs;
     uint32_t maxCaptureUs;
@@ -75,14 +78,18 @@ private:
     void stopPixelClock();
     void configureAdc();
     void requestFrame(uint32_t nowUs);
+    void serviceReadoutWindow(uint32_t nowUs);
     void finishReadoutWindow(uint32_t nowUs);
     void publishCapturedFrame(uint32_t nowUs);
     bool configureAdcEtcTrigger();
+    bool configureAdcDma();
+    void prepareAdcDmaTransfer();
     void configurePixelClockTrigger();
     void startPixelClock();
     void clearAdcEtcFlags();
-    bool waitForTriggeredSample(uint16_t &sample, uint32_t timeoutUs);
-    bool captureFrameHardwareTriggered(LinearCameraFrame &frame, uint32_t nowUs);
+    bool startFrameHardwareTriggered(uint32_t nowUs);
+    bool completeFrameHardwareTriggered(uint32_t nowUs);
+    void abortFrameHardwareTriggered(uint32_t nowUs);
 
     LinearCameraConfig config_ = {};
     LinearCameraStatus status_ = LinearCameraStatus::Idle;
@@ -90,11 +97,15 @@ private:
     LinearCameraDebugCounters counters_ = {};
 
     uint32_t nextFrameUs_ = 0U;
+    uint32_t readoutStartUs_ = 0U;
+    uint32_t readoutTimeoutUs_ = 0U;
     uint32_t sequence_ = 0U;
     bool initialized_ = false;
     bool latestFrameReady_ = false;
     bool adcEtcReady_ = false;
+    bool adcDmaReady_ = false;
     uint8_t adcChannel_ = 0U;
+    DMAChannel adcDma_{false};
     LinearCameraFrame frameBuffers_[2] = {};
     uint8_t writeBufferIndex_ = 0U;
     uint8_t readyBufferIndex_ = 0U;
