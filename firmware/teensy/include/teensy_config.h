@@ -26,12 +26,15 @@ static constexpr uint8_t TEENSY_CAM2_ANALOG_PIN = 14U;
 
 /* Matches the generated S32K LPSPI1 setup for the 128-byte bench link. */
 static constexpr uint32_t TEENSY_LINK_S32K_SPI_HZ = 2000000UL;
-static constexpr uint32_t TEENSY_LINK_SENSOR_HZ = 100UL;
+static constexpr uint32_t TEENSY_LINK_SENSOR_HZ = 200UL;
 static constexpr uint32_t TEENSY_LINK_SENSOR_INTERVAL_US = 1000000UL / TEENSY_LINK_SENSOR_HZ;
+static constexpr bool TEENSY_LINK_SERIAL_DEBUG_ENABLED = false;
 static constexpr uint32_t TEENSY_LINK_SERIAL_PERIOD_MS = 100UL;
 
 static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_LOST = 0U;
-static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_OK = 1U;
+static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_BOTH = 1U;
+static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_LEFT = 2U;
+static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_RIGHT = 3U;
 
 static constexpr uint16_t TEENSY_LINK_COMPONENT_IMU = 1U << 0;
 static constexpr uint16_t TEENSY_LINK_COMPONENT_SD = 1U << 1;
