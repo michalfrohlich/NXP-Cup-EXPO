@@ -4,7 +4,7 @@
 #include <string.h>
 
 static constexpr uint32_t MIN_PIXEL_CLOCK_HZ = 5000UL;
-static constexpr uint32_t MAX_BRINGUP_PIXEL_CLOCK_HZ = 250000UL;
+static constexpr uint32_t MAX_BENCH_PIXEL_CLOCK_HZ = 250000UL;
 static constexpr uint32_t MIN_FRAME_RATE_HZ = 1UL;
 static constexpr uint32_t MAX_FRAME_RATE_HZ = 500UL;
 static constexpr uint32_t SI_SETUP_US = 1UL;
@@ -185,10 +185,27 @@ uint32_t LinearCamera::readoutWindowUs() const
     return (TEENSY_LINEAR_CAMERA_READOUT_CLOCKS * 1000000UL) / config_.pixelClockHz;
 }
 
+uint32_t LinearCamera::timeUntilNextFrameUs(uint32_t nowUs) const
+{
+    if ((status_ != LinearCameraStatus::Running) ||
+        (phase_ != CapturePhase::WaitingForFrame))
+    {
+        return 0UL;
+    }
+
+    const int32_t deltaUs = (int32_t)(nextFrameUs_ - nowUs);
+    return (deltaUs > 0) ? (uint32_t)deltaUs : 0UL;
+}
+
+bool LinearCamera::hasIdleTimeBeforeNextFrame(uint32_t nowUs, uint32_t minIdleUs) const
+{
+    return (timeUntilNextFrameUs(nowUs) > minIdleUs);
+}
+
 bool LinearCamera::configIsValid(const LinearCameraConfig &config) const
 {
     if ((config.pixelClockHz < MIN_PIXEL_CLOCK_HZ) ||
-        (config.pixelClockHz > MAX_BRINGUP_PIXEL_CLOCK_HZ) ||
+        (config.pixelClockHz > MAX_BENCH_PIXEL_CLOCK_HZ) ||
         (config.frameRateHz < MIN_FRAME_RATE_HZ) ||
         (config.frameRateHz > MAX_FRAME_RATE_HZ))
     {

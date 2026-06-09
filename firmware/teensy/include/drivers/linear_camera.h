@@ -64,6 +64,8 @@ public:
     uint32_t framePeriodUs() const;
     uint32_t pixelClockPeriodUs() const;
     uint32_t readoutWindowUs() const;
+    uint32_t timeUntilNextFrameUs(uint32_t nowUs) const;
+    bool hasIdleTimeBeforeNextFrame(uint32_t nowUs, uint32_t minIdleUs) const;
 
 private:
     enum class CapturePhase : uint8_t

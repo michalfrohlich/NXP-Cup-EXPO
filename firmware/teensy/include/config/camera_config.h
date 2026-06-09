@@ -13,7 +13,10 @@ static constexpr uint32_t TEENSY_LINEAR_CAMERA_FRAME_RATE_HZ = 200UL;
 static constexpr bool TEENSY_LINEAR_CAMERA_DEBUG_ENABLED = true;
 static constexpr uint32_t TEENSY_LINEAR_CAMERA_DEBUG_SERIAL_BAUD = 921600UL;
 static constexpr uint32_t TEENSY_LINEAR_CAMERA_DEBUG_PRINT_PERIOD_MS = 1000UL;
-static constexpr bool TEENSY_LINEAR_CAMERA_DEBUG_PRINT_FRAME8 = true;
+static constexpr bool TEENSY_LINEAR_CAMERA_DEBUG_PRINT_STATUS = false;
+static constexpr bool TEENSY_LINEAR_CAMERA_DEBUG_PRINT_FRAME8 = false;
+static constexpr bool TEENSY_LINEAR_CAMERA_STREAM_ENABLED = true;
+static constexpr uint32_t TEENSY_LINEAR_CAMERA_STREAM_PERIOD_MS = 10UL;
 static constexpr uint8_t TEENSY_LINEAR_CAMERA_ADC_BITS = 12U;
 
 static constexpr uint8_t TEENSY_LINEAR_CAMERA0_SI_PIN = TEENSY_CAM1_SI_PIN;
