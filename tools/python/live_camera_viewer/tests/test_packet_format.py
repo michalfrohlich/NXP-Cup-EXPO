@@ -104,6 +104,13 @@ class PacketFormatTests(unittest.TestCase):
         self.assertEqual(frame.counters["visionLeftLineIdx"], 12)
         self.assertEqual(frame.counters["visionRightLineIdx"], 104)
         self.assertEqual(frame.counters["visionFlags"], 1)
+        self.assertTrue(frame.vision.in_stream)
+        self.assertTrue(frame.vision.valid)
+        self.assertEqual(frame.vision.status_name, "BOTH")
+        self.assertEqual(frame.vision.feature_name, "NONE")
+        self.assertAlmostEqual(frame.vision.error, -0.125)
+        self.assertEqual(frame.vision.left_raw_idx, 14)
+        self.assertEqual(frame.vision.right_raw_idx, 106)
 
     def test_legacy_v1_binary_packet_still_parses_raw_samples(self) -> None:
         values = list(range(128))
