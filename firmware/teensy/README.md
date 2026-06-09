@@ -1,101 +1,154 @@
 # Teensy Firmware
 
-Teensy-side firmware for the S32K-master SPI link.
+Teensy-side firmware for camera acquisition, camera vision, and the S32K
+128-byte SPI telemetry link.
 
-Open this folder in VS Code:
+## Layout
 
-```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
-```
-
-Current layout:
-- `include/teensy_config.h`: Teensy pins and timing constants.
+- `include/teensy_config.h`: board-level pins, runtime rates, and link debug flags.
+- `include/config/`: camera, display, and vision configuration.
+- `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers.
+- `include/services/` and `src/services/`: camera vision, line detection, and race runtime services.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
-- `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte `teensy_link` frame.
-- `src/main.cpp`: bring-up loop with mock IMU/camera data.
+- `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte frame.
+- `src/app/`: compile-time app-mode dispatcher and mode implementations.
+- `src/main.cpp`: minimal Arduino entry point that dispatches the selected app mode.
 
 The shared packet contract lives in `../../shared/protocol/teensy_link_protocol.h`.
-Do not reintroduce the old 45-byte IMU packet as active code.
+
+## App Modes
+
+The selected Teensy mode is controlled in `src/app/teensy_app_config.h`.
+The current default is camera bench:
+
+```cpp
+#define TEENSY_APP_MODE_LINK_BENCH        0
+#define TEENSY_APP_MODE_CAMERA_BENCH      1
+#define TEENSY_APP_MODE_RACE              2
+#define TEENSY_APP_SELECTED_MODE TEENSY_APP_MODE_CAMERA_BENCH
+```
+
+| Mode | Purpose | Debug behavior |
+|---|---|---|
+| `TEENSY_APP_MODE_CAMERA_BENCH` | Camera 0 bring-up and Python plotting without the S32K link runtime. | Binary Python camera stream enabled by camera config; text frame/status output disabled by default. |
+| `TEENSY_APP_MODE_LINK_BENCH` | Debug wrapper around the integrated race runtime. | Runs SPI link, camera acquisition, line detection, and optional debug outputs. |
+| `TEENSY_APP_MODE_RACE` | Integrated runtime intended for running the car. | Serial text, Python stream, and display debug are disabled. |
+
+## Camera And Vision
+
+Camera 0 uses a TSL1401CL linear CCD on these Teensy 4.1 pins:
+
+| Camera signal | Teensy 4.1 pin |
+|---|---:|
+| SI | 4 |
+| CLK | 6 |
+| AO | 15 / A1 |
+
+The current camera timing is:
+
+| Parameter | Value |
+|---|---:|
+| Pixel clock | 200 kHz |
+| Frame rate | 200 Hz |
+| Published samples | 128 raw 12-bit ADC values |
+| Debug serial baud | 921600 |
+
+The driver uses FlexPWM, XBARA, ADC_ETC, ADC1, and DMA so the CPU does not
+service each pixel sample. The foreground loop still has to call the camera
+service often enough to start frames and observe DMA completion.
+
+`CameraVision` converts each raw camera frame into telemetry-ready line data:
+
+```text
+128 raw ADC samples
+  -> trim 2 pixels from each side
+  -> 124-pixel detector input
+  -> S32K-compatible line detector
+  -> Teensy link camera result
+```
+
+Detector indices are relative to the trimmed buffer. Add `CAM_TRIM_LEFT_PX`
+when overlaying them on the raw 128-sample Python plot.
+
+## Python Camera Stream
+
+The binary Python stream is controlled by `include/config/camera_config.h`.
+It is enabled by default for camera bench:
+
+| Setting | Current value |
+|---|---:|
+| `TEENSY_LINEAR_CAMERA_STREAM_ENABLED` | `true` |
+| `TEENSY_LINEAR_CAMERA_STREAM_PERIOD_MS` | `10` |
+| Stream rate | 100 Hz |
+| Camera bench payload | Raw 128-sample frame with vision marked invalid |
+
+Run the viewer from the repository root:
+
+```bat
+python tools\python\live_camera_viewer\live_camera_viewer.py
+```
+
+The viewer plots raw ADC values directly in the `0..4095` range. Text status
+and `frame8` serial output are disabled by default because they share the same
+USB serial port and add avoidable timing noise while the binary stream is active.
+The same stream packet format carries detector output when it is sent by the
+integrated race runtime.
+
+## OLED Display
+
+The optional SSD1306 OLED debug display is configured in
+`include/config/display_config.h`:
+
+| Signal | Teensy 4.1 pin |
+|---|---:|
+| SCL1 | 16 |
+| SDA1 | 17 |
+
+| Setting | Current value |
+|---|---:|
+| Display size | 128x64 |
+| I2C address | `0x3C` |
+| I2C clock | 400 kHz |
+| Camera display debug | disabled |
+| Camera refresh period | 200 ms |
+
+Display transfer is asynchronous and idle-gated: refresh requests snapshot the
+framebuffer, then `DisplayService()` sends small I2C chunks only when the camera
+reports enough idle time before the next frame. Keep display debug disabled
+while validating raw camera stability; enable it later as a slower visual debug
+tool.
+
+## S32K Link Runtime
+
+`TEENSY_APP_MODE_LINK_BENCH` and `TEENSY_APP_MODE_RACE` publish the shared
+128-byte telemetry frame over SPI. The Teensy is the SPI slave and the S32K
+controls the actual transfer cadence. The Teensy updates the telemetry buffer
+at `TEENSY_LINK_SENSOR_HZ`, currently 200 Hz.
+
+The current runtime sends real camera 0 vision data and placeholder data for
+components that are not implemented yet:
+
+| Component | Current behavior |
+|---|---|
+| IMU | Deterministic valid placeholder. |
+| Camera 0 | Valid when fresh camera vision data has been processed. |
+| Camera 1 | Stale/default placeholder. |
+| Logger / SD | Not ready placeholder. |
+| RX counters | Based on S32K-to-Teensy frames decoded by the transport. |
+
+Keep `TEENSY_LINK_SERIAL_DEBUG_ENABLED` disabled when using the Python camera
+stream, because both use USB serial.
 
 ## Build And Upload
 
-Use the PlatformIO terminal in VS Code:
+Use PlatformIO from the Teensy firmware folder:
 
 ```bat
-cd /d C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
+cd /d C:\Users\misof\workspaceS32DS.3.6.3\EXPO_03_Nxp_Cup_project\firmware\teensy
 pio run
 pio run -t upload
-pio device monitor -b 115200
 ```
 
-The serial monitor should print lines like:
-
-```text
-t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 servo=0 ultra=0
-```
-
-`rx` increasing means the Teensy decoded S32K MOSI frames. `err` or `timeout`
-increasing means the S32K frame is corrupt, missing, or not clocked completely.
-
-## Bench Payload
-
-The current sketch sends deterministic sample data:
-
-- IMU present, calibrated, valid, and yaw-relative.
-- Camera 0 valid from the Teensy side.
-- Camera 1 intentionally stale/missing.
-- SD/logger not ready yet.
-- RX counters from the S32K-to-Teensy direction.
-
-This is deliberate. It lets the S32K OLED show both a good component and a
-missing component during the same 128-byte SPI test.
-
-## Wiring Summary
-
-S32K link pins:
-
-| S32K signal | S32K pin | Teensy 4.1 pin |
-|---|---:|---:|
-| SCK | PTB14 | 13 |
-| MOSI / S32K SOUT | PTB16 | 11 |
-| MISO / S32K SIN | PTB15 | 12 |
-| CS / PCS3 | PTB17 | 10 |
-| READY input | PTD14 | 31 |
-| GND | GND | GND |
-
-Both boards are 3.3 V logic. Do not level-shift to 5 V.
-
-Other Teensy shield pins from the schematic:
-
-| Function | Teensy 4.1 pin |
-|---|---:|
-| IMU SDA | 18 |
-| IMU SCL | 19 |
-| IMU interrupt | 30 |
-| Display SDA | 17 |
-| Display SCL | 16 |
-| Camera 1 SI | 4 |
-| Camera 2 SI | 5 |
-| Camera 1 CLK | 6 |
-| Camera 2 CLK | 7 |
-| Camera 1 analog | 15 |
-| Camera 2 analog | 14 |
-
-Full run instructions are in `../../docs/protocols/teensy-s32k-128b-spi-test.md`.
-The full shield pinout is in `../../hardware/shield-v2-pinout.md`.
-
-The current `TeensyLinkSpiSlave` configures the Teensy 4.1 LPSPI4 hardware as a
-mode-0 SPI slave on pins 10/11/12/13. It keeps the same public API as the
-original bring-up transport, but the 128-byte frame is now moved by the hardware
-peripheral and a short ISR instead of software bit-banging SCK/MOSI/MISO.
-
-The first hardware validation should use a logic analyzer:
-
-- S32K clocks exactly 128 bytes.
-- SPI mode is mode 0.
-- CS pin 10 stays asserted for the full frame.
-- MISO begins with the expected frame sync bytes, not a dummy leading byte.
-- CRC/protocol error counters stay stable while `rx` increments.
-
-If the bench link is unstable, first lower the S32K SPI baud rate and confirm
-the first-byte alignment before changing the shared 128-byte protocol.
+Full S32K link run instructions are in
+`../../docs/protocols/teensy-s32k-128b-spi-test.md`. The shield pinout is in
+`../../hardware/shield-v2-pinout.md`.
