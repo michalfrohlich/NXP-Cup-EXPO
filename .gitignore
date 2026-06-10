@@ -52,3 +52,7 @@ __pycache__/
 # S32DS/Eclipse workspace metadata belongs outside the project.
 # Project metadata is intentionally tracked: .project, .cproject, .settings/.
 .metadata/
+
+# Understand-Anything scan output (generated, never commit)
+.understand-anything/intermediate/
+.understand-anything/diff-overlay.json
