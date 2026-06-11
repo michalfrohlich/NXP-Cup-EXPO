@@ -10,10 +10,12 @@ C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
 
 Current layout:
 - `include/teensy_config.h`: Teensy pins and timing constants.
+- `include/teensy_app_config.h`: compile-time Teensy hardware-test selection.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte `teensy_link` frame.
 - `include/logging/` and `src/logging/`: SdFat CSV logger for the built-in SD slot.
 - `src/main.cpp`: bring-up loop with mock IMU/camera data.
+- `docs/secondary-displays.md`: two-display wiring, limits, and I2C probe test.
 
 The shared packet contract lives in `../../shared/protocol/teensy_link_protocol.h`.
 Do not reintroduce the old 45-byte IMU packet as active code.

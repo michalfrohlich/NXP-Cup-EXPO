@@ -14,6 +14,24 @@ Must correct COM number and change directrory
 
 #include <Arduino.h>
 
+#include "teensy_app_config.h"
+
+#if TEENSY_APP_SECONDARY_DISPLAY_TEST
+
+#include "modes/mode_secondary_display_test.h"
+
+void setup()
+{
+    ModeSecondaryDisplayTest_Setup();
+}
+
+void loop()
+{
+    ModeSecondaryDisplayTest_Loop();
+}
+
+#else
+
 #include "comms/teensy_link_spi_slave.h"
 #include "logging/teensy_sd_logger.h"
 #include "teensy_config.h"
@@ -225,3 +243,5 @@ void loop()
         printLinkStatus(nowMs);
     }
 }
+
+#endif

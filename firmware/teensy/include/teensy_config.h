@@ -17,6 +17,12 @@ static constexpr uint8_t TEENSY_IMU_INT_PIN = 30U;
 static constexpr uint8_t TEENSY_DISPLAY_SDA_PIN = 17U;
 static constexpr uint8_t TEENSY_DISPLAY_SCL_PIN = 16U;
 
+/* Confirm these addresses from the display datasheet or an I2C scan. */
+static constexpr uint8_t TEENSY_SECONDARY_DISPLAY_1_ADDRESS = 0x3CU;
+static constexpr uint8_t TEENSY_SECONDARY_DISPLAY_2_ADDRESS = 0x3DU;
+static constexpr uint32_t TEENSY_SECONDARY_DISPLAY_I2C_HZ = 400000UL;
+static constexpr uint32_t TEENSY_SECONDARY_DISPLAY_SCAN_PERIOD_MS = 1000UL;
+
 static constexpr uint8_t TEENSY_CAM1_SI_PIN = 4U;
 static constexpr uint8_t TEENSY_CAM2_SI_PIN = 5U;
 static constexpr uint8_t TEENSY_CAM1_CLK_PIN = 6U;
