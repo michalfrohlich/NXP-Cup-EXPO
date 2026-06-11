@@ -118,13 +118,19 @@ static void teensy_link_test_draw_link(void)
     DisplayText(2U, (g_teensyLinkTest.diag.readyHigh == TRUE) ? "Y" : "N", 1U, 4U);
     DisplayValue(2U, (int)g_teensyLinkTest.snapshot.ackS32kSeq, 4U, 10U);
 
-    DisplayTextPadded(3U, "ERR:");
+    /* E: = CRC+protocol+SPI errors, SK: = service ticks skipped
+       because the Teensy READY pin was low. */
+    DisplayTextPadded(3U, "E:      SK:");
     DisplayValue(3U,
-                 (int)(g_teensyLinkTest.diag.crcErrorCount +
-                       g_teensyLinkTest.diag.protocolErrorCount +
-                       g_teensyLinkTest.diag.spiErrorCount),
+                 (int)((g_teensyLinkTest.diag.crcErrorCount +
+                        g_teensyLinkTest.diag.protocolErrorCount +
+                        g_teensyLinkTest.diag.spiErrorCount) % 100000U),
                  5U,
-                 4U);
+                 2U);
+    DisplayValue(3U,
+                 (int)(g_teensyLinkTest.diag.notReadySkipCount % 100000U),
+                 5U,
+                 11U);
     DisplayRefresh();
 }
 

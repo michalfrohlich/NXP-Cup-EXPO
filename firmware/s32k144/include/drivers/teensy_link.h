@@ -10,6 +10,24 @@
 extern "C" {
 #endif
 
+/* Master-side transfer scheduling. The wire format does not change.
+
+   - The service keeps being called every TEENSY_LINK_SERVICE_PERIOD_MS (5 ms).
+   - A real SPI transfer happens at most every TEENSY_LINK_TRANSFER_PERIOD_MS,
+     because the Teensy only produces new sensor data at 100 Hz. Clocking
+     faster just reads the same frame twice and burns CPU.
+   - A transfer only starts when the Teensy READY pin is high. Today the
+     Teensy raises READY once after boot (first published frame) and never
+     lowers it, so the gate mainly stops us clocking an absent or still
+     booting Teensy. If the Teensy later lowers READY while busy (e.g. SD
+     writes), this master already respects it.
+   - If READY stays low, one probe transfer still goes out every
+     TEENSY_LINK_HEARTBEAT_MS so a broken READY wire cannot silently kill
+     the link. 25 ms gives several probe chances inside the 100 ms stale
+     window, so one lost probe does not flash STALE. */
+#define TEENSY_LINK_TRANSFER_PERIOD_MS    (10u)
+#define TEENSY_LINK_HEARTBEAT_MS          (25u)
+
 typedef struct
 {
     sint8 errorPct;
@@ -108,6 +126,8 @@ typedef struct
     uint32 crcErrorCount;
     uint32 protocolErrorCount;
     uint32 staleCount;
+    uint32 notReadySkipCount;   /* service ticks skipped: READY low */
+    uint32 heartbeatProbeCount; /* transfers forced while READY was low */
     boolean readyHigh;
     Std_ReturnType lastSpiResult;
 } TeensyLinkDiagnostics_t;

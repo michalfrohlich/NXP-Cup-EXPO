@@ -29,8 +29,9 @@ The dedicated compile-time mode is also available:
 
 Both paths run the same `teensy_link_test_enter/update/exit` logic. The
 standalone mode boots directly into `mode_teensy_link_test()`. Entering the
-test calls `TeensyLink_Init()`, then the update loop clocks the SPI exchange
-every 5 ms and uses SW2 to cycle OLED pages:
+test calls `TeensyLink_Init()`, then the update loop services the link every
+5 ms (the driver schedules the actual transfers, see SPI Timing) and uses SW2
+to cycle OLED pages:
 
 - link status,
 - camera 0 result,
@@ -53,7 +54,9 @@ The generated S32K SPI setup is:
 | CS | PTB17 / PCS3 | `TeensySpiCs` |
 | READY | PTD14 | `TeensyReady` |
 
-READY is diagnostic only. The S32K never blocks waiting for it.
+READY gates the transfer schedule: the S32K only starts a normal transfer
+while READY is high. It never busy-waits on the pin — when READY is low the
+service call simply returns and counts a skip (see SPI Timing below).
 
 Connect it to the Teensy 4.1 like this:
 
@@ -75,10 +78,36 @@ Both boards use 3.3 V logic. Do not route a 5 V signal into either SPI pin.
 - SPI mode 0.
 - 8-bit words, MSB first.
 - 2 MHz SCK.
-- Fixed 128-byte full-duplex transfer every 5 ms.
 - Synchronous blocking transfer for v1.
 
-At 2 MHz, the 128-byte transfer is about 512 us of wire time.
+The service is still called every 5 ms, but the driver schedules the actual
+128-byte transfers itself (`TEENSY_LINK_TRANSFER_PERIOD_MS` and
+`TEENSY_LINK_HEARTBEAT_MS` in `include/drivers/teensy_link.h`):
+
+| Condition | Action |
+|---|---|
+| Less than 10 ms since the last transfer | wait (Teensy sensor data only refreshes at 100 Hz) |
+| Due and READY high | normal 128-byte transfer |
+| Due and READY low | skip and count it (`notReadySkipCount`) |
+| READY low for 25 ms | probe transfer anyway (`heartbeatProbeCount`) so a broken READY wire cannot kill the link |
+
+The very first service call after `TeensyLink_Init()` always transfers.
+CRC/stale handling is unchanged: a failed probe keeps the last good data and
+the stale timeout (100 ms) still drives the OK/STALE/WAIT status. The 25 ms
+probe period leaves room for several probes per stale window, so a single
+lost probe does not flash STALE.
+
+What READY means today: the Teensy raises it once after boot, when its first
+frame is published, and never lowers it. So the gate currently protects
+against an absent or still-booting Teensy. A busy Teensy (serial print, future
+SD writes) still keeps READY high and is still clocked; corrupted frames from
+that case are caught by CRC exactly as before. If the Teensy firmware later
+lowers READY while busy, this master already respects it.
+
+At 2 MHz, the 128-byte blocking transfer is about 512 us of wire time, a
+roughly 5 percent CPU duty cycle on the 10 ms schedule (512 us / 10 ms) —
+half of the old every-5-ms load — and near-zero wire activity while the
+Teensy is absent (only the 25 ms probes).
 
 If the first bench setup is unstable with long jumper wires, lower the S32K
 `TeensySpiDevice` baud rate in S32 Design Studio, regenerate, and test the same
@@ -153,7 +182,7 @@ Expected OLED behavior:
 
 | Page | What it proves |
 |---|---|
-| `TLINK` | Link status, S32K sequence, Teensy sequence, READY, total errors |
+| `TLINK` | Link status, S32K sequence, Teensy sequence, READY, errors (`E:`) and READY-low skips (`SK:`) |
 | `TLINK CAM0` | Teensy camera 0 slot decodes correctly |
 | `TLINK CAM1` | Missing/stale camera data is handled without breaking the link |
 | `TLINK IMU/LOG` | IMU and logger fields decode correctly |

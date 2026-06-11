@@ -16,6 +16,8 @@ static Spi_DataBufferType g_teensyLinkRx[TEENSY_LINK_FRAME_BYTES];
 static TeensyLinkSnapshot_t g_teensyLinkSnapshot;
 static TeensyLinkDiagnostics_t g_teensyLinkDiag;
 static boolean g_teensyLinkStaleCounted;
+static uint32 g_teensyLinkLastTransferMs;
+static boolean g_teensyLinkHaveTransferred;
 
 static void write_u16_le(uint8 *bytes, uint16 offset, uint16 value)
 {
@@ -267,14 +269,49 @@ void TeensyLink_Init(void)
     (void)memset(&g_teensyLinkDiag, 0, sizeof(g_teensyLinkDiag));
     g_teensyLinkDiag.lastSpiResult = E_NOT_OK;
     g_teensyLinkStaleCounted = FALSE;
+    g_teensyLinkLastTransferMs = 0U;
+    g_teensyLinkHaveTransferred = FALSE;
 }
 
 Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
 {
     Std_ReturnType ret;
+    uint32 sinceLastMs;
 
     g_teensyLinkDiag.readyHigh =
         (Dio_ReadChannel(DioConf_DioChannel_TeensyReady) == STD_HIGH) ? TRUE : FALSE;
+
+    /* The very first service call always transfers, so a fresh test
+       starts probing immediately. After that the scheduler decides. */
+    if (g_teensyLinkHaveTransferred == TRUE)
+    {
+        sinceLastMs = nowMs - g_teensyLinkLastTransferMs;
+
+        /* The Teensy refreshes its sensor frame at 100 Hz. Clocking the
+           bus faster than that only re-reads the same data. */
+        if (sinceLastMs < (uint32)TEENSY_LINK_TRANSFER_PERIOD_MS)
+        {
+            update_stale_state(nowMs);
+            return E_OK;
+        }
+
+        if (g_teensyLinkDiag.readyHigh != TRUE)
+        {
+            /* Teensy says it is not ready. Leave the bus alone, unless
+               it has been quiet so long that we probe anyway to find
+               out whether only the READY wire is broken. */
+            if (sinceLastMs < (uint32)TEENSY_LINK_HEARTBEAT_MS)
+            {
+                g_teensyLinkDiag.notReadySkipCount++;
+                update_stale_state(nowMs);
+                return E_OK;
+            }
+            g_teensyLinkDiag.heartbeatProbeCount++;
+        }
+    }
+
+    g_teensyLinkLastTransferMs = nowMs;
+    g_teensyLinkHaveTransferred = TRUE;
 
     g_teensyLinkDiag.txSeq++;
     build_s32k_frame(nowMs, in);

@@ -6,8 +6,10 @@ This document explains how to run the two-board SPI bench test after the
 packet update to 128 bytes.
 
 The S32K is the main controller and SPI master. The Teensy 4.1 is the sensor
-board and SPI slave. Every S32K service tick sends one fixed 128-byte command
-frame and receives one fixed 128-byte Teensy telemetry frame at the same time.
+board and SPI slave. Each transfer exchanges one fixed 128-byte command frame
+and one fixed 128-byte Teensy telemetry frame at the same time. The S32K
+services the link every 5 ms but schedules the actual transfers itself: every
+10 ms while the Teensy READY pin is high (see SPI Settings below).
 
 The S32K services this SPI link only while the Teensy link test is active. Use
 either the compile-time direct mode or the runtime OLED bench test. There is no
@@ -91,8 +93,19 @@ the S32K SPI baud rate temporarily and keep the packet at 128 bytes.
 | Word size | 8 bits |
 | Frame size | 128 bytes |
 | S32K service period | 5 ms |
+| Transfer period (READY high) | 10 ms (matches the 100 Hz Teensy sensor rate) |
+| Probe period (READY low) | 25 ms heartbeat |
 | Target SCK | 2 MHz |
 | Wire time at 2 MHz | about 512 us |
+
+The S32K master gates transfers on the Teensy READY pin. While READY is high
+it transfers every 10 ms. While READY is low it skips (counted on the OLED as
+`SK:`) and only sends a 25 ms heartbeat probe, so a broken READY wire still
+cannot kill the link. Today the Teensy raises READY once after boot (first
+published frame) and never lowers it, so READY low means "absent or still
+booting" — a busy-but-running Teensy is still clocked, and corrupted frames
+from that case are caught by CRC as before. CRC and stale handling are
+unchanged.
 
 The S32K generated SPI configuration is in `Nxp_Cup.mex` and generated RTD
 files. The important generated names are:
@@ -293,7 +306,7 @@ The S32K OLED pages are:
 
 | Page | OLED title | What to check |
 |---:|---|---|
-| 0 | `TLINK` | status becomes OK, sequence values change |
+| 0 | `TLINK` | status becomes OK, sequence values change, `SK:` stays near 0 with a connected Teensy |
 | 1 | `TLINK CAM0` | valid camera 0 mock data appears |
 | 2 | `TLINK CAM1` | stale/missing camera 1 appears without link failure |
 | 3 | `TLINK IMU/LOG` | yaw, gyro Z, lateral acceleration, logger state |
