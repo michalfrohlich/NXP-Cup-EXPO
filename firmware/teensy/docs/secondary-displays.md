@@ -19,6 +19,7 @@ Display 2 shows Teensy and SD logging:
 - SD `READY`, `NO CARD`, or `ERROR`;
 - current `LOGnnn.CSV` filename;
 - written KiB and dropped rows;
+- live potentiometer and button states;
 - Teensy TX and sensor sequence counters;
 - honest notes that the current IMU/camera values are mock or missing.
 
@@ -51,6 +52,14 @@ multiplexer such as a TCA9548A.
 
 Both Teensy displays share SDA/SCL. They need unique addresses to show the two
 different dashboards.
+
+Teensy PCB inputs are read continuously:
+
+| Input | Teensy 4.1 pin | Display/Serial value |
+|---|---:|---|
+| Potentiometer | 27 / A13 | `POT` / `pot`, raw 12-bit value |
+| Button 1 | 28 | `B1` / `b1`, `1` while pressed |
+| Button 2 | 29 | `B2` / `b2`, `1` while pressed |
 
 ## Timing
 

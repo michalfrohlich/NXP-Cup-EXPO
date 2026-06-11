@@ -17,6 +17,11 @@ static constexpr uint8_t TEENSY_IMU_INT_PIN = 30U;
 static constexpr uint8_t TEENSY_DISPLAY_SDA_PIN = 17U;
 static constexpr uint8_t TEENSY_DISPLAY_SCL_PIN = 16U;
 
+static constexpr uint8_t TEENSY_POT_PIN = 27U;
+static constexpr uint8_t TEENSY_BUTTON_1_PIN = 28U;
+static constexpr uint8_t TEENSY_BUTTON_2_PIN = 29U;
+static constexpr uint8_t TEENSY_ANALOG_READ_BITS = 12U;
+
 /* Current ZJY_M208_25664-4P assumption: SSD1362 I2C at separate addresses. */
 static constexpr uint8_t TEENSY_SECONDARY_DISPLAY_1_ADDRESS = 0x3CU;
 static constexpr uint8_t TEENSY_SECONDARY_DISPLAY_2_ADDRESS = 0x3DU;

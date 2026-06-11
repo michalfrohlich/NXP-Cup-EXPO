@@ -7,7 +7,7 @@ together. No display mode needs to be selected.
 
 - S32K OLED: controlled by the S32K firmware and shows its selected mode/test.
 - Teensy display 1: S32K-Teensy SPI status.
-- Teensy display 2: Teensy SD logger status.
+- Teensy display 2: Teensy SD logger, potentiometer, and button status.
 
 If a Teensy display is missing, the rest of the firmware continues running and
 Serial reports `NOT_CONNECTED`.
@@ -60,7 +60,7 @@ Replace `COM3` with the Teensy port.
 Expected Serial fields:
 
 ```text
-s32k=12 rx=12 err=0 timeout=0 sd=R drop=0 sdkB=4 d1=DETECTED d2=DETECTED
+s32k=12 rx=12 err=0 timeout=0 sd=R drop=0 sdkB=4 pot=2048 b1=0 b2=0 d1=DETECTED d2=DETECTED
 ```
 
 - `s32k` and `rx` increasing: bidirectional SPI communication works.
@@ -68,6 +68,8 @@ s32k=12 rx=12 err=0 timeout=0 sd=R drop=0 sdkB=4 d1=DETECTED d2=DETECTED
 - `sd=R`: SD card and log file are ready.
 - `sdkB` increasing: CSV bytes are reaching the card.
 - `drop=0`: logger is keeping up.
+- `pot=0..4095`: live 12-bit potentiometer value.
+- `b1/b2=1`: the matching Teensy PCB button is pressed.
 - `d1/d2=DETECTED`: both configured I2C addresses responded.
 
 ## Run S32K Communication Test

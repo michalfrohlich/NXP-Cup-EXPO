@@ -110,13 +110,18 @@ static void drawSdDashboard(U8X8 &display, const SecondaryDisplayDashboard &dash
     (void)snprintf(line, sizeof(line), "DROPS: %u", dashboard.sdDrops);
     writeLine(display, 4U, line);
 
+    (void)snprintf(line, sizeof(line), "POT:%u B1:%u B2:%u",
+                   dashboard.potRaw,
+                   dashboard.button1Pressed ? 1U : 0U,
+                   dashboard.button2Pressed ? 1U : 0U);
+    writeLine(display, 5U, line);
+
     (void)snprintf(line, sizeof(line), "TX:%u SENSOR:%u",
                    dashboard.teensyTxSequence,
                    dashboard.sensorSequence);
-    writeLine(display, 5U, line);
+    writeLine(display, 6U, line);
 
-    writeLine(display, 6U, "IMU: MOCK  CAM0: MOCK");
-    writeLine(display, 7U, "CAM1: MISSING");
+    writeLine(display, 7U, "IMU/CAM: MOCK OR MISSING");
 }
 
 void SecondaryDisplays_Init()

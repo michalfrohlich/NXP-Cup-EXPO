@@ -39,6 +39,9 @@ struct SecondaryDisplayDashboard
     const char *sdFileName;
     uint16_t teensyTxSequence;
     uint16_t sensorSequence;
+    uint16_t potRaw;
+    bool button1Pressed;
+    bool button2Pressed;
 };
 
 void SecondaryDisplays_Init();

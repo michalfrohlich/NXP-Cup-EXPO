@@ -31,6 +31,9 @@ static uint16_t sensorSeq = 0U;
 static uint32_t lastSensorMs = 0U;
 static uint32_t nextSensorUs = 0U;
 static uint32_t nextSerialMs = 0U;
+static uint16_t potRaw = 0U;
+static bool button1Pressed = false;
+static bool button2Pressed = false;
 
 static_assert(TEENSY_LINK_FRAME_BYTES == 128U, "S32K link frame must stay 128 bytes");
 
@@ -102,6 +105,13 @@ static void updateMockSensors(uint32_t nowMs)
     lastSensorMs = nowMs;
 }
 
+static void updateBoardInputs()
+{
+    potRaw = (uint16_t)analogRead(TEENSY_POT_PIN);
+    button1Pressed = digitalReadFast(TEENSY_BUTTON_1_PIN) == LOW;
+    button2Pressed = digitalReadFast(TEENSY_BUTTON_2_PIN) == LOW;
+}
+
 static SecondaryDisplayDashboard buildDisplayDashboard()
 {
     SecondaryDisplayDashboard dashboard = {};
@@ -124,6 +134,9 @@ static SecondaryDisplayDashboard buildDisplayDashboard()
     dashboard.sdFileName = sdLogger.fileName();
     dashboard.teensyTxSequence = teensyFrameSeq;
     dashboard.sensorSequence = sensorSeq;
+    dashboard.potRaw = potRaw;
+    dashboard.button1Pressed = button1Pressed;
+    dashboard.button2Pressed = button2Pressed;
     return dashboard;
 }
 
@@ -166,6 +179,12 @@ static void printLinkStatus(uint32_t nowMs)
     Serial.print(sdLogger.dropCount());
     Serial.print(" sdkB=");
     Serial.print(sdLogger.bytesWritten() / 1024U);
+    Serial.print(" pot=");
+    Serial.print(potRaw);
+    Serial.print(" b1=");
+    Serial.print(button1Pressed ? 1U : 0U);
+    Serial.print(" b2=");
+    Serial.print(button2Pressed ? 1U : 0U);
 
     SecondaryDisplaySnapshot displays = SecondaryDisplays_GetSnapshot();
     Serial.print(" d1=");
@@ -183,6 +202,11 @@ void setup()
 
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
+    analogReadResolution(TEENSY_ANALOG_READ_BITS);
+    pinMode(TEENSY_POT_PIN, INPUT);
+    pinMode(TEENSY_BUTTON_1_PIN, INPUT_PULLUP);
+    pinMode(TEENSY_BUTTON_2_PIN, INPUT_PULLUP);
+    updateBoardInputs();
     SecondaryDisplays_Init();
 
     /* Mount the SD before the SPI link starts. Blocking is fine here.
@@ -226,6 +250,7 @@ void loop()
 
     if ((int32_t)(nowUs - nextSensorUs) >= 0)
     {
+        updateBoardInputs();
         updateMockSensors(nowMs);
         publishFrame(nowMs);
 
