@@ -23,6 +23,9 @@ screenshots.
 | Camera 2 CLK | 7 |
 | IMU interrupt | 30 |
 | Ready GPIO to S32K | 31 |
+| Potentiometer | 27 |
+| Button 1 | 28 |
+| Button 2 | 29 |
 | 5 V input | VIN |
 | Ground | GND |
 

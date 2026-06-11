@@ -14,6 +14,24 @@ Must correct COM number and change directrory
 
 #include <Arduino.h>
 
+#include "teensy_app_config.h"
+
+#if TEENSY_APP_DUAL_CAMERA_TEST
+
+#include "modes/mode_dual_camera_test.h"
+
+void setup()
+{
+    ModeDualCameraTest_Setup();
+}
+
+void loop()
+{
+    ModeDualCameraTest_Loop();
+}
+
+#else
+
 #include "comms/teensy_link_spi_slave.h"
 #include "teensy_config.h"
 #include "telemetry/teensy_link_telemetry.h"
@@ -175,3 +193,5 @@ void loop()
         printLinkStatus(nowMs);
     }
 }
+
+#endif
