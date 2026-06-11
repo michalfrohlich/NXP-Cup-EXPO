@@ -93,7 +93,8 @@ For a direct compile-time communication test, change
 Build the S32K from the repository root:
 
 ```bat
-C:\msys64\ucrt64\bin\mingw32-make.exe -C firmware\s32k144\Debug_FLASH all
+set PATH=C:\NXP\S32DS.3.6.3\S32DS\build_tools\gcc_v10.2\gcc-10.2-arm32-eabi\bin;C:\msys64\mingw64\bin;%PATH%
+C:\msys64\mingw64\bin\mingw32-make.exe -C firmware\s32k144\Debug_FLASH all
 ```
 
 Expected results:
