@@ -56,72 +56,54 @@ static void initializeDisplay(U8X8 &display, uint8_t address, const char *title)
     writeLine(display, 2U, "TEENSY STARTING");
 }
 
-static void drawLinkDashboard(U8X8 &display, const SecondaryDisplayDashboard &dashboard)
-{
-    char line[DISPLAY_COLUMNS + 1U];
-
-    writeLine(display, 0U, "S32K <-> TEENSY SPI");
-    writeLine(display, 1U, dashboard.s32kValid ? "LINK: OK" : "LINK: WAITING");
-
-    (void)snprintf(line, sizeof(line), "RX:%u S32KSEQ:%u",
-                   dashboard.rxFrames,
-                   dashboard.s32kSequence);
-    writeLine(display, 2U, line);
-
-    (void)snprintf(line, sizeof(line), "ERR:%u TIMEOUT:%u",
-                   dashboard.rxErrors,
-                   dashboard.timeouts);
-    writeLine(display, 3U, line);
-
-    (void)snprintf(line, sizeof(line), "APP:%u SPEED:%d/%d",
-                   dashboard.appMode,
-                   dashboard.targetSpeedPct,
-                   dashboard.currentSpeedPct);
-    writeLine(display, 4U, line);
-
-    (void)snprintf(line, sizeof(line), "SERVO:%d", dashboard.servoCmd);
-    writeLine(display, 5U, line);
-
-    (void)snprintf(line, sizeof(line), "ULTRA:%u.%u cm",
-                   dashboard.ultrasonicDistanceCm10 / 10U,
-                   dashboard.ultrasonicDistanceCm10 % 10U);
-    writeLine(display, 6U, line);
-    writeLine(display, 7U, "128 BYTES / READY GATED");
-}
-
-static void drawSdDashboard(U8X8 &display, const SecondaryDisplayDashboard &dashboard)
+/* One combined dashboard. Both physical displays show exactly this. */
+static void drawCombinedDashboard(U8X8 &display, const SecondaryDisplayDashboard &dashboard)
 {
     char line[DISPLAY_COLUMNS + 1U];
     const char *sdState = dashboard.sdError ? "ERROR" : (dashboard.sdReady ? "READY" : "NO CARD");
 
-    writeLine(display, 0U, "TEENSY + SD LOGGER");
+    writeLine(display, 0U, "S32K LINK + TEENSY + SD");
 
-    (void)snprintf(line, sizeof(line), "SD: %s", sdState);
+    (void)snprintf(line, sizeof(line), "LINK:%s RX:%u",
+                   dashboard.s32kValid ? "OK" : "WAITING",
+                   dashboard.rxFrames);
     writeLine(display, 1U, line);
 
-    (void)snprintf(line, sizeof(line), "FILE: %s",
-                   dashboard.sdReady ? dashboard.sdFileName : "-");
+    (void)snprintf(line, sizeof(line), "ERR:%u TO:%u SEQ:%u",
+                   dashboard.rxErrors,
+                   dashboard.timeouts,
+                   dashboard.s32kSequence);
     writeLine(display, 2U, line);
 
-    (void)snprintf(line, sizeof(line), "WRITTEN: %lu KB",
-                   (unsigned long)(dashboard.sdBytesWritten / 1024UL));
+    (void)snprintf(line, sizeof(line), "APP:%u SPD:%d/%d SRV:%d",
+                   dashboard.appMode,
+                   dashboard.targetSpeedPct,
+                   dashboard.currentSpeedPct,
+                   dashboard.servoCmd);
     writeLine(display, 3U, line);
 
-    (void)snprintf(line, sizeof(line), "DROPS: %u", dashboard.sdDrops);
+    (void)snprintf(line, sizeof(line), "ULTRA:%u.%u cm",
+                   dashboard.ultrasonicDistanceCm10 / 10U,
+                   dashboard.ultrasonicDistanceCm10 % 10U);
     writeLine(display, 4U, line);
+
+    (void)snprintf(line, sizeof(line), "SD:%s %s DROP:%u",
+                   sdState,
+                   dashboard.sdReady ? dashboard.sdFileName : "-",
+                   dashboard.sdDrops);
+    writeLine(display, 5U, line);
 
     (void)snprintf(line, sizeof(line), "POT:%u B1:%u B2:%u",
                    dashboard.potRaw,
                    dashboard.button1Pressed ? 1U : 0U,
                    dashboard.button2Pressed ? 1U : 0U);
-    writeLine(display, 5U, line);
-
-    (void)snprintf(line, sizeof(line), "TX:%u SENSOR:%u",
-                   dashboard.teensyTxSequence,
-                   dashboard.sensorSequence);
     writeLine(display, 6U, line);
 
-    writeLine(display, 7U, "IMU/CAM: MOCK OR MISSING");
+    (void)snprintf(line, sizeof(line), "TX:%u SEN:%u KB:%lu",
+                   dashboard.teensyTxSequence,
+                   dashboard.sensorSequence,
+                   (unsigned long)(dashboard.sdBytesWritten / 1024UL));
+    writeLine(display, 7U, line);
 }
 
 void SecondaryDisplays_Init()
@@ -147,20 +129,21 @@ void SecondaryDisplays_Init()
 
     if (sameAddress && display1Responds)
     {
-        snapshot.display1 = SecondaryDisplayState::AddressConflict;
-        snapshot.display2 = SecondaryDisplayState::AddressConflict;
-        initializeDisplay(display1, snapshot.display1Address, "DISPLAY ADDRESS CONFLICT");
-        writeLine(display1, 2U, "SET UNIQUE ADDRESSES");
+        /* Both modules share one address. Every write through display1
+           reaches both panels, so they mirror by hardware. */
+        snapshot.display1 = SecondaryDisplayState::Mirrored;
+        snapshot.display2 = SecondaryDisplayState::Mirrored;
+        initializeDisplay(display1, snapshot.display1Address, "TEENSY DASHBOARD (MIRROR)");
         return;
     }
 
     if (snapshot.display1 == SecondaryDisplayState::Detected)
     {
-        initializeDisplay(display1, snapshot.display1Address, "DISPLAY 1: SPI LINK");
+        initializeDisplay(display1, snapshot.display1Address, "TEENSY DASHBOARD");
     }
     if (snapshot.display2 == SecondaryDisplayState::Detected)
     {
-        initializeDisplay(display2, snapshot.display2Address, "DISPLAY 2: SD LOGGER");
+        initializeDisplay(display2, snapshot.display2Address, "TEENSY DASHBOARD");
     }
 }
 
@@ -176,22 +159,24 @@ void SecondaryDisplays_Service(uint32_t nowMs, const SecondaryDisplayDashboard &
         return;
     }
 
-    if (snapshot.display1 == SecondaryDisplayState::AddressConflict)
+    /* Both panels show the same combined dashboard. Only one I2C write
+       happens per service call so the blocking time stays short:
+       - mirrored (same address): one write reaches both panels;
+       - separate addresses: alternate which panel is refreshed. */
+    if (snapshot.display1 == SecondaryDisplayState::Mirrored)
     {
-        nextUpdateMs = nowMs + TEENSY_SECONDARY_DISPLAY_UPDATE_MS;
-        return;
+        drawCombinedDashboard(display1, dashboard);
     }
-
-    if (updateDisplay1Next)
+    else if (updateDisplay1Next)
     {
         if (snapshot.display1 == SecondaryDisplayState::Detected)
         {
-            drawLinkDashboard(display1, dashboard);
+            drawCombinedDashboard(display1, dashboard);
         }
     }
     else if (snapshot.display2 == SecondaryDisplayState::Detected)
     {
-        drawSdDashboard(display2, dashboard);
+        drawCombinedDashboard(display2, dashboard);
     }
 
     updateDisplay1Next = !updateDisplay1Next;
@@ -211,8 +196,8 @@ const char *SecondaryDisplays_StateText(SecondaryDisplayState state)
             return "NOT_CONNECTED";
         case SecondaryDisplayState::Detected:
             return "DETECTED";
-        case SecondaryDisplayState::AddressConflict:
-            return "ADDRESS_CONFLICT";
+        case SecondaryDisplayState::Mirrored:
+            return "MIRRORED";
         default:
             return "NOT_CHECKED";
     }

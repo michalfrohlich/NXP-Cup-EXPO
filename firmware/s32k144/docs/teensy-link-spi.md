@@ -89,25 +89,75 @@ The service is still called every 5 ms, but the driver schedules the actual
 | Less than 10 ms since the last transfer | wait (Teensy sensor data only refreshes at 100 Hz) |
 | Due and READY high | normal 128-byte transfer |
 | Due and READY low | skip and count it (`notReadySkipCount`) |
-| READY low for 25 ms | probe transfer anyway (`heartbeatProbeCount`) so a broken READY wire cannot kill the link |
+| READY low for 500 ms | probe transfer anyway (`heartbeatProbeCount`) so a broken READY wire or unpowered Teensy cannot kill the link |
 
 The very first service call after `TeensyLink_Init()` always transfers.
 CRC/stale handling is unchanged: a failed probe keeps the last good data and
-the stale timeout (100 ms) still drives the OK/STALE/WAIT status. The 25 ms
-probe period leaves room for several probes per stale window, so a single
-lost probe does not flash STALE.
+the stale timeout (100 ms) still drives the OK/STALE/WAIT status.
 
-What READY means today: the Teensy raises it once after boot, when its first
-frame is published, and never lowers it. So the gate currently protects
-against an absent or still-booting Teensy. A busy Teensy (serial print, future
-SD writes) still keeps READY high and is still clocked; corrupted frames from
-that case are caught by CRC exactly as before. If the Teensy firmware later
-lowers READY while busy, this master already respects it.
+What READY means: the Teensy raises it once its first frame is published and
+lowers it during blocking work (SD chunk writes, display I2C updates — a few
+tens of ms each). Those routine busy windows are far shorter than the 500 ms
+heartbeat, so they only count skips and never trigger garbage probes. Probes
+only start when READY is stuck low (broken wire, unpowered or crashed
+Teensy), and the link then recovers by itself on the first answered probe —
+the boards can be powered in any order.
 
 At 2 MHz, the 128-byte blocking transfer is about 512 us of wire time, a
 roughly 5 percent CPU duty cycle on the 10 ms schedule (512 us / 10 ms) —
 half of the old every-5-ms load — and near-zero wire activity while the
-Teensy is absent (only the 25 ms probes).
+Teensy is absent (only 2 probes per second).
+
+## DMA Transfer Path
+
+`TEENSY_LINK_USE_DMA` in `include/drivers/teensy_link.h` selects the
+transfer engine. The scheduler above (10 ms rate, READY gate, 500 ms
+heartbeat) is identical for both engines.
+
+| | Blocking (`STD_OFF`) | DMA (`STD_ON`, default) |
+|---|---|---|
+| Mechanism | `Spi_SyncTransmit`, CPU polls FIFOs | two eDMA channels feed/drain the LPSPI FIFOs |
+| CPU cost per frame | ~512 us busy-wait | a few us to arm, then free |
+| Frame result available | same service tick | next service tick (5 ms later) |
+| Wire format / CRC / stale handling | identical | identical |
+
+How the DMA engine works:
+
+- The AUTOSAR Spi driver in this project is generated sync-only
+  (`SPI_LEVEL_DELIVERED = SPI_LEVEL0`, `SPI_IPW_DMA_USED = STD_OFF`) and the
+  generated eDMA config has zero logic channels (`Dma_Ip_VS_0_PBcfg.c` is
+  empty). **No generated file was modified.** The link drives eDMA channels
+  0 (RX) and 1 (TX) directly through the device registers; DMAMUX sources
+  16/17 route LPSPI1 RX/TX requests (S32K144 RM). `Mcl_Init()` and the
+  enabled `DMAMUX0_CLK` gate already cover the module clocking.
+- The first transfer after `TeensyLink_Init()` still uses the blocking
+  path. That call makes the proven Spi driver program the LPSPI clock and
+  mode registers; every later frame reuses them via DMA. The DMA bus
+  command itself is built from the generated
+  `Lpspi_Ip_DeviceAttributes_TeensySpiDevice_Instance_1_VS_0.Tcr`
+  (mode 0, PCS3, continuous CS) plus 8-bit frame size, so the two engines
+  always agree on bus settings.
+- A transfer is started by the service call and picked up finished on a
+  later tick (`dmaBusy` in the diagnostics). If it is not done after
+  `TEENSY_LINK_DMA_TIMEOUT_TICKS` service ticks, it is aborted (requests
+  cleared, FIFOs flushed, CS released) and counted in `dmaTimeoutCount` +
+  `spiErrorCount`, so DMA can never hang the test.
+
+OLED: SW2 now cycles 6 pages. The new `TLINK DMA` page shows
+`MODE:DMA/BLOCKING`, `BSY` (transfer in flight), `ST` (DMA starts), `TO`
+(DMA timeouts), and `TX` (total transfers). On a healthy bench: `ST`
+climbing ~100/s, `TO:0`, and the `TLINK` page identical to the blocking
+build.
+
+How to test: build with the flag `STD_ON` (default), run either Teensy
+link mode, and compare against the blocking build (`STD_OFF`, one-line
+change): same OK status, same sequence progression, `err=0 timeout=0` on
+the Teensy serial, `TO:0` on the DMA page.
+
+Still needs physical validation (bench, both boards): the DMAMUX source
+numbers 16/17, CS hold behavior across the whole 128-byte frame seen by
+the Teensy slave (its `timeout` counter would show CS dropping early), and
+the abort path (unplug SCK mid-run, watch `TO` count and recovery).
 
 If the first bench setup is unstable with long jumper wires, lower the S32K
 `TeensySpiDevice` baud rate in S32 Design Studio, regenerate, and test the same

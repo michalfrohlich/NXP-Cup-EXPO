@@ -14,8 +14,27 @@ Must correct COM number and change directrory
 
 #include <Arduino.h>
 
+#include "teensy_app_config.h"
+
+#if TEENSY_APP_HARDWARE_TEST
+
+#include "modes/mode_hardware_test.h"
+
+void setup()
+{
+    HardwareTest_Setup();
+}
+
+void loop()
+{
+    HardwareTest_Loop();
+}
+
+#else
+
 #include "comms/teensy_link_spi_slave.h"
 #include "drivers/secondary_displays.h"
+#include "drivers/status_led.h"
 #include "logging/teensy_sd_logger.h"
 #include "teensy_config.h"
 #include "telemetry/teensy_link_telemetry.h"
@@ -34,6 +53,9 @@ static uint32_t nextSerialMs = 0U;
 static uint16_t potRaw = 0U;
 static bool button1Pressed = false;
 static bool button2Pressed = false;
+static uint32_t lastGoodFrameMs = 0U;
+static uint16_t lastGoodFrameSeq = 0U;
+static bool everGoodFrame = false;
 
 static_assert(TEENSY_LINK_FRAME_BYTES == 128U, "S32K link frame must stay 128 bytes");
 
@@ -110,6 +132,35 @@ static void updateBoardInputs()
     potRaw = (uint16_t)analogRead(TEENSY_POT_PIN);
     button1Pressed = digitalReadFast(TEENSY_BUTTON_1_PIN) == LOW;
     button2Pressed = digitalReadFast(TEENSY_BUTTON_2_PIN) == LOW;
+}
+
+/* PCB LED tells the link story at a glance:
+   BLUE = waiting for the first S32K frame, GREEN = link OK,
+   YELLOW = link OK but SD broken, RED = link was up and died.
+   The boards may be powered in any order; this just keeps reporting
+   whatever the link does while both sides keep retrying. */
+static void updateStatusLed(uint32_t nowMs)
+{
+    StatusLedColor color;
+
+    if (!everGoodFrame)
+    {
+        color = StatusLedColor::Blue;
+    }
+    else if ((uint32_t)(nowMs - lastGoodFrameMs) > TEENSY_LINK_LED_LOST_MS)
+    {
+        color = StatusLedColor::Red;
+    }
+    else if (sdLogger.hasError())
+    {
+        color = StatusLedColor::Yellow;
+    }
+    else
+    {
+        color = StatusLedColor::Green;
+    }
+
+    StatusLed_Set(color);
 }
 
 static SecondaryDisplayDashboard buildDisplayDashboard()
@@ -200,6 +251,10 @@ void setup()
     {
     }
 
+    StatusLed_Init();
+    StatusLed_BootSweep();
+    StatusLed_Set(StatusLedColor::Blue);
+
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     analogReadResolution(TEENSY_ANALOG_READ_BITS);
@@ -245,6 +300,17 @@ void loop()
     if (s32kSpi.service() == true)
     {
         (void)s32kSpi.getLatestS32kFrame(s32kSnapshot);
+
+        /* A fresh sequence number means a frame really decoded just now
+           (a failed CRC leaves the old snapshot untouched). */
+        if (s32kSnapshot.valid &&
+            (!everGoodFrame || (s32kSnapshot.frameSeq != lastGoodFrameSeq)))
+        {
+            everGoodFrame = true;
+            lastGoodFrameSeq = s32kSnapshot.frameSeq;
+            lastGoodFrameMs = nowMs;
+        }
+
         publishFrame(nowMs);
     }
 
@@ -297,9 +363,13 @@ void loop()
         s32kSpi.setReady(true);
     }
 
+    updateStatusLed(nowMs);
+
     if ((uint32_t)(nowMs - nextSerialMs) >= TEENSY_LINK_SERIAL_PERIOD_MS)
     {
         nextSerialMs = nowMs;
         printLinkStatus(nowMs);
     }
 }
+
+#endif /* TEENSY_APP_HARDWARE_TEST */

@@ -8,6 +8,21 @@
 #include "Dio_Cfg.h"
 #include "../../../../shared/protocol/teensy_link_crc.h"
 
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+/* Raw register access for the DMA fast path. The AUTOSAR Spi driver in this
+   project is generated sync-only (SPI_LEVEL0, SPI_IPW_DMA_USED off) and the
+   generated eDMA config has no logic channels, so the link drives two free
+   eDMA channels directly. Spi_Init() still owns the LPSPI module setup. */
+#include "S32K144_DMA.h"
+#include "S32K144_DMAMUX.h"
+#include "S32K144_LPSPI.h"
+#include "Lpspi_Ip_Types.h"
+
+/* Generated bus settings of the Teensy SPI device (instance 1, mode 0,
+   PCS3, continuous CS). Declared in generate/src/Lpspi_Ip_VS_0_PBcfg.c. */
+extern const Lpspi_Ip_ExternalDeviceType Lpspi_Ip_DeviceAttributes_TeensySpiDevice_Instance_1_VS_0;
+#endif
+
 #define TEENSY_LINK_DEG_TO_RAD_F  (0.0174532925f)
 #define TEENSY_LINK_GRAVITY_MPS2  (9.80665f)
 
@@ -18,6 +33,12 @@ static TeensyLinkDiagnostics_t g_teensyLinkDiag;
 static boolean g_teensyLinkStaleCounted;
 static uint32 g_teensyLinkLastTransferMs;
 static boolean g_teensyLinkHaveTransferred;
+
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+static boolean g_teensyLinkDmaPrimed;
+static uint32 g_teensyLinkDmaTcrCommand;
+static uint8 g_teensyLinkDmaPollTicks;
+#endif
 
 static void write_u16_le(uint8 *bytes, uint16 offset, uint16 value)
 {
@@ -261,6 +282,171 @@ static void update_stale_state(uint32 nowMs)
     }
 }
 
+/* The original blocking exchange: CPU sits in Spi_SyncTransmit for the
+   whole ~512 us wire time. Used for every transfer when DMA is off, and
+   for the first transfer after init when DMA is on (it lets the proven
+   Spi driver program the LPSPI clock registers before DMA reuses them). */
+static Std_ReturnType teensy_link_transfer_blocking(uint32 nowMs)
+{
+    Std_ReturnType ret;
+
+    ret = Spi_SetupEB(SpiConf_SpiChannel_TeensySpiFrameChannel,
+                      g_teensyLinkTx,
+                      g_teensyLinkRx,
+                      (Spi_NumberOfDataType)TEENSY_LINK_FRAME_BYTES);
+
+    if (ret == E_OK)
+    {
+        ret = Spi_SyncTransmit(SpiConf_SpiSequence_TeensySpiSequence);
+    }
+
+    g_teensyLinkDiag.lastSpiResult = ret;
+    g_teensyLinkDiag.txCount++;
+
+    if (ret != E_OK)
+    {
+        g_teensyLinkDiag.spiErrorCount++;
+        update_stale_state(nowMs);
+        return ret;
+    }
+
+    if (validate_teensy_frame((const uint8 *)g_teensyLinkRx) == TRUE)
+    {
+        decode_teensy_frame((const uint8 *)g_teensyLinkRx, nowMs);
+    }
+    else
+    {
+        update_stale_state(nowMs);
+    }
+
+    return ret;
+}
+
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+
+#define TEENSY_LINK_LPSPI_SR_W1C_MASK \
+    (LPSPI_SR_WCF_MASK | LPSPI_SR_FCF_MASK | LPSPI_SR_TCF_MASK | \
+     LPSPI_SR_TEF_MASK | LPSPI_SR_REF_MASK | LPSPI_SR_DMF_MASK)
+
+/* One-time wiring of the two eDMA channels. Static TCD fields stay valid
+   for every frame because SLAST/DLASTSGA rewind the buffer addresses by
+   -128 each time a major loop (one full frame) completes. */
+static void teensy_link_dma_setup(void)
+{
+    DMA_Type *dma = IP_DMA;
+    DMAMUX_Type *mux = IP_DMAMUX;
+    LPSPI_Type *spi = IP_LPSPI1;
+
+    /* Keep the mux routing disabled while the descriptors change. */
+    mux->CHCFG[TEENSY_LINK_DMA_RX_CHANNEL] = 0U;
+    mux->CHCFG[TEENSY_LINK_DMA_TX_CHANNEL] = 0U;
+
+    /* RX: one byte per request from the LPSPI receive register into the
+       RX frame buffer, 128 times. */
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].SADDR = (uint32)&spi->RDR;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].SOFF = 0;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].ATTR = 0U; /* 8-bit reads/writes */
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].NBYTES.MLNO = 1U;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].SLAST = 0U;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].DADDR = (uint32)&g_teensyLinkRx[0];
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].DOFF = 1;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].CITER.ELINKNO = (uint16)TEENSY_LINK_FRAME_BYTES;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].DLASTSGA = (uint32)(-(sint32)TEENSY_LINK_FRAME_BYTES);
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].BITER.ELINKNO = (uint16)TEENSY_LINK_FRAME_BYTES;
+    dma->TCD[TEENSY_LINK_DMA_RX_CHANNEL].CSR = DMA_TCD_CSR_DREQ_MASK;
+
+    /* TX: one byte per request from the TX frame buffer into the LPSPI
+       transmit register, 128 times. */
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].SADDR = (uint32)&g_teensyLinkTx[0];
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].SOFF = 1;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].ATTR = 0U;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].NBYTES.MLNO = 1U;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].SLAST = (uint32)(-(sint32)TEENSY_LINK_FRAME_BYTES);
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].DADDR = (uint32)&spi->TDR;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].DOFF = 0;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].CITER.ELINKNO = (uint16)TEENSY_LINK_FRAME_BYTES;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].DLASTSGA = 0U;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].BITER.ELINKNO = (uint16)TEENSY_LINK_FRAME_BYTES;
+    dma->TCD[TEENSY_LINK_DMA_TX_CHANNEL].CSR = DMA_TCD_CSR_DREQ_MASK;
+
+    mux->CHCFG[TEENSY_LINK_DMA_RX_CHANNEL] =
+        (uint8)(DMAMUX_CHCFG_ENBL_MASK | DMAMUX_CHCFG_SOURCE(TEENSY_LINK_DMAMUX_SRC_LPSPI1_RX));
+    mux->CHCFG[TEENSY_LINK_DMA_TX_CHANNEL] =
+        (uint8)(DMAMUX_CHCFG_ENBL_MASK | DMAMUX_CHCFG_SOURCE(TEENSY_LINK_DMAMUX_SRC_LPSPI1_TX));
+
+    /* Same bus command the blocking driver sends: mode 0, PCS3, CS held
+       for the whole frame (CONT=1), plus 8-bit frames, MSB first. */
+    g_teensyLinkDmaTcrCommand =
+        Lpspi_Ip_DeviceAttributes_TeensySpiDevice_Instance_1_VS_0.Tcr |
+        LPSPI_TCR_FRAMESZ(7U);
+}
+
+/* Drop chip-select the same way the blocking driver ends a continuous
+   transfer, and stop the LPSPI from raising further DMA requests. */
+static void teensy_link_dma_release_bus(void)
+{
+    LPSPI_Type *spi = IP_LPSPI1;
+
+    spi->DER = 0U;
+    spi->TCR &= ~(LPSPI_TCR_CONT_MASK | LPSPI_TCR_CONTC_MASK);
+}
+
+static boolean teensy_link_dma_done(void)
+{
+    return ((IP_DMA->TCD[TEENSY_LINK_DMA_RX_CHANNEL].CSR & DMA_TCD_CSR_DONE_MASK) != 0U)
+               ? TRUE : FALSE;
+}
+
+/* Hard stop: kill both channel requests, flush the FIFOs, release CS.
+   Used on timeout and when (re)entering the test. */
+static void teensy_link_dma_abort(void)
+{
+    DMA_Type *dma = IP_DMA;
+    LPSPI_Type *spi = IP_LPSPI1;
+
+    dma->CERQ = (uint8)TEENSY_LINK_DMA_RX_CHANNEL;
+    dma->CERQ = (uint8)TEENSY_LINK_DMA_TX_CHANNEL;
+    dma->CDNE = (uint8)TEENSY_LINK_DMA_RX_CHANNEL;
+    dma->CDNE = (uint8)TEENSY_LINK_DMA_TX_CHANNEL;
+
+    teensy_link_dma_release_bus();
+    spi->CR |= (LPSPI_CR_RTF_MASK | LPSPI_CR_RRF_MASK);
+    spi->SR = TEENSY_LINK_LPSPI_SR_W1C_MASK;
+
+    g_teensyLinkDiag.dmaBusy = FALSE;
+}
+
+/* Kick one 128-byte full-duplex frame and return immediately. The CPU is
+   free for the whole ~512 us wire time; completion is picked up by the
+   next service tick via teensy_link_dma_done(). */
+static void teensy_link_dma_start(void)
+{
+    DMA_Type *dma = IP_DMA;
+    LPSPI_Type *spi = IP_LPSPI1;
+
+    spi->SR = TEENSY_LINK_LPSPI_SR_W1C_MASK;
+    spi->CR |= (LPSPI_CR_RTF_MASK | LPSPI_CR_RRF_MASK);
+    /* Ask for TX service while the FIFO is nearly empty and RX service as
+       soon as one byte arrives. */
+    spi->FCR = LPSPI_FCR_TXWATER(1U) | LPSPI_FCR_RXWATER(0U);
+
+    dma->CDNE = (uint8)TEENSY_LINK_DMA_RX_CHANNEL;
+    dma->CDNE = (uint8)TEENSY_LINK_DMA_TX_CHANNEL;
+
+    /* Queue the bus command first, then arm RX before TX so the receive
+       side can never fall behind the transmit side. */
+    spi->TCR = g_teensyLinkDmaTcrCommand;
+    dma->SERQ = (uint8)TEENSY_LINK_DMA_RX_CHANNEL;
+    dma->SERQ = (uint8)TEENSY_LINK_DMA_TX_CHANNEL;
+    spi->DER = (LPSPI_DER_RDDE_MASK | LPSPI_DER_TDDE_MASK);
+
+    g_teensyLinkDmaPollTicks = 0U;
+    g_teensyLinkDiag.dmaBusy = TRUE;
+    g_teensyLinkDiag.dmaStartCount++;
+}
+
+#endif /* TEENSY_LINK_USE_DMA */
+
 void TeensyLink_Init(void)
 {
     (void)memset(g_teensyLinkTx, 0, sizeof(g_teensyLinkTx));
@@ -271,15 +457,65 @@ void TeensyLink_Init(void)
     g_teensyLinkStaleCounted = FALSE;
     g_teensyLinkLastTransferMs = 0U;
     g_teensyLinkHaveTransferred = FALSE;
+
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+    /* Kill any leftover in-flight transfer from a previous test run, then
+       (re)build the channel descriptors. Safe to repeat at every entry. */
+    teensy_link_dma_abort();
+    teensy_link_dma_setup();
+    g_teensyLinkDmaPrimed = FALSE;
+    g_teensyLinkDmaPollTicks = 0U;
+#endif
 }
 
 Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
 {
-    Std_ReturnType ret;
     uint32 sinceLastMs;
 
     g_teensyLinkDiag.readyHigh =
         (Dio_ReadChannel(DioConf_DioChannel_TeensyReady) == STD_HIGH) ? TRUE : FALSE;
+
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+    if (g_teensyLinkDiag.dmaBusy == TRUE)
+    {
+        if (teensy_link_dma_done() == TRUE)
+        {
+            /* Frame finished in the background. Release CS, then run the
+               exact same validation/decoding as the blocking path. */
+            teensy_link_dma_release_bus();
+            g_teensyLinkDiag.dmaBusy = FALSE;
+            g_teensyLinkDiag.lastSpiResult = E_OK;
+            g_teensyLinkDiag.txCount++;
+
+            if (validate_teensy_frame((const uint8 *)g_teensyLinkRx) == TRUE)
+            {
+                decode_teensy_frame((const uint8 *)g_teensyLinkRx, nowMs);
+            }
+            else
+            {
+                update_stale_state(nowMs);
+            }
+            /* Fall through: the scheduler below may start the next one. */
+        }
+        else
+        {
+            g_teensyLinkDmaPollTicks++;
+            if (g_teensyLinkDmaPollTicks >= (uint8)TEENSY_LINK_DMA_TIMEOUT_TICKS)
+            {
+                /* The wire time is ~512 us; if the frame is not done after
+                   several 5 ms ticks, the request chain is stuck. Abort so
+                   the test can never hang on DMA. */
+                teensy_link_dma_abort();
+                g_teensyLinkDiag.dmaTimeoutCount++;
+                g_teensyLinkDiag.spiErrorCount++;
+                g_teensyLinkDiag.lastSpiResult = E_NOT_OK;
+                g_teensyLinkDiag.txCount++;
+            }
+            update_stale_state(nowMs);
+            return E_OK;
+        }
+    }
+#endif
 
     /* The very first service call always transfers, so a fresh test
        starts probing immediately. After that the scheduler decides. */
@@ -316,36 +552,21 @@ Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t 
     g_teensyLinkDiag.txSeq++;
     build_s32k_frame(nowMs, in);
 
-    ret = Spi_SetupEB(SpiConf_SpiChannel_TeensySpiFrameChannel,
-                      g_teensyLinkTx,
-                      g_teensyLinkRx,
-                      (Spi_NumberOfDataType)TEENSY_LINK_FRAME_BYTES);
-
-    if (ret == E_OK)
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+    if (g_teensyLinkDmaPrimed != TRUE)
     {
-        ret = Spi_SyncTransmit(SpiConf_SpiSequence_TeensySpiSequence);
+        /* Transfer #1 goes through the proven blocking path so the Spi
+           driver programs the LPSPI clock/mode registers. Every later
+           frame reuses that setup with DMA. */
+        g_teensyLinkDmaPrimed = TRUE;
+        return teensy_link_transfer_blocking(nowMs);
     }
 
-    g_teensyLinkDiag.lastSpiResult = ret;
-    g_teensyLinkDiag.txCount++;
-
-    if (ret != E_OK)
-    {
-        g_teensyLinkDiag.spiErrorCount++;
-        update_stale_state(nowMs);
-        return ret;
-    }
-
-    if (validate_teensy_frame((const uint8 *)g_teensyLinkRx) == TRUE)
-    {
-        decode_teensy_frame((const uint8 *)g_teensyLinkRx, nowMs);
-    }
-    else
-    {
-        update_stale_state(nowMs);
-    }
-
-    return ret;
+    teensy_link_dma_start();
+    return E_OK;
+#else
+    return teensy_link_transfer_blocking(nowMs);
+#endif
 }
 
 boolean TeensyLink_GetSnapshot(TeensyLinkSnapshot_t *outSnapshot)

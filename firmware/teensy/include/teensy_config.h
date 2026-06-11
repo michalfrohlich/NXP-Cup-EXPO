@@ -22,6 +22,16 @@ static constexpr uint8_t TEENSY_BUTTON_1_PIN = 28U;
 static constexpr uint8_t TEENSY_BUTTON_2_PIN = 29U;
 static constexpr uint8_t TEENSY_ANALOG_READ_BITS = 12U;
 
+/* PCB RGB LED D1 (shield schematic page 3): common cathode, active HIGH.
+   J12 positions 3/4/5 map to Teensy pins 1/2/3. */
+static constexpr uint8_t TEENSY_RGB_LED_R_PIN = 1U;
+static constexpr uint8_t TEENSY_RGB_LED_G_PIN = 2U;
+static constexpr uint8_t TEENSY_RGB_LED_B_PIN = 3U;
+
+/* Link health windows for the status LED. */
+static constexpr uint32_t TEENSY_LINK_LED_OK_WINDOW_MS = 500UL;
+static constexpr uint32_t TEENSY_LINK_LED_LOST_MS = 1000UL;
+
 /* Current ZJY_M208_25664-4P assumption: SSD1362 I2C at separate addresses. */
 static constexpr uint8_t TEENSY_SECONDARY_DISPLAY_1_ADDRESS = 0x3CU;
 static constexpr uint8_t TEENSY_SECONDARY_DISPLAY_2_ADDRESS = 0x3DU;

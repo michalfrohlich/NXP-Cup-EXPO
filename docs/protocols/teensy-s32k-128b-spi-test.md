@@ -94,18 +94,24 @@ the S32K SPI baud rate temporarily and keep the packet at 128 bytes.
 | Frame size | 128 bytes |
 | S32K service period | 5 ms |
 | Transfer period (READY high) | 10 ms (matches the 100 Hz Teensy sensor rate) |
-| Probe period (READY low) | 25 ms heartbeat |
+| Probe period (READY stuck low) | 500 ms heartbeat |
 | Target SCK | 2 MHz |
 | Wire time at 2 MHz | about 512 us |
 
 The S32K master gates transfers on the Teensy READY pin. While READY is high
-it transfers every 10 ms. While READY is low it skips (counted on the OLED as
-`SK:`) and only sends a 25 ms heartbeat probe, so a broken READY wire still
-cannot kill the link. Today the Teensy raises READY once after boot (first
-published frame) and never lowers it, so READY low means "absent or still
-booting" — a busy-but-running Teensy is still clocked, and corrupted frames
-from that case are caught by CRC as before. CRC and stale handling are
-unchanged.
+it transfers every 10 ms. The Teensy lowers READY during its blocking SD and
+display writes (tens of ms); the S32K skips those windows (counted on the
+OLED as `SK:`) without touching the bus. Only when READY stays low for
+500 ms (broken wire, unpowered/crashed Teensy) does the S32K send probe
+transfers, so the link can never die permanently and the boards may be
+powered in any order — the link comes back by itself on the first answered
+probe. CRC and stale handling are unchanged.
+
+By default the S32K moves the 128-byte frame with eDMA instead of busy-wait
+polling (`TEENSY_LINK_USE_DMA` in `firmware/s32k144/include/drivers/teensy_link.h`),
+so the CPU is free during the ~512 us wire time and the finished frame is
+decoded on the next 5 ms service tick. Details and the new `TLINK DMA` OLED
+page: `firmware/s32k144/docs/teensy-link-spi.md`.
 
 The S32K generated SPI configuration is in `Nxp_Cup.mex` and generated RTD
 files. The important generated names are:
@@ -307,6 +313,7 @@ The S32K OLED pages are:
 | Page | OLED title | What to check |
 |---:|---|---|
 | 0 | `TLINK` | status becomes OK, sequence values change, `SK:` stays near 0 with a connected Teensy |
+| 5 | `TLINK DMA` | transfer engine (DMA/BLOCKING), starts climbing, timeouts stay 0 |
 | 1 | `TLINK CAM0` | valid camera 0 mock data appears |
 | 2 | `TLINK CAM1` | stale/missing camera 1 appears without link failure |
 | 3 | `TLINK IMU/LOG` | yaw, gyro Z, lateral acceleration, logger state |

@@ -7,7 +7,9 @@ enum class SecondaryDisplayState : uint8_t
     NotChecked = 0U,
     NotConnected,
     Detected,
-    AddressConflict
+    /* Both modules answer on one I2C address. They receive identical
+       bytes by hardware, so they automatically show the same picture. */
+    Mirrored
 };
 
 struct SecondaryDisplaySnapshot

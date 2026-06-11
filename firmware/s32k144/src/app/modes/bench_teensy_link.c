@@ -1,7 +1,7 @@
 #include "../app_internal.h"
 
 #define TEENSY_LINK_TEST_DISPLAY_MS       (100U)
-#define TEENSY_LINK_TEST_PAGE_COUNT       (5U)
+#define TEENSY_LINK_TEST_PAGE_COUNT       (6U)
 
 typedef struct
 {
@@ -195,6 +195,26 @@ static void teensy_link_test_draw_rx_data(void)
     DisplayRefresh();
 }
 
+static void teensy_link_test_draw_dma(void)
+{
+    DisplayTextPadded(0U, "TLINK DMA");
+
+#if (TEENSY_LINK_USE_DMA == STD_ON)
+    DisplayTextPadded(1U, "MODE:DMA BSY:");
+    DisplayText(1U, (g_teensyLinkTest.diag.dmaBusy == TRUE) ? "Y" : "N", 1U, 13U);
+#else
+    DisplayTextPadded(1U, "MODE:BLOCKING");
+#endif
+
+    DisplayTextPadded(2U, "ST:      TO:");
+    DisplayValue(2U, (int)(g_teensyLinkTest.diag.dmaStartCount % 100000U), 5U, 3U);
+    DisplayValue(2U, (int)(g_teensyLinkTest.diag.dmaTimeoutCount % 1000U), 3U, 12U);
+
+    DisplayTextPadded(3U, "TX:");
+    DisplayValue(3U, (int)(g_teensyLinkTest.diag.txCount % 100000U), 5U, 3U);
+    DisplayRefresh();
+}
+
 static void teensy_link_test_draw(void)
 {
     DisplayClear();
@@ -212,6 +232,9 @@ static void teensy_link_test_draw(void)
             break;
         case 4U:
             teensy_link_test_draw_rx_data();
+            break;
+        case 5U:
+            teensy_link_test_draw_dma();
             break;
         case 0U:
         default:
