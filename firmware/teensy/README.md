@@ -12,6 +12,7 @@ Current layout:
 - `include/teensy_config.h`: Teensy pins and timing constants.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte `teensy_link` frame.
+- `include/logging/` and `src/logging/`: SdFat CSV logger for the built-in SD slot.
 - `src/main.cpp`: bring-up loop with mock IMU/camera data.
 
 The shared packet contract lives in `../../shared/protocol/teensy_link_protocol.h`.
@@ -31,11 +32,21 @@ pio device monitor -b 115200
 The serial monitor should print lines like:
 
 ```text
-t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 servo=0 ultra=0
+t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 servo=0 ultra=0 sd=R drop=0 sdkB=12
 ```
 
 `rx` increasing means the Teensy decoded S32K MOSI frames. `err` or `timeout`
 increasing means the S32K frame is corrupt, missing, or not clocked completely.
+
+## SD Logging
+
+With an SD card in the built-in slot, each boot creates the next free
+`LOGnnn.CSV` and streams telemetry rows at the sensor rate. Without a card
+the firmware runs normally and serial shows `sd=-`. Status fields:
+`sd=R/-/E` (ready / no card / error), `drop=` dropped rows, `sdkB=` KiB
+written. The same status reaches the S32K OLED IMU/LOG page over SPI.
+
+Details, column list, and MATLAB import: `../../docs/protocols/teensy-sd-logging.md`.
 
 ## Bench Payload
 

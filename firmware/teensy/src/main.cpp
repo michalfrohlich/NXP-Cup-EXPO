@@ -15,10 +15,12 @@ Must correct COM number and change directrory
 #include <Arduino.h>
 
 #include "comms/teensy_link_spi_slave.h"
+#include "logging/teensy_sd_logger.h"
 #include "teensy_config.h"
 #include "telemetry/teensy_link_telemetry.h"
 
 static TeensyLinkSpiSlave s32kSpi;
+static TeensySdLogger sdLogger;
 static TeensyLinkTelemetryInputs telemetry = {};
 static TeensyLinkS32kSnapshot s32kSnapshot = {};
 static uint8_t txFrame[TEENSY_LINK_FRAME_BYTES] = {};
@@ -87,8 +89,10 @@ static void updateMockSensors(uint32_t nowMs)
     /* Camera 1 is intentionally missing for the bench fault path. */
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
 
-    telemetry.loggerFlags = 0U;
-    telemetry.loggerDropCount = 0U;
+    /* Real SD status goes onto the SPI link, so the S32K OLED
+       IMU/LOG page shows it live. */
+    telemetry.loggerFlags = sdLogger.linkLoggerFlags();
+    telemetry.loggerDropCount = sdLogger.dropCount();
     sensorSeq++;
     lastSensorMs = nowMs;
 }
@@ -118,7 +122,20 @@ static void printLinkStatus(uint32_t nowMs)
     Serial.print(" servo=");
     Serial.print(s32kSnapshot.valid ? s32kSnapshot.servoCmd : 0);
     Serial.print(" ultra=");
-    Serial.println(s32kSnapshot.valid ? s32kSnapshot.ultrasonicDistanceCm10 : 0U);
+    Serial.print(s32kSnapshot.valid ? s32kSnapshot.ultrasonicDistanceCm10 : 0U);
+    Serial.print(" sd=");
+    if (sdLogger.hasError())
+    {
+        Serial.print('E');
+    }
+    else
+    {
+        Serial.print(sdLogger.isReady() ? 'R' : '-');
+    }
+    Serial.print(" drop=");
+    Serial.print(sdLogger.dropCount());
+    Serial.print(" sdkB=");
+    Serial.println(sdLogger.bytesWritten() / 1024U);
 }
 
 void setup()
@@ -130,6 +147,18 @@ void setup()
 
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
+
+    /* Mount the SD before the SPI link starts. Blocking is fine here.
+       A missing card just means sd=- on serial and we keep running. */
+    if (sdLogger.begin())
+    {
+        Serial.print("SD logger ready, file: ");
+        Serial.println(sdLogger.fileName());
+    }
+    else
+    {
+        Serial.println("SD logger off (no card or open failed)");
+    }
 
     s32kSpi.begin(TEENSY_LINK_SPI_CS_PIN,
                   TEENSY_LINK_SPI_SCK_PIN,
@@ -162,11 +191,32 @@ void loop()
     {
         updateMockSensors(nowMs);
         publishFrame(nowMs);
+
+        /* One CSV row per sensor sample (100 Hz). Only RAM writes
+           happen here, so the SPI slave is not delayed.
+           publishFrame() already advanced teensyFrameSeq, so the frame
+           that just went out carries teensyFrameSeq - 1. */
+        sdLogger.logRow(nowMs,
+                        (uint16_t)(teensyFrameSeq - 1U),
+                        telemetry,
+                        s32kSnapshot,
+                        s32kSpi.completedTransfers(),
+                        s32kSpi.protocolErrorCount(),
+                        s32kSpi.timeoutCount());
+
         nextSensorUs += TEENSY_LINK_SENSOR_INTERVAL_US;
         if ((uint32_t)(nowUs - nextSensorUs) > TEENSY_LINK_SENSOR_INTERVAL_US)
         {
             nextSensorUs = nowUs + TEENSY_LINK_SENSOR_INTERVAL_US;
         }
+    }
+
+    /* Feed the SD card only while chip-select is idle. If the S32K is
+       mid-transfer (or about to start one), skip this loop pass; the
+       ring buffer holds the rows until the bus is quiet. */
+    if (digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == HIGH)
+    {
+        sdLogger.service(nowMs);
     }
 
     if ((uint32_t)(nowMs - nextSerialMs) >= TEENSY_LINK_SERIAL_PERIOD_MS)
