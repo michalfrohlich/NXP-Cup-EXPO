@@ -1,7 +1,7 @@
 # Teensy Firmware
 
 Teensy-side firmware for camera acquisition, camera vision, and the S32K
-128-byte SPI telemetry link.
+80-byte SPI telemetry link.
 
 ## Layout
 
@@ -10,7 +10,7 @@ Teensy-side firmware for camera acquisition, camera vision, and the S32K
 - `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers.
 - `include/services/` and `src/services/`: camera vision, line detection, and race runtime services.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
-- `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte frame.
+- `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 80-byte frame.
 - `src/app/`: compile-time app-mode dispatcher and mode implementations.
 - `src/main.cpp`: minimal Arduino entry point that dispatches the selected app mode.
 
@@ -121,7 +121,7 @@ tool.
 ## S32K Link Runtime
 
 `TEENSY_APP_MODE_LINK_BENCH` and `TEENSY_APP_MODE_RACE` publish the shared
-128-byte telemetry frame over SPI. The Teensy is the SPI slave and the S32K
+80-byte telemetry frame over SPI. The Teensy is the SPI slave and the S32K
 controls the actual transfer cadence. The Teensy updates the telemetry buffer
 at `TEENSY_LINK_SENSOR_HZ`, currently 200 Hz.
 
@@ -136,19 +136,24 @@ components that are not implemented yet:
 | Logger / SD | Not ready placeholder. |
 | RX counters | Based on S32K-to-Teensy frames decoded by the transport. |
 
+The active SPI slave backend is the fixed-pin, software bit-banged
+implementation. There is no DMA/LPSPI4 backend selector in the current code.
+At 2 MHz, interrupts are deferred for the bounded 320 us transfer so the
+software slave cannot miss SCK edges; camera PWM, ADC triggering, and DMA
+continue in hardware.
+
 Keep `TEENSY_LINK_SERIAL_DEBUG_ENABLED` disabled when using the Python camera
 stream, because both use USB serial.
 
 ## Build And Upload
 
-Use PlatformIO from the Teensy firmware folder:
+Use PlatformIO from `firmware/teensy`:
 
 ```bat
-cd /d C:\Users\misof\workspaceS32DS.3.6.3\EXPO_03_Nxp_Cup_project\firmware\teensy
 pio run
 pio run -t upload
 ```
 
 Full S32K link run instructions are in
-`../../docs/protocols/teensy-s32k-128b-spi-test.md`. The shield pinout is in
+`../../docs/protocols/teensy-s32k-spi-test.md`. The shield pinout is in
 `../../hardware/shield-v2-pinout.md`.

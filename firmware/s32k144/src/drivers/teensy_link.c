@@ -269,12 +269,18 @@ void TeensyLink_Init(void)
     g_teensyLinkStaleCounted = FALSE;
 }
 
-Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
+Std_ReturnType TeensyLink_Service(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
 {
     Std_ReturnType ret;
 
     g_teensyLinkDiag.readyHigh =
         (Dio_ReadChannel(DioConf_DioChannel_TeensyReady) == STD_HIGH) ? TRUE : FALSE;
+
+    if (g_teensyLinkDiag.readyHigh != TRUE)
+    {
+        update_stale_state(nowMs);
+        return E_NOT_OK;
+    }
 
     g_teensyLinkDiag.txSeq++;
     build_s32k_frame(nowMs, in);
@@ -298,6 +304,9 @@ Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t 
         update_stale_state(nowMs);
         return ret;
     }
+
+    (void)memcpy(g_teensyLinkDiag.rawRxHeader, g_teensyLinkRx,
+                 sizeof(g_teensyLinkDiag.rawRxHeader));
 
     if (validate_teensy_frame((const uint8 *)g_teensyLinkRx) == TRUE)
     {

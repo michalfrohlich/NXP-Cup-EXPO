@@ -14,10 +14,10 @@ extern "C" {
 #define TEENSY_LINK_FRAME_TYPE_S32K             (0x53u)
 #define TEENSY_LINK_FRAME_TYPE_TEENSY           (0x54u)
 
-#define TEENSY_LINK_FRAME_BYTES                 (128u)
+#define TEENSY_LINK_FRAME_BYTES                 (80u)
 #define TEENSY_LINK_HEADER_BYTES                (16u)
-#define TEENSY_LINK_PAYLOAD_BYTES               (110u)
-#define TEENSY_LINK_CRC_OFFSET                  (126u)
+#define TEENSY_LINK_PAYLOAD_BYTES               (62u)
+#define TEENSY_LINK_CRC_OFFSET                  (78u)
 
 #define TEENSY_LINK_CAMERA_COUNT                (2u)
 #define TEENSY_LINK_CAMERA_WIRE_BYTES           (8u)

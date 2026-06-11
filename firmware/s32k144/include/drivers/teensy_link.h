@@ -108,12 +108,13 @@ typedef struct
     uint32 crcErrorCount;
     uint32 protocolErrorCount;
     uint32 staleCount;
+    uint8 rawRxHeader[6];
     boolean readyHigh;
     Std_ReturnType lastSpiResult;
 } TeensyLinkDiagnostics_t;
 
 void TeensyLink_Init(void);
-Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t *in);
+Std_ReturnType TeensyLink_Service(uint32 nowMs, const TeensyLinkS32kInputs_t *in);
 boolean TeensyLink_GetSnapshot(TeensyLinkSnapshot_t *outSnapshot);
 boolean TeensyLink_GetDiagnostics(TeensyLinkDiagnostics_t *outDiagnostics);
 boolean TeensyLink_ImuToMotion(const TeensyLinkImuData_t *imu, TeensyLinkImuMotion_t *outMotion);

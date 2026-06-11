@@ -1,7 +1,7 @@
 #include "../app_internal.h"
 
 #define TEENSY_LINK_TEST_DISPLAY_MS       (100U)
-#define TEENSY_LINK_TEST_PAGE_COUNT       (5U)
+#define TEENSY_LINK_TEST_PAGE_COUNT       (6U)
 
 typedef struct
 {
@@ -173,19 +173,37 @@ static void teensy_link_test_draw_imu(void)
 
 static void teensy_link_test_draw_rx_data(void)
 {
-    DisplayTextPadded(0U, "TLINK RX 128B");
+    DisplayTextPadded(0U, "TLINK RX 80B");
 
     DisplayTextPadded(1U, "SEQ:    ACK:");
     DisplayValue(1U, (int)g_teensyLinkTest.snapshot.teensySeq, 4U, 4U);
     DisplayValue(1U, (int)g_teensyLinkTest.snapshot.ackS32kSeq, 4U, 12U);
 
-    DisplayTextPadded(2U, "GOOD:    TX:");
-    DisplayValue(2U, (int)(g_teensyLinkTest.diag.goodFrameCount % 10000U), 4U, 5U);
-    DisplayValue(2U, (int)(g_teensyLinkTest.diag.txCount % 1000U), 3U, 13U);
+    DisplayTextPadded(2U, "CRC:    PRO:");
+    DisplayValue(2U, (int)(g_teensyLinkTest.diag.crcErrorCount % 1000U), 3U, 4U);
+    DisplayValue(2U, (int)(g_teensyLinkTest.diag.protocolErrorCount % 1000U), 3U, 12U);
 
-    DisplayTextPadded(3U, "CRC:    SPI:");
-    DisplayValue(3U, (int)(g_teensyLinkTest.diag.crcErrorCount % 10000U), 4U, 4U);
-    DisplayValue(3U, (int)(g_teensyLinkTest.diag.spiErrorCount % 1000U), 3U, 13U);
+    DisplayTextPadded(3U, "SPI:    TEN:");
+    DisplayValue(3U, (int)(g_teensyLinkTest.diag.spiErrorCount % 1000U), 3U, 4U);
+    DisplayValue(3U, (int)(g_teensyLinkTest.snapshot.teensyRxErrorCount % 1000U), 3U, 12U);
+    DisplayRefresh();
+}
+
+static void teensy_link_test_draw_raw_header(void)
+{
+    DisplayTextPadded(0U, "TLINK RAW HEADER");
+
+    DisplayTextPadded(1U, "B0:    B1:");
+    DisplayValue(1U, (int)g_teensyLinkTest.diag.rawRxHeader[0], 3U, 3U);
+    DisplayValue(1U, (int)g_teensyLinkTest.diag.rawRxHeader[1], 3U, 10U);
+
+    DisplayTextPadded(2U, "B2:    B3:");
+    DisplayValue(2U, (int)g_teensyLinkTest.diag.rawRxHeader[2], 3U, 3U);
+    DisplayValue(2U, (int)g_teensyLinkTest.diag.rawRxHeader[3], 3U, 10U);
+
+    DisplayTextPadded(3U, "B4:    B5:");
+    DisplayValue(3U, (int)g_teensyLinkTest.diag.rawRxHeader[4], 3U, 3U);
+    DisplayValue(3U, (int)g_teensyLinkTest.diag.rawRxHeader[5], 3U, 10U);
     DisplayRefresh();
 }
 
@@ -206,6 +224,9 @@ static void teensy_link_test_draw(void)
             break;
         case 4U:
             teensy_link_test_draw_rx_data();
+            break;
+        case 5U:
+            teensy_link_test_draw_raw_header();
             break;
         case 0U:
         default:
@@ -237,12 +258,20 @@ void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed)
         g_teensyLinkTest.nextDisplayMs = nowMs;
     }
 
-    while (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
+    if (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
     {
         g_teensyLinkTest.controlSeq++;
         teensy_link_test_fill_default_input();
-        (void)TeensyLink_Service5ms(nowMs, &g_teensyLinkTest.input);
+        (void)TeensyLink_Service(nowMs, &g_teensyLinkTest.input);
         g_teensyLinkTest.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+
+        /* A blocking OLED refresh can miss several periods. Skip that backlog
+           instead of sending immediate back-to-back SPI transactions. */
+        if (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
+        {
+            g_teensyLinkTest.nextServiceMs =
+                nowMs + (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+        }
     }
 
     (void)TeensyLink_GetSnapshot(&g_teensyLinkTest.snapshot);

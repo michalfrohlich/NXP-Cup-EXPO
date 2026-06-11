@@ -182,10 +182,10 @@
 - `bench_teensy_link.c`
   - calls `TeensyLink_Init()` when the test is entered
   - builds the S32K-to-Teensy test packet
-  - calls `TeensyLink_Service5ms()` every 5 ms while the test is active
+  - calls `TeensyLink_Service()` every 5 ms while the test is active
   - displays RX counters, sequence numbers, stale/live state, and error counts
 - `teensy_link.c`
-  - builds the fixed 128-byte S32K frame
+  - builds the fixed 80-byte S32K frame
   - clocks the SPI transfer as S32K master
   - validates CRC/header on the Teensy frame
   - stores the latest decoded snapshot and diagnostics

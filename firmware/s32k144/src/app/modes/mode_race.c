@@ -122,7 +122,11 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         return;
     }
 
-    st->nextControlMs = nowMs + STEER_UPDATE_MS;
+    st->nextControlMs += STEER_UPDATE_MS;
+    if (time_reached(nowMs, st->nextControlMs) == TRUE)
+    {
+        st->nextControlMs = nowMs + STEER_UPDATE_MS;
+    }
 
     if (stopPressed == TRUE)
     {
@@ -277,7 +281,11 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
     /* Speed commands are rate-limited to keep ESC updates deterministic. */
     if (time_reached(nowMs, st->nextSpeedRampMs) == TRUE)
     {
-        st->nextSpeedRampMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+        st->nextSpeedRampMs += FULL_AUTO_RAMP_PERIOD_MS;
+        if (time_reached(nowMs, st->nextSpeedRampMs) == TRUE)
+        {
+            st->nextSpeedRampMs = nowMs + FULL_AUTO_RAMP_PERIOD_MS;
+        }
 
         if (st->currentSpeedPct < st->targetSpeedPct)
         {

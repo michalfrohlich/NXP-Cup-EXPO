@@ -36,7 +36,7 @@ every 5 ms and uses SW2 to cycle OLED pages:
 - camera 0 result,
 - camera 1 result,
 - IMU/logger status,
-- received 128-byte SPI frame counters.
+- received 80-byte SPI frame counters.
 
 The menu item is named `Teensy Link`. It lives in the runtime test menu, not in
 a separate Project Explorer folder.
@@ -53,7 +53,7 @@ The generated S32K SPI setup is:
 | CS | PTB17 / PCS3 | `TeensySpiCs` |
 | READY | PTD14 | `TeensyReady` |
 
-READY is diagnostic only. The S32K never blocks waiting for it.
+READY gates each transaction. The S32K skips service while READY is low.
 
 Connect it to the Teensy 4.1 like this:
 
@@ -75,14 +75,19 @@ Both boards use 3.3 V logic. Do not route a 5 V signal into either SPI pin.
 - SPI mode 0.
 - 8-bit words, MSB first.
 - 2 MHz SCK.
-- Fixed 128-byte full-duplex transfer every 5 ms.
+- Fixed 80-byte full-duplex transfer every 5 ms.
 - Synchronous blocking transfer for v1.
 
-At 2 MHz, the 128-byte transfer is about 512 us of wire time.
+At 2 MHz, the 80-byte transfer is about 0.32 ms of wire time, or 6.4 percent
+of each 5 ms service period.
+
+The Teensy uses one fixed-pin software bit-banged backend. The failed
+DMA/LPSPI4 experiment is not selectable in the current code. The S32K remains
+the hardware-SPI master.
 
 If the first bench setup is unstable with long jumper wires, lower the S32K
 `TeensySpiDevice` baud rate in S32 Design Studio, regenerate, and test the same
-128-byte frame again. Keep the packet format unchanged.
+80-byte frame again. Keep the packet format unchanged.
 
 ## Frame Contract
 
@@ -97,8 +102,8 @@ Frame layout:
 | Byte range | Meaning |
 |---:|---|
 | 0..15 | common header |
-| 16..125 | 110-byte payload |
-| 126..127 | CRC-16/CCITT-FALSE over bytes 0..125 |
+| 16..77 | 62-byte payload |
+| 78..79 | CRC-16/CCITT-FALSE over bytes 0..77 |
 
 Both directions include exactly two camera result slots. Each slot mirrors the
 current `VisionOutput_t` semantics in compact wire form:
@@ -123,7 +128,7 @@ src/drivers/teensy_link.c
 The bench/direct test update path calls:
 
 ```c
-TeensyLink_Service5ms(nowMs, &input);
+TeensyLink_Service(nowMs, &input);
 ```
 
 The driver uses:
@@ -157,7 +162,8 @@ Expected OLED behavior:
 | `TLINK CAM0` | Teensy camera 0 slot decodes correctly |
 | `TLINK CAM1` | Missing/stale camera data is handled without breaking the link |
 | `TLINK IMU/LOG` | IMU and logger fields decode correctly |
-| `TLINK RX 128B` | 128-byte RX counters, ACK, CRC, and SPI errors |
+| `TLINK RX 80B` | 80-byte RX counters, ACK, CRC, and SPI errors |
+| `TLINK RAW HEADER` | Header bytes match the expected Teensy frame |
 
 The RGB LED is green when the S32K sees live valid frames. Blue means no frame
 yet, yellow means stale data, and red means repeated protocol/SPI errors.

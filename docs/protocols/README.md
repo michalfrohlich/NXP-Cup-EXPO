@@ -12,7 +12,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 **Key Characteristics:**
 - **Type**: Full-duplex SPI, synchronous blocking transfers
 - **Cadence**: 5 ms (200 Hz) fixed service interval
-- **Frame Size**: Fixed 128 bytes (16 B header + 110 B payload + 2 B CRC)
+- **Frame Size**: Fixed 80 bytes (16 B header + 62 B payload + 2 B CRC)
 - **Clock**: 2 MHz, SPI Mode 0 (CPOL=0, CPHA=0)
 - **Data**: Bidirectional sensor + command exchange
 - **Reliability**: CRC-16/CCITT-FALSE error detection, sequence number tracking
@@ -25,7 +25,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
    - Timing and link-health expectations
    - Suggested first hardware checks
 
-2. **[Two-board 128-byte SPI test](teensy-s32k-128b-spi-test.md)**
+2. **[Two-board 80-byte SPI test](teensy-s32k-spi-test.md)**
    - VS Code and S32 Design Studio folders to open
    - S32K to Teensy wiring table
    - PlatformIO commands for the Teensy
@@ -34,7 +34,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
    - Pointer to the shield V2 pinout in `hardware/shield-v2-pinout.md`
 
 3. **[Shared protocol header](../../shared/protocol/teensy_link_protocol.h)**
-   - Versioned 128-byte frame contract
+   - Versioned 80-byte frame contract
    - Header, payload, flag, and offset definitions
    - Two-camera result slots and IMU/logger fields
 
@@ -45,10 +45,10 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 
 | Aspect | Value | Rationale |
 |--------|-------|-----------|
-| **Latency** | ~0.5 ms per frame | 512 μs wire time (128 B ÷ 2 MHz) |
-| **Frequency** | 200 Hz (5 ms) | Matches control loop + sensor rates |
-| **Payload Used** | ~70 B of 110 B | Control commands + sensor telemetry |
-| **Unused Padding** | ~40 B | Reserved for future expansion |
+| **Latency** | ~0.32 ms per frame | 80 bytes at 2 MHz |
+| **Frequency** | 200 Hz (5 ms) | Matches the current camera/sensor cadence |
+| **Payload Used** | 60 B of 62 B maximum | Control commands + sensor telemetry |
+| **Unused Padding** | 2 B | Reserved for expansion |
 | **Error Detection** | CRC-16/CCITT | Catches bit flips, validates on RX |
 | **Sequence Tracking** | 16-bit per direction | Detects dropped frames |
 | **Stale Timeout** | 100 ms | Marks old sensors as unreliable |
@@ -58,10 +58,10 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 **Include:**
 1. Executive summary of the S32K-master, Teensy-slave decision.
 2. Physical layer specs and pin assignments.
-3. Fixed frame structure: 16-byte header, 110-byte payload, 2-byte CRC.
+3. Fixed frame structure: 16-byte header, 62-byte payload, 2-byte CRC.
 4. Rationale for fixed-size full-duplex polling at 5 ms.
 5. Pros/cons against UART, I2C, variable-length SPI, and Teensy-master SPI.
-6. Timing budget: about 512 us wire time at 2 MHz inside a 5 ms service slot.
+6. Timing budget: about 0.32 ms wire time at 2 MHz inside a 5 ms service slot.
 7. Acceptance behavior: valid CRC/sequence updates, OLED leaves WAIT, stale within 100 ms.
 
 **Recommended Order for Report:**

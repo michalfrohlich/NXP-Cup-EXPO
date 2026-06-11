@@ -18,16 +18,8 @@ public:
     uint16_t timeoutCount() const;
 
 private:
-    static void irqTrampoline();
-    bool configurePins();
-    void configureLpspi();
-    void handleInterrupt();
-    void primeTxFifo();
-    void prepareNextTransfer();
-    void copyPendingToActive();
+    void driveBit(uint8_t txByte, uint8_t bitMask);
     void markReady(bool ready);
-
-    static TeensyLinkSpiSlave *activeInstance_;
 
     uint8_t csPin_ = 10U;
     uint8_t sckPin_ = 13U;
@@ -36,22 +28,9 @@ private:
     uint8_t readyPin_ = 31U;
 
     bool ready_ = false;
-    bool initialized_ = false;
-
-    uint8_t txActiveFrame_[TEENSY_LINK_FRAME_BYTES] = {};
-    uint8_t txPendingFrame_[TEENSY_LINK_FRAME_BYTES] = {};
-    uint8_t rxActiveFrame_[TEENSY_LINK_FRAME_BYTES] = {};
-    uint8_t rxCompleteFrame_[TEENSY_LINK_FRAME_BYTES] = {};
+    uint8_t txFrame_[TEENSY_LINK_FRAME_BYTES] = {};
     TeensyLinkS32kSnapshot latestS32k_ = {};
-
-    volatile bool txPendingDirty_ = false;
-    volatile bool rxCompleteReady_ = false;
-    volatile bool transferActive_ = false;
-    volatile uint16_t rxIndex_ = 0U;
-    volatile uint16_t txWriteIndex_ = 0U;
-    volatile uint16_t completedTransfers_ = 0U;
-    volatile uint16_t incompleteTransfers_ = 0U;
-    volatile uint16_t rxOverruns_ = 0U;
-    volatile uint16_t txUnderruns_ = 0U;
+    uint16_t completedTransfers_ = 0U;
     uint16_t protocolErrors_ = 0U;
+    uint16_t timeouts_ = 0U;
 };

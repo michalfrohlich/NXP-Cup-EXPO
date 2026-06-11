@@ -1,13 +1,13 @@
-# Teensy S32K 128-Byte SPI Test
+# Teensy S32K SPI Test
 
 ## Goal
 
 This document explains how to run the two-board SPI bench test after the
-packet update to 128 bytes.
+packet update to 80 bytes.
 
 The S32K is the main controller and SPI master. The Teensy 4.1 is the sensor
-board and SPI slave. Every S32K service tick sends one fixed 128-byte command
-frame and receives one fixed 128-byte Teensy telemetry frame at the same time.
+board and SPI slave. Every 5 ms S32K service tick sends one fixed 80-byte command
+frame and receives one fixed 80-byte Teensy telemetry frame at the same time.
 
 The S32K services this SPI link only while the Teensy link test is active. Use
 either the compile-time direct mode or the runtime OLED bench test. There is no
@@ -15,19 +15,19 @@ Python display path for this test.
 
 ## What To Open
 
-Open this in S32 Design Studio:
+Open this repository-relative folder in S32 Design Studio:
 
 ```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\s32k144
+firmware/s32k144
 ```
 
 This folder contains the S32K project files, generated RTD files, `Nxp_Cup.mex`,
 and the S32K application code.
 
-Open this in VS Code:
+Open this repository-relative folder in VS Code:
 
 ```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
+firmware/teensy
 ```
 
 This folder contains `platformio.ini`, the Teensy sketch, and the Teensy-side
@@ -36,13 +36,13 @@ SPI/telemetry code.
 The shared packet definition is here:
 
 ```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\shared\protocol\teensy_link_protocol.h
+shared/protocol/teensy_link_protocol.h
 ```
 
 The shield pinout from the schematic is here:
 
 ```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\hardware\shield-v2-pinout.md
+hardware/shield-v2-pinout.md
 ```
 
 ## Code Locations
@@ -78,7 +78,7 @@ Use a common ground first. Without common ground the data lines can look random.
 Both boards use 3.3 V logic. Do not connect a 5 V signal to the SPI pins.
 
 Keep the first wiring short. If the packet fails CRC with long wires, reduce
-the S32K SPI baud rate temporarily and keep the packet at 128 bytes.
+the S32K SPI baud rate temporarily and keep the packet at 80 bytes.
 
 ## SPI Settings
 
@@ -89,10 +89,10 @@ the S32K SPI baud rate temporarily and keep the packet at 128 bytes.
 | Mode | SPI mode 0, CPOL=0, CPHA=0 |
 | Bit order | MSB first |
 | Word size | 8 bits |
-| Frame size | 128 bytes |
+| Frame size | 80 bytes |
 | S32K service period | 5 ms |
 | Target SCK | 2 MHz |
-| Wire time at 2 MHz | about 512 us |
+| Wire time at 2 MHz | about 0.32 ms |
 
 The S32K generated SPI configuration is in `Nxp_Cup.mex` and generated RTD
 files. The important generated names are:
@@ -105,13 +105,13 @@ files. The important generated names are:
 
 ## Packet Format
 
-Every packet is exactly 128 bytes:
+Every packet is exactly 80 bytes:
 
 | Byte range | Meaning |
 |---:|---|
 | 0..15 | common header |
-| 16..125 | payload |
-| 126..127 | CRC-16/CCITT-FALSE over bytes 0..125 |
+| 16..77 | payload |
+| 78..79 | CRC-16/CCITT-FALSE over bytes 0..77 |
 
 Common header:
 
@@ -121,11 +121,11 @@ Common header:
 | 1 | sync byte 1, `0x5A` |
 | 2 | protocol version |
 | 3 | frame type: S32K=`0x53`, Teensy=`0x54` |
-| 4..5 | frame length, always 128 |
+| 4..5 | frame length, always 80 |
 | 6..7 | frame sequence |
 | 8..11 | sender time in ms |
 | 12..13 | frame flags |
-| 14..15 | payload length, always 110 |
+| 14..15 | payload length, always 62 |
 
 The CRC is the final check. If header and CRC are valid, the receiver decodes
 the payload. If not, it increments error counters and keeps the last good data.
@@ -185,10 +185,10 @@ The Teensy sends sensor, camera, logger, and link diagnostics back to the S32K:
 | logger flags and drop count | SD logging status |
 | Teensy RX frame/error counters | Shows if MOSI from S32K is valid |
 
-The current Teensy bench sketch sends:
+The current Teensy link bench sends:
 
-- IMU valid.
-- Camera 0 valid.
+- Deterministic synthetic IMU values marked valid.
+- Real camera 0 line-detector output when a fresh result is available.
 - Camera 1 stale/missing on purpose.
 - SD logger not ready yet.
 - RX counters from the S32K-to-Teensy direction.
@@ -217,20 +217,19 @@ camera may move to the Teensy later.
 
 In VS Code, open `firmware/teensy`.
 
-Use the PlatformIO terminal:
+From `firmware/teensy`, use the PlatformIO terminal:
 
 ```bat
-cd /d C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
 pio run
 pio run -t upload
-pio device monitor -b 115200
+pio device monitor -b 921600
 ```
 
 Expected serial output:
 
 ```text
 Teensy S32K SPI slave v1 link
-Packet: 128-byte full-duplex teensy_link frame, CRC-16/CCITT-FALSE
+Packet: 80-byte full-duplex teensy_link frame, CRC-16/CCITT-FALSE
 t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 servo=0 ultra=0
 ```
 
@@ -239,11 +238,11 @@ What the serial values mean:
 | Field | Meaning |
 |---|---|
 | `txSeq` | Teensy frame sequence being sent to S32K |
-| `sensorSeq` | sample sequence for mock IMU/camera data |
+| `sensorSeq` | Teensy sensor publication sequence |
 | `s32k` | last valid S32K frame sequence decoded by Teensy |
 | `rx` | S32K frames fully received by Teensy |
 | `err` | S32K frames rejected by Teensy protocol/CRC validation |
-| `timeout` | CS went active but the full 128-byte clock did not complete |
+| `timeout` | CS went active but the full 80-byte clock did not complete |
 | `app` | S32K app mode from the received frame |
 | `speed` | S32K target/current speed values |
 | `servo` | S32K servo command |
@@ -254,7 +253,7 @@ What the serial values mean:
 In S32 Design Studio, open/import:
 
 ```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\s32k144
+firmware/s32k144
 ```
 
 For the normal bench menu, keep:
@@ -294,10 +293,11 @@ The S32K OLED pages are:
 | Page | OLED title | What to check |
 |---:|---|---|
 | 0 | `TLINK` | status becomes OK, sequence values change |
-| 1 | `TLINK CAM0` | valid camera 0 mock data appears |
+| 1 | `TLINK CAM0` | real camera 0 line-detector result appears |
 | 2 | `TLINK CAM1` | stale/missing camera 1 appears without link failure |
 | 3 | `TLINK IMU/LOG` | yaw, gyro Z, lateral acceleration, logger state |
-| 4 | `TLINK RX 128B` | good frame count increases, CRC/SPI errors stay low |
+| 4 | `TLINK RX 80B` | CRC, protocol, SPI, and Teensy RX errors stay low |
+| 5 | `TLINK RAW HEADER` | received header is `165, 90, 1, 84, 80, 0` |
 
 RGB LED meaning:
 
@@ -340,7 +340,8 @@ Expected:
 - Teensy serial `s32k` becomes nonzero.
 - S32K `TLINK` changes to `OK`.
 - `S32`/`TEN` sequence values change.
-- S32K `TLINK RX 128B` good count increases.
+- S32K and Teensy sequence values continue increasing.
+- S32K `TLINK RX 80B` error counters stay low.
 
 ### 4. MOSI direction test
 
@@ -401,7 +402,7 @@ If errors increase:
 - check SPI mode 0,
 - temporarily lower S32K `TeensySpiDevice` baud rate and regenerate.
 
-Do not change the 128-byte packet to debug wiring. Keep the packet fixed.
+Do not change the 80-byte packet to debug wiring. Keep the packet fixed.
 
 ## Ultrasonic And Victory Test Context
 
@@ -436,6 +437,6 @@ The S32K is kept as the real-time vehicle controller because it already owns
 the motor, servo, display, buttons, and safety modes. The Teensy is used as the
 sensor and logging coprocessor because it has more spare CPU for IMU filtering,
 camera-side processing, SD logging, and later MATLAB/ESP telemetry support. A
-fixed 128-byte SPI packet is used because it gives deterministic timing,
+fixed 80-byte SPI packet is used because it gives deterministic timing,
 constant buffer sizes, simple CRC validation, and enough reserved space for the
 second camera, SD status, and future slip-control values.
