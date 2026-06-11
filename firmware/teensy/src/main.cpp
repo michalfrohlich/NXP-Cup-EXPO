@@ -14,25 +14,8 @@ Must correct COM number and change directrory
 
 #include <Arduino.h>
 
-#include "teensy_app_config.h"
-
-#if TEENSY_APP_SECONDARY_DISPLAY_TEST
-
-#include "modes/mode_secondary_display_test.h"
-
-void setup()
-{
-    ModeSecondaryDisplayTest_Setup();
-}
-
-void loop()
-{
-    ModeSecondaryDisplayTest_Loop();
-}
-
-#else
-
 #include "comms/teensy_link_spi_slave.h"
+#include "drivers/secondary_displays.h"
 #include "logging/teensy_sd_logger.h"
 #include "teensy_config.h"
 #include "telemetry/teensy_link_telemetry.h"
@@ -111,8 +94,37 @@ static void updateMockSensors(uint32_t nowMs)
        IMU/LOG page shows it live. */
     telemetry.loggerFlags = sdLogger.linkLoggerFlags();
     telemetry.loggerDropCount = sdLogger.dropCount();
+    if (sdLogger.isReady())
+    {
+        telemetry.componentMask |= TEENSY_LINK_COMPONENT_SD;
+    }
     sensorSeq++;
     lastSensorMs = nowMs;
+}
+
+static SecondaryDisplayDashboard buildDisplayDashboard()
+{
+    SecondaryDisplayDashboard dashboard = {};
+
+    dashboard.s32kValid = s32kSnapshot.valid;
+    dashboard.s32kSequence = s32kSnapshot.valid ? s32kSnapshot.frameSeq : 0U;
+    dashboard.rxFrames = s32kSpi.completedTransfers();
+    dashboard.rxErrors = s32kSpi.protocolErrorCount();
+    dashboard.timeouts = s32kSpi.timeoutCount();
+    dashboard.appMode = s32kSnapshot.valid ? s32kSnapshot.appMode : 0U;
+    dashboard.targetSpeedPct = s32kSnapshot.valid ? s32kSnapshot.targetSpeedPct : 0;
+    dashboard.currentSpeedPct = s32kSnapshot.valid ? s32kSnapshot.currentSpeedPct : 0;
+    dashboard.servoCmd = s32kSnapshot.valid ? s32kSnapshot.servoCmd : 0;
+    dashboard.ultrasonicDistanceCm10 =
+        s32kSnapshot.valid ? s32kSnapshot.ultrasonicDistanceCm10 : 0U;
+    dashboard.sdReady = sdLogger.isReady();
+    dashboard.sdError = sdLogger.hasError();
+    dashboard.sdDrops = sdLogger.dropCount();
+    dashboard.sdBytesWritten = sdLogger.bytesWritten();
+    dashboard.sdFileName = sdLogger.fileName();
+    dashboard.teensyTxSequence = teensyFrameSeq;
+    dashboard.sensorSequence = sensorSeq;
+    return dashboard;
 }
 
 static void printLinkStatus(uint32_t nowMs)
@@ -153,7 +165,13 @@ static void printLinkStatus(uint32_t nowMs)
     Serial.print(" drop=");
     Serial.print(sdLogger.dropCount());
     Serial.print(" sdkB=");
-    Serial.println(sdLogger.bytesWritten() / 1024U);
+    Serial.print(sdLogger.bytesWritten() / 1024U);
+
+    SecondaryDisplaySnapshot displays = SecondaryDisplays_GetSnapshot();
+    Serial.print(" d1=");
+    Serial.print(SecondaryDisplays_StateText(displays.display1));
+    Serial.print(" d2=");
+    Serial.println(SecondaryDisplays_StateText(displays.display2));
 }
 
 void setup()
@@ -165,6 +183,7 @@ void setup()
 
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
+    SecondaryDisplays_Init();
 
     /* Mount the SD before the SPI link starts. Blocking is fine here.
        A missing card just means sd=- on serial and we keep running. */
@@ -229,12 +248,28 @@ void loop()
         }
     }
 
-    /* Feed the SD card only while chip-select is idle. If the S32K is
-       mid-transfer (or about to start one), skip this loop pass; the
-       ring buffer holds the rows until the bus is quiet. */
-    if (digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == HIGH)
+    /* Hold READY low only when the logger actually needs a card write.
+       The S32K waits instead of starting SPI during the blocking write. */
+    if (sdLogger.serviceDue(nowMs))
     {
-        sdLogger.service(nowMs);
+        s32kSpi.setReady(false);
+        if (digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == HIGH)
+        {
+            sdLogger.service(nowMs);
+        }
+        s32kSpi.setReady(true);
+    }
+
+    if (SecondaryDisplays_UpdateDue(nowMs))
+    {
+        /* Hold READY low so the S32K cannot start a transfer while
+           the blocking I2C text update is in progress. */
+        s32kSpi.setReady(false);
+        if (digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == HIGH)
+        {
+            SecondaryDisplays_Service(nowMs, buildDisplayDashboard());
+        }
+        s32kSpi.setReady(true);
     }
 
     if ((uint32_t)(nowMs - nextSerialMs) >= TEENSY_LINK_SERIAL_PERIOD_MS)
@@ -243,5 +278,3 @@ void loop()
         printLinkStatus(nowMs);
     }
 }
-
-#endif

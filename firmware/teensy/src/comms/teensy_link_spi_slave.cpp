@@ -34,6 +34,11 @@ void TeensyLinkSpiSlave::publishFrame(const uint8_t frame[TEENSY_LINK_FRAME_BYTE
     markReady(true);
 }
 
+void TeensyLinkSpiSlave::setReady(bool ready)
+{
+    markReady(ready);
+}
+
 void TeensyLinkSpiSlave::driveBit(uint8_t txByte, uint8_t bitMask)
 {
     digitalWriteFast(misoPin_, ((txByte & bitMask) != 0U) ? HIGH : LOW);

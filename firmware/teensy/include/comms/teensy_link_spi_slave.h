@@ -10,6 +10,7 @@ class TeensyLinkSpiSlave
 public:
     void begin(uint8_t csPin, uint8_t sckPin, uint8_t mosiPin, uint8_t misoPin, uint8_t readyPin);
     void publishFrame(const uint8_t frame[TEENSY_LINK_FRAME_BYTES]);
+    void setReady(bool ready);
     bool service();
 
     bool getLatestS32kFrame(TeensyLinkS32kSnapshot &outSnapshot) const;

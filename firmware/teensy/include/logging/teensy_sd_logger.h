@@ -36,9 +36,9 @@ public:
                 uint16_t rxErrors,
                 uint16_t timeouts);
 
-    /* Push buffered bytes to the card in small chunks and sync the
-       file once in a while. Call every loop() pass, ideally while the
-       SPI chip-select line is idle. */
+    /* Check whether a real write/sync is pending, then push at most
+       one small chunk while the main loop holds READY low. */
+    bool serviceDue(uint32_t nowMs);
     void service(uint32_t nowMs);
 
     /* Flush everything and truncate the file. Optional; normal use is

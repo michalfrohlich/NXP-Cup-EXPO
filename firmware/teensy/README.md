@@ -10,12 +10,13 @@ C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
 
 Current layout:
 - `include/teensy_config.h`: Teensy pins and timing constants.
-- `include/teensy_app_config.h`: compile-time Teensy hardware-test selection.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
+- `include/drivers/` and `src/drivers/`: always-on Teensy status displays.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte `teensy_link` frame.
 - `include/logging/` and `src/logging/`: SdFat CSV logger for the built-in SD slot.
 - `src/main.cpp`: bring-up loop with mock IMU/camera data.
-- `docs/secondary-displays.md`: two-display wiring, limits, and I2C probe test.
+- `docs/secondary-displays.md`: two-display hardware assumptions and pages.
+- `docs/integrated-bring-up.md`: combined displays, SPI, and SD test.
 
 The shared packet contract lives in `../../shared/protocol/teensy_link_protocol.h`.
 Do not reintroduce the old 45-byte IMU packet as active code.
@@ -40,6 +41,9 @@ t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 s
 `rx` increasing means the Teensy decoded S32K MOSI frames. `err` or `timeout`
 increasing means the S32K frame is corrupt, missing, or not clocked completely.
 
+Both Teensy displays start automatically. Display 1 shows SPI health and
+display 2 shows SD health. No separate display mode is required.
+
 ## SD Logging
 
 With an SD card in the built-in slot, each boot creates the next free
@@ -57,7 +61,7 @@ The current sketch sends deterministic sample data:
 - IMU present, calibrated, valid, and yaw-relative.
 - Camera 0 valid from the Teensy side.
 - Camera 1 intentionally stale/missing.
-- SD/logger not ready yet.
+- Real SD/logger ready, error, drop, and written-byte status.
 - RX counters from the S32K-to-Teensy direction.
 
 This is deliberate. It lets the S32K OLED show both a good component and a

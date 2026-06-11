@@ -15,16 +15,18 @@ writes tiny and out of the way.
 ```text
 sensor update (100 Hz)          loop(), every pass
         |                               |
-   logRow(): format CSV row     service(): if CS idle and card not busy,
+   logRow(): format CSV row     service(): if data is pending and card is ready,
    into a RAM ring buffer  -->  write ONE 512-byte chunk, sync every 2 s
    (no SD access at all)        (the only place SD is touched)
 ```
 
 - `logRow()` only formats text into a 32 KiB RAM ring buffer (about 1.5 s of
   rows at 100 Hz). It never touches the card.
-- `service()` runs from `loop()` only, and only while the SPI chip-select
-  line is idle. It writes at most one 512-byte sector per call and skips the
-  call entirely while the card reports busy.
+- `serviceDue()` confirms that a real card write or sync is pending.
+- The main loop lowers the Teensy READY output before calling `service()`, so
+  the S32K waits instead of starting a transfer during the blocking SD write.
+- `service()` writes at most one 512-byte sector per call and skips the call
+  entirely while the card reports busy.
 - The file is opened once at boot, the CSV header is written once, and the
   file space is pre-allocated (64 MiB) so writes never stop to allocate
   clusters mid-run. There is no open/close per row.
@@ -107,8 +109,7 @@ pio device monitor -p COM3 -b 115200
 - A normal shutdown is "pull the power": the file keeps everything up to the
   last 2-second sync. The file may show a 64 MiB pre-allocated size on some
   tools until properly closed; the CSV content ends at the real data.
-- A single 512-byte write occasionally takes longer than the gap between two
-  S32K transfers. If chip-select asserts mid-write, that frame is lost; the
-  S32K side already tolerates this (CRC counter + keeps last good data). The
-  proper fix is the planned hardware SPI slave.
+- READY gating prevents new S32K transfers during a 512-byte SD write. A
+  transfer that already started during the small READY/CS race can still be
+  lost. The final fix is the planned hardware SPI slave.
 - Counters (`drop`, `rx`, sequences) are 16-bit and wrap at 65535.

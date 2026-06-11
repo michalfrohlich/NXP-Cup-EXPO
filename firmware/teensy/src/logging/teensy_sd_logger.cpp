@@ -293,6 +293,17 @@ void TeensySdLogger::service(uint32_t nowMs)
     }
 }
 
+bool TeensySdLogger::serviceDue(uint32_t nowMs)
+{
+    if (!ready_ || error_ || file_.isBusy())
+    {
+        return false;
+    }
+
+    return (ringBuf_.bytesUsed() >= SD_WRITE_CHUNK) ||
+           ((int32_t)(nowMs - nextSyncMs_) >= 0);
+}
+
 void TeensySdLogger::end()
 {
     if (!ready_)

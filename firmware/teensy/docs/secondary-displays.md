@@ -1,27 +1,44 @@
-# Teensy Secondary Displays
+# Teensy Status Displays
 
-This branch adds a Teensy-only hardware test for the two planned
-`ZJY_M208_25664-4P` 256x64 displays. It does not change or use the S32K OLED.
+The two planned `ZJY_M208_25664-4P` displays run continuously with the normal
+Teensy SPI and SD logger firmware. There is no separate display test mode.
 
-## Current Limit
+The S32K OLED is unchanged and remains controlled by the S32K firmware.
 
-The exact display controller and I2C address are not confirmed. Similar 256x64
-modules use different controllers, including SSD1362 and SH1122. Sending
-controller-specific graphics commands before confirming the part can produce a
-blank screen or incorrect behavior.
+## Pages
 
-The current test therefore verifies the electrical I2C connection first. It
-reports `DETECTED`, `NOT_CONNECTED`, or `ADDRESS_CONFLICT` for each configured
-display. Add graphics initialization only after confirming:
+Display 1 shows S32K-Teensy communication:
 
-- controller model;
-- I2C address or address-selection method;
-- voltage and connector pin order;
-- whether both displays can use different addresses.
+- link `OK` or `WAITING`;
+- received-frame and S32K sequence counters;
+- protocol errors and timeouts;
+- S32K app, speed, servo, and ultrasonic values.
 
-Two displays with the same fixed I2C address cannot be controlled independently
-on the same SDA/SCL wires. Use selectable addresses or an I2C multiplexer such
-as a TCA9548A.
+Display 2 shows Teensy and SD logging:
+
+- SD `READY`, `NO CARD`, or `ERROR`;
+- current `LOGnnn.CSV` filename;
+- written KiB and dropped rows;
+- Teensy TX and sensor sequence counters;
+- honest notes that the current IMU/camera values are mock or missing.
+
+## Current Hardware Assumption
+
+The driver currently assumes:
+
+- SSD1362-compatible 256x64 controller;
+- I2C on Teensy `Wire1`;
+- display 1 address `0x3C`;
+- display 2 address `0x3D`;
+- 400 kHz I2C.
+
+These settings are in `include/teensy_config.h`. If Serial reports `DETECTED`
+but the screen stays blank, the I2C wiring/address works but the controller
+assumption is probably wrong.
+
+Two displays with the same fixed I2C address receive the same commands and
+cannot show different pages. Configure unique addresses or add an I2C
+multiplexer such as a TCA9548A.
 
 ## Wiring
 
@@ -32,54 +49,22 @@ as a TCA9548A.
 | 3.3 V | 3.3 V | VCC |
 | Ground | GND | GND |
 
-The PCB schematic routes pins 17 and 16 to the Teensy display connector.
-Do not use the S32K display connector for this test.
+Both Teensy displays share SDA/SCL. They need unique addresses to show the two
+different dashboards.
 
-## Enable And Run
+## Timing
 
-Open:
+The displays remain powered and visible continuously. Only one display is
+refreshed every 250 ms, so each display receives fresh values every 500 ms.
 
-```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
-```
-
-Set this value to `1` in `include/teensy_app_config.h`:
-
-```cpp
-#define TEENSY_APP_SECONDARY_DISPLAY_TEST 1
-```
-
-Then run:
-
-```bat
-cd /d C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
-pio run
-pio run -t upload
-pio device list
-pio device monitor -p COM3 -b 115200
-```
-
-Replace `COM3` with the Teensy port. Expected Serial output:
-
-```text
-scan=1
-display1 address=0x3C state=DETECTED
-display2 address=0x3D state=NOT_CONNECTED
-```
-
-Update the two configured addresses in `include/teensy_config.h` after checking
-the display datasheet. If both addresses are configured the same and a device
-responds, the test reports `ADDRESS_CONFLICT` because it cannot distinguish two
-devices at one address.
-
-Set `TEENSY_APP_SECONDARY_DISPLAY_TEST` back to `0` before running the normal
-S32K-Teensy SPI test.
+The Teensy lowers the READY output before a blocking I2C refresh. The S32K
+therefore waits instead of starting a 128-byte SPI transfer during the display
+write.
 
 ## Files
 
-- `include/teensy_app_config.h`: selects the Teensy display test.
-- `include/teensy_config.h`: display pins, addresses, bus speed, and scan rate.
-- `include/drivers/secondary_displays.h`: display probe state interface.
-- `src/drivers/secondary_displays.cpp`: Teensy Wire1 I2C probe.
-- `src/modes/mode_secondary_display_test.cpp`: periodic Serial test output.
-- `src/main.cpp`: dispatches to the display test when enabled.
+- `include/teensy_config.h`: pins, addresses, I2C speed, and update period.
+- `include/drivers/secondary_displays.h`: dashboard data and status interface.
+- `src/drivers/secondary_displays.cpp`: SSD1362/U8x8 display implementation.
+- `src/main.cpp`: continuously supplies live SPI and SD status.
+- `platformio.ini`: installs U8g2 `2.36.18`.

@@ -19,7 +19,30 @@ struct SecondaryDisplaySnapshot
     uint32_t scanCount;
 };
 
+struct SecondaryDisplayDashboard
+{
+    bool s32kValid;
+    uint16_t s32kSequence;
+    uint16_t rxFrames;
+    uint16_t rxErrors;
+    uint16_t timeouts;
+    uint8_t appMode;
+    int16_t targetSpeedPct;
+    int16_t currentSpeedPct;
+    int16_t servoCmd;
+    uint16_t ultrasonicDistanceCm10;
+
+    bool sdReady;
+    bool sdError;
+    uint16_t sdDrops;
+    uint32_t sdBytesWritten;
+    const char *sdFileName;
+    uint16_t teensyTxSequence;
+    uint16_t sensorSequence;
+};
+
 void SecondaryDisplays_Init();
-void SecondaryDisplays_Scan();
+bool SecondaryDisplays_UpdateDue(uint32_t nowMs);
+void SecondaryDisplays_Service(uint32_t nowMs, const SecondaryDisplayDashboard &dashboard);
 SecondaryDisplaySnapshot SecondaryDisplays_GetSnapshot();
 const char *SecondaryDisplays_StateText(SecondaryDisplayState state);
