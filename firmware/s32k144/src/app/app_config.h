@@ -17,15 +17,17 @@
 #define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_NXP_CUP                  0
 #define APP_TEST_RACE_MODE                0
+#define APP_TEST_TEENSY_CAM0_RACE         1
 #define APP_TEST_HONOR_LAP                0
 #define APP_TEST_SERVO_RATE_TEST          0
 #define APP_TEST_TEENSY_LINK_TEST         0
-#define APP_TEST_NXP_CUP_TESTS            1
+#define APP_TEST_NXP_CUP_TESTS            0
 
 #define APP_MODE_COUNT ( \
     (APP_TEST_LINEAR_CAMERA_TEST) + \
     (APP_TEST_NXP_CUP) + \
     (APP_TEST_RACE_MODE) + \
+    (APP_TEST_TEENSY_CAM0_RACE) + \
     (APP_TEST_HONOR_LAP) + \
     (APP_TEST_SERVO_RATE_TEST) + \
     (APP_TEST_TEENSY_LINK_TEST) + \
@@ -46,6 +48,8 @@
 #define STEER_UPDATE_MS                   10u
 #define RACE_DISPLAY_PERIOD_MS            200u
 #define RACE_FINISH_MIN_CONFIDENCE        50U
+#define TEENSY_CAM0_CONTROL_MAX_AGE_MS    100U
+#define TEENSY_CAM0_HARD_FAULT_MS         1000U
 #define CAM_STEER_HOLD_MS                 350u
 #define CAM_UART_STREAM_PERIOD_MS         200u
 

@@ -12,6 +12,8 @@ AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_SERVO_RATE_TEST;
 #elif APP_TEST_TEENSY_LINK_TEST
     return APP_BUILD_MODE_TEENSY_LINK_TEST;
+#elif APP_TEST_TEENSY_CAM0_RACE
+    return APP_BUILD_MODE_TEENSY_CAM0_RACE;
 #elif APP_TEST_RACE_MODE
     return APP_BUILD_MODE_RACE_MODE;
 #elif APP_TEST_LINEAR_CAMERA_TEST
@@ -35,6 +37,10 @@ void App_RunSelectedMode(void)
 
         case APP_BUILD_MODE_RACE_MODE:
             mode_race_mode();
+            break;
+
+        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
+            mode_teensy_cam0_race();
             break;
 
         case APP_BUILD_MODE_HONOR_LAP:

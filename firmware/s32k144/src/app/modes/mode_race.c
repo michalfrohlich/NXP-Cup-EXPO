@@ -1,8 +1,24 @@
 #include "../app_internal.h"
 
-static void race_mode_enter(uint32 nowMs)
+typedef struct
+{
+    uint32 nextServiceMs;
+    uint32 lastValidCameraMs;
+    uint32 lastAcceptedRxMs;
+    uint16 controlSeq;
+    TeensyLinkSnapshot_t snapshot;
+    boolean haveAcceptedFrame;
+    boolean hardFault;
+} RaceTeensyCam0LinkState_t;
+
+static RaceTeensyCam0LinkState_t g_raceTeensyCam0Link;
+static boolean g_raceUsesTeensyCam0;
+
+static void race_mode_enter(uint32 nowMs, boolean useTeensyCam0)
 {
     (void)memset(&g_raceMode, 0, sizeof(g_raceMode));
+    (void)memset(&g_raceTeensyCam0Link, 0, sizeof(g_raceTeensyCam0Link));
+    g_raceUsesTeensyCam0 = useTeensyCam0;
 
     /* Race mode owns all actuators directly. Initialize them once, then keep
        the runtime loop strictly ordered: vision -> ultrasonic -> control. */
@@ -20,21 +36,33 @@ static void race_mode_enter(uint32 nowMs)
     Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
     SteerStraight();
 
-    if (LinearCameraIsBusy() == TRUE)
+    if (useTeensyCam0 == TRUE)
     {
-        LinearCameraStopStream();
+        TeensyLink_Init();
+        g_raceTeensyCam0Link.nextServiceMs = nowMs;
+        g_raceTeensyCam0Link.lastValidCameraMs = nowMs;
     }
+    else
+    {
+        if (LinearCameraIsBusy() == TRUE)
+        {
+            LinearCameraStopStream();
+        }
 
-    LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
-    LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
-    LineDetector_Init();
+        LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
+        LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
+        LineDetector_Init();
+    }
 
     SteeringController_Init(&g_raceMode.ctrl);
     SteeringController_Reset(&g_raceMode.ctrl);
 
     Ultrasonic_Init();
 
-    (void)LinearCameraStartStream();
+    if (useTeensyCam0 != TRUE)
+    {
+        (void)LinearCameraStartStream();
+    }
     StatusLed_Blue();
 }
 
@@ -59,6 +87,121 @@ static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
                  ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
     LineDetector_Process(st->processedFrame.Values, &st->result);
     st->haveValidVision = TRUE;
+}
+
+static void race_mode_default_link_camera(TeensyLinkCameraResult_t *camera)
+{
+    if (camera == NULL_PTR)
+    {
+        return;
+    }
+
+    camera->errorPct = 0;
+    camera->status = (uint8)VISION_TRACK_LOST;
+    camera->feature = (uint8)VISION_FEATURE_NONE;
+    camera->confidence = 0U;
+    camera->leftLineIdx = (uint8)VISION_LINEAR_INVALID_IDX;
+    camera->rightLineIdx = (uint8)VISION_LINEAR_INVALID_IDX;
+    camera->ageMs = 255U;
+    camera->flags =
+        (uint8)(TEENSY_LINK_CAMERA_FLAG_SOURCE_S32K |
+                TEENSY_LINK_CAMERA_FLAG_STALE);
+}
+
+static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
+                                             TeensyLinkS32kInputs_t *input)
+{
+    if ((st == NULL_PTR) || (input == NULL_PTR))
+    {
+        return;
+    }
+
+    (void)memset(input, 0, sizeof(*input));
+    input->controlLoopSeq = g_raceTeensyCam0Link.controlSeq;
+    input->controlDtUs = (uint16)((uint16)TEENSY_LINK_SERVICE_PERIOD_MS * 1000U);
+    input->appMode = (uint8)APP_BUILD_MODE_TEENSY_CAM0_RACE;
+    input->appState = (uint8)st->phase;
+    input->safetyFlags = (g_raceTeensyCam0Link.hardFault == TRUE) ? 1U : 0U;
+    race_mode_default_link_camera(&input->camera[0]);
+    race_mode_default_link_camera(&input->camera[1]);
+    input->steerRaw = st->steerRaw;
+    input->steerFilt = st->steerFilt;
+    input->steerOut = st->steerOut;
+    input->targetSpeedPct = (sint16)st->targetSpeedPct;
+    input->currentSpeedPct = (sint16)st->currentSpeedPct;
+    input->escPrimaryLogical = (sint16)(-st->currentSpeedPct);
+    input->escSecondaryLogical = (sint16)(-st->currentSpeedPct);
+    input->servoCmd = st->steerOut;
+
+    if (st->haveValidDistance == TRUE)
+    {
+        float distanceCm10 = st->lastDistanceCm * 10.0f;
+        if (distanceCm10 > 65535.0f)
+        {
+            distanceCm10 = 65535.0f;
+        }
+        input->ultrasonicDistanceCm10 = (uint16)distanceCm10;
+        input->ultrasonicFlags = 1U;
+    }
+}
+
+static void race_mode_update_teensy_cam0(RaceModeState_t *st, uint32 nowMs)
+{
+    TeensyLinkS32kInputs_t input;
+    VisionOutput_t vision;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    if (time_reached(nowMs, g_raceTeensyCam0Link.nextServiceMs) == TRUE)
+    {
+        g_raceTeensyCam0Link.controlSeq++;
+        race_mode_fill_teensy_link_input(st, &input);
+        (void)TeensyLink_Service(nowMs, &input);
+        g_raceTeensyCam0Link.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+
+        if (time_reached(nowMs, g_raceTeensyCam0Link.nextServiceMs) == TRUE)
+        {
+            g_raceTeensyCam0Link.nextServiceMs =
+                nowMs + (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+        }
+    }
+
+    (void)TeensyLink_GetSnapshot(&g_raceTeensyCam0Link.snapshot);
+
+    if (TeensyCameraSource_GetCamera0Vision(&g_raceTeensyCam0Link.snapshot,
+                                            nowMs,
+                                            (uint32)TEENSY_CAM0_CONTROL_MAX_AGE_MS,
+                                            &vision) == TRUE)
+    {
+        st->result = vision;
+        st->haveValidVision = TRUE;
+
+        if ((g_raceTeensyCam0Link.haveAcceptedFrame != TRUE) ||
+            (g_raceTeensyCam0Link.snapshot.lastRxMs !=
+             g_raceTeensyCam0Link.lastAcceptedRxMs))
+        {
+            g_raceTeensyCam0Link.lastAcceptedRxMs =
+                g_raceTeensyCam0Link.snapshot.lastRxMs;
+            g_raceTeensyCam0Link.lastValidCameraMs = nowMs;
+            g_raceTeensyCam0Link.haveAcceptedFrame = TRUE;
+        }
+    }
+    else if ((uint32)(nowMs - g_raceTeensyCam0Link.lastValidCameraMs) >
+             (uint32)TEENSY_CAM0_CONTROL_MAX_AGE_MS)
+    {
+        st->haveValidVision = FALSE;
+    }
+
+    if ((g_raceTeensyCam0Link.hardFault != TRUE) &&
+        ((uint32)(nowMs - g_raceTeensyCam0Link.lastValidCameraMs) >=
+         (uint32)TEENSY_CAM0_HARD_FAULT_MS))
+    {
+        g_raceTeensyCam0Link.hardFault = TRUE;
+        st->phase = RACE_PHASE_FAULT;
+    }
 }
 
 static void race_mode_update_ultrasonic(RaceModeState_t *st, uint32 nowMs)
@@ -335,6 +478,26 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
     }
 }
 
+static void race_mode_apply_teensy_camera_hard_fault(RaceModeState_t *st)
+{
+    if ((st == NULL_PTR) ||
+        (g_raceUsesTeensyCam0 != TRUE) ||
+        (g_raceTeensyCam0Link.hardFault != TRUE))
+    {
+        return;
+    }
+
+    st->phase = RACE_PHASE_FAULT;
+    st->targetSpeedPct = 0;
+    st->currentSpeedPct = 0;
+    st->steerRaw = 0;
+    st->steerFilt = 0;
+    st->steerOut = 0;
+    Esc_StopNeutral();
+    SteerStraight();
+    StatusLed_Red();
+}
+
 static void race_mode_ensure_display_ready(RaceModeState_t *st)
 {
     if ((st == NULL_PTR) || (st->displayInitialized == TRUE))
@@ -386,7 +549,8 @@ static void race_mode_draw(const RaceModeState_t *st)
             break;
     }
 
-    DisplayTextPadded(0U, "RACE MODE");
+    DisplayTextPadded(0U,
+                      (g_raceUsesTeensyCam0 == TRUE) ? "TEENSY CAM RACE" : "RACE MODE");
     DisplayTextPadded(1U, "State:");
     DisplayText(1U, phaseText, (uint16)strlen(phaseText), 7U);
     DisplayTextPadded(2U, "Spd:    D:");
@@ -414,12 +578,12 @@ static void race_mode_draw(const RaceModeState_t *st)
     DisplayRefresh();
 }
 
-void mode_race_mode(void)
+static void race_mode_run(boolean useTeensyCam0)
 {
     uint32 nextButtonsMs;
 
     App_InitRuntimeCore();
-    race_mode_enter(Timebase_GetMs());
+    race_mode_enter(Timebase_GetMs(), useTeensyCam0);
     nextButtonsMs = Timebase_GetMs();
 
     for (;;)
@@ -440,9 +604,17 @@ void mode_race_mode(void)
         stopPressed = Buttons_WasPressed(BUTTON_ID_SW3);
         displaySwitchOn = Buttons_IsOn(BUTTON_ID_SWPCB);
 
-        race_mode_update_vision(&g_raceMode, nowMs);
+        if (useTeensyCam0 == TRUE)
+        {
+            race_mode_update_teensy_cam0(&g_raceMode, nowMs);
+        }
+        else
+        {
+            race_mode_update_vision(&g_raceMode, nowMs);
+        }
         race_mode_update_ultrasonic(&g_raceMode, nowMs);
         race_mode_update_control(&g_raceMode, nowMs, stopPressed);
+        race_mode_apply_teensy_camera_hard_fault(&g_raceMode);
 
         if ((displaySwitchOn == TRUE) &&
             (g_raceMode.displayInitialized != TRUE) &&
@@ -463,4 +635,14 @@ void mode_race_mode(void)
 
         g_raceMode.displayWasOn = displaySwitchOn;
     }
+}
+
+void mode_race_mode(void)
+{
+    race_mode_run(FALSE);
+}
+
+void mode_teensy_cam0_race(void)
+{
+    race_mode_run(TRUE);
 }

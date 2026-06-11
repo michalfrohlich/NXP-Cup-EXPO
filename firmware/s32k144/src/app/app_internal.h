@@ -22,6 +22,7 @@
 #include "drivers/teensy_link.h"
 
 #include "services/line_detector.h"
+#include "services/teensy_camera_source.h"
 #include "drivers/rgb_led.h"
 #include "services/steering_controller.h"
 #include "services/steering_smoothing.h"
@@ -33,6 +34,7 @@ typedef enum
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
     APP_BUILD_MODE_NXP_CUP,
     APP_BUILD_MODE_RACE_MODE,
+    APP_BUILD_MODE_TEENSY_CAM0_RACE,
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_SERVO_RATE_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
@@ -504,6 +506,7 @@ void mode_nxp_cup_tests(void);
 void mode_nxp_cup(void);
 void mode_honor_lap(void);
 void mode_race_mode(void);
+void mode_teensy_cam0_race(void);
 void mode_servo_rate_test(void);
 void mode_teensy_link_test(void);
 
