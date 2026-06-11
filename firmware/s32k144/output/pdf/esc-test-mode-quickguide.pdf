@@ -1,0 +1,425 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Length 12103 >>
+stream
+0.985 0.988 0.992 rg
+0.00 0.00 595.00 842.00 re f
+0.060 0.090 0.130 rg
+0.00 730.00 595.00 112.00 re f
+1.000 1.000 1.000 rg
+BT /F2 25.0 Tf 42.00 794.00 Td (ESC TEST MODE) Tj ET
+0.820 0.880 0.920 rg
+BT /F1 11.0 Tf 42.00 770.00 Td (Quick guide for dual BLDC ESC feature testing) Tj ET
+0.820 0.880 0.920 rg
+BT /F2 10.0 Tf 400.00 794.00 Td (NXP Cup Car) Tj ET
+0.720 0.790 0.840 rg
+BT /F1 9.0 Tf 400.00 777.00 Td (Standalone test screen) Tj ET
+1.000 0.950 0.880 rg
+0.950 0.700 0.300 RG
+0.80 w
+42.00 687.00 511.00 36.00 re B
+0.930 0.550 0.100 rg
+BT /F2 10.0 Tf 54.00 705.00 Td (Safety first:) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.5 Tf 120.00 705.00 Td (Start with wheels off the ground. Potentiometer speed is capped to 30 percent in this test.) Tj ET
+0.000 0.390 0.550 rg
+BT /F2 15.0 Tf 42.00 654.00 Td (1. Enter and Arm) Tj ET
+0.000 0.390 0.550 rg
+51.20 637.00 m
+51.20 638.77 49.77 640.20 48.00 640.20 c
+46.23 640.20 44.80 638.77 44.80 637.00 c
+44.80 635.23 46.23 633.80 48.00 633.80 c
+49.77 633.80 51.20 635.23 51.20 637.00 c
+f
+0.100 0.130 0.180 rg
+BT /F2 9.5 Tf 58.00 634.00 Td (Enter:) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 634.00 Td (Open the NXP Cup tests menu and) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 622.00 Td (select ESC.) Tj ET
+0.000 0.390 0.550 rg
+51.20 609.00 m
+51.20 610.77 49.77 612.20 48.00 612.20 c
+46.23 612.20 44.80 610.77 44.80 609.00 c
+44.80 607.23 46.23 605.80 48.00 605.80 c
+49.77 605.80 51.20 607.23 51.20 609.00 c
+f
+0.100 0.130 0.180 rg
+BT /F2 9.5 Tf 58.00 606.00 Td (Initial state:) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 606.00 Td (The test starts DISARMED and sends) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 594.00 Td (neutral to both ESCs.) Tj ET
+0.000 0.390 0.550 rg
+51.20 581.00 m
+51.20 582.77 49.77 584.20 48.00 584.20 c
+46.23 584.20 44.80 582.77 44.80 581.00 c
+44.80 579.23 46.23 577.80 48.00 577.80 c
+49.77 577.80 51.20 579.23 51.20 581.00 c
+f
+0.100 0.130 0.180 rg
+BT /F2 9.5 Tf 58.00 578.00 Td (Arm:) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 578.00 Td (Hold SW2. The car enters ARM for) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 566.00 Td (about 3 seconds while neutral) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 554.00 Td (pulses are sent.) Tj ET
+0.000 0.390 0.550 rg
+51.20 541.00 m
+51.20 542.77 49.77 544.20 48.00 544.20 c
+46.23 544.20 44.80 542.77 44.80 541.00 c
+44.80 539.23 46.23 537.80 48.00 537.80 c
+49.77 537.80 51.20 539.23 51.20 541.00 c
+f
+0.100 0.130 0.180 rg
+BT /F2 9.5 Tf 58.00 538.00 Td (Ready:) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 538.00 Td (When the screen shows RDY, return) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 526.00 Td (the potentiometer to zero before) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 514.00 Td (applying throttle.) Tj ET
+0.000 0.390 0.550 rg
+51.20 501.00 m
+51.20 502.77 49.77 504.20 48.00 504.20 c
+46.23 504.20 44.80 502.77 44.80 501.00 c
+44.80 499.23 46.23 497.80 48.00 497.80 c
+49.77 497.80 51.20 499.23 51.20 501.00 c
+f
+0.100 0.130 0.180 rg
+BT /F2 9.5 Tf 58.00 498.00 Td (Run:) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 498.00 Td (Increase the potentiometer slowly.) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 486.00 Td (The state changes to RUN only after) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 9.2 Tf 120.00 474.00 Td (the zero check is satisfied.) Tj ET
+0.000 0.390 0.550 rg
+BT /F2 15.0 Tf 315.00 654.00 Td (Button Controls) Tj ET
+0.910 0.960 0.980 rg
+0.750 0.860 0.900 RG
+0.50 w
+315.00 626.00 82.00 18.00 re B
+0.000 0.390 0.550 rg
+BT /F2 8.8 Tf 322.00 631.00 Td (SW2 hold) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 631.00 Td (Arm from DIS/STOP; disarm) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 620.00 Td (from RDY/RUN/ARM.) Tj ET
+0.910 0.960 0.980 rg
+0.750 0.860 0.900 RG
+0.50 w
+315.00 594.00 82.00 18.00 re B
+0.000 0.390 0.550 rg
+BT /F2 8.8 Tf 322.00 599.00 Td (SW2 click) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 599.00 Td (Cycle output mode: BOTH,) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 588.00 Td (ESC1, ESC2, DIFF.) Tj ET
+0.910 0.960 0.980 rg
+0.750 0.860 0.900 RG
+0.50 w
+315.00 562.00 82.00 18.00 re B
+0.000 0.390 0.550 rg
+BT /F2 8.8 Tf 322.00 567.00 Td (SW3 hold) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 567.00 Td (Emergency stop. Both ESCs) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 556.00 Td (return to neutral.) Tj ET
+0.910 0.960 0.980 rg
+0.750 0.860 0.900 RG
+0.50 w
+315.00 530.00 82.00 18.00 re B
+0.000 0.390 0.550 rg
+BT /F2 8.8 Tf 322.00 535.00 Td (SW3 click) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 535.00 Td (Toggle direction: FWD or REV.) Tj ET
+0.910 0.960 0.980 rg
+0.750 0.860 0.900 RG
+0.50 w
+315.00 498.00 82.00 18.00 re B
+0.000 0.390 0.550 rg
+BT /F2 8.8 Tf 322.00 503.00 Td (Pot) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 503.00 Td (Speed magnitude. Low values) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 492.00 Td (are deadbanded; max command) Tj ET
+0.100 0.130 0.180 rg
+BT /F1 8.8 Tf 409.00 481.00 Td (is 30 percent.) Tj ET
+0.000 0.390 0.550 rg
+BT /F2 15.0 Tf 42.00 385.00 Td (OLED Screen Meaning) Tj ET
+0.040 0.060 0.080 rg
+0.200 0.250 0.300 RG
+1.00 w
+42.00 294.00 511.00 82.00 re B
+1.000 1.000 1.000 rg
+BT /F3 13.0 Tf 60.00 363.00 Td (ESC TEST RDY) Tj ET
+1.000 1.000 1.000 rg
+BT /F3 13.0 Tf 60.00 345.00 Td (M:BOTH  FWD) Tj ET
+1.000 1.000 1.000 rg
+BT /F3 13.0 Tf 60.00 327.00 Td (E1: -18 E2: -18) Tj ET
+1.000 1.000 1.000 rg
+BT /F3 13.0 Tf 60.00 309.00 Td (P:153  C: -18%) Tj ET
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 318.00 363.00 Td (DIS/ARM/RDY/RUN/STOP) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 8.3 Tf 436.00 363.00 Td (Current test state.) Tj ET
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 318.00 349.00 Td (M) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 8.3 Tf 436.00 349.00 Td (Selected output mode.) Tj ET
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 318.00 335.00 Td (FWD/REV) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 8.3 Tf 436.00 335.00 Td (Direction sign applied to pot command.) Tj ET
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 318.00 321.00 Td (E1/E2) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 8.3 Tf 436.00 321.00 Td (Actual commands sent to primary and secondary ESC.) Tj ET
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 318.00 307.00 Td (P/C) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 8.3 Tf 436.00 307.00 Td (Raw pot level and capped command percent.) Tj ET
+0.000 0.390 0.550 rg
+BT /F2 15.0 Tf 42.00 255.00 Td (Output Modes) Tj ET
+0.880 0.930 0.960 rg
+0.780 0.820 0.870 RG
+0.50 w
+42.00 233.00 72.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.7 Tf 48.00 239.00 Td (Mode) Tj ET
+0.880 0.930 0.960 rg
+0.780 0.820 0.870 RG
+0.50 w
+114.00 233.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.7 Tf 120.00 239.00 Td (ESC1 command) Tj ET
+0.880 0.930 0.960 rg
+0.780 0.820 0.870 RG
+0.50 w
+246.00 233.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.7 Tf 252.00 239.00 Td (ESC2 command) Tj ET
+0.880 0.930 0.960 rg
+0.780 0.820 0.870 RG
+0.50 w
+378.00 233.00 175.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.7 Tf 384.00 239.00 Td (Use it for) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+42.00 212.00 72.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.2 Tf 48.00 218.00 Td (BOTH) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+114.00 212.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 120.00 218.00 Td (same as command) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+246.00 212.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 252.00 218.00 Td (same as command) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+378.00 212.00 175.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 384.00 218.00 Td (Basic same-speed motor test.) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+42.00 192.00 72.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.2 Tf 48.00 198.00 Td (ESC1) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+114.00 192.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 120.00 198.00 Td (command) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+246.00 192.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 252.00 198.00 Td (neutral) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+378.00 192.00 175.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 384.00 198.00 Td (Check primary ESC/motor alone.) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+42.00 172.00 72.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.2 Tf 48.00 178.00 Td (ESC2) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+114.00 172.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 120.00 178.00 Td (neutral) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+246.00 172.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 252.00 178.00 Td (command) Tj ET
+1.000 1.000 1.000 rg
+0.780 0.820 0.870 RG
+0.45 w
+378.00 172.00 175.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 384.00 178.00 Td (Check secondary ESC/motor alone.) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+42.00 152.00 72.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F2 8.2 Tf 48.00 158.00 Td (DIFF) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+114.00 152.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 120.00 158.00 Td (command) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+246.00 152.00 132.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 252.00 158.00 Td (opposite command) Tj ET
+0.965 0.975 0.985 rg
+0.780 0.820 0.870 RG
+0.45 w
+378.00 152.00 175.00 20.00 re B
+0.100 0.130 0.180 rg
+BT /F1 8.2 Tf 384.00 158.00 Td (Differential steering / wiring direction check.) Tj ET
+0.000 0.390 0.550 rg
+BT /F2 15.0 Tf 42.00 158.00 Td (LED Indication) Tj ET
+0.100 0.320 0.750 rg
+0.200 0.200 0.200 RG
+0.40 w
+59.00 135.00 m
+59.00 138.87 55.87 142.00 52.00 142.00 c
+48.13 142.00 45.00 138.87 45.00 135.00 c
+45.00 131.13 48.13 128.00 52.00 128.00 c
+55.87 128.00 59.00 131.13 59.00 135.00 c
+B
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 66.00 140.00 Td (DIS) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 66.00 128.00 Td (Disarmed) Tj ET
+0.000 0.580 0.680 rg
+0.200 0.200 0.200 RG
+0.40 w
+161.00 135.00 m
+161.00 138.87 157.87 142.00 154.00 142.00 c
+150.13 142.00 147.00 138.87 147.00 135.00 c
+147.00 131.13 150.13 128.00 154.00 128.00 c
+157.87 128.00 161.00 131.13 161.00 135.00 c
+B
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 168.00 140.00 Td (ARM) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 168.00 128.00 Td (Arming neutral) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 168.00 119.00 Td (pulses) Tj ET
+0.050 0.550 0.270 rg
+0.200 0.200 0.200 RG
+0.40 w
+263.00 135.00 m
+263.00 138.87 259.87 142.00 256.00 142.00 c
+252.13 142.00 249.00 138.87 249.00 135.00 c
+249.00 131.13 252.13 128.00 256.00 128.00 c
+259.87 128.00 263.00 131.13 263.00 135.00 c
+B
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 270.00 140.00 Td (RDY) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 270.00 128.00 Td (Armed, waiting) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 270.00 119.00 Td (at neutral) Tj ET
+0.050 0.550 0.270 rg
+0.200 0.200 0.200 RG
+0.40 w
+365.00 135.00 m
+365.00 138.87 361.87 142.00 358.00 142.00 c
+354.13 142.00 351.00 138.87 351.00 135.00 c
+351.00 131.13 354.13 128.00 358.00 128.00 c
+361.87 128.00 365.00 131.13 365.00 135.00 c
+B
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 372.00 140.00 Td (RUN) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 372.00 128.00 Td (Commanding ESC) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 372.00 119.00 Td (outputs) Tj ET
+0.780 0.120 0.160 rg
+0.200 0.200 0.200 RG
+0.40 w
+467.00 135.00 m
+467.00 138.87 463.87 142.00 460.00 142.00 c
+456.13 142.00 453.00 138.87 453.00 135.00 c
+453.00 131.13 456.13 128.00 460.00 128.00 c
+463.87 128.00 467.00 131.13 467.00 135.00 c
+B
+0.100 0.130 0.180 rg
+BT /F2 8.6 Tf 474.00 140.00 Td (STOP) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 474.00 128.00 Td (Emergency stop /) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.4 Tf 474.00 119.00 Td (neutral) Tj ET
+0.780 0.820 0.870 RG
+0.70 w
+42 62 m 553 62 l S
+0.370 0.420 0.480 rg
+BT /F1 8.2 Tf 42.00 44.00 Td (Testing checklist: wheels up, verify selected mode, arm with SW2 hold, pot at zero, increase slowly, use SW3 hold for stop.) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.8 Tf 42.00 28.00 Td (Generated from current branch behavior. ESC command PWM remains the normal 50 Hz ESC pulse protocol.) Tj ET
+0.370 0.420 0.480 rg
+BT /F1 7.8 Tf 491.00 28.00 Td (Page 1 / 1) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 6 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+7 0 obj
+<< /Type /Catalog /Pages 6 0 R >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000085 00000 n 
+0000000160 00000 n 
+0000000228 00000 n 
+0000012384 00000 n 
+0000012530 00000 n 
+0000012587 00000 n 
+trailer
+<< /Size 8 /Root 7 0 R >>
+startxref
+12636
+%%EOF

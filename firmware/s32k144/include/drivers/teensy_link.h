@@ -1,0 +1,146 @@
+#ifndef TEENSY_LINK_H
+#define TEENSY_LINK_H
+
+#include "Platform_Types.h"
+#include "Std_Types.h"
+
+#include "../../../../shared/protocol/teensy_link_protocol.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Master-side transfer scheduling. The wire format does not change.
+
+   - The service keeps being called every TEENSY_LINK_SERVICE_PERIOD_MS (5 ms).
+   - A real SPI transfer happens at most every TEENSY_LINK_TRANSFER_PERIOD_MS,
+     because the Teensy only produces new sensor data at 100 Hz. Clocking
+     faster just reads the same frame twice and burns CPU.
+   - A transfer only starts when the Teensy READY pin is high. Today the
+     Teensy raises READY once after boot (first published frame) and never
+     lowers it, so the gate mainly stops us clocking an absent or still
+     booting Teensy. If the Teensy later lowers READY while busy (e.g. SD
+     writes), this master already respects it.
+   - If READY stays low, one probe transfer still goes out every
+     TEENSY_LINK_HEARTBEAT_MS so a broken READY wire cannot silently kill
+     the link. 25 ms gives several probe chances inside the 100 ms stale
+     window, so one lost probe does not flash STALE. */
+#define TEENSY_LINK_TRANSFER_PERIOD_MS    (10u)
+#define TEENSY_LINK_HEARTBEAT_MS          (25u)
+
+typedef struct
+{
+    sint8 errorPct;
+    uint8 status;
+    uint8 feature;
+    uint8 confidence;
+    uint8 leftLineIdx;
+    uint8 rightLineIdx;
+    uint8 ageMs;
+    uint8 flags;
+} TeensyLinkCameraResult_t;
+
+typedef struct
+{
+    sint16 axMg;
+    sint16 ayMg;
+    sint16 azMg;
+    sint16 gxDps10;
+    sint16 gyDps10;
+    sint16 gzDps10;
+    sint16 rollCdeg;
+    sint16 pitchCdeg;
+    sint16 yawCdeg;
+    sint16 accelNormMg;
+    sint16 lateralMg;
+    sint16 tempC10;
+} TeensyLinkImuData_t;
+
+typedef struct
+{
+    float axG;
+    float ayG;
+    float azG;
+    float gxDps;
+    float gyDps;
+    float gzDps;
+    float rollDeg;
+    float pitchDeg;
+    float yawDeg;
+    float accelNormG;
+    float lateralG;
+    float tempC;
+} TeensyLinkImuMotion_t;
+
+typedef struct
+{
+    uint16 controlLoopSeq;
+    uint16 controlDtUs;
+    uint8 appMode;
+    uint8 appState;
+    uint16 safetyFlags;
+    TeensyLinkCameraResult_t camera[TEENSY_LINK_CAMERA_COUNT];
+    sint16 steerRaw;
+    sint16 steerFilt;
+    sint16 steerOut;
+    sint16 targetSpeedPct;
+    sint16 currentSpeedPct;
+    sint16 escPrimaryLogical;
+    sint16 escSecondaryLogical;
+    sint16 servoCmd;
+    uint16 actuatorFlags;
+    uint16 ultrasonicDistanceCm10;
+    uint16 ultrasonicAgeMs;
+    uint16 ultrasonicFlags;
+} TeensyLinkS32kInputs_t;
+
+typedef struct
+{
+    boolean haveFrame;
+    boolean live;
+    uint32 lastRxMs;
+    uint16 s32kSeq;
+    uint16 teensySeq;
+    uint16 ackS32kSeq;
+    uint16 flags;
+    uint16 sensorDtUs;
+    uint16 sensorAgeMs;
+    uint16 statusFlags;
+    uint16 componentMask;
+    TeensyLinkCameraResult_t camera[TEENSY_LINK_CAMERA_COUNT];
+    TeensyLinkImuData_t imu;
+    uint16 loggerFlags;
+    uint16 loggerDropCount;
+    uint16 teensyRxFrameCount;
+    uint16 teensyRxErrorCount;
+} TeensyLinkSnapshot_t;
+
+typedef struct
+{
+    uint16 txSeq;
+    uint16 lastTeensySeq;
+    uint32 lastRxMs;
+    uint32 txCount;
+    uint32 goodFrameCount;
+    uint32 spiErrorCount;
+    uint32 crcErrorCount;
+    uint32 protocolErrorCount;
+    uint32 staleCount;
+    uint32 notReadySkipCount;   /* service ticks skipped: READY low */
+    uint32 heartbeatProbeCount; /* transfers forced while READY was low */
+    boolean readyHigh;
+    Std_ReturnType lastSpiResult;
+} TeensyLinkDiagnostics_t;
+
+void TeensyLink_Init(void);
+Std_ReturnType TeensyLink_Service5ms(uint32 nowMs, const TeensyLinkS32kInputs_t *in);
+boolean TeensyLink_GetSnapshot(TeensyLinkSnapshot_t *outSnapshot);
+boolean TeensyLink_GetDiagnostics(TeensyLinkDiagnostics_t *outDiagnostics);
+boolean TeensyLink_ImuToMotion(const TeensyLinkImuData_t *imu, TeensyLinkImuMotion_t *outMotion);
+float TeensyLink_EstimateSlipG(const TeensyLinkImuMotion_t *motion, float speedMps);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* TEENSY_LINK_H */

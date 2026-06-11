@@ -1,0 +1,93 @@
+# Peripherals
+
+## ADC
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| Linear camera pixel sampling | `Adc` software-triggered single-sample group with per-sample notification | `src/drivers/linear_camera.c`, `include/drivers/linear_camera.h`, `src/app/board_init.c` |
+| Onboard potentiometer sampling | `Adc` blocking group conversion | `src/drivers/onboard_pot.c`, `include/drivers/onboard_pot.h` |
+
+Notes:
+- `board_init.c` performs ADC init and calibration.
+- `onboard_pot.c` references generated group `AdcGroup_pot`.
+- The linear camera ADC group is back to a software-triggered one-sample conversion path.
+- The handwritten camera driver drives `SI` across two falling camera-clock edges, then starts one ADC conversion on each following falling edge until `128` pixels are stored.
+- If a new GPT frame request arrives before the current frame is done, the driver latches it and starts the next frame only after the current readout completes.
+- Each ADC callback stores one pixel into a handwritten ping-pong frame buffer.
+- Application modes consume completed frames when the camera driver publishes a ready buffer; UI/debug/control housekeeping is separately rate-limited.
+- The OLED waiting screen uses a neutral driver debug-counters snapshot instead of exposing ADC/DMA-specific counter getters.
+
+## PWM
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| Primary ESC command output | `Pwm` | `src/drivers/esc.c`, `include/config/board_config.h` |
+| Secondary ESC command output | `Pwm` | `src/drivers/esc.c`, `include/config/board_config.h` |
+| Servo steering output | `Pwm` | `src/drivers/servo.c`, `include/config/board_config.h` |
+| Linear camera pixel clock | `Pwm` notification-driven clocking | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
+
+Notes:
+- Logical PWM channel IDs used in handwritten code are defined in `include/config/board_config.h`.
+- The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTB10`; both run at the same generated `50 Hz` period.
+- Handwritten ESC calls pass both ESC commands explicitly; same-speed driving uses equal primary and secondary arguments, while differential steering can pass different values.
+- The standalone servo rate test changes how often application code calls `Servo_SetSteer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
+- The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
+- The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
+
+## Timers / capture
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| 1 ms system tick | `Gpt` | `src/drivers/timebase.c` |
+| Microsecond one-shot delay | `Gpt` | `src/drivers/timebase.c` |
+| Linear camera shutter timing | `Gpt` | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
+| Receiver sync / period timing | `Gpt` + `Icu` | `src/drivers/receiver.c`, `include/drivers/receiver.h` |
+| Ultrasonic echo measurement | `Icu` timestamp capture | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
+
+Notes:
+- `timebase.c` documents GPT channel `2` for the ms tick and channel `3` for the microsecond helper.
+- `include/config/board_config.h` defines the ultrasonic trigger DIO channel and ICU echo channel; `include/config/sensor_config.h` defines the current distance/timeout calibration.
+- `APP_TEST_HONOR_LAP` uses `ultrasonic.c` directly from `app_modes.c` to trigger measurements, consume fresh distance samples, and slow/stop the ESC command.
+- `APP_TEST_RACE_MODE` uses the same ultrasonic driver path, but only after finish detection switches the speed policy into the honor-lap stopping thresholds.
+- The standalone ultrasonic test mode and the `APP_TEST_NXP_CUP_TESTS` ultrasonic menu item both use `ultrasonic.c` directly from `app_modes.c` for a state-based diagnostic flow with enable delay, frequent retriggering, and `WAIT` / `SCAN` / `CLEAR` / `SLOW` / `STOP` display states.
+
+## I2C
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| OLED display writes | `CDD_I2c` | `src/drivers/display.c`, `include/drivers/display.h`, `src/app/board_init.c` |
+| OLED display non-blocking transport (unused) | `CDD_I2c` async state machine | `src/unused/display_async.c`, `src/unused/display_async.h` |
+
+Notes:
+- `display.c` uses I2C address `0x3C`.
+- The display code is written for a 128x32 SSD1306-style display.
+- `src/unused/display_async.c` is retained for reference and not called by the active runtime. It adds double-buffered non-blocking refresh (`I2c_AsyncTransmit` + `I2c_GetStatus`) with latest-frame-wins queuing.
+- In `APP_TEST_RACE_MODE`, OLED initialization is allowed only during the ESC-arm phase. After that, `swPcb` can only enable refreshes on an already-initialized display, so the blocking display bring-up cannot stall the active race loop.
+
+## DIO / GPIO
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| Buttons SW2/SW3 and toggle switch `swPcb` | `Dio` | `src/drivers/buttons.c`, `include/drivers/buttons.h` |
+| RGB LED | `Dio` | `src/drivers/rgb_led.c`, `include/drivers/rgb_led.h` |
+| Ultrasonic trigger | `Dio` | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
+| Linear camera shutter line | `Dio` | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
+
+Notes:
+- `swPcb` is generated as GPIO input on `PTA12` and is consumed from handwritten code through the `buttons` module.
+- The `buttons` module now distinguishes momentary buttons from maintained toggle switches; `swPcb` is level-based only and does not publish click events.
+- `APP_TEST_NXP_CUP_TESTS` uses `swPcb` to enter/leave the selected test, while `APP_TEST_RACE_MODE` uses it only to enable optional OLED telemetry.
+
+## UART
+| Purpose | Driver/module | Key files |
+| --- | --- | --- |
+| Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/debug/uart_host_link.c`, `include/debug/uart_host_link.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
+
+Notes:
+- `PTC6` / `PTC7` are routed in `.mex` as `LPUART1_RX` / `LPUART1_TX` and applied by generated `Port_Init()`.
+- The UART peripheral is generated from `.mex` as logical UART channel `0` on `LPUART1`, using `LPUART1_CLK` and `115200 8N1`.
+- `UartHost_Init()` runs from `board_init.c` after generated driver init and calls `Uart_Init(NULL_PTR)`.
+- The service keeps a small direct RX-ready/read path because the generated UART driver is configured for interrupt mode and the tuning shell currently uses polling-style single-byte reads.
+- TODO: replace the proof-of-concept direct RX polling with generated UART async receive once `LPUART1` interrupt routing/callback buffering is configured in `.mex`.
+- The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `UartHost_ServiceTx()` / `UartHost_EnqueueBytes()` for non-blocking background streaming.
+- The `Serial tune` runtime bench item uses this handwritten UART path; it shows shadow PID values on the OLED and echoes received UART lines.
+- `RUNTIME_TEST_LINEAR_CAMERA` and `RUNTIME_TEST_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.
+- That debug UART stream is rate-limited in `src/app/app_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.
+
+## Not documented here
+- CAN / SPI are not documented because their use was not confirmed in handwritten project code.
