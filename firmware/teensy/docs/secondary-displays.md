@@ -75,6 +75,18 @@ devices at one address.
 Set `TEENSY_APP_SECONDARY_DISPLAY_TEST` back to `0` before running the normal
 S32K-Teensy SPI test.
 
+## Documentation Handoff Prompt
+
+```text
+Update the Teensy secondary-display documentation using the confirmed
+ZJY_M208_25664-4P datasheet. Record the controller model, connector pin order,
+voltage, I2C addresses, address-selection method, and whether an I2C
+multiplexer is required for two displays. Replace the probe-only test with a
+minimal graphics test that writes a different label to each display. Document
+the exact files changed, wiring, build/upload commands, expected Serial and
+screen output, and measured results. Keep the S32K OLED code unchanged.
+```
+
 ## Files
 
 - `include/teensy_app_config.h`: selects the Teensy display test.
