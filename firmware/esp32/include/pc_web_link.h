@@ -5,9 +5,9 @@
 #include "esp32_app_status.h"
 #include "esp_s32k_uart_protocol.h"
 
-typedef esp_err_t (*PcWebLink_PidSubmitFn)(const EspS32kPidFrame_t *pid, void *context);
+typedef esp_err_t (*PcWebLink_TuneSubmitFn)(EspS32kTuneFrame_t *tune, void *context);
 
-esp_err_t PcWebLink_Init(PcWebLink_PidSubmitFn submitPid, void *context);
+esp_err_t PcWebLink_Init(PcWebLink_TuneSubmitFn submitTune, void *context);
 void PcWebLink_GetStatus(EspAppStatus_t *outStatus);
 
 #endif /* PC_WEB_LINK_H */

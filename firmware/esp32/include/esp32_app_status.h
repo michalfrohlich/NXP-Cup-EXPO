@@ -14,6 +14,9 @@ typedef struct
     uint32_t rxFrames;
     uint32_t protocolErrors;
     uint32_t ackErrors;
+    uint32_t tuneResults;
+    uint32_t tuneRejects;
+    uint32_t tuneTimeouts;
     bool wifiEnabled;
     bool wifiConnected;
     bool wifiError;

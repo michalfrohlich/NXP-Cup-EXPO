@@ -1,7 +1,7 @@
 #include "pc_web_link.h"
 
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "esp_event.h"
@@ -18,12 +18,12 @@
 #define PC_WEB_AP_GATEWAY "192.168.4.1"
 #define PC_WEB_AP_NETMASK "255.255.255.0"
 #define PC_WEB_MAX_CLIENTS (4U)
-#define PC_WEB_HTTP_BODY_MAX (96U)
+#define PC_WEB_HTTP_BODY_MAX (256U)
 
 static const char *TAG = "pc_web_link";
 static httpd_handle_t s_httpServer;
 static portMUX_TYPE s_statusLock = portMUX_INITIALIZER_UNLOCKED;
-static PcWebLink_PidSubmitFn s_submitPid;
+static PcWebLink_TuneSubmitFn s_submitTune;
 static void *s_submitContext;
 static bool s_wifiEnabled;
 static bool s_wifiError;
@@ -32,93 +32,82 @@ static uint8_t s_wifiClientCount;
 static const char s_webPage[] =
     "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">"
     "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-    "<title>PID Tuner</title><style>"
-    ":root{color-scheme:dark;--bg:#101820;--panel:#17212b;--panel2:#1d2a35;"
-    "--line:#314454;--text:#eef4f8;--muted:#aab7c2;--accent:#22c55e}"
-    "*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Arial,sans-serif;"
-    "background:var(--bg);color:var(--text);display:flex;align-items:center;"
-    "justify-content:center;padding:18px}.app{width:min(920px,100%);display:grid;gap:14px}"
-    "header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}"
-    "h1{margin:0;font-size:clamp(30px,6vw,48px);line-height:1}.status{min-width:180px;"
-    "padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);"
-    "color:var(--muted);font-size:14px;text-align:center}form{display:grid;"
-    "grid-template-columns:1.2fr .8fr;gap:14px}.tuners,.side{background:var(--panel);"
-    "border:1px solid var(--line);border-radius:8px;padding:14px}.tuners{display:grid;"
-    "gap:12px}.tuner{display:grid;grid-template-columns:62px 1fr 70px 36px 36px;"
-    "align-items:center;gap:10px;padding:12px;background:var(--panel2);border:1px solid #263746;"
-    "border-radius:8px}.tuner label{font-size:18px;font-weight:700}input[type=range]{width:100%;"
-    "accent-color:var(--accent)}input[type=number]{width:100%;padding:9px 8px;"
-    "border:1px solid var(--line);border-radius:6px;background:#101820;color:var(--text);"
-    "font-size:16px;text-align:center}button{min-height:38px;border:1px solid var(--line);"
-    "border-radius:6px;background:#223241;color:var(--text);font-size:16px;cursor:pointer}"
-    "button:hover{background:#2b4152}button:active{transform:translateY(1px)}.primary{"
-    "background:var(--accent);border-color:#16a34a;color:#04130a;font-weight:700}"
-    ".side{display:grid;gap:12px;align-content:start}.readout{display:grid;"
-    "grid-template-columns:repeat(3,1fr);gap:8px}.tile{padding:10px;border:1px solid var(--line);"
-    "border-radius:8px;background:#101820;text-align:center}.tile span{display:block;"
-    "color:var(--muted);font-size:13px}.tile strong{font-size:30px}.frame{padding:12px;"
-    "border:1px solid var(--line);border-radius:8px;background:#081018;color:#8ef2b3;"
-    "font-family:Consolas,monospace;font-size:20px;text-align:center;overflow-wrap:anywhere}"
-    ".presets,.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}"
-    ".note{color:var(--muted);font-size:13px;line-height:1.4}@media(max-width:760px){"
-    "body{align-items:flex-start}header{display:grid}form{grid-template-columns:1fr}"
-    ".tuner{grid-template-columns:50px 1fr 66px 34px 34px;gap:8px;padding:10px}"
-    ".tile strong{font-size:24px}}</style></head><body><main class=\"app\"><header>"
-    "<h1>PID Tuner</h1><div id=\"status\" class=\"status\">Ready</div></header>"
-    "<form id=\"pidForm\"><section class=\"tuners\">"
-    "<div class=\"tuner\"><label for=\"Kp\">Kp</label><input id=\"KpRange\" type=\"range\" "
-    "min=\"0\" max=\"99\" step=\"1\" value=\"0\"><input id=\"Kp\" type=\"number\" min=\"0\" "
-    "max=\"99\" step=\"1\" value=\"0\" required><button type=\"button\" class=\"step\" "
-    "data-target=\"Kp\" data-step=\"-1\">-</button><button type=\"button\" class=\"step\" "
-    "data-target=\"Kp\" data-step=\"1\">+</button></div>"
-    "<div class=\"tuner\"><label for=\"Ki\">Ki</label><input id=\"KiRange\" type=\"range\" "
-    "min=\"0\" max=\"99\" step=\"1\" value=\"0\"><input id=\"Ki\" type=\"number\" min=\"0\" "
-    "max=\"99\" step=\"1\" value=\"0\" required><button type=\"button\" class=\"step\" "
-    "data-target=\"Ki\" data-step=\"-1\">-</button><button type=\"button\" class=\"step\" "
-    "data-target=\"Ki\" data-step=\"1\">+</button></div>"
-    "<div class=\"tuner\"><label for=\"Kd\">Kd</label><input id=\"KdRange\" type=\"range\" "
-    "min=\"0\" max=\"99\" step=\"1\" value=\"0\"><input id=\"Kd\" type=\"number\" min=\"0\" "
-    "max=\"99\" step=\"1\" value=\"0\" required><button type=\"button\" class=\"step\" "
-    "data-target=\"Kd\" data-step=\"-1\">-</button><button type=\"button\" class=\"step\" "
-    "data-target=\"Kd\" data-step=\"1\">+</button></div></section><aside class=\"side\">"
-    "<div class=\"readout\"><div class=\"tile\"><span>Kp</span><strong id=\"KpOut\">0</strong>"
-    "</div><div class=\"tile\"><span>Ki</span><strong id=\"KiOut\">0</strong></div>"
-    "<div class=\"tile\"><span>Kd</span><strong id=\"KdOut\">0</strong></div></div>"
-    "<div id=\"frame\" class=\"frame\">#P00I00D00_</div><div class=\"presets\">"
-    "<button type=\"button\" data-preset=\"0,0,0\">Zero</button>"
-    "<button type=\"button\" data-preset=\"10,0,0\">P only</button>"
-    "<button type=\"button\" data-preset=\"20,5,0\">Balanced</button>"
-    "<button type=\"button\" data-preset=\"35,8,4\">Responsive</button></div>"
-    "<div class=\"actions\"><button type=\"button\" id=\"resetBtn\">Reset</button>"
-    "<button type=\"submit\" class=\"primary\">Send PID</button></div>"
-    "<div class=\"note\">Success confirms UART transmission only. The S32K does not yet apply "
-    "these values.</div></aside></form></main><script>"
-    "const gains=['Kp','Ki','Kd'],statusBox=document.getElementById('status');"
-    "function clamp(v){v=parseInt(v,10);return Number.isNaN(v)?0:Math.max(0,Math.min(99,v))}"
-    "function pad(v){return String(clamp(v)).padStart(2,'0')}"
-    "function updateFrame(){document.getElementById('frame').textContent='#P'+"
-    "pad(document.getElementById('Kp').value)+'I'+pad(document.getElementById('Ki').value)+"
-    "'D'+pad(document.getElementById('Kd').value)+'_'}"
-    "function setGain(id,v){v=clamp(v);document.getElementById(id).value=v;"
-    "document.getElementById(id+'Range').value=v;document.getElementById(id+'Out').textContent=v;"
-    "updateFrame()}gains.forEach(id=>{document.getElementById(id).oninput=e=>setGain(id,e.target."
-    "value);"
-    "document.getElementById(id+'Range').oninput=e=>setGain(id,e.target.value)});"
-    "document.querySelectorAll('.step').forEach(b=>b.onclick=()=>setGain(b.dataset.target,"
-    "clamp(document.getElementById(b.dataset.target).value)+parseInt(b.dataset.step,10)));"
-    "document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{b.dataset.preset.split(',"
-    "')"
-    ".forEach((v,i)=>setGain(gains[i],v));statusBox.textContent=b.textContent});"
-    "document.getElementById('resetBtn').onclick=()=>{gains.forEach(id=>setGain(id,0));"
-    "statusBox.textContent='Reset'};document.getElementById('pidForm').onsubmit=async e=>{"
-    "e.preventDefault();let body=new URLSearchParams();"
-    "gains.forEach(id=>body.append(id,clamp(document.getElementById(id).value)));"
-    "statusBox.textContent='Sending to UART...';try{let r=await fetch('/pid',{method:'POST',"
+    "<title>Vehicle Tuning</title><style>"
+    ":root{color-scheme:dark;--bg:#0c1217;--panel:#151e25;--field:#0f171d;--line:#31414d;"
+    "--text:#edf3f6;--muted:#9fb0ba;--green:#38c172;--amber:#f0b429}"
+    "*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);"
+    "color:var(--text);padding:18px}.app{width:min(1080px,100%);margin:auto;display:grid;gap:14px}"
+    "header{display:flex;align-items:end;justify-content:space-between;gap:12px}"
+    "h1{margin:0;font-size:34px}h2{margin:0 0 10px;font-size:18px}.status{padding:9px 12px;"
+    "border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--muted)}"
+    "form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.group,.submit{border:1px solid "
+    "var(--line);border-radius:8px;background:var(--panel);padding:14px}.controller{grid-row:span "
+    "2}"
+    ".fields{display:grid;gap:8px}.field{display:grid;grid-template-columns:112px 1fr 92px;"
+    "align-items:center;gap:10px;padding:9px;background:var(--field);border-radius:6px}"
+    ".field label{font-weight:700}.field small{grid-column:2/4;color:var(--muted)}"
+    "input[type=range]{width:100%;accent-color:var(--green)}input[type=number]{width:100%;"
+    "padding:8px;border:1px solid var(--line);border-radius:5px;background:#080d11;"
+    "color:var(--text);font-size:16px;text-align:right}.submit{grid-column:1/3;display:grid;"
+    "grid-template-columns:1fr auto;gap:12px;align-items:center}.summary{font-family:Consolas,"
+    "monospace;color:#9be8b7;overflow-wrap:anywhere}.actions{display:flex;gap:8px}"
+    "button{min-height:40px;padding:0 15px;border:1px solid var(--line);border-radius:6px;"
+    "background:#22303a;color:var(--text);font-size:15px;cursor:pointer}.primary{background:"
+    "var(--green);border-color:#239a55;color:#06150c;font-weight:700}.note{color:var(--muted);"
+    "font-size:13px;margin-top:6px}@media(max-width:760px){header{display:grid}form{"
+    "grid-template-columns:1fr}.controller{grid-row:auto}.submit{grid-column:auto;"
+    "grid-template-columns:1fr}.field{grid-template-columns:92px 1fr 82px}.actions button{"
+    "flex:1}}</style></head><body><main class=\"app\"><header><h1>Vehicle Tuning</h1>"
+    "<div id=\"status\" class=\"status\">Ready</div></header><form id=\"tuneForm\">"
+    "<section class=\"group controller\"><h2>Steering Controller</h2>"
+    "<div id=\"controllerFields\" class=\"fields\"></div></section>"
+    "<section class=\"group\"><h2>Steering Output</h2>"
+    "<div id=\"steeringFields\" class=\"fields\"></div></section>"
+    "<section class=\"group\"><h2>Line Detector</h2>"
+    "<div id=\"visionFields\" class=\"fields\"></div></section>"
+    "<section class=\"submit\"><div><div id=\"summary\" class=\"summary\"></div>"
+    "<div class=\"note\">Values are RAM-only. Success means the S32K validated and stored the "
+    "complete snapshot.</div></div><div class=\"actions\"><button type=\"button\" id=\"defaults\">"
+    "Defaults</button><button type=\"submit\" class=\"primary\">Apply to S32K</button></div>"
+    "</section></form></main><script>"
+    "const defs=["
+    "{id:'Kp',key:'Kp',label:'KP',min:0,max:99.999,step:.001,val:4.5,g:'controller'},"
+    "{id:'Ki',key:'Ki',label:'KI',min:0,max:99.999,step:.001,val:.03,g:'controller'},"
+    "{id:'Kd',key:'Kd',label:'KD',min:0,max:99.999,step:.001,val:2,g:'controller'},"
+    "{id:'Clamp',key:'steerClamp',label:'Clamp %',min:0,max:100,step:1,val:70,g:'steering'},"
+    "{id:'Lpf',key:'steerLpf',label:'LPF alpha',min:0,max:1,step:.001,val:.45,g:'steering'},"
+    "{id:'Contrast',key:'minContrast',label:'Min "
+    "contrast',min:0,max:4095,step:1,val:650,g:'vision'},"
+    "{id:'EdgeHigh',key:'edgeHigh',label:'Edge high %',min:1,max:100,step:1,val:40,g:'vision'},"
+    "{id:'EdgeLow',key:'edgeLow',label:'Edge low %',min:1,max:100,step:1,val:55,g:'vision'}];"
+    "const statusBox=document.getElementById('status');"
+    "function decimals(step){let s=String(step),p=s.indexOf('.');return p<0?0:s.length-p-1}"
+    "function normalized(d,v){v=Number(v);if(!Number.isFinite(v))v=d.val;"
+    "v=Math.max(d.min,Math.min(d.max,v));return Number(v.toFixed(decimals(d.step)))}"
+    "function render(){for(const d of defs){let host=document.getElementById(d.g+'Fields');"
+    "host.insertAdjacentHTML('beforeend','<div class=\"field\"><label for=\"'+d.id+'\">'+d.label+"
+    "'</label><input id=\"'+d.id+'Range\" type=\"range\" min=\"'+d.min+'\" max=\"'+d.max+"
+    "'\" step=\"'+d.step+'\"><input id=\"'+d.id+'\" type=\"number\" min=\"'+d.min+'\" max=\"'+"
+    "d.max+'\" step=\"'+d.step+'\" required><small>'+d.min+' .. '+d.max+'</small></div>');"
+    "for(const suffix of ['', 'Range'])document.getElementById(d.id+suffix).oninput=e=>setValue(d,"
+    "e.target.value);setValue(d,d.val)}}"
+    "function setValue(d,v){v=normalized(d,v);document.getElementById(d.id).value=v;"
+    "document.getElementById(d.id+'Range').value=v;updateSummary()}"
+    "function updateSummary(){let v=Object.fromEntries(defs.map(d=>{let e=document.getElementById("
+    "d.id);return[d.id,e?e.value:d.val]}));document.getElementById('summary').textContent='PID '+"
+    "v.Kp+' / '+v.Ki+' / '+"
+    "v.Kd+' | clamp '+v.Clamp+' | LPF '+v.Lpf+' | vision '+v.Contrast+', '+v.EdgeHigh+'%, '+"
+    "v.EdgeLow+'%'}"
+    "document.getElementById('defaults').onclick=()=>{defs.forEach(d=>setValue(d,d.val));"
+    "statusBox.textContent='Defaults loaded'};"
+    "document.getElementById('tuneForm').onsubmit=async e=>{e.preventDefault();"
+    "let body=new URLSearchParams();for(const d of defs){let input=document.getElementById(d.id);"
+    "if(!input.reportValidity())return;body.append(d.key,normalized(d,input.value))}"
+    "statusBox.textContent='Waiting for S32K...';try{let r=await fetch('/tune',{method:'POST',"
     "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});"
-    "let t=await r.text();if(!r.ok)throw new Error(t||'Send failed');"
-    "statusBox.textContent='Sent to UART'}catch(err){statusBox.textContent=err.message||'Send "
-    "failed'}};"
-    "gains.forEach(id=>setGain(id,0));</script></body></html>";
+    "let text=await r.text();if(!r.ok)throw new Error(text||'Apply failed');"
+    "statusBox.textContent=text}catch(err){statusBox.textContent=err.message||'Apply failed'}};"
+    "render();</script></body></html>";
 
 static void set_error_status(bool error)
 {
@@ -166,10 +155,17 @@ static void wifi_event_handler(void *arg, esp_event_base_t eventBase, int32_t ev
     }
 }
 
-static bool parse_form_u8(const char *body, const char *key, uint8_t *outValue)
+static bool find_form_value(const char *body, const char *key, const char **outStart,
+                            size_t *outLength)
 {
-    const size_t keyLen = strlen(key);
+    size_t keyLen;
     const char *field = body;
+
+    if ((body == NULL) || (key == NULL) || (outStart == NULL) || (outLength == NULL))
+    {
+        return false;
+    }
+    keyLen = strlen(key);
 
     while ((field != NULL) && (*field != '\0'))
     {
@@ -179,17 +175,8 @@ static bool parse_form_u8(const char *body, const char *key, uint8_t *outValue)
         if ((fieldLen > (keyLen + 1U)) && (strncmp(field, key, keyLen) == 0) &&
             (field[keyLen] == '='))
         {
-            char *valueEnd;
-            unsigned long value = strtoul(&field[keyLen + 1U], &valueEnd, 10);
-            const char *expectedEnd = field + fieldLen;
-
-            if ((valueEnd == &field[keyLen + 1U]) || (valueEnd != expectedEnd) ||
-                (value > ESP_S32K_PID_VALUE_MAX))
-            {
-                return false;
-            }
-
-            *outValue = (uint8_t)value;
+            *outStart = &field[keyLen + 1U];
+            *outLength = fieldLen - keyLen - 1U;
             return true;
         }
 
@@ -199,11 +186,131 @@ static bool parse_form_u8(const char *body, const char *key, uint8_t *outValue)
     return false;
 }
 
-static bool parse_pid_form(const char *body, EspS32kPidFrame_t *outPid)
+static bool parse_form_u32(const char *body, const char *key, uint32_t maxValue, uint32_t *outValue)
 {
-    return (body != NULL) && (outPid != NULL) && parse_form_u8(body, "Kp", &outPid->proportional) &&
-           parse_form_u8(body, "Ki", &outPid->integral) &&
-           parse_form_u8(body, "Kd", &outPid->derivative);
+    const char *text;
+    size_t length;
+    uint32_t value = 0U;
+
+    if ((outValue == NULL) || !find_form_value(body, key, &text, &length) || (length == 0U))
+    {
+        return false;
+    }
+
+    for (size_t index = 0U; index < length; index++)
+    {
+        if ((text[index] < '0') || (text[index] > '9'))
+        {
+            return false;
+        }
+        value = (value * 10U) + (uint32_t)(text[index] - '0');
+        if (value > maxValue)
+        {
+            return false;
+        }
+    }
+
+    *outValue = value;
+    return true;
+}
+
+static bool parse_form_milli(const char *body, const char *key, uint32_t maxValue,
+                             uint32_t *outValue)
+{
+    const char *text;
+    size_t length;
+    uint32_t whole = 0U;
+    uint32_t fraction = 0U;
+    uint32_t fractionScale = 1U;
+    bool seenDot = false;
+    bool seenDigit = false;
+
+    if ((outValue == NULL) || !find_form_value(body, key, &text, &length) || (length == 0U))
+    {
+        return false;
+    }
+
+    for (size_t index = 0U; index < length; index++)
+    {
+        const char ch = text[index];
+        if ((ch >= '0') && (ch <= '9'))
+        {
+            const uint32_t digit = (uint32_t)(ch - '0');
+            seenDigit = true;
+            if (seenDot)
+            {
+                if (fractionScale >= 1000U)
+                {
+                    return false;
+                }
+                fraction = (fraction * 10U) + digit;
+                fractionScale *= 10U;
+            }
+            else
+            {
+                const uint32_t maxWhole = maxValue / 1000U;
+                if ((whole > (maxWhole / 10U)) ||
+                    ((whole == (maxWhole / 10U)) && (digit > (maxWhole % 10U))))
+                {
+                    return false;
+                }
+                whole = (whole * 10U) + digit;
+            }
+        }
+        else if ((ch == '.') && !seenDot)
+        {
+            seenDot = true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    if (!seenDigit)
+    {
+        return false;
+    }
+
+    while (fractionScale < 1000U)
+    {
+        fraction *= 10U;
+        fractionScale *= 10U;
+    }
+
+    *outValue = (whole * 1000U) + fraction;
+    return (*outValue <= maxValue);
+}
+
+static bool parse_tune_form(const char *body, EspS32kTuneFrame_t *outTune)
+{
+    uint32_t steerClamp;
+    uint32_t steerLpf;
+    uint32_t minContrast;
+    uint32_t edgeHigh;
+    uint32_t edgeLow;
+
+    if ((body == NULL) || (outTune == NULL) ||
+        !parse_form_milli(body, "Kp", ESP_S32K_TUNE_GAIN_MILLI_MAX, &outTune->proportionalMilli) ||
+        !parse_form_milli(body, "Ki", ESP_S32K_TUNE_GAIN_MILLI_MAX, &outTune->integralMilli) ||
+        !parse_form_milli(body, "Kd", ESP_S32K_TUNE_GAIN_MILLI_MAX, &outTune->derivativeMilli) ||
+        !parse_form_u32(body, "steerClamp", ESP_S32K_TUNE_STEER_CLAMP_MAX, &steerClamp) ||
+        !parse_form_milli(body, "steerLpf", ESP_S32K_TUNE_LPF_MILLI_MAX, &steerLpf) ||
+        !parse_form_u32(body, "minContrast", ESP_S32K_TUNE_MIN_CONTRAST_MAX, &minContrast) ||
+        !parse_form_u32(body, "edgeHigh", ESP_S32K_TUNE_EDGE_PCT_MAX, &edgeHigh) ||
+        !parse_form_u32(body, "edgeLow", ESP_S32K_TUNE_EDGE_PCT_MAX, &edgeLow) ||
+        (edgeHigh < ESP_S32K_TUNE_EDGE_PCT_MIN) || (edgeLow < ESP_S32K_TUNE_EDGE_PCT_MIN))
+    {
+        return false;
+    }
+
+    outTune->sequence = 0U;
+    outTune->steerClamp = (uint8_t)steerClamp;
+    outTune->steerLpfMilli = (uint16_t)steerLpf;
+    outTune->minContrast = (uint16_t)minContrast;
+    outTune->edgeHighPct = (uint8_t)edgeHigh;
+    outTune->edgeLowPct = (uint8_t)edgeLow;
+    return true;
 }
 
 static esp_err_t root_get_handler(httpd_req_t *req)
@@ -213,13 +320,19 @@ static esp_err_t root_get_handler(httpd_req_t *req)
     return httpd_resp_send(req, s_webPage, HTTPD_RESP_USE_STRLEN);
 }
 
-static esp_err_t pid_post_handler(httpd_req_t *req)
+static esp_err_t tune_post_handler(httpd_req_t *req)
 {
     char body[PC_WEB_HTTP_BODY_MAX + 1U];
+    char response[32];
     size_t received = 0U;
-    EspS32kPidFrame_t pid;
+    EspS32kTuneFrame_t tune;
 
-    if ((req == NULL) || (req->content_len == 0U) || (req->content_len > PC_WEB_HTTP_BODY_MAX))
+    if (req == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if ((req->content_len == 0U) || (req->content_len > PC_WEB_HTTP_BODY_MAX))
     {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid request body");
         return ESP_FAIL;
@@ -237,22 +350,42 @@ static esp_err_t pid_post_handler(httpd_req_t *req)
     }
     body[received] = '\0';
 
-    if (!parse_pid_form(body, &pid))
+    if (!parse_tune_form(body, &tune))
     {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected Kp=0..99&Ki=0..99&Kd=0..99");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid tune values or missing field");
         return ESP_FAIL;
     }
 
-    if ((s_submitPid == NULL) || (s_submitPid(&pid, s_submitContext) != ESP_OK))
+    if (s_submitTune == NULL)
+    {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "tune link unavailable");
+        return ESP_FAIL;
+    }
+
+    esp_err_t result = s_submitTune(&tune, s_submitContext);
+    if (result == ESP_ERR_TIMEOUT)
+    {
+        httpd_resp_set_status(req, "504 Gateway Timeout");
+        return httpd_resp_sendstr(req, "S32K response timeout");
+    }
+    if (result == ESP_ERR_INVALID_RESPONSE)
+    {
+        httpd_resp_set_status(req, "422 Unprocessable Entity");
+        return httpd_resp_sendstr(req, "S32K rejected values");
+    }
+    if (result != ESP_OK)
     {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "UART transmission failed");
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "PID written to UART: P=%u I=%u D=%u", (unsigned)pid.proportional,
-             (unsigned)pid.integral, (unsigned)pid.derivative);
+    ESP_LOGI(TAG, "Tune stored by S32K: seq=%u P=%lu I=%lu D=%lu", (unsigned)tune.sequence,
+             (unsigned long)tune.proportionalMilli, (unsigned long)tune.integralMilli,
+             (unsigned long)tune.derivativeMilli);
+    (void)snprintf(response, sizeof(response), "Applied by S32K (seq %02u)",
+                   (unsigned)tune.sequence);
     httpd_resp_set_type(req, "text/plain");
-    return httpd_resp_sendstr(req, "OK");
+    return httpd_resp_sendstr(req, response);
 }
 
 static esp_err_t configure_ap_address(esp_netif_t *netif)
@@ -303,17 +436,17 @@ static esp_err_t start_http_server(void)
         .handler = root_get_handler,
         .user_ctx = NULL,
     };
-    const httpd_uri_t pidUri = {
-        .uri = "/pid",
+    const httpd_uri_t tuneUri = {
+        .uri = "/tune",
         .method = HTTP_POST,
-        .handler = pid_post_handler,
+        .handler = tune_post_handler,
         .user_ctx = NULL,
     };
 
     ret = httpd_register_uri_handler(s_httpServer, &rootUri);
     if (ret == ESP_OK)
     {
-        ret = httpd_register_uri_handler(s_httpServer, &pidUri);
+        ret = httpd_register_uri_handler(s_httpServer, &tuneUri);
     }
     if (ret != ESP_OK)
     {
@@ -326,14 +459,14 @@ static esp_err_t start_http_server(void)
     return ESP_OK;
 }
 
-esp_err_t PcWebLink_Init(PcWebLink_PidSubmitFn submitPid, void *context)
+esp_err_t PcWebLink_Init(PcWebLink_TuneSubmitFn submitTune, void *context)
 {
-    if (submitPid == NULL)
+    if (submitTune == NULL)
     {
         return ESP_ERR_INVALID_ARG;
     }
 
-    s_submitPid = submitPid;
+    s_submitTune = submitTune;
     s_submitContext = context;
     portENTER_CRITICAL(&s_statusLock);
     s_wifiEnabled = false;

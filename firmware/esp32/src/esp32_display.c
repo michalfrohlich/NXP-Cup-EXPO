@@ -273,10 +273,10 @@ esp_err_t EspDisplay_ShowBringup(const EspAppStatus_t *status)
 
     u8g2_ClearBuffer(&s_u8g2);
     u8g2_SetFont(&s_u8g2, u8g2_font_5x8_tf);
-    u8g2_DrawStr(&s_u8g2, 0, 7, "ESP UART DECODE  #Bsw2sw3pcbQseqTtime_");
+    u8g2_DrawStr(&s_u8g2, 0, 7, "ESP UART DECODE  #Bsw2sw3pcbQseqTtimeXcrc_");
     u8g2_DrawHLine(&s_u8g2, 0, 10, 256);
 
-    (void)snprintf(value, sizeof(value), "#B%u%u%uQ%02uT%04u_", status->sw2Pressed ? 1U : 0U,
+    (void)snprintf(value, sizeof(value), "#B%u%u%uQ%02uT%04uXcc_", status->sw2Pressed ? 1U : 0U,
                    status->sw3Pressed ? 1U : 0U, status->swPcbOn ? 1U : 0U,
                    (unsigned)status->sequence, (unsigned)status->timestampMs);
     draw_status_line(19, "FRAME", value);
@@ -294,9 +294,10 @@ esp_err_t EspDisplay_ShowBringup(const EspAppStatus_t *status)
                    (unsigned long)status->ackErrors);
     draw_status_line(46, "COUNTS", value);
 
-    (void)snprintf(value, sizeof(value), "baud=%u i2c=%ukHz", (unsigned)ESP_S32K_UART_BAUD_RATE,
-                   (unsigned)(ESP32_I2C_FREQ_HZ / 1000U));
-    draw_status_line(55, "LINK", value);
+    (void)snprintf(value, sizeof(value), "ok=%lu reject=%lu timeout=%lu",
+                   (unsigned long)status->tuneResults, (unsigned long)status->tuneRejects,
+                   (unsigned long)status->tuneTimeouts);
+    draw_status_line(55, "TUNE", value);
 
     if (status->wifiError)
     {

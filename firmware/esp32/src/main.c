@@ -13,10 +13,16 @@
 
 static const char *TAG = "expo_main";
 
-static esp_err_t submit_pid_to_s32k(const EspS32kPidFrame_t *pid, void *context)
+static TickType_t ticks_at_least_one(uint32_t delayMs)
+{
+    TickType_t ticks = pdMS_TO_TICKS(delayMs);
+    return (ticks > 0U) ? ticks : 1U;
+}
+
+static esp_err_t submit_tune_to_s32k(EspS32kTuneFrame_t *tune, void *context)
 {
     (void)context;
-    return S32kUartLink_SendPid(pid);
+    return S32kUartLink_SendTuneAndWait(tune);
 }
 
 void app_main(void)
@@ -38,7 +44,7 @@ void app_main(void)
     ESP_ERROR_CHECK(S32kUartLink_Init());
     ESP_ERROR_CHECK(S32kUartLink_StartTask());
 
-    esp_err_t webRet = PcWebLink_Init(submit_pid_to_s32k, NULL);
+    esp_err_t webRet = PcWebLink_Init(submit_tune_to_s32k, NULL);
     if (webRet != ESP_OK)
     {
         ESP_LOGE(TAG, "PC web link unavailable; UART bridge remains active: %s",
@@ -58,6 +64,6 @@ void app_main(void)
             (void)EspDisplay_ShowBringup(&status);
             lastDisplayRefresh = now;
         }
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(ticks_at_least_one(5U));
     }
 }

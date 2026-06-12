@@ -35,6 +35,13 @@
 - `APP_TEST_SERVO_RATE_TEST` is a standalone servo-only timing test for the period-latched steering output.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
 - `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
+- `APP_TEST_ESP_LINK_TEST` is a standalone UART integration mode. The link
+  driver parses CRC-protected button ACK and full tuning frames; the mode
+  consumes the latest validated snapshot, updates all eight RAM runtime-tune
+  values, queues a compact sequence-matched result, and owns LED diagnostics.
+  OLED activity is temporarily disabled in this mode while the polling-based
+  receive path is validated. Once per second, immediately after a valid ACK,
+  the mode reports UART and protocol error counters on the host debug UART.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
