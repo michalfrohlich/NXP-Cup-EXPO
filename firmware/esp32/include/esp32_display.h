@@ -4,6 +4,7 @@
 #include "esp_err.h"
 #include "esp32_app_status.h"
 
+esp_err_t EspDisplay_InitBus(void);
 esp_err_t EspDisplay_Init(void);
 bool EspDisplay_IsReady(void);
 esp_err_t EspDisplay_Probe(void);

@@ -16,6 +16,8 @@ typedef struct
     uint32_t ackErrors;
     bool wifiEnabled;
     bool wifiConnected;
+    bool wifiError;
+    uint8_t wifiClientCount;
 } EspAppStatus_t;
 
 #endif /* ESP32_APP_STATUS_H */

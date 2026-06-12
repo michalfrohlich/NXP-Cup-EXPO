@@ -1,4 +1,3 @@
-#include <string.h>
 #include <stdbool.h>
 
 #include "esp_log.h"
@@ -6,25 +5,23 @@
 #include "freertos/task.h"
 
 #include "esp32_display.h"
-#include "esp32_s32k_bridge.h"
+#include "pc_web_link.h"
+#include "s32k_uart_link.h"
 
 #define ESP_MAIN_DISPLAY_REFRESH_MS (50U)
 #define ESP_MAIN_DISPLAY_SELF_TEST_MS (1500U)
 
-#ifndef ESP32_WIFI_SSID
-#define ESP32_WIFI_SSID ""
-#endif
-
-#ifndef ESP32_WIFI_PASSWORD
-#define ESP32_WIFI_PASSWORD ""
-#endif
-
 static const char *TAG = "expo_main";
+
+static esp_err_t submit_pid_to_s32k(const EspS32kPidFrame_t *pid, void *context)
+{
+    (void)context;
+    return S32kUartLink_SendPid(pid);
+}
 
 void app_main(void)
 {
-    ESP_ERROR_CHECK(EspBridge_InitGpio());
-    ESP_ERROR_CHECK(EspBridge_InitI2c());
+    ESP_ERROR_CHECK(EspDisplay_InitBus());
     (void)EspDisplay_ScanI2c();
     esp_err_t displayRet = EspDisplay_Init();
     const bool displayReady = (displayRet == ESP_OK);
@@ -38,28 +35,14 @@ void app_main(void)
         ESP_LOGW(TAG, "Display test skipped: %s", esp_err_to_name(displayRet));
     }
 
-    ESP_ERROR_CHECK(EspBridge_InitUart());
-    ESP_ERROR_CHECK(EspBridge_StartUartTask());
+    ESP_ERROR_CHECK(S32kUartLink_Init());
+    ESP_ERROR_CHECK(S32kUartLink_StartTask());
 
-    if (strlen(ESP32_WIFI_SSID) > 0U)
+    esp_err_t webRet = PcWebLink_Init(submit_pid_to_s32k, NULL);
+    if (webRet != ESP_OK)
     {
-        EspBridge_SetWifiStatus(true, false);
-        esp_err_t ret = EspBridge_InitWifi(ESP32_WIFI_SSID, ESP32_WIFI_PASSWORD);
-        if (ret == ESP_OK)
-        {
-            EspBridge_SetWifiStatus(true, true);
-            ESP_ERROR_CHECK(EspBridge_StartHttpServer());
-        }
-        else
-        {
-            EspBridge_SetWifiStatus(true, false);
-            ESP_LOGW(TAG, "Wi-Fi bridge disabled: %s", esp_err_to_name(ret));
-        }
-    }
-    else
-    {
-        EspBridge_SetWifiStatus(false, false);
-        ESP_LOGW(TAG, "Wi-Fi credentials are not configured; UART bridge is still active");
+        ESP_LOGE(TAG, "PC web link unavailable; UART bridge remains active: %s",
+                 esp_err_to_name(webRet));
     }
 
     TickType_t lastDisplayRefresh = 0U;
@@ -69,8 +52,9 @@ void app_main(void)
         if (displayReady &&
             ((now - lastDisplayRefresh) >= pdMS_TO_TICKS(ESP_MAIN_DISPLAY_REFRESH_MS)))
         {
-            EspAppStatus_t status;
-            EspBridge_GetStatus(&status);
+            EspAppStatus_t status = {0};
+            S32kUartLink_GetStatus(&status);
+            PcWebLink_GetStatus(&status);
             (void)EspDisplay_ShowBringup(&status);
             lastDisplayRefresh = now;
         }

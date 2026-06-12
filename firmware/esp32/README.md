@@ -1,105 +1,127 @@
 # ESP32 Firmware
 
-Expected role:
-- Wireless communication.
-- PC UI bridge.
-- Forwarding tuning commands to the S32K.
-- Forwarding vehicle status and telemetry to the PC.
+The ESP32 is the wireless PC/UI bridge for the NXP Cup car. It runs as a
+standalone Wi-Fi access point and communicates with the S32K144 over UART.
 
-This folder now contains the first cleaned ESP32 PlatformIO/ESP-IDF bring-up
-project imported from the standalone teammate prototype. It is intentionally a
-small bridge, not final vehicle UI firmware.
+## Direct Wi-Fi Connection
 
-## Current Prototype Behavior
+The access point configuration is intentionally fixed in
+`src/pc_web_link.c`:
 
-- Initializes ESP UART1 on GPIO17/GPIO16 at 460800 8N1.
-- Initializes the shield GPIO pins, ESP-side I2C bus, and SH1122 OLED.
-- Probes the OLED address at startup and shows a short display self-test pattern
-  before switching to the normal bring-up status page.
-- Continuously receives S32K button frames on UART and ACKs them.
-- Refreshes a simple OLED bring-up screen with UART RX/error counters, the last
-  decoded S32K button frame, ACK errors, and Wi-Fi state.
-- Optionally joins Wi-Fi and exposes `POST /pid`.
-- Converts `Kp=10&Ki=5&Kd=1` HTTP form bodies into the temporary UART frame
-  `#P10I05D01_`.
-- Converts S32K button frames like `#B100Q04T1234_` into ACK frames like
-  `#A100Q04T1234_` and drives the ESP32 status LED when any received S32K
-  button is active. The `Tmmmm` field is the S32K timestamp modulo 10000 ms,
-  echoed by the ESP so the S32K can calculate ACK age.
+| Setting | Value |
+|---|---|
+| SSID | `EXPO_NXP_DATA` |
+| Password | `nobodyguessesthispassword1234` |
+| Web UI | `http://192.168.4.1/` |
+| ESP32 address | `192.168.4.1` |
+| Maximum clients | 4 |
 
-The matching S32K generated setup is `LPUART2` on `PTD6/PTD7`.
+To use the current PID page:
 
-Wi-Fi credentials are not committed. Provide them as PlatformIO build flags or
-through your local environment:
+1. Power or flash the ESP32.
+2. Connect the PC or phone to `EXPO_NXP_DATA`.
+3. Enter the password shown above.
+4. Open `http://192.168.4.1/`.
+5. Set `Kp`, `Ki`, and `Kd`, then press **Send PID**.
 
-```ini
-build_flags =
-    -I../../shared/protocol
-    -DESP32_WIFI_SSID=\"your-ssid\"
-    -DESP32_WIFI_PASSWORD=\"your-password\"
+The page validates integer values from `0` to `99` and sends the temporary
+UART frame:
+
+```text
+#P10I05D01_
 ```
 
-Build from this folder with:
+HTTP `OK` currently means that the complete frame was written to the ESP32
+UART driver. The S32K firmware does not yet decode or apply this PID command.
 
-```sh
-pio run
+## Source Ownership
+
+```text
+include/
+├── pc_web_link.h
+├── s32k_uart_link.h
+├── esp32_app_status.h
+└── esp32_display.h
+
+src/
+├── main.c
+├── pc_web_link.c
+├── s32k_uart_link.c
+└── esp32_display.c
 ```
 
-The first build downloads the pinned U8g2 ESP-IDF component into
-`managed_components/`. That folder is generated and ignored; `dependencies.lock`
-is kept so the resolved U8g2 revision stays reproducible.
+- `pc_web_link` owns Wi-Fi AP configuration, connected-client state, the HTTP
+  server, webpage, form validation, and PC-facing responses.
+- `s32k_uart_link` owns UART1, shared protocol encoding/decoding, its service
+  task, button-frame handling, ACK transmission, and UART diagnostics.
+- `main.c` initializes both links and forwards accepted web PID commands to
+  the UART link through a callback.
+- `esp32_display` owns the I2C bus and SH1122 OLED diagnostics.
 
-## OLED Bring-Up Display
+The UART link remains operational if Wi-Fi or the HTTP server fails to start.
 
-The ESP32-side display foundation is intentionally split into layers:
+## S32K UART
 
-- `include/esp32_app_status.h` defines the app-neutral status snapshot shown on
-  the display.
-- `include/esp32_display.h` exposes the small OLED API used by `main.c`.
-- `src/esp32_display.c` owns the U8g2 SH1122 setup, I2C byte callback, and
-  bring-up screen rendering.
-- `esp32_s32k_bridge.c` owns UART/protocol state and only publishes a status
-  snapshot through `EspBridge_GetStatus()`.
+| Signal | ESP32 GPIO |
+|---|---:|
+| UART RX | GPIO16 |
+| UART TX | GPIO17 |
 
-The current OLED target is a 256x64 SH1122 module on the shield I2C bus:
+The link uses UART1 at `460800 8N1`. The matching S32K generated setup is
+LPUART2 on PTD6/PTD7.
+
+The existing bring-up protocol also:
+
+- Receives S32K button frames such as `#B100Q04T1234_`.
+- Replies with ACK frames such as `#A100Q04T1234_`.
+- Tracks UART receive, protocol, and ACK errors.
+
+Shared frame definitions are in
+`../../shared/protocol/esp_s32k_uart_protocol.h`.
+
+## OLED
+
+The SH1122 256x64 OLED uses:
 
 | OLED signal | ESP32 GPIO / supply |
 |---|---:|
 | SDA | GPIO21 |
 | SCL | GPIO22 |
+| Address | `0x3C` |
 | VCC | 3V3 |
 | GND | GND |
 
-The default address is `0x3C` and the bus is configured for `800 kHz` in
-`include/esp32_pin_config.h`.
+The display shows UART diagnostics and one of these network states:
 
-On boot, the firmware first scans the I2C bus and prints every responding 7-bit
-address, plus the equivalent 8-bit write address. A PCB marking of `0x78`
-should appear in the scan as `7bit=0x3C write8=0x78`. The display init then
-probes address `0x3C`. If the OLED does not ACK, the UART bridge continues
-running and the serial log reports the display probe error. If the OLED is
-found, a short self-test screen appears before the normal UART/Wi-Fi status
-screen.
+- `wifi:init`: AP initialization is in progress.
+- `wifi:ap`: AP and HTTP server are ready.
+- `wifi:pc`: at least one client is connected.
+- `wifi:err`: AP or HTTP startup failed.
 
-## Shield Pin Plan
+## Build
 
-Use these pins for the ESP32 side of the shield:
+From `firmware/esp32/`:
 
-| Function | ESP32 GPIO / connector pin |
-|---|---:|
-| UART RX | GPIO16 |
-| UART TX | GPIO17 |
-| BTN1 | GPIO18 |
-| BTN2 | GPIO19 |
-| I2C data / SDA | GPIO21 |
-| I2C clock / SCL | GPIO22 |
-| SH1122 OLED address | 0x3C |
-| GND | connector pin 2 |
-| VIN | connector pin 1 |
-| Screen power | 3V3 |
-| Screen ground | GND |
+```sh
+pio run --environment esp32dev
+```
 
-The matching constants are in `include/esp32_pin_config.h`.
+Upload and monitor using the appropriate local serial port:
 
-Use UART for S32K/ESP debug or Bluetooth bridge messages. Use GPIO21/GPIO22 for
-the ESP32-side screen I2C connection.
+```sh
+pio run --environment esp32dev --target upload
+pio device monitor
+```
+
+The first build downloads the pinned U8g2 ESP-IDF component into
+`managed_components/`. That directory is generated and ignored.
+
+## Deferred
+
+- S32K decoding and application of PID values.
+- S32K applied/rejected acknowledgement.
+- Decimal or fixed-point PID values.
+- Vision tuning in the web UI.
+- Persistent settings.
+- Bluetooth.
+- Station or AP+station Wi-Fi modes.

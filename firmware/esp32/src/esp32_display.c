@@ -22,6 +22,34 @@ static const char *TAG = "esp32_display";
 static u8g2_t s_u8g2;
 static bool s_ready;
 
+esp_err_t EspDisplay_InitBus(void)
+{
+    const i2c_port_t port = (i2c_port_t)ESP32_I2C_PORT;
+    const i2c_config_t config = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = ESP32_I2C_DATA_GPIO,
+        .scl_io_num = ESP32_I2C_CLK_GPIO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = ESP32_I2C_FREQ_HZ,
+        .clk_flags = 0,
+    };
+
+    esp_err_t ret = i2c_param_config(port, &config);
+    if (ret != ESP_OK)
+    {
+        return ret;
+    }
+
+    ret = i2c_driver_install(port, I2C_MODE_MASTER, 0, 0, 0);
+    if (ret == ESP_OK)
+    {
+        ESP_LOGI(TAG, "I2C ready: SDA=%d SCL=%d", ESP32_I2C_DATA_GPIO, ESP32_I2C_CLK_GPIO);
+    }
+
+    return ret;
+}
+
 static uint8_t u8x8_byte_i2c_cb(u8x8_t *u8x8, uint8_t msg, uint8_t argInt, void *argPtr)
 {
     static uint8_t transfer[ESP_DISPLAY_TRANSFER_MAX_BYTES];
@@ -270,9 +298,23 @@ esp_err_t EspDisplay_ShowBringup(const EspAppStatus_t *status)
                    (unsigned)(ESP32_I2C_FREQ_HZ / 1000U));
     draw_status_line(55, "LINK", value);
 
-    (void)snprintf(value, sizeof(value), "%s",
-                   status->wifiConnected ? "wifi:on"
-                                         : (status->wifiEnabled ? "wifi:try" : "wifi:off"));
+    if (status->wifiError)
+    {
+        (void)snprintf(value, sizeof(value), "wifi:err");
+    }
+    else if (status->wifiConnected)
+    {
+        (void)snprintf(value, sizeof(value), "wifi:pc clients=%u",
+                       (unsigned)status->wifiClientCount);
+    }
+    else if (status->wifiEnabled)
+    {
+        (void)snprintf(value, sizeof(value), "wifi:ap 192.168.4.1");
+    }
+    else
+    {
+        (void)snprintf(value, sizeof(value), "wifi:init");
+    }
     draw_status_line(63, "NET", value);
     u8g2_SendBuffer(&s_u8g2);
 
