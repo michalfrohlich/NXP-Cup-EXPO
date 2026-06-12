@@ -24,7 +24,7 @@ static constexpr uint8_t TEENSY_CAM2_CLK_PIN = 7U;
 static constexpr uint8_t TEENSY_CAM1_ANALOG_PIN = 15U;
 static constexpr uint8_t TEENSY_CAM2_ANALOG_PIN = 14U;
 
-/* Matches the generated S32K LPSPI1 setup for the 80-byte bench link. */
+/* Matches the generated S32K LPSPI1 setup for the fixed-size link frame. */
 static constexpr uint32_t TEENSY_LINK_S32K_SPI_HZ = 2000000UL;
 static constexpr uint32_t TEENSY_LINK_SENSOR_HZ = 200UL;
 static constexpr uint32_t TEENSY_LINK_SENSOR_INTERVAL_US = 1000000UL / TEENSY_LINK_SENSOR_HZ;

@@ -45,7 +45,9 @@
 - `Ultra+ESC` centers the servo, drives both motors at 50% when clear, slows at 45 cm, and stops at 8 cm.
 - `Victory Lap` is a separate pole-detection test: it approaches slowly, stops at 8 cm, then steps through a Mario-style victory note table for future BLDC music support.
 - Honor/race ultrasonic handling now also holds the steering straight once the object is inside the 45 cm slow zone.
-- The Teensy SPI link runs only inside the `Teensy Link` test. Enable `APP_TEST_TEENSY_LINK_TEST` for direct boot, or enter `Teensy Link` from the runtime bench menu.
+- The Teensy SPI link runs in the `Teensy Link` bench/direct test and in
+  `APP_TEST_TEENSY_CAM0_RACE`. The race path aligns four SPI slots and one
+  averaged controller execution to each 20 ms servo PWM period.
 - In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules

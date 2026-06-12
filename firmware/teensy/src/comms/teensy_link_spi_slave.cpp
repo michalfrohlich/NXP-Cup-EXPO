@@ -79,7 +79,7 @@ bool TeensyLinkSpiSlave::service()
     (void)memcpy(localTx, txFrame_, TEENSY_LINK_FRAME_BYTES);
 
     /* At 2 MHz each half-cycle is 250 ns. Keep the CPU dedicated to the
-       software SPI slave for the bounded 320 us transfer. Camera PWM, ADC,
+       software SPI slave for the bounded 336 us transfer. Camera PWM, ADC,
        and DMA continue in hardware while interrupt delivery is deferred. */
     driveBit(localTx[byteIndex], bitMask);
     startUs = micros();

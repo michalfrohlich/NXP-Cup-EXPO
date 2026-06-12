@@ -12,7 +12,7 @@ Keep this code portable. Do not include board-specific SDK headers here.
 
 Current active protocol:
 
-- `teensy_link_protocol.h`: fixed 80-byte S32K <-> Teensy SPI frame.
+- `teensy_link_protocol.h`: fixed 84-byte S32K <-> Teensy SPI v2 frame.
 - `teensy_link_crc.h`: CRC-16/CCITT-FALSE helper used by both boards.
 
 Run and wiring notes are in `../../docs/protocols/teensy-s32k-spi-test.md`.

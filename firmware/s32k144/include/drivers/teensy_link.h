@@ -20,6 +20,7 @@ typedef struct
     uint8 rightLineIdx;
     uint8 ageMs;
     uint8 flags;
+    uint16 sequence;
 } TeensyLinkCameraResult_t;
 
 typedef struct
@@ -74,6 +75,7 @@ typedef struct
     uint16 ultrasonicDistanceCm10;
     uint16 ultrasonicAgeMs;
     uint16 ultrasonicFlags;
+    uint16 diagnosticFlags;
 } TeensyLinkS32kInputs_t;
 
 typedef struct

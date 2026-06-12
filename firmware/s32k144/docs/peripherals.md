@@ -28,7 +28,12 @@ Notes:
 - Logical PWM channel IDs used in handwritten code are defined in `include/config/board_config.h`.
 - The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTB10`; both run at the same generated `50 Hz` period.
 - Handwritten ESC calls pass both ESC commands explicitly; same-speed driving uses equal primary and secondary arguments, while differential steering can pass different values.
-- The standalone servo rate test changes how often application code calls `Servo_SetSteer()`, but the servo driver still applies pending values on the generated `50 Hz` PWM period notification.
+- The servo driver defaults to applying the latest pending request from the
+  PWM falling-edge callback. Existing bench, regular race, NXP Cup, honor-lap,
+  and servo-rate modes retain this behavior.
+- `APP_TEST_TEENSY_CAM0_RACE` explicitly selects the phase-synchronized policy,
+  which stages at most one duty update while `17 <= phase < 19 ms` in each
+  generated 50 Hz PWM period.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
 - The linear camera PWM output free-runs as the pixel clock; notifications are enabled only during the active frame window and are disabled again between frames.
 

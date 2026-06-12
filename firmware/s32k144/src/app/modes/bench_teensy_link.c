@@ -173,7 +173,7 @@ static void teensy_link_test_draw_imu(void)
 
 static void teensy_link_test_draw_rx_data(void)
 {
-    DisplayTextPadded(0U, "TLINK RX 80B");
+    DisplayTextPadded(0U, "TLINK RX 84B");
 
     DisplayTextPadded(1U, "SEQ:    ACK:");
     DisplayValue(1U, (int)g_teensyLinkTest.snapshot.teensySeq, 4U, 4U);

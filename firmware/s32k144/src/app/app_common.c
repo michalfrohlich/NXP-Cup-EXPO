@@ -272,6 +272,11 @@ void App_InitRuntimeCommon(void)
     DisplayRefresh();
 }
 
+void App_ServiceRuntimeCore(uint32 nowMs)
+{
+    Servo_Service(nowMs);
+}
+
 void DisplayTextPadded(uint16 displayLine, const char *text)
 {
     char lineBuf[17];

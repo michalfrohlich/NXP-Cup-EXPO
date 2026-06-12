@@ -131,6 +131,7 @@ void CameraVision::getTelemetryResult(TeensyLinkCameraResult &outCamera, uint32_
     outCamera.ageMs = clampAgeMs(ageMs);
     outCamera.flags =
         (uint8_t)(TEENSY_LINK_CAMERA_FLAG_VALID | TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
+    outCamera.sequence = (uint16_t)latestSequence_;
     counters_.telemetryValidCount++;
 }
 

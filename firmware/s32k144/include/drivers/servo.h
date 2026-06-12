@@ -35,15 +35,25 @@ typedef struct{
     uint16 MedDutyCycle;    /*centered    (needed if left and right steering angles are not equal physically for any reason)*/
 }Servo;
 
+typedef enum
+{
+    SERVO_UPDATE_ON_PWM_CALLBACK = 0,
+    SERVO_UPDATE_PHASED_FOREGROUND
+} ServoUpdatePolicy;
+
 typedef struct
 {
     boolean Initialized;
+    ServoUpdatePolicy UpdatePolicy;
     uint16 AppliedDutyCycle;
     uint16 PendingDutyCycle;
     boolean PendingUpdate;
     uint32 CommandRequestCount;
-    uint32 PeriodCallbackCount;
-    uint32 AppliedUpdateCount;
+    uint32 PeriodSequence;
+    uint32 PeriodStartMs;
+    uint32 CommitCount;
+    uint32 MissedCommitCount;
+    uint32 DuplicateServiceCount;
 } ServoDebugSnapshot;
 /*==================================================================================================
 *                                       LOCAL MACROS
@@ -76,6 +86,8 @@ void Servo_SetSteer(int Direction);    /*takes a value between -100 (left) and 1
 void SteerLeft(void);    /*sets the duty cycle to the configured maximum*/
 void SteerRight(void);/*sets the duty cycle to the configured minimum*/
 void SteerStraight(void);    /*sets the duty cycle to the configured middle*/
+void Servo_SetUpdatePolicy(ServoUpdatePolicy Policy);
+void Servo_Service(uint32 nowMs);
 void Servo_Period_Finished(void);
 void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot);
 

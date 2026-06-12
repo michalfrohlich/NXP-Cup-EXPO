@@ -3,11 +3,11 @@
 ## Goal
 
 This document explains how to run the two-board SPI bench test after the
-packet update to 80 bytes.
+packet update to protocol v2 and 84 bytes.
 
 The S32K is the main controller and SPI master. The Teensy 4.1 is the sensor
-board and SPI slave. Every 5 ms S32K service tick sends one fixed 80-byte command
-frame and receives one fixed 80-byte Teensy telemetry frame at the same time.
+board and SPI slave. Every 5 ms S32K service tick sends one fixed 84-byte command
+frame and receives one fixed 84-byte Teensy telemetry frame at the same time.
 
 The S32K services this SPI link only while the Teensy link test is active. Use
 either the compile-time direct mode or the runtime OLED bench test. There is no
@@ -38,6 +38,9 @@ The shared packet definition is here:
 ```text
 shared/protocol/teensy_link_protocol.h
 ```
+
+Protocol v2 is not compatible with the former 80-byte frame. Rebuild and flash
+both boards whenever switching to this version.
 
 The shield pinout from the schematic is here:
 
@@ -78,7 +81,7 @@ Use a common ground first. Without common ground the data lines can look random.
 Both boards use 3.3 V logic. Do not connect a 5 V signal to the SPI pins.
 
 Keep the first wiring short. If the packet fails CRC with long wires, reduce
-the S32K SPI baud rate temporarily and keep the packet at 80 bytes.
+the S32K SPI baud rate temporarily and keep the packet at 84 bytes.
 
 ## SPI Settings
 
@@ -89,10 +92,10 @@ the S32K SPI baud rate temporarily and keep the packet at 80 bytes.
 | Mode | SPI mode 0, CPOL=0, CPHA=0 |
 | Bit order | MSB first |
 | Word size | 8 bits |
-| Frame size | 80 bytes |
+| Frame size | 84 bytes |
 | S32K service period | 5 ms |
 | Target SCK | 2 MHz |
-| Wire time at 2 MHz | about 0.32 ms |
+| Wire time at 2 MHz | about 0.336 ms |
 
 The S32K generated SPI configuration is in `Nxp_Cup.mex` and generated RTD
 files. The important generated names are:
@@ -105,13 +108,13 @@ files. The important generated names are:
 
 ## Packet Format
 
-Every packet is exactly 80 bytes:
+Every packet is exactly 84 bytes:
 
 | Byte range | Meaning |
 |---:|---|
 | 0..15 | common header |
-| 16..77 | payload |
-| 78..79 | CRC-16/CCITT-FALSE over bytes 0..77 |
+| 16..81 | payload |
+| 82..83 | CRC-16/CCITT-FALSE over bytes 0..81 |
 
 Common header:
 
@@ -121,11 +124,11 @@ Common header:
 | 1 | sync byte 1, `0x5A` |
 | 2 | protocol version |
 | 3 | frame type: S32K=`0x53`, Teensy=`0x54` |
-| 4..5 | frame length, always 80 |
+| 4..5 | frame length, always 84 |
 | 6..7 | frame sequence |
 | 8..11 | sender time in ms |
 | 12..13 | frame flags |
-| 14..15 | payload length, always 62 |
+| 14..15 | payload length, always 66 |
 
 The CRC is the final check. If header and CRC are valid, the receiver decodes
 the payload. If not, it increments error counters and keeps the last good data.
@@ -158,8 +161,12 @@ Camera slots use this compact wire format:
 
 ```text
 error_pct_s8, status_u8, feature_u8, confidence_u8,
-left_idx_u8, right_idx_u8, age_ms_u8, flags_u8
+left_idx_u8, right_idx_u8, age_ms_u8, flags_u8, sequence_u16
 ```
+
+The camera sequence changes only when that camera publishes a newly processed
+result. A repeated sequence in a newer SPI frame is valid telemetry but is not
+a new camera sample for control.
 
 If a camera is missing or handled by the other board, send track lost,
 confidence 0, indexes 255, old age, and stale/invalid flags.
@@ -228,8 +235,8 @@ pio device monitor -b 921600
 Expected serial output:
 
 ```text
-Teensy S32K SPI slave v1 link
-Packet: 80-byte full-duplex teensy_link frame, CRC-16/CCITT-FALSE
+Teensy S32K SPI slave v2 link
+Packet: 84-byte full-duplex teensy_link v2 frame, CRC-16/CCITT-FALSE
 t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 servo=0 ultra=0
 ```
 
@@ -242,7 +249,7 @@ What the serial values mean:
 | `s32k` | last valid S32K frame sequence decoded by Teensy |
 | `rx` | S32K frames fully received by Teensy |
 | `err` | S32K frames rejected by Teensy protocol/CRC validation |
-| `timeout` | CS went active but the full 80-byte clock did not complete |
+| `timeout` | CS went active but the full 84-byte clock did not complete |
 | `app` | S32K app mode from the received frame |
 | `speed` | S32K target/current speed values |
 | `servo` | S32K servo command |
@@ -296,8 +303,8 @@ The S32K OLED pages are:
 | 1 | `TLINK CAM0` | real camera 0 line-detector result appears |
 | 2 | `TLINK CAM1` | stale/missing camera 1 appears without link failure |
 | 3 | `TLINK IMU/LOG` | yaw, gyro Z, lateral acceleration, logger state |
-| 4 | `TLINK RX 80B` | CRC, protocol, SPI, and Teensy RX errors stay low |
-| 5 | `TLINK RAW HEADER` | received header is `165, 90, 1, 84, 80, 0` |
+| 4 | `TLINK RX 84B` | CRC, protocol, SPI, and Teensy RX errors stay low |
+| 5 | `TLINK RAW HEADER` | received header is `165, 90, 2, 84, 84, 0` |
 
 RGB LED meaning:
 
@@ -307,6 +314,36 @@ RGB LED meaning:
 | Green | live valid link |
 | Yellow | stale frame exists but not live |
 | Red | repeated CRC/protocol/SPI errors |
+
+## Deterministic Camera Race Mode
+
+`APP_TEST_TEENSY_CAM0_RACE` uses protocol v2 camera sequences and the servo
+PWM rising edge to produce exactly one steering decision per 20 ms period.
+
+| PWM phase | Action |
+|---:|---|
+| 0 ms | SPI slot 0 |
+| 5 ms | SPI slot 1 |
+| 10 ms | SPI slot 2 |
+| 15 ms | SPI slot 3 |
+| 17 ms | robust average and one controller execution with `dt=0.020 s` |
+| `17 <= phase < 19 ms` | one servo duty staging write |
+| 20 ms | next PWM period begins |
+
+Missed SPI slots are counted and skipped. They are never replayed
+back-to-back. A camera frame is collected only when its 16-bit camera sequence
+differs from the last accepted sequence; wrap from `65535` to `0` is valid.
+
+At the control slot, stale, invalid, and track-lost samples are removed. For
+three or four samples, the estimator rejects at most one sample when it has the
+largest deviation from the median and that deviation exceeds 0.20 normalized
+error. The accepted errors are confidence-weighted. If all accepted
+confidences are zero, their median is used. Metadata comes from the newest
+accepted sample and output confidence is the arithmetic mean.
+
+If the controller has not run by phase 19 ms, it records a deadline miss and
+holds the previous PWM command. A request that missed its servo commit window
+is discarded at the next PWM edge so it cannot be applied one period late.
 
 ## Specific Tests To Run
 
@@ -341,7 +378,7 @@ Expected:
 - S32K `TLINK` changes to `OK`.
 - `S32`/`TEN` sequence values change.
 - S32K and Teensy sequence values continue increasing.
-- S32K `TLINK RX 80B` error counters stay low.
+- S32K `TLINK RX 84B` error counters stay low.
 
 ### 4. MOSI direction test
 
@@ -402,7 +439,7 @@ If errors increase:
 - check SPI mode 0,
 - temporarily lower S32K `TeensySpiDevice` baud rate and regenerate.
 
-Do not change the 80-byte packet to debug wiring. Keep the packet fixed.
+Do not change the 84-byte packet to debug wiring. Keep the packet fixed.
 
 ## Ultrasonic And Victory Test Context
 
@@ -437,6 +474,6 @@ The S32K is kept as the real-time vehicle controller because it already owns
 the motor, servo, display, buttons, and safety modes. The Teensy is used as the
 sensor and logging coprocessor because it has more spare CPU for IMU filtering,
 camera-side processing, SD logging, and later MATLAB/ESP telemetry support. A
-fixed 80-byte SPI packet is used because it gives deterministic timing,
+fixed 84-byte SPI packet is used because it gives deterministic timing,
 constant buffer sizes, simple CRC validation, and enough reserved space for the
 second camera, SD status, and future slip-control values.

@@ -461,6 +461,7 @@ void busy_delay(volatile uint32 ticks);
 void display_power_stabilize_delay(void);
 void App_InitRuntimeCore(void);
 void App_InitRuntimeCommon(void);
+void App_ServiceRuntimeCore(uint32 nowMs);
 void DisplayTextPadded(uint16 displayLine, const char *text);
 void RuntimeTune_InitDefaults(void);
 

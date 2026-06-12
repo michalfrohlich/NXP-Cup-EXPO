@@ -1,7 +1,7 @@
 # Teensy Firmware
 
 Teensy-side firmware for camera acquisition, camera vision, and the S32K
-80-byte SPI telemetry link.
+84-byte SPI telemetry link.
 
 ## Layout
 
@@ -10,7 +10,7 @@ Teensy-side firmware for camera acquisition, camera vision, and the S32K
 - `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers.
 - `include/services/` and `src/services/`: camera vision, line detection, and race runtime services.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
-- `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 80-byte frame.
+- `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 84-byte frame.
 - `src/app/`: compile-time app-mode dispatcher and mode implementations.
 - `src/main.cpp`: minimal Arduino entry point that dispatches the selected app mode.
 
@@ -121,9 +121,13 @@ tool.
 ## S32K Link Runtime
 
 `TEENSY_APP_MODE_LINK_BENCH` and `TEENSY_APP_MODE_RACE` publish the shared
-80-byte telemetry frame over SPI. The Teensy is the SPI slave and the S32K
+84-byte telemetry frame over SPI. The Teensy is the SPI slave and the S32K
 controls the actual transfer cadence. The Teensy updates the telemetry buffer
 at `TEENSY_LINK_SENSOR_HZ`, currently 200 Hz.
+
+Protocol v2 adds a 16-bit source sequence to each camera slot. The S32K uses
+that sequence to distinguish a newly processed camera result from repeated
+telemetry frames. Sequence wrap from `65535` to `0` is valid.
 
 The current runtime sends real camera 0 vision data and placeholder data for
 components that are not implemented yet:
@@ -138,7 +142,7 @@ components that are not implemented yet:
 
 The active SPI slave backend is the fixed-pin, software bit-banged
 implementation. There is no DMA/LPSPI4 backend selector in the current code.
-At 2 MHz, interrupts are deferred for the bounded 320 us transfer so the
+At 2 MHz, interrupts are deferred for the bounded 336 us transfer so the
 software slave cannot miss SCK edges; camera PWM, ADC triggering, and DMA
 continue in hardware.
 

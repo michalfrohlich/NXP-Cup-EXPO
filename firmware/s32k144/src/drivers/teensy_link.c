@@ -72,6 +72,7 @@ static void encode_camera(uint8 *payload, uint16 offset, const TeensyLinkCameraR
         payload[offset + 5U] = (uint8)255U;
         payload[offset + 6U] = (uint8)255U;
         payload[offset + 7U] = (uint8)TEENSY_LINK_CAMERA_FLAG_STALE;
+        write_u16_le(payload, (uint16)(offset + 8U), 0U);
         return;
     }
 
@@ -83,6 +84,7 @@ static void encode_camera(uint8 *payload, uint16 offset, const TeensyLinkCameraR
     payload[offset + 5U] = camera->rightLineIdx;
     payload[offset + 6U] = camera->ageMs;
     payload[offset + 7U] = camera->flags;
+    write_u16_le(payload, (uint16)(offset + 8U), camera->sequence);
 }
 
 static void decode_camera(const uint8 *payload, uint16 offset, TeensyLinkCameraResult_t *camera)
@@ -100,6 +102,7 @@ static void decode_camera(const uint8 *payload, uint16 offset, TeensyLinkCameraR
     camera->rightLineIdx = payload[offset + 5U];
     camera->ageMs = payload[offset + 6U];
     camera->flags = payload[offset + 7U];
+    camera->sequence = read_u16_le(payload, (uint16)(offset + 8U));
 }
 
 static void build_s32k_frame(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
@@ -157,7 +160,9 @@ static void build_s32k_frame(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
         encode_camera(payload, TEENSY_LINK_S32K_CAMERA1_OFF, NULL_PTR);
     }
 
-    write_u16_le(payload, TEENSY_LINK_S32K_DIAG_FLAGS_OFF, flags);
+    write_u16_le(payload,
+                 TEENSY_LINK_S32K_DIAG_FLAGS_OFF,
+                 (in != NULL_PTR) ? in->diagnosticFlags : 0U);
 
     crc = TeensyLink_Crc16CcittFalse(tx, (uint16)TEENSY_LINK_CRC_OFFSET);
     write_u16_le(tx, (uint16)TEENSY_LINK_CRC_OFFSET, crc);

@@ -16,7 +16,7 @@ static const CameraVisionConfig cameraVision0Config = {
     },
 };
 
-static_assert(TEENSY_LINK_FRAME_BYTES == 80U, "S32K link frame must stay 80 bytes");
+static_assert(TEENSY_LINK_FRAME_BYTES == 84U, "S32K link frame must stay 84 bytes");
 
 void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
 {
@@ -57,8 +57,8 @@ void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
 
     if (config_.serialStatusEnabled == true)
     {
-        Serial.println("Teensy S32K SPI slave v1 link");
-        Serial.println("Packet: 80-byte full-duplex teensy_link frame, CRC-16/CCITT-FALSE");
+        Serial.println("Teensy S32K SPI slave v2 link");
+        Serial.println("Packet: 84-byte full-duplex teensy_link v2 frame, CRC-16/CCITT-FALSE");
         Serial.print("Camera vision: ");
         Serial.println(cameraVision0Ready_ ? "ready" : "not available");
     }
