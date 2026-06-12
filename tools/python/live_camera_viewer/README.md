@@ -70,26 +70,36 @@ Frame: 200 Hz
 Explicit port:
 
 ```powershell
-python tools/python/live_camera_viewer/main.py --port COM11 --baud 921600
+python -m live_camera_viewer --port COM11 --baud 921600
+```
+
+With a specific GUI backend:
+
+```powershell
+python -m live_camera_viewer --port COM11 --baud 921600 --gui camera_2d
 ```
 
 Auto-detect port:
 
 ```powershell
-python tools/python/live_camera_viewer/main.py
+python -m live_camera_viewer
 ```
 
 List ports:
 
 ```powershell
-python tools/python/live_camera_viewer/main.py --list-ports
+python -m live_camera_viewer --list-ports
 ```
 
 Useful options:
 
 ```powershell
-python tools/python/live_camera_viewer/main.py --port COM11 --display-hz 60 --history 300
+python -m live_camera_viewer --port COM11 --baud 921600 --display-hz 60 --history 300 --gui classic
 ```
+
+**GUI Backends:**
+- `classic` (default): Traditional 1D line plot visualization with line detector overlays
+- `camera_2d`: 2D camera frame visualization for detailed pixel analysis
 
 The firmware stream defaults to 100 Hz. The GUI redraw defaults to 30 Hz and
 uses the latest complete binary frame, so it does not need to render every

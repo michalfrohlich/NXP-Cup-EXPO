@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import sys
 from pathlib import Path
+from typing import Callable
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -23,6 +25,14 @@ else:
     )
 
 
+GUI_MODULES = {
+    "classic": "plots",
+    "camera_2d": "camera_2d_view",
+}
+
+RunGuiFn = Callable[..., int]
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Live plotter for Teensy TSL1401CL binary raw-frame stream."
@@ -36,11 +46,38 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--display-hz", type=float, default=DEFAULT_DISPLAY_HZ)
     parser.add_argument("--history", type=int, default=DEFAULT_HISTORY)
     parser.add_argument(
+        "--gui",
+        choices=tuple(GUI_MODULES.keys()),
+        default="classic",
+        help=(
+            "GUI frontend to launch: 'classic' uses plots.py, "
+            "'camera_2d' uses camera_2d_view.py."
+        ),
+    )
+    parser.add_argument(
         "--list-ports",
         action="store_true",
         help="List detected serial ports and exit.",
     )
     return parser.parse_args(argv)
+
+
+def _load_gui_runner(gui_name: str) -> RunGuiFn:
+    """Import the selected GUI module and return its run_gui function."""
+
+    module_basename = GUI_MODULES[gui_name]
+    if __package__ in (None, ""):
+        module_name = f"live_camera_viewer.{module_basename}"
+    else:
+        module_name = f"{__package__}.{module_basename}"
+
+    module = importlib.import_module(module_name)
+    run_gui = getattr(module, "run_gui", None)
+    if not callable(run_gui):
+        raise AttributeError(
+            f"Selected GUI module '{module_basename}.py' does not define callable run_gui(...)."
+        )
+    return run_gui
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -68,21 +105,28 @@ def main(argv: list[str] | None = None) -> int:
         print("  python -m pip install -r tools/python/live_camera_viewer/requirements.txt")
         return 3
 
+    try:
+        run_gui = _load_gui_runner(args.gui)
+    except ModuleNotFoundError as error:
+        selected_module = GUI_MODULES[args.gui]
+        if error.name in {selected_module, f"live_camera_viewer.{selected_module}"}:
+            print(f"Selected GUI module not found: {selected_module}.py")
+            print("Expected it in:")
+            print(f"  tools/python/live_camera_viewer/{selected_module}.py")
+            return 4
+
+        print(f"Missing Python dependency: {error.name}")
+        print("Install dependencies with:")
+        print("  python -m pip install -r tools/python/live_camera_viewer/requirements.txt")
+        return 3
+    except AttributeError as error:
+        print(error)
+        return 4
+
     store = LatestFrameStore(history_size=args.history)
     reader = SerialCameraReader(port=port, baud=args.baud, store=store)
     reader.start()
     try:
-        try:
-            if __package__ in (None, ""):
-                from live_camera_viewer.plots import run_gui
-            else:
-                from .plots import run_gui
-        except ModuleNotFoundError as error:
-            print(f"Missing Python dependency: {error.name}")
-            print("Install dependencies with:")
-            print("  python -m pip install -r tools/python/live_camera_viewer/requirements.txt")
-            return 3
-
         return run_gui(
             store=store,
             port_label=f"{port} @ {args.baud}",

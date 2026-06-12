@@ -17,10 +17,10 @@
 #define APP_TEST_LINEAR_CAMERA_TEST       0
 #define APP_TEST_NXP_CUP                  0
 #define APP_TEST_RACE_MODE                0
-#define APP_TEST_TEENSY_CAM0_RACE         1
+#define APP_TEST_TEENSY_CAM0_RACE         0
 #define APP_TEST_HONOR_LAP                0
 #define APP_TEST_SERVO_RATE_TEST          0
-#define APP_TEST_TEENSY_LINK_TEST         0
+#define APP_TEST_TEENSY_LINK_TEST         1
 #define APP_TEST_NXP_CUP_TESTS            0
 
 #define APP_MODE_COUNT ( \

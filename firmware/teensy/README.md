@@ -85,14 +85,21 @@ It is enabled by default for camera bench:
 Run the viewer from the repository root:
 
 ```bat
-python tools\python\live_camera_viewer\live_camera_viewer.py
+python -m live_camera_viewer --port COM11 --baud 921600
 ```
 
-The viewer plots raw ADC values directly in the `0..4095` range. Text status
-and `frame8` serial output are disabled by default because they share the same
-USB serial port and add avoidable timing noise while the binary stream is active.
-The same stream packet format carries detector output when it is sent by the
-integrated race runtime.
+Or with a specific GUI backend:
+
+```bat
+python -m live_camera_viewer --port COM11 --baud 921600 --gui camera_2d
+```
+
+The viewer plots raw ADC values directly in the `0..4095` range. Available GUI
+frontends are `classic` (default, 1D plots) and `camera_2d` (2D frame visualization).
+Text status and `frame8` serial output are disabled by default because they share
+the same USB serial port and add avoidable timing noise while the binary stream
+is active. The same stream packet format carries detector output when it is sent
+by the integrated race runtime.
 
 ## OLED Display
 

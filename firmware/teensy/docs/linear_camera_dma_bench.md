@@ -70,11 +70,21 @@ present, but vision validity is only meaningful in the integrated runtime where
 Run the viewer from the repository root:
 
 ```bat
-python tools\python\live_camera_viewer\live_camera_viewer.py
+python -m live_camera_viewer --port COM12 --baud 921600
 ```
 
-The GUI keeps the latest received frame, redraws at its own display cadence, and
-plots stream health so missed packets or slow redraws are visible.
+Or specify a different GUI backend:
+
+```bat
+python -m live_camera_viewer --port COM12 --baud 921600 --gui camera_2d
+```
+
+Available GUI frontends:
+- `classic`: Traditional 1D line plot visualization (plots.py)
+- `camera_2d`: 2D camera frame visualization (camera_2d_view.py)
+
+The selected GUI keeps the latest received frame, redraws at its own display
+cadence, and plots stream health so missed packets or slow redraws are visible.
 
 ## Vision Runtime
 
