@@ -83,9 +83,10 @@ static const IntCtrl_Ip_IrqConfigType aIrqConfiguration[] = {
     {LPIT0_Ch0_IRQn, (boolean)TRUE, 0U, LPIT_0_CH_0_ISR},
     {LPIT0_Ch1_IRQn, (boolean)TRUE, 0U, LPIT_0_CH_1_ISR},
     {LPIT0_Ch2_IRQn, (boolean)TRUE, 0U, LPIT_0_CH_2_ISR},
+    {LPUART2_RxTx_IRQn, (boolean)TRUE, 1U, LPUART2_RxTx_IRQHandler},
 };
 const IntCtrl_Ip_CtrlConfigType intCtrlConfig = {
-    13U,
+    14U,
     aIrqConfiguration
 };
 

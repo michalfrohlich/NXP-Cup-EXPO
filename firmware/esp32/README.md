@@ -162,8 +162,8 @@ The display shows UART diagnostics and one of these network states:
   pressed. Sliders do not continuously transmit.
 - The 48-byte tuning frame takes about `1.02 ms` on the UART wire at
   `470588 8N1`.
-- The S32K main loop polls up to 16 RX bytes per service call, so a complete
-  tuning frame needs at least three fast service iterations.
+- The S32K LPUART2 ISR stores received bytes in a 256-byte software ring and
+  records hardware errors. The foreground service performs all frame parsing.
 - The S32K applies the validated snapshot immediately in the ESP link test,
   then transmits the 9-byte CRC-protected result with a
   four-byte-per-iteration TX budget.
@@ -174,8 +174,8 @@ The display shows UART diagnostics and one of these network states:
 - S32K button state is sampled on its normal button period and queued at least
   every 50 ms. The ESP32 replies to each valid button frame with its existing
   17-byte CRC-protected ACK.
-- The S32K OLED is disabled in the dedicated ESP link test while polling-based
-  UART reliability is validated. The ESP32 OLED refreshes every 50 ms when
+- The S32K OLED is disabled in the dedicated ESP link test while UART
+  reliability is validated. The ESP32 OLED refreshes every 50 ms when
   connected.
 
 ## Deferred

@@ -39,9 +39,11 @@
   driver parses CRC-protected button ACK and full tuning frames; the mode
   consumes the latest validated snapshot, updates all eight RAM runtime-tune
   values, queues a compact sequence-matched result, and owns LED diagnostics.
-  OLED activity is temporarily disabled in this mode while the polling-based
-  receive path is validated. Once per second, immediately after a valid ACK,
-  the mode reports UART and protocol error counters on the host debug UART.
+  The LPUART2 ISR copies received bytes into a 256-byte software ring and
+  records hardware error flags; parsing remains in the foreground service.
+  OLED activity is temporarily disabled in this mode while the link is
+  validated. Once per second, immediately after a valid ACK, the mode reports
+  UART and protocol error counters on the host debug UART.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
