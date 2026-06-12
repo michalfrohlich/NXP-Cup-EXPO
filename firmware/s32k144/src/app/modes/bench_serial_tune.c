@@ -21,6 +21,18 @@ static void serial_tune_draw(const SerialTuneState_t *st)
         case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
             DisplayTextPadded(0U, "EDIT SERVO LPF");
             break;
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+            DisplayTextPadded(0U, "EDIT VISION MIN");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+            DisplayTextPadded(0U, "EDIT EDGE HIGH");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+            DisplayTextPadded(0U, "EDIT EDGE LOW");
+            break;
+        case SERIAL_TUNE_SCREEN_VISION_MENU:
+            DisplayTextPadded(0U, "VISION TUNE");
+            break;
         case SERIAL_TUNE_SCREEN_SERVO_MENU:
             DisplayTextPadded(0U, "SERVO TUNE MENU");
             break;
@@ -40,6 +52,21 @@ static void serial_tune_draw(const SerialTuneState_t *st)
         default:
             DisplayTextPadded(0U, "WAITING SERIAL");
             break;
+    }
+
+    if ((st->screen == SERIAL_TUNE_SCREEN_VISION_MENU) ||
+        (st->screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+        (st->screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+        (st->screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW))
+    {
+        (void)snprintf(lineBuf, sizeof(lineBuf), "MIN:%5u", (unsigned int)st->visionMinContrast);
+        DisplayTextPadded(1U, lineBuf);
+        (void)snprintf(lineBuf, sizeof(lineBuf), "HIGH:%3u%%", (unsigned int)st->visionEdgeHighPct);
+        DisplayTextPadded(2U, lineBuf);
+        (void)snprintf(lineBuf, sizeof(lineBuf), "LOW:%4u%%", (unsigned int)st->visionEdgeLowPct);
+        DisplayTextPadded(3U, lineBuf);
+        DisplayRefresh();
+        return;
     }
 
     if ((st->screen == SERIAL_TUNE_SCREEN_SERVO_MENU) ||
@@ -120,6 +147,7 @@ static void serial_tune_print_pid_menu(void)
     UartHost_WriteLine("i - edit KI");
     UartHost_WriteLine("d - edit KD");
     UartHost_WriteLine("s - servo menu");
+    UartHost_WriteLine("v - vision menu");
     UartHost_WriteString("menu> ");
 }
 
@@ -131,6 +159,28 @@ static void serial_tune_print_servo_menu(void)
     UartHost_WriteLine("l - edit LPF");
     UartHost_WriteLine("p - PID menu");
     UartHost_WriteString("servo> ");
+}
+
+static void serial_tune_print_vision_menu(void)
+{
+    char lineBuf[32];
+
+    UartHost_WriteLine("");
+    UartHost_WriteLine("=== Vision Tune Menu ===");
+    UartHost_WriteLine("Current:");
+    (void)snprintf(lineBuf, sizeof(lineBuf), "minContrast: %u", (unsigned int)g_serialTune.visionMinContrast);
+    UartHost_WriteLine(lineBuf);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeHighPct: %u", (unsigned int)g_serialTune.visionEdgeHighPct);
+    UartHost_WriteLine(lineBuf);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeLowPct: %u", (unsigned int)g_serialTune.visionEdgeLowPct);
+    UartHost_WriteLine(lineBuf);
+    UartHost_WriteLine("");
+    UartHost_WriteLine("m - edit min contrast");
+    UartHost_WriteLine("h - edit high edge %");
+    UartHost_WriteLine("l - edit low edge %");
+    UartHost_WriteLine("p - PID menu");
+    UartHost_WriteLine("q - show menu");
+    UartHost_WriteString("vision> ");
 }
 
 static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
@@ -157,11 +207,32 @@ static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing SERVO LPF");
             break;
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing minContrast");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing edgeHighPct");
+            break;
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+            UartHost_WriteLine("");
+            UartHost_WriteLine("Editing edgeLowPct");
+            break;
         default:
             return;
     }
 
-    UartHost_WriteLine("Type digits and optional decimal point.");
+    if ((screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+        (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+        (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW))
+    {
+        UartHost_WriteLine("Type digits.");
+    }
+    else
+    {
+        UartHost_WriteLine("Type digits and optional decimal point.");
+    }
     UartHost_WriteString("Press ");
     UartHost_WriteChar(SERIAL_TUNE_COMMIT_CHAR);
     UartHost_WriteLine(" to save, q to cancel.");
@@ -280,6 +351,8 @@ float *serial_tune_active_value_ptr(SerialTuneState_t *st)
             return &st->ki;
         case SERIAL_TUNE_SCREEN_EDIT_KD:
             return &st->kd;
+        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+            return &st->servoLpfAlpha;
         default:
             return NULL_PTR;
     }
@@ -320,10 +393,34 @@ const char *serial_tune_active_label(const SerialTuneState_t *st)
             return "SERVO CLAMP";
         case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
             return "SERVO LPF";
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+            return "minContrast";
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+            return "edgeHighPct";
+        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+            return "edgeLowPct";
         default:
             return "";
     }
 }
+
+static boolean serial_tune_is_vision_screen(SerialTuneScreen_t screen)
+{
+    return (boolean)((screen == SERIAL_TUNE_SCREEN_VISION_MENU) ||
+                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW));
+}
+
+static boolean serial_tune_requires_integer(SerialTuneScreen_t screen)
+{
+    return (boolean)((screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW));
+}
+
+static void serial_tune_return_from_edit(SerialTuneState_t *st);
 
 static void serial_tune_enter_pid_menu(SerialTuneState_t *st)
 {
@@ -353,6 +450,43 @@ static void serial_tune_enter_servo_menu(SerialTuneState_t *st)
     serial_tune_draw(st);
     StatusLed_Green();
     serial_tune_print_servo_menu();
+}
+
+static void serial_tune_enter_vision_menu(SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->screen = SERIAL_TUNE_SCREEN_VISION_MENU;
+    st->inputLen = 0U;
+    st->inputBuf[0] = '\0';
+    serial_tune_draw(st);
+    StatusLed_Green();
+    serial_tune_print_vision_menu();
+}
+
+static void serial_tune_return_from_edit(SerialTuneState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+        (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+    {
+        serial_tune_enter_servo_menu(st);
+    }
+    else if (serial_tune_is_vision_screen(st->screen) == TRUE)
+    {
+        serial_tune_enter_vision_menu(st);
+    }
+    else
+    {
+        serial_tune_enter_pid_menu(st);
+    }
 }
 
 static void serial_tune_enter_edit(SerialTuneState_t *st, SerialTuneScreen_t screen)
@@ -391,12 +525,46 @@ static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch)
         case 's':
             serial_tune_enter_servo_menu(st);
             break;
+        case 'v':
+            serial_tune_enter_vision_menu(st);
+            break;
         case 'q':
             serial_tune_print_pid_menu();
             break;
         default:
             UartHost_WriteLine("Unknown key. Press q for menu.");
             UartHost_WriteString("menu> ");
+            break;
+    }
+}
+
+static void serial_tune_handle_vision_menu_char(SerialTuneState_t *st, char ch)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    switch (ch)
+    {
+        case 'm':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST);
+            break;
+        case 'h':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH);
+            break;
+        case 'l':
+            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW);
+            break;
+        case 'p':
+            serial_tune_enter_pid_menu(st);
+            break;
+        case 'q':
+            serial_tune_print_vision_menu();
+            break;
+        default:
+            UartHost_WriteLine("Unknown key.");
+            UartHost_WriteString("vision> ");
             break;
     }
 }
@@ -444,15 +612,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
     if (ch == 'q')
     {
         UartHost_WriteLine("Edit cancelled.");
-        if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
-            (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
-        {
-            serial_tune_enter_servo_menu(st);
-        }
-        else
-        {
-            serial_tune_enter_pid_menu(st);
-        }
+        serial_tune_return_from_edit(st);
         return;
     }
 
@@ -469,7 +629,59 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
 
     if (ch == SERIAL_TUNE_COMMIT_CHAR)
     {
-        if (serial_tune_active_int_ptr(st) != NULL_PTR)
+        if (serial_tune_is_vision_screen(st->screen) == TRUE)
+        {
+            sint16 parsedIntValue;
+
+            if (serial_tune_parse_int_value(st->inputBuf, &parsedIntValue) != TRUE)
+            {
+                UartHost_WriteLine("");
+                UartHost_WriteLine("Invalid number.");
+                UartHost_WriteString("edit> ");
+                return;
+            }
+
+            switch (st->screen)
+            {
+                case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+                    if (parsedIntValue > 4095)
+                    {
+                        UartHost_WriteLine("");
+                        UartHost_WriteLine("Range: 0..4095.");
+                        UartHost_WriteString("edit> ");
+                        return;
+                    }
+                    st->visionMinContrast = (uint16)parsedIntValue;
+                    g_runtimeTune.lineDetector.minContrast = st->visionMinContrast;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+                    if ((parsedIntValue < 1) || (parsedIntValue > 100))
+                    {
+                        UartHost_WriteLine("");
+                        UartHost_WriteLine("Range: 1..100.");
+                        UartHost_WriteString("edit> ");
+                        return;
+                    }
+                    st->visionEdgeHighPct = (uint8)parsedIntValue;
+                    g_runtimeTune.lineDetector.edgeHighPct = st->visionEdgeHighPct;
+                    break;
+                case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+                    if ((parsedIntValue < 1) || (parsedIntValue > 100))
+                    {
+                        UartHost_WriteLine("");
+                        UartHost_WriteLine("Range: 1..100.");
+                        UartHost_WriteString("edit> ");
+                        return;
+                    }
+                    st->visionEdgeLowPct = (uint8)parsedIntValue;
+                    g_runtimeTune.lineDetector.edgeLowPct = st->visionEdgeLowPct;
+                    break;
+                default:
+                    serial_tune_return_from_edit(st);
+                    return;
+            }
+        }
+        else if (serial_tune_active_int_ptr(st) != NULL_PTR)
         {
             sint16 parsedIntValue;
 
@@ -497,15 +709,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
             activeValue = serial_tune_active_value_ptr(st);
             if (activeValue == NULL_PTR)
             {
-                if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
-                    (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
-                {
-                    serial_tune_enter_servo_menu(st);
-                }
-                else
-                {
-                    serial_tune_enter_pid_menu(st);
-                }
+                serial_tune_return_from_edit(st);
                 return;
             }
 
@@ -534,15 +738,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
         (void)snprintf(lineBuf, sizeof(lineBuf), "%s updated.", label);
         UartHost_WriteLine("");
         UartHost_WriteLine(lineBuf);
-        if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
-            (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
-        {
-            serial_tune_enter_servo_menu(st);
-        }
-        else
-        {
-            serial_tune_enter_pid_menu(st);
-        }
+        serial_tune_return_from_edit(st);
         return;
     }
 
@@ -550,7 +746,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
     {
         if (st->inputLen < SERIAL_TUNE_INPUT_MAX_LEN)
         {
-            if ((ch == '.') && (serial_tune_active_int_ptr(st) != NULL_PTR))
+            if ((ch == '.') && (serial_tune_requires_integer(st->screen) == TRUE))
             {
                 return;
             }
@@ -579,6 +775,9 @@ void serial_tune_test_enter(uint32 nowMs)
     g_serialTune.kd = g_runtimeTune.profile.kd;
     g_serialTune.servoClamp = g_runtimeTune.profile.steerClamp;
     g_serialTune.servoLpfAlpha = g_runtimeTune.profile.steerLpfAlpha;
+    g_serialTune.visionMinContrast = g_runtimeTune.lineDetector.minContrast;
+    g_serialTune.visionEdgeHighPct = g_runtimeTune.lineDetector.edgeHighPct;
+    g_serialTune.visionEdgeLowPct = g_runtimeTune.lineDetector.edgeLowPct;
     g_serialTune.screen = SERIAL_TUNE_SCREEN_WAIT;
 
     serial_tune_draw(&g_serialTune);
@@ -623,6 +822,10 @@ void serial_tune_test_update(void)
         else if (g_serialTune.screen == SERIAL_TUNE_SCREEN_SERVO_MENU)
         {
             serial_tune_handle_servo_menu_char(&g_serialTune, rxChar);
+        }
+        else if (g_serialTune.screen == SERIAL_TUNE_SCREEN_VISION_MENU)
+        {
+            serial_tune_handle_vision_menu_char(&g_serialTune, rxChar);
         }
         else
         {

@@ -5,7 +5,7 @@ Teensy-side firmware for the S32K-master SPI link.
 Open this folder in VS Code:
 
 ```text
-C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
+C:\Users\misof\workspaceS32DS.3.6.3\EXPO_03_Nxp_Cup_project\firmware\teensy
 ```
 
 Current layout:
@@ -19,14 +19,17 @@ Do not reintroduce the old 45-byte IMU packet as active code.
 
 ## Build And Upload
 
-Use the PlatformIO terminal in VS Code:
+Use PlatformIO from VS Code, S32DS terminal, or PowerShell:
 
 ```bat
-cd /d C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
+cd /d C:\Users\misof\workspaceS32DS.3.6.3\EXPO_03_Nxp_Cup_project\firmware\teensy
 pio run
 pio run -t upload
-pio device monitor -b 115200
+pio device list
+pio device monitor
 ```
+
+The monitor baud is configured in `platformio.ini` as `115200`.
 
 The serial monitor should print lines like:
 

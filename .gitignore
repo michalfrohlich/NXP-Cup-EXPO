@@ -45,6 +45,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pio/
+site/
+firmware/esp32/sdkconfig.esp32dev
+firmware/esp32/managed_components/
 
 # MATLAB local autosaves from debug/viewer scripts
 *.asv

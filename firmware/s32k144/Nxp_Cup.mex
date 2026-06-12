@@ -36,15 +36,17 @@
                <pin_label pin_num="49" pin_signal="PTC13" label="SWITCH3"/>
                <pin_label pin_num="46" pin_signal="PTC14" label="POT"/>
                <pin_label pin_num="85" pin_signal="PTE2" label="esc1"/>
-               <pin_label pin_num="81" pin_signal="PTC6" label="UART RX"/>
+               <pin_label pin_num="81" pin_signal="PTC6" label="UART RX -PC"/>
                <pin_label pin_num="75" pin_signal="PTB10" label="esc2"/>
-               <pin_label pin_num="80" pin_signal="PTC7" label="UART TX"/>
+               <pin_label pin_num="80" pin_signal="PTC7" label="UART TX -PC"/>
                <pin_label pin_num="84" pin_signal="PTE6" label="servo"/>
                <pin_label pin_num="24" pin_signal="PTD14" label="Teensy ready"/>
                <pin_label pin_num="66" pin_signal="PTB14" label="TeensySpiSck"/>
                <pin_label pin_num="65" pin_signal="PTB15" label="TeensySpiMiso"/>
                <pin_label pin_num="64" pin_signal="PTB16" label="TeensySpiMosi"/>
                <pin_label pin_num="63" pin_signal="PTB17" label="TeensySpiCs"/>
+               <pin_label pin_num="32" pin_signal="PTD6" label="UART RX -ESP"/>
+               <pin_label pin_num="31" pin_signal="PTD7" label="UART TX -ESP"/>
             </pin_labels>
          </pins_profile>
          <functions_list>
@@ -199,6 +201,16 @@
                   <pin peripheral="PORTD" signal="port, 14" pin_num="24" pin_signal="PTD14">
                      <pin_features>
                         <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="LPUART2" signal="lpuart2_rx" pin_num="32" pin_signal="PTD6">
+                     <pin_features>
+                        <pin_feature name="direction" value="INPUT"/>
+                     </pin_features>
+                  </pin>
+                  <pin peripheral="LPUART2" signal="lpuart2_tx" pin_num="31" pin_signal="PTD7">
+                     <pin_features>
+                        <pin_feature name="direction" value="OUTPUT"/>
                      </pin_features>
                   </pin>
                </pins>
@@ -1121,7 +1133,7 @@
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
                                     <struct name="0">
-                                       <setting name="Name" value="Uart_Rx"/>
+                                       <setting name="Name" value="Uart_Rx_Pc"/>
                                        <setting name="PortPinPFE" value="false"/>
                                        <setting name="PortPinODE" value="false"/>
                                        <setting name="PortPinLK" value="false"/>
@@ -1133,7 +1145,7 @@
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
                                     <struct name="1">
-                                       <setting name="Name" value="Uart_Tx"/>
+                                       <setting name="Name" value="Uart_Tx_Pc"/>
                                        <setting name="PortPinPFE" value="false"/>
                                        <setting name="PortPinODE" value="false"/>
                                        <setting name="PortPinLK" value="false"/>
@@ -1141,6 +1153,30 @@
                                        <setting name="PortPinModeChangeable" value="true"/>
                                        <setting name="PortPinId" value="18"/>
                                        <setting name="PortPinPcr" value="71"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="2">
+                                       <setting name="Name" value="Uart_Rx_Esp"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="24"/>
+                                       <setting name="PortPinPcr" value="102"/>
+                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
+                                       <array name="PortPinEcucPartitionRef"/>
+                                    </struct>
+                                    <struct name="3">
+                                       <setting name="Name" value="Uart_Tx_Esp"/>
+                                       <setting name="PortPinPFE" value="false"/>
+                                       <setting name="PortPinODE" value="false"/>
+                                       <setting name="PortPinLK" value="false"/>
+                                       <setting name="PortPinDirectionChangeable" value="true"/>
+                                       <setting name="PortPinModeChangeable" value="true"/>
+                                       <setting name="PortPinId" value="25"/>
+                                       <setting name="PortPinPcr" value="103"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
@@ -1748,6 +1784,10 @@
                                     <struct name="9">
                                        <setting name="Name" value="Lpspi1ClockReferencePoint"/>
                                        <setting name="McuClockFrequencySelect" value="LPSPI1_CLK"/>
+                                    </struct>
+                                    <struct name="10">
+                                       <setting name="Name" value="Lpuart2ClockReferencePoint"/>
+                                       <setting name="McuClockFrequencySelect" value="LPUART2_CLK"/>
                                     </struct>
                                  </array>
                               </struct>
@@ -3512,6 +3552,13 @@
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPIT_0_CH_2_ISR"/>
                                  </struct>
+                                 <struct name="13">
+                                    <setting name="Name" value="PlatformIsrConfig_13"/>
+                                    <setting name="IsrName" value="LPUART2_RxTx_IRQn"/>
+                                    <setting name="IsrEnabled" value="true"/>
+                                    <setting name="IsrPriority" value="1"/>
+                                    <setting name="IsrHandler" value="LPUART2_RxTx_IRQHandler"/>
+                                 </struct>
                               </array>
                               <array name="PlatformNvicEcucPartitionRef"/>
                            </struct>
@@ -3554,6 +3601,39 @@
                                     <setting name="Name" value="DetailModuleConfiguration"/>
                                     <setting name="UartHwChannel" value="LPUART_1"/>
                                     <setting name="DesireBaudrate" value="LPUART_UART_BAUDRATE_115200"/>
+                                    <setting name="CustomBaudrateMantissa" value="1"/>
+                                    <setting name="CustomBaudrateDivisor" value="4"/>
+                                    <setting name="UartInteruptDmaMethod" value="LPUART_UART_IP_USING_INTERRUPTS"/>
+                                    <array name="UartDmaTxChannelRef"/>
+                                    <array name="UartDmaRxChannelRef"/>
+                                    <setting name="UartParityType" value="LPUART_UART_IP_PARITY_DISABLED"/>
+                                    <setting name="UartStopBitNumber" value="LPUART_UART_IP_ONE_STOP_BIT"/>
+                                    <setting name="UartWordLength" value="LPUART_UART_IP_8_BITS_PER_CHAR"/>
+                                    <setting name="UartInternalLoopbackEnable" value="false"/>
+                                    <setting name="UartTimeoutEnable" value="false"/>
+                                 </struct>
+                                 <struct name="FlexioModuleConfiguration">
+                                    <setting name="Name" value="FlexioModuleConfiguration"/>
+                                    <setting name="UartHwChannelRef" value="/Mcl/Mcl/MclConfig/FlexioCommon_0/FlexioMclLogicChannels_0"/>
+                                    <setting name="FlexioUartInteruptDmaMethod" value="FLEXIO_UART_IP_DRIVER_TYPE_INTERRUPTS"/>
+                                    <array name="FlexioDmaChannelRef"/>
+                                    <setting name="DesireBaudrate" value="FLEXIO_UART_BAUDRATE_9600"/>
+                                    <setting name="CustomTimerDecrement" value="FLEXIO_TIMER_DECREMENT_FXIO_CLK_SHIFT_TMR"/>
+                                    <setting name="CustomBaudrateDivider" value="0"/>
+                                    <setting name="bitCount" value="FLEXIO_UART_IP_8_BITS_PER_CHAR"/>
+                                    <setting name="driverDirection" value="FLEXIO_UART_IP_DIRECTION_TX"/>
+                                 </struct>
+                              </struct>
+                              <struct name="1">
+                                 <setting name="Name" value="EspUartChannel"/>
+                                 <setting name="UartHwUsing" value="LPUART_IP"/>
+                                 <setting name="UartChannelId" value="1"/>
+                                 <setting name="UartClockRef" value="/Mcu/Mcu/McuModuleConfiguration/McuClockSettingConfig_0/Lpuart2ClockReferencePoint"/>
+                                 <array name="UartChannelEcucPartitionRef"/>
+                                 <struct name="DetailModuleConfiguration">
+                                    <setting name="Name" value="DetailModuleConfiguration"/>
+                                    <setting name="UartHwChannel" value="LPUART_2"/>
+                                    <setting name="DesireBaudrate" value="LPUART_UART_BAUDRATE_460800"/>
                                     <setting name="CustomBaudrateMantissa" value="1"/>
                                     <setting name="CustomBaudrateDivisor" value="4"/>
                                     <setting name="UartInteruptDmaMethod" value="LPUART_UART_IP_USING_INTERRUPTS"/>

@@ -75,7 +75,7 @@ extern "C"{
 #define LPUART_UART_IP_DEV_ERROR_DETECT         (STD_ON)
 
 /* @brief Total number of channels configured for Lpuart, the define should be set to 1 when Lpuart is not configured*/
-#define LPUART_UART_IP_NUMBER_OF_INSTANCES      (1U)
+#define LPUART_UART_IP_NUMBER_OF_INSTANCES      (2U)
 
 /* @brief Uart Osif source counter. This parameter is used to select between different OsIf counter implementation */
 #define LPUART_UART_IP_TIMEOUT_TYPE             (OSIF_COUNTER_DUMMY)

@@ -13,6 +13,13 @@ static float s_lastTrackCenter = (float)(VISION_LINEAR_BUFFER_SIZE / 2U);
 static uint8 s_isLocked = 0U;
 static uint8 s_singleEdgeStreak = 0U;
 
+static const LineDetectorParams_t s_defaultParams =
+{
+    VISION_LINEAR_MIN_CONTRAST,
+    VISION_LINEAR_EDGE_HIGH_PCT,
+    VISION_LINEAR_EDGE_LOW_PCT
+};
+
 /* ----------------------------- Helpers ----------------------------- */
 
 static uint16 LineDetector_AbsU16(sint16 value)
@@ -45,9 +52,13 @@ static uint8 LineDetector_ScaleToPct(uint16 value, uint16 low, uint16 high)
     return (uint8)(((uint32)(value - low) * 100U) / (uint32)(high - low));
 }
 
-static uint8 LineDetector_ComputeContrastConfidence(uint16 contrast)
+static const LineDetectorParams_t *LineDetector_SelectParams(const LineDetectorParams_t *params)
 {
-    uint16 threshold = VISION_LINEAR_CONF_CONTRAST_THRESHOLD;
+    return (params != (const LineDetectorParams_t*)0) ? params : &s_defaultParams;
+}
+
+static uint8 LineDetector_ComputeContrastConfidence(uint16 contrast, uint16 threshold)
+{
     uint16 high = (threshold < 32768U) ? (uint16)(threshold * 2U) : 65535U;
 
     return LineDetector_ScaleToPct(contrast, threshold, high);
@@ -213,9 +224,11 @@ static uint8 LineDetector_WidthMatchesLane(uint8 width)
 /* ----------------------------- Internal Implementation ----------------------------- */
 
 static void LineDetector_ProcessImpl(const uint16 *pixels,
-                                          VisionOutput_t *out,
-                                          LineDetector_DebugOut_t *dbg)
+                                     VisionOutput_t *out,
+                                     LineDetector_DebugOut_t *dbg,
+                                     const LineDetectorParams_t *params)
 {
+    const LineDetectorParams_t *cfg = LineDetector_SelectParams(params);
     uint16 filteredLocal[VISION_LINEAR_BUFFER_SIZE];
     sint16 gradientLocal[VISION_LINEAR_BUFFER_SIZE];
     uint16 *filtered = filteredLocal;
@@ -278,15 +291,15 @@ static void LineDetector_ProcessImpl(const uint16 *pixels,
 
     contrast = (uint16)(maxVal - minVal);
     LineDetector_ComputeGradient(filtered, gradient, &maxAbsGradient);
-    contrastConfidence = LineDetector_ComputeContrastConfidence(contrast);
+    contrastConfidence = LineDetector_ComputeContrastConfidence(contrast, cfg->minContrast);
 
-    edgeHighThreshold = (uint16)(((uint32)maxAbsGradient * VISION_LINEAR_EDGE_HIGH_PCT) / 100U);
+    edgeHighThreshold = (uint16)(((uint32)maxAbsGradient * (uint32)cfg->edgeHighPct) / 100U);
     if (edgeHighThreshold < VISION_LINEAR_MIN_STRONG_EDGE)
     {
         edgeHighThreshold = VISION_LINEAR_MIN_STRONG_EDGE;
     }
 
-    edgeLowThreshold = (uint16)(((uint32)edgeHighThreshold * VISION_LINEAR_EDGE_LOW_PCT) / 100U);
+    edgeLowThreshold = (uint16)(((uint32)edgeHighThreshold * (uint32)cfg->edgeLowPct) / 100U);
     if (edgeLowThreshold < VISION_LINEAR_MIN_WEAK_EDGE)
     {
         edgeLowThreshold = VISION_LINEAR_MIN_WEAK_EDGE;
@@ -322,7 +335,7 @@ static void LineDetector_ProcessImpl(const uint16 *pixels,
         }
     }
 
-    if (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE)
+    if ((contrast < cfg->minContrast) || (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE))
     {
         out->error = 0.0f;
         out->status = VISION_TRACK_LOST;
@@ -618,12 +631,27 @@ void LineDetector_Init(void)
 
 void LineDetector_Process(const uint16 *pixels, VisionOutput_t *out)
 {
-    LineDetector_ProcessImpl(pixels, out, (LineDetector_DebugOut_t*)0);
+    LineDetector_ProcessImpl(pixels, out, (LineDetector_DebugOut_t*)0, &s_defaultParams);
+}
+
+void LineDetector_ProcessWithParams(const uint16 *pixels,
+                                    VisionOutput_t *out,
+                                    const LineDetectorParams_t *params)
+{
+    LineDetector_ProcessImpl(pixels, out, (LineDetector_DebugOut_t*)0, params);
 }
 
 void LineDetector_ProcessDebug(const uint16 *pixels,
                                  VisionOutput_t *out,
                                  LineDetector_DebugOut_t *dbg)
 {
-    LineDetector_ProcessImpl(pixels, out, dbg);
+    LineDetector_ProcessImpl(pixels, out, dbg, &s_defaultParams);
+}
+
+void LineDetector_ProcessDebugWithParams(const uint16 *pixels,
+                                         VisionOutput_t *out,
+                                         LineDetector_DebugOut_t *dbg,
+                                         const LineDetectorParams_t *params)
+{
+    LineDetector_ProcessImpl(pixels, out, dbg, params);
 }

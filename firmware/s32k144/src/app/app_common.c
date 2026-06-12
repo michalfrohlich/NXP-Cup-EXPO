@@ -251,6 +251,9 @@ void RuntimeTune_InitDefaults(void)
     g_runtimeTune.profile.steerClamp = (sint16)SERVO_TEST_CMD_CLAMP;
     g_runtimeTune.profile.steerRateMax = (sint16)SERVO_TEST_RATE_MAX;
     g_runtimeTune.profile.baseSpeedPct = 20U;
+    g_runtimeTune.lineDetector.minContrast = VISION_LINEAR_MIN_CONTRAST;
+    g_runtimeTune.lineDetector.edgeHighPct = VISION_LINEAR_EDGE_HIGH_PCT;
+    g_runtimeTune.lineDetector.edgeLowPct = VISION_LINEAR_EDGE_LOW_PCT;
     g_runtimeTune.initialized = TRUE;
 }
 

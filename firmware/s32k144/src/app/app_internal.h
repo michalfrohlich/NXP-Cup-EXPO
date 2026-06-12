@@ -20,6 +20,7 @@
 #include "drivers/display.h"
 #include "drivers/ultrasonic.h"
 #include "drivers/teensy_link.h"
+#include "drivers/esp_uart_link.h"
 
 #include "services/line_detector.h"
 #include "drivers/rgb_led.h"
@@ -36,6 +37,7 @@ typedef enum
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_SERVO_RATE_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
+    APP_BUILD_MODE_ESP_LINK_TEST,
     APP_BUILD_MODE_NXP_CUP_TESTS
 } AppBuildMode_t;
 
@@ -393,11 +395,15 @@ typedef enum
     SERIAL_TUNE_SCREEN_WAIT = 0,
     SERIAL_TUNE_SCREEN_MENU,
     SERIAL_TUNE_SCREEN_SERVO_MENU,
+    SERIAL_TUNE_SCREEN_VISION_MENU,
     SERIAL_TUNE_SCREEN_EDIT_KP,
     SERIAL_TUNE_SCREEN_EDIT_KI,
     SERIAL_TUNE_SCREEN_EDIT_KD,
     SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP,
-    SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF
+    SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF,
+    SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST,
+    SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH,
+    SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW
 } SerialTuneScreen_t;
 
 typedef struct
@@ -408,6 +414,9 @@ typedef struct
     float kd;
     sint16 servoClamp;
     float servoLpfAlpha;
+    uint16 visionMinContrast;
+    uint8 visionEdgeHighPct;
+    uint8 visionEdgeLowPct;
     char inputBuf[SERIAL_TUNE_INPUT_MAX_LEN + 1U];
     uint8 inputLen;
     boolean connected;
@@ -416,6 +425,7 @@ typedef struct
 typedef struct
 {
     CamTuneProfile_t profile;
+    LineDetectorParams_t lineDetector;
     boolean initialized;
 } RuntimeTuneState_t;
 
@@ -506,6 +516,7 @@ void mode_honor_lap(void);
 void mode_race_mode(void);
 void mode_servo_rate_test(void);
 void mode_teensy_link_test(void);
+void mode_esp_link_test(void);
 
 sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 

@@ -81,7 +81,7 @@ extern "C"
 #define UART_RUNTIME_ERROR_DETECT               (STD_ON)
 
 /* @brief Number of Channels configured. */
-#define UART_CH_MAX_CONFIG                      (1U)
+#define UART_CH_MAX_CONFIG                      (2U)
 
 /* @brief UART Osif source counter. This parameter is used to select between different OsIf counter implementation */
 #define UART_TIMEOUT_TYPE                       (OSIF_COUNTER_DUMMY)

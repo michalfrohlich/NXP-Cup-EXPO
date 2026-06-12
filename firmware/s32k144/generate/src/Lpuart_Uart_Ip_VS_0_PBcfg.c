@@ -173,6 +173,37 @@ const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_0_VS_0 =
 };
 
 
+const Lpuart_Uart_Ip_UserConfigType Lpuart_Uart_Ip_xHwConfigPB_1_VS_0 =
+{
+    /* Actual baudrate */
+    470588,
+    /* Baudrate mantissa*/
+    1U,
+    /* Baudrate Divisor*/
+    17U,
+    /* Parity type */
+    LPUART_UART_IP_PARITY_DISABLED,
+    /* Number of stop bits, 1 stop bit (default) or 2 stop bits */
+    LPUART_UART_IP_ONE_STOP_BIT,
+    /* Number of bits per transmitted/received word */
+    LPUART_UART_IP_8_BITS_PER_CHAR,
+    /* Type of UART transfer (interrupt/dma based) */
+    LPUART_UART_IP_USING_INTERRUPTS,
+    /* Callback to invoke for Uart Event.*/
+    NULL_PTR,
+    /* User callback parameter pointer.*/
+    NULL_PTR,
+#if (LPUART_UART_IP_HAS_DMA_ENABLED == STD_ON)
+    /* DMA channel number for DMA-based rx. */
+    255,
+    /* DMA channel number for DMA-based tx. */
+    255,
+#endif
+    /* Runtime state structure refference */
+    &Lpuart_Uart_Ip_apStateStructure[1U]
+};
+
+
 
 #define UART_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Uart_MemMap.h"

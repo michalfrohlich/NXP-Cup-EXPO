@@ -12,6 +12,7 @@
 - `src/app/modes/bench_serial_tune.c`: UART/OLED tuning test used by the runtime menu.
 - `src/app/modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
 - `src/app/modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode for `APP_TEST_TEENSY_LINK_TEST`.
+- `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic and RAM-only full tuning receive testing.
 - `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`: standalone app mode implementations.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
 - `src/app/app_config.h`: compile-time mode selection and app behavior/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
@@ -31,6 +32,12 @@
 - `APP_TEST_SERVO_RATE_TEST` is a standalone servo timing/debug mode for checking the period-latched servo behavior without camera or ESC activity.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode for the rest of the interactive test screens.
 - `APP_TEST_HONOR_LAP` is available as a standalone compile-time mode for automatic line following with ultrasonic obstacle slowing/stopping.
+- `APP_TEST_ESP_LINK_TEST` sends CRC-protected button state to the ESP32 and
+  receives one validated snapshot containing PID, servo clamp/LPF, and
+  line-detector values. It stores all eight values in `g_runtimeTune` and
+  replies with a compact sequence-matched result. OLED activity is temporarily
+  disabled for transport isolation. Cyan indicates an accepted snapshot; red
+  indicates a UART hardware, protocol, or transmit error.
 - The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Simple test drv`, `Serial tune`, `Ultra+ESC`, `Receiver - x`, `Teensy Link`, and `Victory Lap`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
