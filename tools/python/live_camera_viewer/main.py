@@ -28,6 +28,7 @@ else:
 GUI_MODULES = {
     "classic": "plots",
     "camera_2d": "camera_2d_view",
+    "detector_replay": "camera_detector_replay_view",
 }
 
 RunGuiFn = Callable[..., int]
@@ -52,6 +53,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help=(
             "GUI frontend to launch: 'classic' uses plots.py, "
             "'camera_2d' uses camera_2d_view.py."
+            "'detector_replay' uses camera_detector_replay_view.py."
         ),
     )
     parser.add_argument(
