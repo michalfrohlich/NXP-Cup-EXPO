@@ -60,7 +60,7 @@ Replace `COM3` with the Teensy port.
 Expected Serial fields:
 
 ```text
-s32k=12 rx=12 err=0 timeout=0 sd=R drop=0 sdkB=4 pot=2048 b1=0 b2=0 d1=DETECTED d2=DETECTED
+s32k=12 rx=12 err=0 timeout=0 imu=PCVA imuErr=0 ax=0.01 ay=0.02 az=1.00 gz=0.10 yaw=1.2 sd=R drop=0 sdkB=4
 ```
 
 - `s32k` and `rx` increasing: bidirectional SPI communication works.
@@ -71,6 +71,9 @@ s32k=12 rx=12 err=0 timeout=0 sd=R drop=0 sdkB=4 pot=2048 b1=0 b2=0 d1=DETECTED 
 - `pot=0..4095`: live 12-bit potentiometer value.
 - `b1/b2=1`: the matching Teensy PCB button is pressed.
 - `d1/d2=DETECTED`: both configured I2C addresses responded.
+- `imu=PCVA`: MPU6050 present, calibrated, fresh/valid, and acceleration trusted.
+- `imuErr=0`: no failed MPU6050 burst reads.
+- `ax/ay/az/gz/yaw`: physical IMU values, not link-test placeholders.
 
 ## Run S32K Communication Test
 
@@ -127,7 +130,11 @@ running.
 - The Teensy display controller is assumed to be SSD1362. Confirm the display
   datasheet if the screen remains blank.
 - The two displays need different I2C addresses for different dashboards.
-- IMU and Teensy camera fields are still mock/missing values.
+- The MPU6050 IMU is physical. Camera 0 remains a link placeholder and camera 1
+  remains missing until their acquisition services are integrated.
 - The S32K-Teensy slave transport is still bit-banged. READY gating prevents
   new S32K transfers during display and SD writes, but the final high-rate
   design should use a hardware SPI slave implementation.
+
+Physical IMU wiring, startup calibration, filter behavior, and tests:
+`imu-mpu6050.md`.

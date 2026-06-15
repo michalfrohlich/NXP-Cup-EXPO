@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "drivers/mpu6050_imu.h"
 #include "drivers/secondary_displays.h"
 #include "drivers/status_led.h"
 #include "logging/teensy_sd_logger.h"
@@ -16,16 +17,19 @@
    - RGB LED: continuous color cycle; button 1 forces WHITE, button 2 OFF.
    - Both ZJY displays: live mirrored dashboard with pot/button values.
    - Pot + buttons: shown on serial and on the displays.
+   - MPU6050: physical I2C probe, calibration, and live motion values.
    - SD card: one test row per second through the normal logger.
    - SPI pins: CS/SCK/MOSI input levels printed, to debug PCB wiring. */
 
 static TeensySdLogger sdLogger;
+static Mpu6050Imu imu;
 static TeensyLinkTelemetryInputs zeroTelemetry = {};
 static TeensyLinkS32kSnapshot zeroSnapshot = {};
 
 static uint32_t nextLedMs = 0U;
 static uint32_t nextPrintMs = 0U;
 static uint32_t nextSdRowMs = 0U;
+static uint32_t nextImuUs = 0U;
 static uint8_t ledStep = 0U;
 static uint16_t testSeq = 0U;
 
@@ -53,6 +57,18 @@ void HardwareTest_Setup()
 
     SecondaryDisplays_Init();
 
+    Serial.println("HWTEST keep the car still while the MPU6050 gyro calibrates.");
+    if (imu.begin())
+    {
+        Serial.print("HWTEST MPU6050 detected at 0x");
+        Serial.print(imu.address(), HEX);
+        Serial.println(imu.isCalibrated() ? ", calibrated" : ", calibration failed");
+    }
+    else
+    {
+        Serial.println("HWTEST MPU6050 not detected");
+    }
+
     if (sdLogger.begin())
     {
         Serial.print("HWTEST SD ready, file: ");
@@ -69,9 +85,46 @@ void HardwareTest_Setup()
 void HardwareTest_Loop()
 {
     uint32_t nowMs = millis();
+    uint32_t nowUs = micros();
     uint16_t potRaw = (uint16_t)analogRead(TEENSY_POT_PIN);
     bool b1 = digitalReadFast(TEENSY_BUTTON_1_PIN) == LOW;
     bool b2 = digitalReadFast(TEENSY_BUTTON_2_PIN) == LOW;
+
+    if ((int32_t)(nowUs - nextImuUs) >= 0)
+    {
+        (void)imu.sample(nowUs);
+        zeroTelemetry.sensorSeq = imu.sequence();
+        zeroTelemetry.sensorDtUs = imu.sampleDtUs();
+        zeroTelemetry.sensorAgeMs = imu.ageMs(nowMs);
+        zeroTelemetry.imu = imu.isPresent() ? imu.latest() : TeensyLinkImuSample{};
+        zeroTelemetry.statusFlags = 0U;
+        zeroTelemetry.componentMask = 0U;
+
+        if (imu.isPresent())
+        {
+            zeroTelemetry.componentMask |= TEENSY_LINK_COMPONENT_IMU;
+            zeroTelemetry.statusFlags |= TEENSY_LINK_STATUS_IMU_PRESENT |
+                                         TEENSY_LINK_STATUS_YAW_RELATIVE;
+        }
+        if (imu.isCalibrated())
+        {
+            zeroTelemetry.statusFlags |= TEENSY_LINK_STATUS_IMU_CALIBRATED;
+        }
+        if (imu.isValid(nowMs))
+        {
+            zeroTelemetry.statusFlags |= TEENSY_LINK_STATUS_IMU_VALID;
+        }
+        if (imu.isValid(nowMs) && imu.isAccelTrusted())
+        {
+            zeroTelemetry.statusFlags |= TEENSY_LINK_STATUS_ACCEL_TRUSTED;
+        }
+
+        nextImuUs += TEENSY_LINK_SENSOR_INTERVAL_US;
+        if ((uint32_t)(nowUs - nextImuUs) > TEENSY_LINK_SENSOR_INTERVAL_US)
+        {
+            nextImuUs = nowUs + TEENSY_LINK_SENSOR_INTERVAL_US;
+        }
+    }
 
     /* LED: slow color cycle proves every channel; buttons override it so
        a press gives instant visible feedback. */
@@ -102,7 +155,6 @@ void HardwareTest_Loop()
     {
         nextSdRowMs = nowMs + 1000UL;
         testSeq++;
-        zeroTelemetry.sensorSeq = testSeq;
         sdLogger.logRow(nowMs, testSeq, zeroTelemetry, zeroSnapshot, 0U, 0U, 0U);
     }
     sdLogger.service(nowMs);
@@ -113,6 +165,11 @@ void HardwareTest_Loop()
         SecondaryDisplayDashboard dashboard = {};
         dashboard.sdReady = sdLogger.isReady();
         dashboard.sdError = sdLogger.hasError();
+        dashboard.imuPresent = imu.isPresent();
+        dashboard.imuCalibrated = imu.isCalibrated();
+        dashboard.imuValid = imu.isValid(nowMs);
+        dashboard.imuYawDeg = (int16_t)zeroTelemetry.imu.yawDeg;
+        dashboard.imuGzDps = (int16_t)zeroTelemetry.imu.gzDps;
         dashboard.sdDrops = sdLogger.dropCount();
         dashboard.sdBytesWritten = sdLogger.bytesWritten();
         dashboard.sdFileName = sdLogger.fileName();
@@ -135,6 +192,23 @@ void HardwareTest_Loop()
         Serial.print(b1 ? 1U : 0U);
         Serial.print(" b2=");
         Serial.print(b2 ? 1U : 0U);
+        Serial.print(" imu=");
+        Serial.print(imu.isPresent() ? 'P' : '-');
+        Serial.print(imu.isCalibrated() ? 'C' : '-');
+        Serial.print(imu.isValid(nowMs) ? 'V' : '-');
+        Serial.print((imu.isValid(nowMs) && imu.isAccelTrusted()) ? 'A' : '-');
+        Serial.print(" imuErr=");
+        Serial.print(imu.readErrorCount());
+        Serial.print(" ax=");
+        Serial.print(zeroTelemetry.imu.axG, 3);
+        Serial.print(" ay=");
+        Serial.print(zeroTelemetry.imu.ayG, 3);
+        Serial.print(" az=");
+        Serial.print(zeroTelemetry.imu.azG, 3);
+        Serial.print(" gz=");
+        Serial.print(zeroTelemetry.imu.gzDps, 2);
+        Serial.print(" yaw=");
+        Serial.print(zeroTelemetry.imu.yawDeg, 1);
         Serial.print(" sd=");
         Serial.print(sdLogger.hasError() ? 'E' : (sdLogger.isReady() ? 'R' : '-'));
         Serial.print(" sdkB=");

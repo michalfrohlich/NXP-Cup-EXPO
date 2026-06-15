@@ -40,6 +40,17 @@ extern "C" {
 #define TEENSY_LINK_LOGGER_FLAG_WRITING         (1u << 1)
 #define TEENSY_LINK_LOGGER_FLAG_ERROR           (1u << 2)
 
+#define TEENSY_LINK_COMPONENT_IMU                (1u << 0)
+#define TEENSY_LINK_COMPONENT_SD                 (1u << 1)
+#define TEENSY_LINK_COMPONENT_CAMERA0            (1u << 2)
+#define TEENSY_LINK_COMPONENT_CAMERA1            (1u << 3)
+
+#define TEENSY_LINK_STATUS_IMU_PRESENT           (1u << 0)
+#define TEENSY_LINK_STATUS_IMU_CALIBRATED        (1u << 1)
+#define TEENSY_LINK_STATUS_IMU_VALID             (1u << 2)
+#define TEENSY_LINK_STATUS_ACCEL_TRUSTED         (1u << 3)
+#define TEENSY_LINK_STATUS_YAW_RELATIVE          (1u << 4)
+
 #define TEENSY_LINK_S32K_ACK_TEENSY_SEQ_OFF     (0u)
 #define TEENSY_LINK_S32K_CONTROL_SEQ_OFF        (2u)
 #define TEENSY_LINK_S32K_CONTROL_DT_US_OFF      (4u)

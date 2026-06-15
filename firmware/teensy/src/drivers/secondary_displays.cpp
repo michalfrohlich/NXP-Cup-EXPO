@@ -82,9 +82,12 @@ static void drawCombinedDashboard(U8X8 &display, const SecondaryDisplayDashboard
                    dashboard.servoCmd);
     writeLine(display, 3U, line);
 
-    (void)snprintf(line, sizeof(line), "ULTRA:%u.%u cm",
-                   dashboard.ultrasonicDistanceCm10 / 10U,
-                   dashboard.ultrasonicDistanceCm10 % 10U);
+    (void)snprintf(line, sizeof(line), "IMU:%c%c%c Y:%d GZ:%d",
+                   dashboard.imuPresent ? 'P' : '-',
+                   dashboard.imuCalibrated ? 'C' : '-',
+                   dashboard.imuValid ? 'V' : '-',
+                   dashboard.imuYawDeg,
+                   dashboard.imuGzDps);
     writeLine(display, 4U, line);
 
     (void)snprintf(line, sizeof(line), "SD:%s %s DROP:%u",

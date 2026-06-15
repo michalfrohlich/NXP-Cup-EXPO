@@ -34,6 +34,11 @@ struct SecondaryDisplayDashboard
     int16_t servoCmd;
     uint16_t ultrasonicDistanceCm10;
 
+    bool imuPresent;
+    bool imuCalibrated;
+    bool imuValid;
+    int16_t imuYawDeg;
+    int16_t imuGzDps;
     bool sdReady;
     bool sdError;
     uint16_t sdDrops;

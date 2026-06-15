@@ -13,6 +13,8 @@ static constexpr uint8_t TEENSY_LINK_READY_PIN = 31U;
 static constexpr uint8_t TEENSY_IMU_SDA_PIN = 18U;
 static constexpr uint8_t TEENSY_IMU_SCL_PIN = 19U;
 static constexpr uint8_t TEENSY_IMU_INT_PIN = 30U;
+static constexpr uint32_t TEENSY_IMU_I2C_HZ = 400000UL;
+static constexpr uint32_t TEENSY_IMU_STALE_MS = 100UL;
 
 static constexpr uint8_t TEENSY_DISPLAY_SDA_PIN = 17U;
 static constexpr uint8_t TEENSY_DISPLAY_SCL_PIN = 16U;
@@ -53,14 +55,3 @@ static constexpr uint32_t TEENSY_LINK_SERIAL_PERIOD_MS = 100UL;
 
 static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_LOST = 0U;
 static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_OK = 1U;
-
-static constexpr uint16_t TEENSY_LINK_COMPONENT_IMU = 1U << 0;
-static constexpr uint16_t TEENSY_LINK_COMPONENT_SD = 1U << 1;
-static constexpr uint16_t TEENSY_LINK_COMPONENT_CAMERA0 = 1U << 2;
-static constexpr uint16_t TEENSY_LINK_COMPONENT_CAMERA1 = 1U << 3;
-
-static constexpr uint16_t TEENSY_LINK_STATUS_IMU_PRESENT = 1U << 0;
-static constexpr uint16_t TEENSY_LINK_STATUS_IMU_CALIBRATED = 1U << 1;
-static constexpr uint16_t TEENSY_LINK_STATUS_IMU_VALID = 1U << 2;
-static constexpr uint16_t TEENSY_LINK_STATUS_ACCEL_TRUSTED = 1U << 3;
-static constexpr uint16_t TEENSY_LINK_STATUS_YAW_RELATIVE = 1U << 4;

@@ -157,7 +157,22 @@ static void teensy_link_test_draw_camera(uint8 cameraIndex)
 
 static void teensy_link_test_draw_imu(void)
 {
-    DisplayTextPadded(0U, "TLINK IMU/LOG");
+    DisplayTextPadded(0U, "TLINK IMU ");
+    DisplayText(0U,
+                ((g_teensyLinkTest.snapshot.statusFlags &
+                  (uint16)TEENSY_LINK_STATUS_IMU_PRESENT) != 0U) ? "P" : "-",
+                1U,
+                10U);
+    DisplayText(0U,
+                ((g_teensyLinkTest.snapshot.statusFlags &
+                  (uint16)TEENSY_LINK_STATUS_IMU_CALIBRATED) != 0U) ? "C" : "-",
+                1U,
+                11U);
+    DisplayText(0U,
+                ((g_teensyLinkTest.snapshot.statusFlags &
+                  (uint16)TEENSY_LINK_STATUS_IMU_VALID) != 0U) ? "V" : "-",
+                1U,
+                12U);
 
     DisplayTextPadded(1U, "YAW:    GZ:");
     DisplayValue(1U, (int)(g_teensyLinkTest.snapshot.imu.yawCdeg / 100), 4U, 4U);

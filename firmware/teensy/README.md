@@ -11,10 +11,11 @@ C:\Users\Navif\workspaceS32DS.3.6.3\NXP_Cup\firmware\teensy
 Current layout:
 - `include/teensy_config.h`: Teensy pins and timing constants.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
-- `include/drivers/` and `src/drivers/`: always-on Teensy status displays.
+- `include/drivers/` and `src/drivers/`: physical MPU6050 acquisition and always-on status displays.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte `teensy_link` frame.
 - `include/logging/` and `src/logging/`: SdFat CSV logger for the built-in SD slot.
-- `src/main.cpp`: bring-up loop with mock IMU/camera data.
+- `src/main.cpp`: bring-up loop with physical IMU acquisition and camera link placeholder.
+- `docs/imu-mpu6050.md`: IMU wiring, filtering, status, and hardware tests.
 - `docs/secondary-displays.md`: two-display hardware assumptions and pages.
 - `docs/integrated-bring-up.md`: combined displays, SPI, and SD test.
 
@@ -56,16 +57,17 @@ Details, column list, and MATLAB import: `../../docs/protocols/teensy-sd-logging
 
 ## Bench Payload
 
-The current sketch sends deterministic sample data:
+The current sketch sends:
 
-- IMU present, calibrated, valid, and yaw-relative.
+- Physical MPU6050 acceleration, gyro, temperature, filtered roll/pitch, and
+  relative yaw when the sensor is detected and calibrated.
 - Camera 0 valid from the Teensy side.
 - Camera 1 intentionally stale/missing.
 - Real SD/logger ready, error, drop, and written-byte status.
 - RX counters from the S32K-to-Teensy direction.
 
-This is deliberate. It lets the S32K OLED show both a good component and a
-missing component during the same 128-byte SPI test.
+Camera 0 is still a deterministic link placeholder. Camera 1 remains missing
+on purpose. IMU values are no longer simulated.
 
 ## Wiring Summary
 
@@ -99,6 +101,7 @@ Other Teensy shield pins from the schematic:
 | Camera 2 analog | 14 |
 
 Full run instructions are in `../../docs/protocols/teensy-s32k-128b-spi-test.md`.
+Physical IMU details are in `docs/imu-mpu6050.md`.
 The full shield pinout is in `../../hardware/shield-v2-pinout.md`.
 
 The current `TeensyLinkSpiSlave` keeps the polling slave structure from the

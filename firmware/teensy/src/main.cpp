@@ -33,6 +33,7 @@ void loop()
 #else
 
 #include "comms/teensy_link_spi_slave.h"
+#include "drivers/mpu6050_imu.h"
 #include "drivers/secondary_displays.h"
 #include "drivers/status_led.h"
 #include "logging/teensy_sd_logger.h"
@@ -41,13 +42,13 @@ void loop()
 
 static TeensyLinkSpiSlave s32kSpi;
 static TeensySdLogger sdLogger;
+static Mpu6050Imu imu;
 static TeensyLinkTelemetryInputs telemetry = {};
 static TeensyLinkS32kSnapshot s32kSnapshot = {};
 static uint8_t txFrame[TEENSY_LINK_FRAME_BYTES] = {};
 
 static uint16_t teensyFrameSeq = 0U;
 static uint16_t sensorSeq = 0U;
-static uint32_t lastSensorMs = 0U;
 static uint32_t nextSensorUs = 0U;
 static uint32_t nextSerialMs = 0U;
 static uint16_t potRaw = 0U;
@@ -63,7 +64,7 @@ static void publishFrame(uint32_t nowMs)
 {
     uint16_t ackS32kSeq = s32kSnapshot.valid ? s32kSnapshot.frameSeq : 0U;
 
-    telemetry.sensorAgeMs = (uint16_t)(nowMs - lastSensorMs);
+    telemetry.sensorAgeMs = imu.ageMs(nowMs);
     TeensyLinkTelemetry_BuildTeensyFrame(txFrame,
                                          teensyFrameSeq,
                                          nowMs,
@@ -75,34 +76,40 @@ static void publishFrame(uint32_t nowMs)
     s32kSpi.publishFrame(txFrame);
 }
 
-static void updateMockSensors(uint32_t nowMs)
+static void updateSensors(uint32_t nowMs, uint32_t nowUs)
 {
-    float phase = (float)(nowMs % 10000UL) * 0.001f;
+    (void)imu.sample(nowUs);
 
+    sensorSeq = imu.sequence();
     telemetry.sensorSeq = sensorSeq;
-    telemetry.sensorDtUs = (uint16_t)TEENSY_LINK_SENSOR_INTERVAL_US;
-    telemetry.sensorAgeMs = 0U;
-    telemetry.statusFlags = TEENSY_LINK_STATUS_IMU_PRESENT |
-                            TEENSY_LINK_STATUS_IMU_CALIBRATED |
-                            TEENSY_LINK_STATUS_IMU_VALID |
-                            TEENSY_LINK_STATUS_ACCEL_TRUSTED |
-                            TEENSY_LINK_STATUS_YAW_RELATIVE;
-    telemetry.componentMask = TEENSY_LINK_COMPONENT_IMU |
-                              TEENSY_LINK_COMPONENT_CAMERA0;
+    telemetry.sensorDtUs = imu.sampleDtUs();
+    telemetry.sensorAgeMs = imu.ageMs(nowMs);
+    telemetry.statusFlags = 0U;
+    telemetry.componentMask = TEENSY_LINK_COMPONENT_CAMERA0;
+    telemetry.imu = {};
 
-    telemetry.imu.axG = 0.01f;
-    telemetry.imu.ayG = 0.04f;
-    telemetry.imu.azG = 1.00f;
-    telemetry.imu.gxDps = 0.5f;
-    telemetry.imu.gyDps = -1.2f;
-    telemetry.imu.gzDps = 1.8f;
-    telemetry.imu.rollDeg = 1.2f;
-    telemetry.imu.pitchDeg = -0.4f;
-    telemetry.imu.yawDeg = phase * 18.0f;
-    telemetry.imu.accelNormG = 1.003f;
-    telemetry.imu.lateralG = 0.04f;
-    telemetry.imu.tempC = 27.4f;
+    if (imu.isPresent())
+    {
+        telemetry.componentMask |= TEENSY_LINK_COMPONENT_IMU;
+        telemetry.statusFlags |= TEENSY_LINK_STATUS_IMU_PRESENT |
+                                 TEENSY_LINK_STATUS_YAW_RELATIVE;
+        telemetry.imu = imu.latest();
+    }
+    if (imu.isCalibrated())
+    {
+        telemetry.statusFlags |= TEENSY_LINK_STATUS_IMU_CALIBRATED;
+    }
+    if (imu.isValid(nowMs))
+    {
+        telemetry.statusFlags |= TEENSY_LINK_STATUS_IMU_VALID;
+    }
+    if (imu.isValid(nowMs) && imu.isAccelTrusted())
+    {
+        telemetry.statusFlags |= TEENSY_LINK_STATUS_ACCEL_TRUSTED;
+    }
 
+    /* Camera 0 remains a link placeholder until its acquisition service
+       publishes a real result. Camera 1 is intentionally missing. */
     telemetry.camera[0].errorPct = -10;
     telemetry.camera[0].status = TEENSY_LINK_CAMERA_STATUS_TRACK_OK;
     telemetry.camera[0].feature = 2U;
@@ -123,8 +130,6 @@ static void updateMockSensors(uint32_t nowMs)
     {
         telemetry.componentMask |= TEENSY_LINK_COMPONENT_SD;
     }
-    sensorSeq++;
-    lastSensorMs = nowMs;
 }
 
 static void updateBoardInputs()
@@ -178,6 +183,11 @@ static SecondaryDisplayDashboard buildDisplayDashboard()
     dashboard.servoCmd = s32kSnapshot.valid ? s32kSnapshot.servoCmd : 0;
     dashboard.ultrasonicDistanceCm10 =
         s32kSnapshot.valid ? s32kSnapshot.ultrasonicDistanceCm10 : 0U;
+    dashboard.imuPresent = imu.isPresent();
+    dashboard.imuCalibrated = imu.isCalibrated();
+    dashboard.imuValid = imu.isValid(millis());
+    dashboard.imuYawDeg = (int16_t)telemetry.imu.yawDeg;
+    dashboard.imuGzDps = (int16_t)telemetry.imu.gzDps;
     dashboard.sdReady = sdLogger.isReady();
     dashboard.sdError = sdLogger.hasError();
     dashboard.sdDrops = sdLogger.dropCount();
@@ -199,6 +209,23 @@ static void printLinkStatus(uint32_t nowMs)
     Serial.print(teensyFrameSeq);
     Serial.print(" sensorSeq=");
     Serial.print(sensorSeq);
+    Serial.print(" imu=");
+    Serial.print(imu.isPresent() ? 'P' : '-');
+    Serial.print(imu.isCalibrated() ? 'C' : '-');
+    Serial.print(imu.isValid(nowMs) ? 'V' : '-');
+    Serial.print((imu.isValid(nowMs) && imu.isAccelTrusted()) ? 'A' : '-');
+    Serial.print(" imuErr=");
+    Serial.print(imu.readErrorCount());
+    Serial.print(" ax=");
+    Serial.print(telemetry.imu.axG, 3);
+    Serial.print(" ay=");
+    Serial.print(telemetry.imu.ayG, 3);
+    Serial.print(" az=");
+    Serial.print(telemetry.imu.azG, 3);
+    Serial.print(" gz=");
+    Serial.print(telemetry.imu.gzDps, 2);
+    Serial.print(" yaw=");
+    Serial.print(telemetry.imu.yawDeg, 1);
     Serial.print(" s32k=");
     Serial.print(s32kSnapshot.valid ? s32kSnapshot.frameSeq : 0U);
     Serial.print(" rx=");
@@ -264,6 +291,18 @@ void setup()
     updateBoardInputs();
     SecondaryDisplays_Init();
 
+    Serial.println("Keep the car still while the MPU6050 gyro calibrates.");
+    if (imu.begin())
+    {
+        Serial.print("MPU6050 detected at 0x");
+        Serial.print(imu.address(), HEX);
+        Serial.println(imu.isCalibrated() ? ", calibrated" : ", calibration failed");
+    }
+    else
+    {
+        Serial.println("MPU6050 not detected; IMU flags stay invalid");
+    }
+
     /* Mount the SD before the SPI link starts. Blocking is fine here.
        A missing card just means sd=- on serial and we keep running. */
     if (sdLogger.begin())
@@ -282,7 +321,7 @@ void setup()
                   TEENSY_LINK_SPI_MISO_PIN,
                   TEENSY_LINK_READY_PIN);
 
-    updateMockSensors(millis());
+    updateSensors(millis(), micros());
     publishFrame(millis());
 
     nextSensorUs = micros();
@@ -317,7 +356,7 @@ void loop()
     if ((int32_t)(nowUs - nextSensorUs) >= 0)
     {
         updateBoardInputs();
-        updateMockSensors(nowMs);
+        updateSensors(nowMs, nowUs);
         publishFrame(nowMs);
 
         /* One CSV row per sensor sample (100 Hz). Only RAM writes

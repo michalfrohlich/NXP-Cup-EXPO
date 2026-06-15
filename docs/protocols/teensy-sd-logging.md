@@ -105,7 +105,9 @@ pio device monitor -p COM3 -b 115200
 
 ## Limitations (MVP)
 
-- IMU/camera columns contain mock data until real drivers land.
+- IMU columns contain physical MPU6050 data when its present/calibrated/valid
+  flags are set. Camera columns remain placeholders until camera acquisition
+  drivers publish real results.
 - A normal shutdown is "pull the power": the file keeps everything up to the
   last 2-second sync. The file may show a 64 MiB pre-allocated size on some
   tools until properly closed; the CSV content ends at the real data.

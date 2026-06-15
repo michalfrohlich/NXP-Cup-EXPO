@@ -206,8 +206,8 @@ The Teensy sends sensor, camera, logger, and link diagnostics back to the S32K:
 
 The current Teensy bench sketch sends:
 
-- IMU valid.
-- Camera 0 valid.
+- Physical MPU6050 data when detected and calibrated.
+- Camera 0 link-placeholder data.
 - Camera 1 stale/missing on purpose.
 - SD logger not ready yet.
 - RX counters from the S32K-to-Teensy direction.
@@ -258,7 +258,10 @@ What the serial values mean:
 | Field | Meaning |
 |---|---|
 | `txSeq` | Teensy frame sequence being sent to S32K |
-| `sensorSeq` | sample sequence for mock IMU/camera data |
+| `sensorSeq` | physical MPU6050 sample sequence |
+| `imu` | IMU state: present, calibrated, valid, acceleration trusted |
+| `imuErr` | failed MPU6050 I2C burst-read count |
+| `ax/ay/az/gz/yaw` | physical IMU measurements and relative yaw |
 | `s32k` | last valid S32K frame sequence decoded by Teensy |
 | `rx` | S32K frames fully received by Teensy |
 | `err` | S32K frames rejected by Teensy protocol/CRC validation |
@@ -330,13 +333,15 @@ RGB LED meaning:
 
 ## Specific Tests To Run
 
-### 1. Teensy-only serial test
+### 1. Teensy-only serial and physical IMU test
 
 Run only the Teensy and open the serial monitor.
 
 Expected:
 
 - `txSeq` and `sensorSeq` increase.
+- `imu=PCVA` appears after stationary startup calibration.
+- Moving the IMU changes `ax/ay/az/gz/yaw`.
 - `rx` stays 0 because the S32K is not clocking SPI.
 - `err` stays 0.
 
@@ -383,7 +388,7 @@ Expected:
 
 - `TLINK` status is `OK`.
 - Teensy sequence changes.
-- IMU page shows changing yaw.
+- IMU page shows physical yaw/gyro/lateral values changing with motion.
 
 If Teensy `rx` increases but S32K stays `WAIT`, MOSI into Teensy may be correct
 but MISO back to S32K is wrong.
