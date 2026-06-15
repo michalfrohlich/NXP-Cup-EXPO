@@ -16,77 +16,29 @@ RaceModeState_t g_raceMode;
 SerialTuneState_t g_serialTune;
 RuntimeTuneState_t g_runtimeTune;
 
-const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] =
-{
-    {
-        NXP_CUP_SUPERFAST_KP,
-        NXP_CUP_SUPERFAST_KD,
-        NXP_CUP_SUPERFAST_KI,
-        NXP_CUP_SUPERFAST_ITERM_CLAMP,
-        NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
-        (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP,
-        (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
-        (uint8)NXP_CUP_SUPERFAST_SPEED_PCT
-    },
-    {
-        NXP_CUP_5050_KP,
-        NXP_CUP_5050_KD,
-        NXP_CUP_5050_KI,
-        NXP_CUP_5050_ITERM_CLAMP,
-        NXP_CUP_5050_STEER_LPF_ALPHA,
-        (sint16)NXP_CUP_5050_STEER_CLAMP,
-        (sint16)NXP_CUP_5050_STEER_RATE_MAX,
-        (uint8)NXP_CUP_5050_SPEED_PCT
-    },
-    {
-        NXP_CUP_SLOW_KP,
-        NXP_CUP_SLOW_KD,
-        NXP_CUP_SLOW_KI,
-        NXP_CUP_SLOW_ITERM_CLAMP,
-        NXP_CUP_SLOW_STEER_LPF_ALPHA,
-        (sint16)NXP_CUP_SLOW_STEER_CLAMP,
-        (sint16)NXP_CUP_SLOW_STEER_RATE_MAX,
-        (uint8)NXP_CUP_SLOW_SPEED_PCT
-    }
-};
+const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
+    {NXP_CUP_SUPERFAST_KP, NXP_CUP_SUPERFAST_KD, NXP_CUP_SUPERFAST_KI,
+     NXP_CUP_SUPERFAST_ITERM_CLAMP, NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
+     (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP, (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
+     (uint8)NXP_CUP_SUPERFAST_SPEED_PCT},
+    {NXP_CUP_5050_KP, NXP_CUP_5050_KD, NXP_CUP_5050_KI, NXP_CUP_5050_ITERM_CLAMP,
+     NXP_CUP_5050_STEER_LPF_ALPHA, (sint16)NXP_CUP_5050_STEER_CLAMP,
+     (sint16)NXP_CUP_5050_STEER_RATE_MAX, (uint8)NXP_CUP_5050_SPEED_PCT},
+    {NXP_CUP_SLOW_KP, NXP_CUP_SLOW_KD, NXP_CUP_SLOW_KI, NXP_CUP_SLOW_ITERM_CLAMP,
+     NXP_CUP_SLOW_STEER_LPF_ALPHA, (sint16)NXP_CUP_SLOW_STEER_CLAMP,
+     (sint16)NXP_CUP_SLOW_STEER_RATE_MAX, (uint8)NXP_CUP_SLOW_SPEED_PCT}};
 
-const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] =
-{
-    "Camera         ",
-    "ESC            ",
-    "Servo          ",
-    "Ultrasonic     ",
-    "Cam+Servo      ",
-    "Simple test drv",
-    "Serial tune    ",
-    "Ultra+ESC      ",
-    "Receiver - x   ",
-    "Teensy Link    ",
-    "Victory Lap    "
-};
+const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
+    "Camera         ", "ESC            ", "Servo          ", "Ultrasonic     ",
+    "Cam+Servo      ", "Simple test drv", "Serial tune    ", "Ultra+ESC      ",
+    "Receiver - x   ", "Teensy Link    ", "Victory Lap    "};
 
-const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] =
-{
-    10U,
-    50U,
-    100U,
-    250U
-};
+const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
 
-const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT] =
-{
-    100U,
-    20U,
-    10U,
-    4U
-};
+const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT] = {100U, 20U, 10U, 4U};
 
-const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12] =
-{
-    "POT",
-    "SWEEP FINE",
-    "SWEEP STEP"
-};
+const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12] = {"POT", "SWEEP FINE",
+                                                                          "SWEEP STEP"};
 boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
     return ((uint32)(nowMs - dueMs) < 0x80000000u) ? TRUE : FALSE;
@@ -178,32 +130,32 @@ Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
 
 void StatusLed_Blue(void)
 {
-    RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = true });
+    RgbLed_ChangeColor((RgbLed_Color){.r = false, .g = false, .b = true});
 }
 
 void StatusLed_Green(void)
 {
-    RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = true, .b = false });
+    RgbLed_ChangeColor((RgbLed_Color){.r = false, .g = true, .b = false});
 }
 
 void StatusLed_Cyan(void)
 {
-    RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = true, .b = true });
+    RgbLed_ChangeColor((RgbLed_Color){.r = false, .g = true, .b = true});
 }
 
 void StatusLed_Yellow(void)
 {
-    RgbLed_ChangeColor((RgbLed_Color){ .r = true, .g = true, .b = false });
+    RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = true, .b = false});
 }
 
 void StatusLed_Red(void)
 {
-    RgbLed_ChangeColor((RgbLed_Color){ .r = true, .g = false, .b = false });
+    RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = false, .b = false});
 }
 
 void StatusLed_Off(void)
 {
-    RgbLed_ChangeColor((RgbLed_Color){ .r = false, .g = false, .b = false });
+    RgbLed_ChangeColor((RgbLed_Color){.r = false, .g = false, .b = false});
 }
 
 void Esc_StopNeutral(void)
@@ -273,6 +225,11 @@ void App_InitRuntimeCommon(void)
     DisplayInit(0U, STD_ON);
     DisplayClear();
     DisplayRefresh();
+}
+
+void App_ServiceRuntimeCore(uint32 nowMs)
+{
+    Servo_Service(nowMs);
 }
 
 void DisplayTextPadded(uint16 displayLine, const char *text)

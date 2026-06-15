@@ -3701,7 +3701,7 @@
                                  <array name="SpiDefaultData">
                                     <setting name="0" value="1"/>
                                  </array>
-                                 <setting name="SpiEbMaxLength" value="128"/>
+                                 <setting name="SpiEbMaxLength" value="84"/>
                                  <setting name="SpiIbNBuffers" value="4"/>
                                  <setting name="SpiTransferStart" value="MSB"/>
                                  <array name="SpiChannelHalfDuplexDirection"/>

@@ -26,8 +26,9 @@
   - `modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode.
   - `modes/mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
   - `modes/mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
-  - `modes/mode_race.c`: standalone race/honor-lap production flow.
+  - `modes/mode_race.c`: local-camera race flow and Teensy-camera synchronized race flow.
   - `modes/mode_servo_rate.c`: standalone servo timing test.
+  - `modes/mode_esp_link.c`: standalone ESP32 UART integration test.
   - `modes/bench_serial_tune.c`: UART/OLED runtime tuning UI used by the bench menu.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
@@ -49,9 +50,9 @@
   - polling against `Timebase_GetMs()`
   - periodic state-machine updates
   - interrupt callbacks wired to RTD notifications
-- The Teensy SPI link is test-owned in the current bring-up. It runs when
-  `APP_TEST_TEENSY_LINK_TEST` boots directly into the link mode, or when the
-  `Teensy Link` runtime bench test is entered.
+- The Teensy SPI link runs in the direct `APP_TEST_TEENSY_LINK_TEST`, the
+  runtime `Teensy Link` bench test, and `APP_TEST_TEENSY_CAM0_RACE`. The race
+  path consumes fresh Teensy camera results on a servo-period schedule.
 
 ## LED conventions in app modes
 - Red: error or fault
@@ -159,7 +160,15 @@
   - resets controller memory when vision reports track lost to avoid stale integral/derivative carry-over
   - carries the active integral clamp in controller state, so per-mode and per-profile integral clamp settings are real runtime inputs
 - `servo.c`
-  - applies steering through PWM
+  - treats `Servo_SetSteer()` as a latest-request mailbox
+  - defaults to applying the latest pending request from the PWM falling-edge
+    callback, preserving existing mode behavior
+  - supports an explicit phase-synchronized policy that timestamps each 50 Hz
+    PWM rising edge and exposes the period sequence
+  - in the phase-synchronized policy, stages at most one hardware duty update
+    while `17 <= phase < 19 ms`
+  - discards a phased request that misses its window so it cannot apply one
+    period late
 
 ### Honor lap path
 - `mode_honor_lap.c`
@@ -175,10 +184,16 @@
 ### Race mode path
 - `mode_race.c`
   - initializes the dual-ESC path, servo, camera, steering, and ultrasonic once at mode entry
-  - runs a deterministic ordered loop:
-    - consume the newest completed camera frame if one is ready
-    - service ultrasonic timing and capture state
-    - update steering and speed commands
+  - keeps the original local-camera path on its existing schedule
+  - in `APP_TEST_TEENSY_CAM0_RACE`, uses the servo PWM rising edge as the
+    20 ms scheduling epoch
+  - services SPI at phases 0, 5, 10, and 15 ms, skipping missed slots instead
+    of replaying them back-to-back
+  - collects only unique camera sequences and runs one robust camera average
+    plus one steering-controller update at phase 17 ms
+  - rejects stale/lost samples and at most one error outlier above 0.20, then
+    confidence-weights the remaining errors
+  - holds the previous PWM command if control does not run before phase 19 ms
   - rate-limits the ESC command with the existing ramp constants
   - switches from race-speed policy to honor-lap obstacle-stop policy after confirmed finish detection
   - holds steering straight during the honor phase when ultrasonic sees an obstacle inside the slow threshold
@@ -191,10 +206,10 @@
 - `bench_teensy_link.c`
   - calls `TeensyLink_Init()` when the test is entered
   - builds the S32K-to-Teensy test packet
-  - calls `TeensyLink_Service5ms()` every 5 ms while the test is active
+  - calls `TeensyLink_Service()` every 5 ms while the test is active
   - displays RX counters, sequence numbers, stale/live state, and error counts
 - `teensy_link.c`
-  - builds the fixed 128-byte S32K frame
+  - builds the fixed 84-byte S32K frame
   - clocks the SPI transfer as S32K master
   - validates CRC/header on the Teensy frame
   - stores the latest decoded snapshot and diagnostics

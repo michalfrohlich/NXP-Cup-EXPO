@@ -194,7 +194,7 @@ static const Spi_ChannelConfigType Spi_ChannelConfig_TeensySpiFrameChannel_VS_0 
 #endif
 
         (uint32)1U,  /* DefaultTransmitValue (configured) */
-        128U, /* length of buffer */
+        84U, /* length of buffer */
         &Spi_Buffer_VS_0_TeensySpiFrameChannel, /* BufferDescriptor */
         SPI_SPURIOUS_CORE_ID_U32,  /* Core Id */
         &Spi_axSpiChannelState[0U] /* ChannelState pointer */

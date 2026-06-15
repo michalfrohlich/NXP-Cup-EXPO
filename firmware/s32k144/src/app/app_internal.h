@@ -23,6 +23,7 @@
 #include "drivers/esp_uart_link.h"
 
 #include "services/line_detector.h"
+#include "services/teensy_camera_source.h"
 #include "drivers/rgb_led.h"
 #include "services/steering_controller.h"
 #include "services/steering_smoothing.h"
@@ -34,6 +35,7 @@ typedef enum
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
     APP_BUILD_MODE_NXP_CUP,
     APP_BUILD_MODE_RACE_MODE,
+    APP_BUILD_MODE_TEENSY_CAM0_RACE,
     APP_BUILD_MODE_HONOR_LAP,
     APP_BUILD_MODE_SERVO_RATE_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
@@ -469,6 +471,7 @@ void busy_delay(volatile uint32 ticks);
 void display_power_stabilize_delay(void);
 void App_InitRuntimeCore(void);
 void App_InitRuntimeCommon(void);
+void App_ServiceRuntimeCore(uint32 nowMs);
 void DisplayTextPadded(uint16 displayLine, const char *text);
 void RuntimeTune_InitDefaults(void);
 
@@ -501,7 +504,8 @@ void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled);
 void linear_camera_test_enter(uint32 nowMs);
 void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
 void linear_camera_test_exit(void);
-void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs, const CamTuneProfile_t *profile);
+void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs,
+                                 const CamTuneProfile_t *profile);
 void camservo_enter(CamServoState_t *st, uint32 nowMs);
 void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2);
 void camservo_exit(void);
@@ -514,6 +518,7 @@ void mode_nxp_cup_tests(void);
 void mode_nxp_cup(void);
 void mode_honor_lap(void);
 void mode_race_mode(void);
+void mode_teensy_cam0_race(void);
 void mode_servo_rate_test(void);
 void mode_teensy_link_test(void);
 void mode_esp_link_test(void);

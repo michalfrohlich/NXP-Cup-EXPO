@@ -75,6 +75,7 @@ static void encodeCamera(uint8_t *payload, uint16_t offset, const TeensyLinkCame
     payload[offset + 5U] = camera.rightLineIdx;
     payload[offset + 6U] = camera.ageMs;
     payload[offset + 7U] = camera.flags;
+    writeU16Le(payload, offset + 8U, camera.sequence);
 }
 
 static void decodeCamera(const uint8_t *payload, uint16_t offset, TeensyLinkCameraResult &camera)
@@ -87,6 +88,7 @@ static void decodeCamera(const uint8_t *payload, uint16_t offset, TeensyLinkCame
     camera.rightLineIdx = payload[offset + 5U];
     camera.ageMs = payload[offset + 6U];
     camera.flags = payload[offset + 7U];
+    camera.sequence = readU16Le(payload, offset + 8U);
 }
 
 void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult &camera, uint8_t sourceFlag)
@@ -99,6 +101,7 @@ void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult &camera, uint8_t s
     camera.rightLineIdx = 255U;
     camera.ageMs = 255U;
     camera.flags = (uint8_t)(TEENSY_LINK_CAMERA_FLAG_STALE | sourceFlag);
+    camera.sequence = 0U;
 }
 
 void TeensyLinkTelemetry_BuildTeensyFrame(uint8_t frame[TEENSY_LINK_FRAME_BYTES],

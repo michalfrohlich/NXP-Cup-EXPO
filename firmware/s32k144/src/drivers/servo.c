@@ -21,6 +21,7 @@ extern "C" {
 * 3) internal and external interfaces from this unit
 ==================================================================================================*/
 #include "drivers/servo.h"
+#include "drivers/timebase.h"
 #include "SchM_Pwm.h"
 
 /*==================================================================================================
@@ -40,12 +41,20 @@ extern "C" {
 ==================================================================================================*/
 static Servo ServoInstance;
 static volatile boolean Servo_Initialized = FALSE;
+static volatile ServoUpdatePolicy Servo_UpdatePolicy = SERVO_UPDATE_ON_PWM_CALLBACK;
 static volatile uint16 ServoAppliedDutyCycle = 0U;
 static volatile uint16 ServoPendingDutyCycle = 0U;
 static volatile boolean ServoPendingUpdate = FALSE;
 static volatile uint32 ServoCommandRequestCount = 0U;
-static volatile uint32 ServoPeriodCallbackCount = 0U;
-static volatile uint32 ServoAppliedUpdateCount = 0U;
+static volatile uint32 ServoPeriodSequence = 0U;
+static volatile uint32 ServoPeriodStartMs = 0U;
+static volatile uint32 ServoLastCommitPeriod = 0U;
+static volatile uint32 ServoCommitCount = 0U;
+static volatile uint32 ServoMissedCommitCount = 0U;
+static volatile uint32 ServoDuplicateServiceCount = 0U;
+
+#define SERVO_COMMIT_PHASE_START_MS  (17U)
+#define SERVO_COMMIT_PHASE_END_MS    (19U)
 /*==================================================================================================
 *                                      GLOBAL CONSTANTS
 ==================================================================================================*/
@@ -89,15 +98,8 @@ static void Servo_PublishPendingDuty(uint16 ServoDutyCycle)
 {
     SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
 
-    if (ServoDutyCycle == ServoAppliedDutyCycle)
-    {
-        ServoPendingUpdate = FALSE;
-    }
-    else
-    {
-        ServoPendingDutyCycle = ServoDutyCycle;
-        ServoPendingUpdate = TRUE;
-    }
+    ServoPendingDutyCycle = ServoDutyCycle;
+    ServoPendingUpdate = TRUE;
 
     SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
 }
@@ -111,12 +113,17 @@ void Servo_Init(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 Min
     ServoInstance.MaxDutyCycle = MaxDutyCycle;
     ServoInstance.MinDutyCycle = MinDutyCycle;
     ServoInstance.MedDutyCycle = MedDutyCycle;
+    Servo_UpdatePolicy = SERVO_UPDATE_ON_PWM_CALLBACK;
     ServoAppliedDutyCycle = ServoInstance.MedDutyCycle;
     ServoPendingDutyCycle = ServoInstance.MedDutyCycle;
     ServoPendingUpdate = FALSE;
     ServoCommandRequestCount = 0U;
-    ServoPeriodCallbackCount = 0U;
-    ServoAppliedUpdateCount = 0U;
+    ServoPeriodSequence = 0U;
+    ServoPeriodStartMs = Timebase_GetMs();
+    ServoLastCommitPeriod = 0U;
+    ServoCommitCount = 0U;
+    ServoMissedCommitCount = 0U;
+    ServoDuplicateServiceCount = 0U;
     Servo_Initialized = TRUE;
     Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoAppliedDutyCycle);
     Pwm_EnableNotification(ServoInstance.ServoPwmChannel, PWM_FALLING_EDGE);
@@ -165,24 +172,122 @@ void SteerStraight(void){
     Servo_PublishPendingDuty(ServoInstance.MedDutyCycle);
 }
 
-void Servo_Period_Finished(void)
+void Servo_SetUpdatePolicy(ServoUpdatePolicy Policy)
 {
     if (Servo_Initialized != TRUE)
     {
         return;
     }
 
-    ServoPeriodCallbackCount++;
-
-    if (ServoPendingUpdate != TRUE)
+    if ((Policy != SERVO_UPDATE_ON_PWM_CALLBACK) &&
+        (Policy != SERVO_UPDATE_PHASED_FOREGROUND))
     {
         return;
     }
 
-    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, ServoPendingDutyCycle);
-    ServoAppliedDutyCycle = ServoPendingDutyCycle;
+    Pwm_DisableNotification(ServoInstance.ServoPwmChannel);
+
+    SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
+    Servo_UpdatePolicy = Policy;
+    ServoPendingDutyCycle = ServoAppliedDutyCycle;
     ServoPendingUpdate = FALSE;
-    ServoAppliedUpdateCount++;
+    ServoPeriodSequence = 0U;
+    ServoPeriodStartMs = Timebase_GetMs();
+    ServoLastCommitPeriod = 0U;
+    SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+
+    Pwm_EnableNotification(
+        ServoInstance.ServoPwmChannel,
+        (Policy == SERVO_UPDATE_PHASED_FOREGROUND) ? PWM_RISING_EDGE : PWM_FALLING_EDGE);
+}
+
+void Servo_Service(uint32 nowMs)
+{
+    uint32 periodSequence;
+    uint32 periodStartMs;
+    uint32 phaseMs;
+    uint16 pendingDutyCycle;
+
+    if ((Servo_Initialized != TRUE) ||
+        (Servo_UpdatePolicy != SERVO_UPDATE_PHASED_FOREGROUND))
+    {
+        return;
+    }
+
+    SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
+    periodSequence = ServoPeriodSequence;
+    periodStartMs = ServoPeriodStartMs;
+
+    if ((periodSequence == 0U) || (ServoPendingUpdate != TRUE))
+    {
+        SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+        return;
+    }
+
+    phaseMs = (uint32)(nowMs - periodStartMs);
+    if ((phaseMs < SERVO_COMMIT_PHASE_START_MS) ||
+        (phaseMs >= SERVO_COMMIT_PHASE_END_MS))
+    {
+        SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+        return;
+    }
+
+    if (ServoLastCommitPeriod == periodSequence)
+    {
+        ServoDuplicateServiceCount++;
+        SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+        return;
+    }
+
+    pendingDutyCycle = ServoPendingDutyCycle;
+    ServoPendingUpdate = FALSE;
+    ServoLastCommitPeriod = periodSequence;
+    SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+
+    Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, pendingDutyCycle);
+
+    SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
+    ServoAppliedDutyCycle = pendingDutyCycle;
+    ServoCommitCount++;
+    SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
+}
+
+void Servo_Period_Finished(void)
+{
+    uint16 pendingDutyCycle;
+
+    if (Servo_Initialized != TRUE)
+    {
+        return;
+    }
+
+    if (Servo_UpdatePolicy == SERVO_UPDATE_ON_PWM_CALLBACK)
+    {
+        ServoPeriodSequence++;
+        ServoPeriodStartMs = Timebase_GetMs();
+
+        if (ServoPendingUpdate != TRUE)
+        {
+            return;
+        }
+
+        pendingDutyCycle = ServoPendingDutyCycle;
+        ServoPendingUpdate = FALSE;
+        Pwm_SetDutyCycle(ServoInstance.ServoPwmChannel, pendingDutyCycle);
+        ServoAppliedDutyCycle = pendingDutyCycle;
+        ServoCommitCount++;
+        return;
+    }
+
+    if ((ServoPeriodSequence != 0U) &&
+        (ServoPendingUpdate == TRUE))
+    {
+        ServoMissedCommitCount++;
+        ServoPendingUpdate = FALSE;
+    }
+
+    ServoPeriodSequence++;
+    ServoPeriodStartMs = Timebase_GetMs();
 }
 
 void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot)
@@ -194,12 +299,16 @@ void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot)
 
     SchM_Enter_Pwm_PWM_EXCLUSIVE_AREA_00();
     Snapshot->Initialized = Servo_Initialized;
+    Snapshot->UpdatePolicy = Servo_UpdatePolicy;
     Snapshot->AppliedDutyCycle = ServoAppliedDutyCycle;
     Snapshot->PendingDutyCycle = ServoPendingDutyCycle;
     Snapshot->PendingUpdate = ServoPendingUpdate;
     Snapshot->CommandRequestCount = ServoCommandRequestCount;
-    Snapshot->PeriodCallbackCount = ServoPeriodCallbackCount;
-    Snapshot->AppliedUpdateCount = ServoAppliedUpdateCount;
+    Snapshot->PeriodSequence = ServoPeriodSequence;
+    Snapshot->PeriodStartMs = ServoPeriodStartMs;
+    Snapshot->CommitCount = ServoCommitCount;
+    Snapshot->MissedCommitCount = ServoMissedCommitCount;
+    Snapshot->DuplicateServiceCount = ServoDuplicateServiceCount;
     SchM_Exit_Pwm_PWM_EXCLUSIVE_AREA_00();
 }
 

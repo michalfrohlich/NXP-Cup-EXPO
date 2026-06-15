@@ -74,7 +74,7 @@ static void servo_rate_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3
     Servo_GetDebugSnapshot(&g_servoRateTest.servoDbg);
 
     if (((uint32)(nowMs - g_servoRateTest.startMs) > 100U) &&
-        (g_servoRateTest.servoDbg.PeriodCallbackCount == 0U))
+        (g_servoRateTest.servoDbg.PeriodSequence == 0U))
     {
         g_servoRateTest.noPwmCallbackFault = TRUE;
     }
@@ -166,7 +166,7 @@ static void servo_rate_test_draw(const ServoRateTestState_t *st)
                    sizeof(lineBuf),
                    "A:%4d I:%4lu",
                    (int)st->command,
-                   (unsigned long)st->servoDbg.PeriodCallbackCount);
+                   (unsigned long)st->servoDbg.PeriodSequence);
     DisplayTextPadded(3U, lineBuf);
     DisplayRefresh();
 }

@@ -63,8 +63,9 @@
 | Cam+Servo control housekeeping period | `src/app/app_config.h` | `5 ms` |
 | Default display refresh period | `src/app/app_config.h` | `20 ms` |
 | Camera debug display period | `src/app/app_config.h` | `100 ms` |
-| Steering update period | `src/app/app_config.h` | `10 ms` |
-| Servo handwritten period-latched update | `src/drivers/servo.c` | next `50 Hz` PWM frame |
+| Legacy/local-camera steering update period | `src/app/app_config.h` | `10 ms` |
+| Teensy-camera race steering update | `src/app/modes/mode_race.c` | once per `20 ms` PWM period at phase `17 ms` |
+| Servo handwritten commit window | `src/drivers/servo.c` | once per `50 Hz` PWM period while `17 <= phase < 19 ms` |
 | Servo rate test software command cadence | `src/app/app_modes.c` | selectable `10 / 50 / 100 / 250 Hz`; physical PWM output remains `50 Hz` |
 | Race display period | `src/app/app_config.h` | `200 ms` |
 | Camera shutter GPT logical channel | `include/config/board_config.h` | 1 |

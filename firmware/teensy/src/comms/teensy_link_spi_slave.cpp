@@ -2,7 +2,10 @@
 
 #include <string.h>
 
-static constexpr uint32_t SPI_SLAVE_TIMEOUT_US = 15000UL;
+#include "teensy_config.h"
+
+static constexpr uint32_t SPI_SLAVE_TIMEOUT_US = 2000UL;
+static constexpr uint32_t SPI_TIMEOUT_POLL_MASK = 0x3FFU;
 
 void TeensyLinkSpiSlave::begin(uint8_t csPin,
                                uint8_t sckPin,
@@ -22,12 +25,17 @@ void TeensyLinkSpiSlave::begin(uint8_t csPin,
     pinMode(misoPin_, OUTPUT);
     pinMode(readyPin_, OUTPUT);
 
-    digitalWriteFast(misoPin_, LOW);
+    digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN, LOW);
     markReady(false);
 }
 
 void TeensyLinkSpiSlave::publishFrame(const uint8_t frame[TEENSY_LINK_FRAME_BYTES])
 {
+    if (frame == nullptr)
+    {
+        return;
+    }
+
     noInterrupts();
     (void)memcpy(txFrame_, frame, TEENSY_LINK_FRAME_BYTES);
     interrupts();
@@ -36,7 +44,8 @@ void TeensyLinkSpiSlave::publishFrame(const uint8_t frame[TEENSY_LINK_FRAME_BYTE
 
 void TeensyLinkSpiSlave::driveBit(uint8_t txByte, uint8_t bitMask)
 {
-    digitalWriteFast(misoPin_, ((txByte & bitMask) != 0U) ? HIGH : LOW);
+    digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN,
+                     ((txByte & bitMask) != 0U) ? HIGH : LOW);
 }
 
 void TeensyLinkSpiSlave::markReady(bool ready)
@@ -52,6 +61,7 @@ bool TeensyLinkSpiSlave::service()
     uint16_t byteIndex = 0U;
     uint8_t bitMask = 0x80U;
     uint32_t startUs;
+    uint32_t timeoutPoll = 0U;
     TeensyLinkS32kSnapshot decoded;
 
     if (ready_ != true)
@@ -59,46 +69,58 @@ bool TeensyLinkSpiSlave::service()
         return false;
     }
 
-    if (digitalReadFast(csPin_) == HIGH)
+    if (digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == HIGH)
     {
         return false;
     }
 
+    markReady(false);
     noInterrupts();
     (void)memcpy(localTx, txFrame_, TEENSY_LINK_FRAME_BYTES);
-    interrupts();
 
+    /* At 2 MHz each half-cycle is 250 ns. Keep the CPU dedicated to the
+       software SPI slave for the bounded 336 us transfer. Camera PWM, ADC,
+       and DMA continue in hardware while interrupt delivery is deferred. */
     driveBit(localTx[byteIndex], bitMask);
     startUs = micros();
 
-    while ((digitalReadFast(csPin_) == LOW) && (byteIndex < TEENSY_LINK_FRAME_BYTES))
+    while ((digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == LOW) &&
+           (byteIndex < TEENSY_LINK_FRAME_BYTES))
     {
-        while ((digitalReadFast(csPin_) == LOW) && (digitalReadFast(sckPin_) == LOW))
+        while ((digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == LOW) &&
+               (digitalReadFast(TEENSY_LINK_SPI_SCK_PIN) == LOW))
         {
-            if ((uint32_t)(micros() - startUs) > SPI_SLAVE_TIMEOUT_US)
+            timeoutPoll++;
+            if (((timeoutPoll & SPI_TIMEOUT_POLL_MASK) == 0U) &&
+                ((uint32_t)(micros() - startUs) > SPI_SLAVE_TIMEOUT_US))
             {
                 timeouts_++;
-                digitalWriteFast(misoPin_, LOW);
+                digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN, LOW);
+                interrupts();
                 return false;
             }
         }
 
-        if (digitalReadFast(csPin_) == HIGH)
+        if (digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == HIGH)
         {
             break;
         }
 
-        if (digitalReadFast(mosiPin_) == HIGH)
+        if (digitalReadFast(TEENSY_LINK_SPI_MOSI_PIN) == HIGH)
         {
             localRx[byteIndex] |= bitMask;
         }
 
-        while ((digitalReadFast(csPin_) == LOW) && (digitalReadFast(sckPin_) == HIGH))
+        while ((digitalReadFast(TEENSY_LINK_SPI_CS_PIN) == LOW) &&
+               (digitalReadFast(TEENSY_LINK_SPI_SCK_PIN) == HIGH))
         {
-            if ((uint32_t)(micros() - startUs) > SPI_SLAVE_TIMEOUT_US)
+            timeoutPoll++;
+            if (((timeoutPoll & SPI_TIMEOUT_POLL_MASK) == 0U) &&
+                ((uint32_t)(micros() - startUs) > SPI_SLAVE_TIMEOUT_US))
             {
                 timeouts_++;
-                digitalWriteFast(misoPin_, LOW);
+                digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN, LOW);
+                interrupts();
                 return false;
             }
         }
@@ -119,8 +141,8 @@ bool TeensyLinkSpiSlave::service()
         }
     }
 
-    digitalWriteFast(misoPin_, LOW);
-
+    digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN, LOW);
+    interrupts();
     if (byteIndex < TEENSY_LINK_FRAME_BYTES)
     {
         return false;

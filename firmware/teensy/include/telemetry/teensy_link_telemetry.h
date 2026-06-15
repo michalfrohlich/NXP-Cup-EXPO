@@ -15,6 +15,7 @@ struct TeensyLinkCameraResult
     uint8_t rightLineIdx;
     uint8_t ageMs;
     uint8_t flags;
+    uint16_t sequence;
 };
 
 struct TeensyLinkImuSample

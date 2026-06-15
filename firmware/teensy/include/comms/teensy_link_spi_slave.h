@@ -30,7 +30,6 @@ private:
     bool ready_ = false;
     uint8_t txFrame_[TEENSY_LINK_FRAME_BYTES] = {};
     TeensyLinkS32kSnapshot latestS32k_ = {};
-
     uint16_t completedTransfers_ = 0U;
     uint16_t protocolErrors_ = 0U;
     uint16_t timeouts_ = 0U;
