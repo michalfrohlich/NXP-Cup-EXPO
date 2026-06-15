@@ -75,6 +75,7 @@ void TeensySdLogger::writeHeader()
        before the SPI link matters, so blocking here is fine. */
     file_.print(F(
         "time_ms,log_seq,tx_seq,sensor_seq,sensor_dt_us,sensor_age_ms,"
+        "teensy_status_flags,teensy_component_mask,"
         "s32k_valid,s32k_seq,rx_frames,rx_errors,timeouts,"
         "s32k_app_mode,s32k_app_state,s32k_control_seq,s32k_control_dt_us,s32k_safety_flags,"
         "ax_g,ay_g,az_g,gx_dps,gy_dps,gz_dps,"
@@ -152,6 +153,10 @@ void TeensySdLogger::logRow(uint32_t nowMs,
     rb.print(telemetry.sensorDtUs);
     rb.print(',');
     rb.print(telemetry.sensorAgeMs);
+    rb.print(',');
+    rb.print(telemetry.statusFlags);
+    rb.print(',');
+    rb.print(telemetry.componentMask);
     rb.print(',');
 
     /* s32k_valid tells MATLAB whether the S32K columns mean anything.

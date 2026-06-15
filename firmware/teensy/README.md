@@ -14,7 +14,7 @@ Current layout:
 - `include/drivers/` and `src/drivers/`: physical MPU6050 acquisition and always-on status displays.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 128-byte `teensy_link` frame.
 - `include/logging/` and `src/logging/`: SdFat CSV logger for the built-in SD slot.
-- `src/main.cpp`: bring-up loop with physical IMU acquisition and camera link placeholder.
+- `src/main.cpp`: bring-up loop with physical IMU acquisition and honest missing-camera states.
 - `docs/imu-mpu6050.md`: IMU wiring, filtering, status, and hardware tests.
 - `docs/secondary-displays.md`: two-display hardware assumptions and pages.
 - `docs/integrated-bring-up.md`: combined displays, SPI, and SD test.
@@ -61,13 +61,12 @@ The current sketch sends:
 
 - Physical MPU6050 acceleration, gyro, temperature, filtered roll/pitch, and
   relative yaw when the sensor is detected and calibrated.
-- Camera 0 valid from the Teensy side.
-- Camera 1 intentionally stale/missing.
+- Camera 0 and camera 1 explicitly stale/missing.
 - Real SD/logger ready, error, drop, and written-byte status.
 - RX counters from the S32K-to-Teensy direction.
 
-Camera 0 is still a deterministic link placeholder. Camera 1 remains missing
-on purpose. IMU values are no longer simulated.
+No Teensy camera data is fabricated. Both camera slots remain lost/stale until
+their physical acquisition drivers are integrated.
 
 ## Wiring Summary
 

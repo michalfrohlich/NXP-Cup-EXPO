@@ -162,7 +162,7 @@ The S32K test sends control and vehicle-state data to the Teensy:
 | safety flags | Lets Teensy know if S32K is in a safe/fault state |
 | camera 0 and camera 1 slots | Lets either board publish camera status |
 | steer raw, filtered, output | Lets Teensy log steering behavior |
-| target and current speed | Lets Teensy log requested vehicle speed |
+| target and current speed | Logs target and rate-limited speed commands; neither is measured vehicle speed |
 | ESC primary and secondary logical command | Supports separate motor commands |
 | servo command | Lets Teensy log steering actuator command |
 | actuator flags | Reserved status for actuator state |
@@ -207,9 +207,8 @@ The Teensy sends sensor, camera, logger, and link diagnostics back to the S32K:
 The current Teensy bench sketch sends:
 
 - Physical MPU6050 data when detected and calibrated.
-- Camera 0 link-placeholder data.
-- Camera 1 stale/missing on purpose.
-- SD logger not ready yet.
+- Camera 0 and camera 1 stale/missing because no Teensy camera drivers exist.
+- Real SD logger status, drop count, and write state.
 - RX counters from the S32K-to-Teensy direction.
 
 ## Missing Components
@@ -267,7 +266,7 @@ What the serial values mean:
 | `err` | S32K frames rejected by Teensy protocol/CRC validation |
 | `timeout` | CS went active but the full 128-byte clock did not complete |
 | `app` | S32K app mode from the received frame |
-| `speed` | S32K target/current speed values |
+| `speed` | S32K target/current command values; not measured vehicle speed |
 | `servo` | S32K servo command |
 | `ultra` | S32K ultrasonic distance in 0.1 cm units |
 
@@ -317,7 +316,7 @@ The S32K OLED pages are:
 |---:|---|---|
 | 0 | `TLINK` | status becomes OK, sequence values change, `SK:` stays near 0 with a connected Teensy |
 | 5 | `TLINK DMA` | transfer engine (DMA/BLOCKING), starts climbing, timeouts stay 0 |
-| 1 | `TLINK CAM0` | valid camera 0 mock data appears |
+| 1 | `TLINK CAM0` | stale/missing camera 0 appears without link failure |
 | 2 | `TLINK CAM1` | stale/missing camera 1 appears without link failure |
 | 3 | `TLINK IMU/LOG` | yaw, gyro Z, lateral acceleration, logger state |
 | 4 | `TLINK RX 128B` | good frame count increases, CRC/SPI errors stay low |
@@ -395,14 +394,14 @@ but MISO back to S32K is wrong.
 
 ### 6. Missing camera test
 
-Open the `TLINK CAM1` page.
+Open the `TLINK CAM0` and `TLINK CAM1` pages.
 
 Expected:
 
-- Camera 1 shows lost/stale style data.
+- Both Teensy camera slots show lost/stale style data.
 - Link status is still OK.
 
-This proves missing camera 2 is a data state, not a transport failure.
+This proves missing cameras are data states, not transport failures.
 
 ### 7. Disconnect/stale test
 

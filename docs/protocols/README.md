@@ -1,5 +1,8 @@
 # Protocol Documentation
 
+See `../hardware-data-source-audit.md` for which transmitted values are
+physical measurements, derived estimates/commands, or explicitly unavailable.
+
 ## S32K-Teensy SPI Communication Link
 
 ### Overview

@@ -85,7 +85,7 @@ static void updateSensors(uint32_t nowMs, uint32_t nowUs)
     telemetry.sensorDtUs = imu.sampleDtUs();
     telemetry.sensorAgeMs = imu.ageMs(nowMs);
     telemetry.statusFlags = 0U;
-    telemetry.componentMask = TEENSY_LINK_COMPONENT_CAMERA0;
+    telemetry.componentMask = 0U;
     telemetry.imu = {};
 
     if (imu.isPresent())
@@ -108,18 +108,9 @@ static void updateSensors(uint32_t nowMs, uint32_t nowUs)
         telemetry.statusFlags |= TEENSY_LINK_STATUS_ACCEL_TRUSTED;
     }
 
-    /* Camera 0 remains a link placeholder until its acquisition service
-       publishes a real result. Camera 1 is intentionally missing. */
-    telemetry.camera[0].errorPct = -10;
-    telemetry.camera[0].status = TEENSY_LINK_CAMERA_STATUS_TRACK_OK;
-    telemetry.camera[0].feature = 2U;
-    telemetry.camera[0].confidence = 94U;
-    telemetry.camera[0].leftLineIdx = 43U;
-    telemetry.camera[0].rightLineIdx = 85U;
-    telemetry.camera[0].ageMs = 3U;
-    telemetry.camera[0].flags = TEENSY_LINK_CAMERA_FLAG_VALID | TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY;
-
-    /* Camera 1 is intentionally missing for the bench fault path. */
+    /* No Teensy camera acquisition driver exists yet. Report both slots
+       missing instead of publishing fabricated track results. */
+    TeensyLinkTelemetry_DefaultCamera(telemetry.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
 
     /* Real SD status goes onto the SPI link, so the S32K OLED
@@ -226,6 +217,10 @@ static void printLinkStatus(uint32_t nowMs)
     Serial.print(telemetry.imu.gzDps, 2);
     Serial.print(" yaw=");
     Serial.print(telemetry.imu.yawDeg, 1);
+    Serial.print(" cam0=");
+    Serial.print((telemetry.camera[0].flags & TEENSY_LINK_CAMERA_FLAG_VALID) != 0U ? 'V' : '-');
+    Serial.print(" cam1=");
+    Serial.print((telemetry.camera[1].flags & TEENSY_LINK_CAMERA_FLAG_VALID) != 0U ? 'V' : '-');
     Serial.print(" s32k=");
     Serial.print(s32kSnapshot.valid ? s32kSnapshot.frameSeq : 0U);
     Serial.print(" rx=");

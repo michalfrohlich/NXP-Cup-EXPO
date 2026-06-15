@@ -199,4 +199,4 @@
 #define HONOR_KD                          1.5f
 #define HONOR_KI                          0.02f
 #define HONOR_STEER_SCALE                 1.00f
-#define HONOR_FAKE_SPEED                  10U
+#define HONOR_STEERING_BASE_SPEED         10U

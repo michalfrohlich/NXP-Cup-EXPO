@@ -64,19 +64,20 @@ from the live link state at the moment the row is queued.
 | `time_ms` | Teensy `millis()` | row timestamp |
 | `log_seq` | logger | row counter, gaps = dropped rows |
 | `tx_seq`, `sensor_seq`, `sensor_dt_us`, `sensor_age_ms` | Teensy | link + sensor sequences |
+| `teensy_status_flags`, `teensy_component_mask` | Teensy | tells MATLAB whether IMU/components are physically present and valid |
 | `s32k_valid` | Teensy decode | **1 = the s32k_* columns are real; 0 = no valid S32K frame yet and they are all 0** |
 | `s32k_seq`, `rx_frames`, `rx_errors`, `timeouts` | SPI slave | link health |
 | `s32k_app_mode`, `s32k_app_state`, `s32k_control_seq`, `s32k_control_dt_us`, `s32k_safety_flags` | S32K frame | control-loop correlation IDs |
-| `ax_g .. imu_temp_c` (12 cols) | Teensy IMU struct | **currently MOCK data — there is no real IMU driver yet** |
-| `cam0_*`, `cam1_*` (7 cols each) | Teensy camera slots | currently mock (cam0) and intentionally-missing (cam1) |
+| `ax_g .. imu_temp_c` (12 cols) | Teensy MPU6050 driver | physical IMU data when status flags say present/calibrated/valid |
+| `cam0_*`, `cam1_*` (7 cols each) | Teensy camera slots | both lost/stale until physical Teensy camera drivers exist |
 | `ultra_dist_cm10`, `ultra_age_ms`, `ultra_flags` | S32K frame | zeros in the bench test (S32K sends no ultrasonic data in the link test) |
-| `steer_raw/filt/out`, `target/current_speed_pct`, `esc_primary/secondary`, `servo_cmd`, `actuator_flags` | S32K frame | zeros in the bench test for the same reason |
+| `steer_raw/filt/out`, `target/current_speed_pct`, `esc_primary/secondary`, `servo_cmd`, `actuator_flags` | S32K frame | controller/actuator commands, not measured speed or actuator feedback; zeros in the bench test |
 | `logger_flags`, `logger_drops` | logger | same values sent to the S32K over SPI |
 
-Honest-data rule: nothing is invented. Columns whose producer does not exist
-yet (real IMU, real cameras, race-mode actuator values) log their current
-real value, which today is mock or zero. The `s32k_valid` column says whether
-the S32K block ever meant anything.
+Honest-data rule: nothing is invented. Missing Teensy cameras report lost/stale
+instead of valid fabricated tracks. `teensy_status_flags`,
+`teensy_component_mask`, camera flags, and `s32k_valid` tell MATLAB which
+blocks are usable.
 
 ## Status visibility
 
@@ -106,8 +107,8 @@ pio device monitor -p COM3 -b 115200
 ## Limitations (MVP)
 
 - IMU columns contain physical MPU6050 data when its present/calibrated/valid
-  flags are set. Camera columns remain placeholders until camera acquisition
-  drivers publish real results.
+  flags are set. Camera columns stay explicitly lost/stale until camera
+  acquisition drivers publish real results.
 - A normal shutdown is "pull the power": the file keeps everything up to the
   last 2-second sync. The file may show a 64 MiB pre-allocated size on some
   tools until properly closed; the CSV content ends at the real data.

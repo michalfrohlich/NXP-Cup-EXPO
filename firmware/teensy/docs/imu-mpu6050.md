@@ -146,4 +146,4 @@ The SD CSV already contains all physical IMU fields. Confirm the newest
 - The data-ready interrupt is configured but not required; the main loop polls
   at 100 Hz.
 - Startup calibration is volatile and runs again after every reset.
-- Camera 0 remains a communication placeholder; that does not affect IMU data.
+- Both Teensy camera slots report missing/stale until camera drivers exist.

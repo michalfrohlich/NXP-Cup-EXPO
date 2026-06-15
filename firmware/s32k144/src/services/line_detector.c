@@ -496,13 +496,13 @@ static void LineDetector_ProcessImpl(const uint16 *pixels,
         }
         else if (bestLeftIdx != VISION_LINEAR_INVALID_IDX)
         {
-            float simulatedRight = (float)bestLeftIdx + (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
+            float inferredRight = (float)bestLeftIdx + (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
             edgeStrengthConfidence = LineDetector_ComputeEdgeStrengthConfidence(bestLeftStrength);
             baseConfidence = LineDetector_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
             lineStatusFactor = 50U;
             out->status = VISION_TRACK_LEFT;
             out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
-            trackCenter = ((float)bestLeftIdx + simulatedRight) / 2.0f;
+            trackCenter = ((float)bestLeftIdx + inferredRight) / 2.0f;
             if (s_singleEdgeStreak < 255U)
             {
                 s_singleEdgeStreak++;
@@ -510,13 +510,13 @@ static void LineDetector_ProcessImpl(const uint16 *pixels,
         }
         else if (bestRightIdx != VISION_LINEAR_INVALID_IDX)
         {
-            float simulatedLeft = (float)bestRightIdx - (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
+            float inferredLeft = (float)bestRightIdx - (float)VISION_LINEAR_NOMINAL_LANE_WIDTH;
             edgeStrengthConfidence = LineDetector_ComputeEdgeStrengthConfidence(bestRightStrength);
             baseConfidence = LineDetector_BlendConfidence(edgeStrengthConfidence, contrastConfidence);
             lineStatusFactor = 50U;
             out->status = VISION_TRACK_RIGHT;
             out->confidence = (uint8)(((uint16)baseConfidence * lineStatusFactor) / 100U);
-            trackCenter = (simulatedLeft + (float)bestRightIdx) / 2.0f;
+            trackCenter = (inferredLeft + (float)bestRightIdx) / 2.0f;
             if (s_singleEdgeStreak < 255U)
             {
                 s_singleEdgeStreak++;

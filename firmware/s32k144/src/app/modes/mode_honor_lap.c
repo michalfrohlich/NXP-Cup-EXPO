@@ -63,7 +63,7 @@ static void honor_lap_enter(uint32 nowMs)
     g_linearCameraTest.ctrl.ki = HONOR_KI;
     g_linearCameraTest.ctrl.iTermClamp = ITERM_CLAMP;
     g_linearCameraTest.ctrl.steerScale = HONOR_STEER_SCALE;
-    g_linearCameraTest.steeringBaseSpeed = HONOR_FAKE_SPEED;
+    g_linearCameraTest.steeringBaseSpeed = HONOR_STEERING_BASE_SPEED;
 
     Ultrasonic_Init();
     (void)Ultrasonic_GetDistanceCm(&g_honorLap.lastDistanceCm);
