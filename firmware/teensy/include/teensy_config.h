@@ -21,6 +21,16 @@ static constexpr uint32_t TEENSY_IMU_STALE_MS = 100UL;
 static constexpr uint8_t TEENSY_DISPLAY_SDA_PIN = 17U;
 static constexpr uint8_t TEENSY_DISPLAY_SCL_PIN = 16U;
 
+static constexpr uint8_t TEENSY_POT_PIN = 27U;
+static constexpr uint8_t TEENSY_BUTTON_1_PIN = 28U;
+static constexpr uint8_t TEENSY_BUTTON_2_PIN = 29U;
+static constexpr uint8_t TEENSY_ANALOG_READ_BITS = 12U;
+
+/* PCB RGB LED D1: common cathode, active HIGH. */
+static constexpr uint8_t TEENSY_RGB_LED_R_PIN = 1U;
+static constexpr uint8_t TEENSY_RGB_LED_G_PIN = 2U;
+static constexpr uint8_t TEENSY_RGB_LED_B_PIN = 3U;
+
 static constexpr uint8_t TEENSY_CAM1_SI_PIN = 4U;
 static constexpr uint8_t TEENSY_CAM2_SI_PIN = 5U;
 static constexpr uint8_t TEENSY_CAM1_CLK_PIN = 6U;

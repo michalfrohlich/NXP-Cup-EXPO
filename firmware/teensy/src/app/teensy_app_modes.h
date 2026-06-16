@@ -9,3 +9,5 @@ void ModeCameraBench_Setup();
 void ModeCameraBench_Loop();
 void ModeRace_Setup();
 void ModeRace_Loop();
+void ModeHardwareTest_Setup();
+void ModeHardwareTest_Loop();

@@ -7,7 +7,7 @@ Teensy-side firmware for camera acquisition, camera vision, and the S32K
 
 - `include/teensy_config.h`: board-level pins, runtime rates, and link debug flags.
 - `include/config/`: camera, display, and vision configuration.
-- `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers, including the MPU6050 IMU.
+- `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers, including board inputs, RGB status LED, and the MPU6050 IMU.
 - `include/services/` and `src/services/`: camera vision, line detection, and race runtime services.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 84-byte frame.
@@ -25,6 +25,7 @@ The current integration default is race:
 #define TEENSY_APP_MODE_LINK_BENCH        0
 #define TEENSY_APP_MODE_CAMERA_BENCH      1
 #define TEENSY_APP_MODE_RACE              2
+#define TEENSY_APP_MODE_HARDWARE_TEST     3
 #define TEENSY_APP_SELECTED_MODE TEENSY_APP_MODE_RACE
 ```
 
@@ -33,6 +34,24 @@ The current integration default is race:
 | `TEENSY_APP_MODE_CAMERA_BENCH` | Camera 0 bring-up and Python plotting without the S32K link runtime. | Binary Python camera stream enabled by camera config; text frame/status output disabled by default. |
 | `TEENSY_APP_MODE_LINK_BENCH` | Debug wrapper around the integrated race runtime. | Runs SPI link, camera acquisition, line detection, and optional debug outputs. |
 | `TEENSY_APP_MODE_RACE` | Integrated runtime intended for running the car. | Serial text, Python stream, and display debug are disabled. |
+| `TEENSY_APP_MODE_HARDWARE_TEST` | Local PCB input and RGB LED self-test. | Prints pot, button, and passive SPI pin levels at `TEENSY_SERIAL_BAUD`; holds READY low so the S32K does not clock the Teensy SPI slave. |
+
+## PCB Inputs And Status LED
+
+The PCB input and RGB LED pins are configured in `include/teensy_config.h`:
+
+| Signal | Teensy 4.1 pin |
+|---|---:|
+| Potentiometer ADC | 27 |
+| Button 1 | 28 |
+| Button 2 | 29 |
+| RGB LED red | 1 |
+| RGB LED green | 2 |
+| RGB LED blue | 3 |
+
+`TEENSY_APP_MODE_HARDWARE_TEST` is the bring-up mode for these pins. On boot it
+runs a red/green/blue LED sweep, then cycles LED colors while idle. Button 1
+forces the LED white and button 2 turns it off.
 
 ## Camera And Vision
 
