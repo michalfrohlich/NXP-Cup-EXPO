@@ -8,6 +8,7 @@ Teensy-side firmware for camera acquisition, camera vision, and the S32K
 - `include/teensy_config.h`: board-level pins, runtime rates, and link debug flags.
 - `include/config/`: camera, display, and vision configuration.
 - `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers, including board inputs, RGB status LED, and the MPU6050 IMU.
+- `include/logging/` and `src/logging/`: optional local data logging modules.
 - `include/services/` and `src/services/`: camera vision, line detection, and race runtime services.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 84-byte frame.
@@ -26,6 +27,7 @@ The current integration default is race:
 #define TEENSY_APP_MODE_CAMERA_BENCH      1
 #define TEENSY_APP_MODE_RACE              2
 #define TEENSY_APP_MODE_HARDWARE_TEST     3
+#define TEENSY_APP_MODE_SD_LOG_TEST       4
 #define TEENSY_APP_SELECTED_MODE TEENSY_APP_MODE_RACE
 ```
 
@@ -35,6 +37,7 @@ The current integration default is race:
 | `TEENSY_APP_MODE_LINK_BENCH` | Debug wrapper around the integrated race runtime. | Runs SPI link, camera acquisition, line detection, and optional debug outputs. |
 | `TEENSY_APP_MODE_RACE` | Integrated runtime intended for running the car. | Serial text, Python stream, and display debug are disabled. |
 | `TEENSY_APP_MODE_HARDWARE_TEST` | Local PCB input and RGB LED self-test. | Prints pot, button, and passive SPI pin levels at `TEENSY_SERIAL_BAUD`; holds READY low so the S32K does not clock the Teensy SPI slave. |
+| `TEENSY_APP_MODE_SD_LOG_TEST` | Local built-in SD card logger self-test. | Creates `LOGnnn.CSV`, logs test rows from pot/button snapshots, prints SD status, and holds READY low. |
 
 ## PCB Inputs And Status LED
 
@@ -52,6 +55,27 @@ The PCB input and RGB LED pins are configured in `include/teensy_config.h`:
 `TEENSY_APP_MODE_HARDWARE_TEST` is the bring-up mode for these pins. On boot it
 runs a red/green/blue LED sweep, then cycles LED colors while idle. Button 1
 forces the LED white and button 2 turns it off.
+
+## SD Logger
+
+The optional SD logger uses the Teensy 4.1 built-in SD slot through SdFat SDIO.
+`TEENSY_APP_MODE_SD_LOG_TEST` validates the logger without the S32K link
+runtime: it creates the next `LOGnnn.CSV` file, queues one test row every
+`TEENSY_SD_LOG_TEST_PERIOD_MS`, and services the card from the foreground loop.
+Use the `teensy41-sdtest` PlatformIO environment to build this mode without
+editing `src/app/teensy_app_config.h`.
+
+LED status in SD log test:
+
+| LED | Meaning |
+|---|---|
+| Green | SD logger ready |
+| Yellow | no card or open failed |
+| Red | logger error |
+
+The test rows reuse the normal telemetry CSV schema. Pot/button values are
+encoded into the synthetic IMU columns only for this standalone SD self-test;
+race logging should use real telemetry when it is wired in later.
 
 ## Camera And Vision
 

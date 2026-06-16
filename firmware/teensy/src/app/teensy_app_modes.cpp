@@ -12,6 +12,8 @@ void TeensyApp_Setup()
     ModeRace_Setup();
 #elif TEENSY_APP_SELECTED_MODE == TEENSY_APP_MODE_HARDWARE_TEST
     ModeHardwareTest_Setup();
+#elif TEENSY_APP_SELECTED_MODE == TEENSY_APP_MODE_SD_LOG_TEST
+    ModeSdLogTest_Setup();
 #else
 #error "Unsupported TEENSY_APP_SELECTED_MODE"
 #endif
@@ -27,6 +29,8 @@ void TeensyApp_Loop()
     ModeRace_Loop();
 #elif TEENSY_APP_SELECTED_MODE == TEENSY_APP_MODE_HARDWARE_TEST
     ModeHardwareTest_Loop();
+#elif TEENSY_APP_SELECTED_MODE == TEENSY_APP_MODE_SD_LOG_TEST
+    ModeSdLogTest_Loop();
 #else
 #error "Unsupported TEENSY_APP_SELECTED_MODE"
 #endif

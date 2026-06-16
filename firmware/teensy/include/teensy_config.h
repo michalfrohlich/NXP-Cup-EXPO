@@ -44,6 +44,8 @@ static constexpr uint32_t TEENSY_LINK_TELEMETRY_HZ = 200UL;
 static constexpr uint32_t TEENSY_LINK_TELEMETRY_INTERVAL_US = 1000000UL / TEENSY_LINK_TELEMETRY_HZ;
 static constexpr bool TEENSY_LINK_SERIAL_DEBUG_ENABLED = false;
 static constexpr uint32_t TEENSY_LINK_SERIAL_PERIOD_MS = 100UL;
+static constexpr uint32_t TEENSY_SD_LOG_TEST_PERIOD_MS = 100UL;
+static constexpr uint32_t TEENSY_SD_LOG_TEST_PRINT_PERIOD_MS = 500UL;
 
 static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_LOST = 0U;
 static constexpr uint8_t TEENSY_LINK_CAMERA_STATUS_TRACK_BOTH = 1U;

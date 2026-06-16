@@ -11,3 +11,5 @@ void ModeRace_Setup();
 void ModeRace_Loop();
 void ModeHardwareTest_Setup();
 void ModeHardwareTest_Loop();
+void ModeSdLogTest_Setup();
+void ModeSdLogTest_Loop();
