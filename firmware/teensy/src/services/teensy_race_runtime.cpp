@@ -18,16 +18,33 @@ static const CameraVisionConfig cameraVision0Config = {
 
 static_assert(TEENSY_LINK_FRAME_BYTES == 84U, "S32K link frame must stay 84 bytes");
 
+static TeensyLinkImuSample toTelemetryImuSample(const Mpu6050ImuSample &sample)
+{
+    TeensyLinkImuSample out = {};
+
+    out.axG = sample.axG;
+    out.ayG = sample.ayG;
+    out.azG = sample.azG;
+    out.gxDps = sample.gxDps;
+    out.gyDps = sample.gyDps;
+    out.gzDps = sample.gzDps;
+    out.rollDeg = sample.rollDeg;
+    out.pitchDeg = sample.pitchDeg;
+    out.yawDeg = sample.yawDeg;
+    out.accelNormG = sample.accelNormG;
+    out.lateralG = sample.lateralG;
+    out.tempC = sample.tempC;
+    return out;
+}
+
 void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
 {
     config_ = config;
 
-    if ((config_.serialStatusEnabled == true) ||
-        (config_.cameraStreamEnabled == true))
+    if ((config_.serialStatusEnabled == true) || (config_.cameraStreamEnabled == true))
     {
-        Serial.begin(config_.cameraStreamEnabled
-                         ? TEENSY_LINEAR_CAMERA_DEBUG_SERIAL_BAUD
-                         : TEENSY_SERIAL_BAUD);
+        Serial.begin(config_.cameraStreamEnabled ? TEENSY_LINEAR_CAMERA_DEBUG_SERIAL_BAUD
+                                                 : TEENSY_SERIAL_BAUD);
         while (!Serial && (millis() < 1200UL))
         {
         }
@@ -42,12 +59,28 @@ void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
         cameraVision0Ready_ = cameraVision0_.start();
     }
 
-    s32kSpi_.begin(TEENSY_LINK_SPI_CS_PIN,
-                   TEENSY_LINK_SPI_SCK_PIN,
-                   TEENSY_LINK_SPI_MOSI_PIN,
-                   TEENSY_LINK_SPI_MISO_PIN,
-                   TEENSY_LINK_READY_PIN);
+    if (config_.serialStatusEnabled == true)
+    {
+        Serial.println("Keep the car still while the MPU6050 gyro calibrates.");
+    }
+    if (imu_.begin())
+    {
+        if (config_.serialStatusEnabled == true)
+        {
+            Serial.print("MPU6050 detected at 0x");
+            Serial.print(imu_.address(), HEX);
+            Serial.println(imu_.isCalibrated() ? ", calibrated" : ", calibration failed");
+        }
+    }
+    else if (config_.serialStatusEnabled == true)
+    {
+        Serial.println("MPU6050 not detected; IMU flags stay invalid");
+    }
 
+    s32kSpi_.begin(TEENSY_LINK_SPI_CS_PIN, TEENSY_LINK_SPI_SCK_PIN, TEENSY_LINK_SPI_MOSI_PIN,
+                   TEENSY_LINK_SPI_MISO_PIN, TEENSY_LINK_READY_PIN);
+
+    nextImuUs_ = micros();
     updateSensors(micros(), millis());
     publishFrame(millis());
 
@@ -74,8 +107,7 @@ void TeensyRaceRuntime::service()
         cameraVision0_.service(nowUs);
     }
 
-    if ((config_.cameraStreamEnabled == true) &&
-        (cameraVision0Ready_ == true) &&
+    if ((config_.cameraStreamEnabled == true) && (cameraVision0Ready_ == true) &&
         (cameraVision0_.isCameraReadoutActive() != true) &&
         ((int32_t)(nowMs - nextCameraStreamMs_) >= 0))
     {
@@ -96,11 +128,11 @@ void TeensyRaceRuntime::service()
     {
         updateSensors(nowUs, nowMs);
         publishFrame(nowMs);
-        nextSensorUs_ += TEENSY_LINK_SENSOR_INTERVAL_US;
+        nextSensorUs_ += TEENSY_LINK_TELEMETRY_INTERVAL_US;
         int32_t scheduleSlipUs = (int32_t)(nowUs - nextSensorUs_);
-        if (scheduleSlipUs > (int32_t)TEENSY_LINK_SENSOR_INTERVAL_US)
+        if (scheduleSlipUs > (int32_t)TEENSY_LINK_TELEMETRY_INTERVAL_US)
         {
-            nextSensorUs_ = nowUs + TEENSY_LINK_SENSOR_INTERVAL_US;
+            nextSensorUs_ = nowUs + TEENSY_LINK_TELEMETRY_INTERVAL_US;
         }
     }
 
@@ -116,12 +148,7 @@ void TeensyRaceRuntime::publishFrame(uint32_t nowMs)
 {
     uint16_t ackS32kSeq = s32kSnapshot_.valid ? s32kSnapshot_.frameSeq : 0U;
 
-    telemetry_.sensorAgeMs = (uint16_t)(nowMs - lastSensorMs_);
-    TeensyLinkTelemetry_BuildTeensyFrame(txFrame_,
-                                         teensyFrameSeq_,
-                                         nowMs,
-                                         ackS32kSeq,
-                                         telemetry_,
+    TeensyLinkTelemetry_BuildTeensyFrame(txFrame_, teensyFrameSeq_, nowMs, ackS32kSeq, telemetry_,
                                          s32kSpi_.completedTransfers(),
                                          s32kSpi_.protocolErrorCount());
     teensyFrameSeq_++;
@@ -130,34 +157,56 @@ void TeensyRaceRuntime::publishFrame(uint32_t nowMs)
 
 void TeensyRaceRuntime::updateSensors(uint32_t nowUs, uint32_t nowMs)
 {
-    float phase = (float)(nowMs % 10000UL) * 0.001f;
+    if ((int32_t)(nowUs - nextImuUs_) >= 0)
+    {
+        (void)imu_.sample(nowUs);
+        do
+        {
+            nextImuUs_ += TEENSY_IMU_SAMPLE_INTERVAL_US;
+        } while ((int32_t)(nowUs - nextImuUs_) >= 0);
+
+        if ((uint32_t)(nowUs - nextImuUs_) > TEENSY_IMU_SAMPLE_INTERVAL_US)
+        {
+            nextImuUs_ = nowUs + TEENSY_IMU_SAMPLE_INTERVAL_US;
+        }
+    }
 
     telemetry_.sensorSeq = sensorSeq_;
-    telemetry_.sensorDtUs = (uint16_t)TEENSY_LINK_SENSOR_INTERVAL_US;
-    telemetry_.sensorAgeMs = 0U;
-    telemetry_.statusFlags = TEENSY_LINK_STATUS_IMU_PRESENT |
-                             TEENSY_LINK_STATUS_IMU_CALIBRATED |
-                             TEENSY_LINK_STATUS_IMU_VALID |
-                             TEENSY_LINK_STATUS_ACCEL_TRUSTED |
-                             TEENSY_LINK_STATUS_YAW_RELATIVE;
-    telemetry_.componentMask = TEENSY_LINK_COMPONENT_IMU;
+    telemetry_.sensorDtUs = imu_.sampleDtUs();
+    telemetry_.sensorAgeMs = imu_.ageMs(nowMs);
+    telemetry_.statusFlags = 0U;
+    telemetry_.componentMask = 0U;
+
+    if (imu_.isPresent())
+    {
+        telemetry_.componentMask |= TEENSY_LINK_COMPONENT_IMU;
+        telemetry_.statusFlags |= TEENSY_LINK_STATUS_IMU_PRESENT | TEENSY_LINK_STATUS_YAW_RELATIVE;
+        telemetry_.imu = toTelemetryImuSample(imu_.latest());
+    }
+    else
+    {
+        telemetry_.imu = {};
+    }
+
+    if (imu_.isCalibrated())
+    {
+        telemetry_.statusFlags |= TEENSY_LINK_STATUS_IMU_CALIBRATED;
+    }
+
+    if (imu_.isValid(nowMs))
+    {
+        telemetry_.statusFlags |= TEENSY_LINK_STATUS_IMU_VALID;
+    }
+
+    if ((imu_.isValid(nowMs)) && (imu_.isAccelTrusted()))
+    {
+        telemetry_.statusFlags |= TEENSY_LINK_STATUS_ACCEL_TRUSTED;
+    }
+
     if (cameraVision0Ready_ == true)
     {
         telemetry_.componentMask |= TEENSY_LINK_COMPONENT_CAMERA0;
     }
-
-    telemetry_.imu.axG = 0.01f;
-    telemetry_.imu.ayG = 0.04f;
-    telemetry_.imu.azG = 1.00f;
-    telemetry_.imu.gxDps = 0.5f;
-    telemetry_.imu.gyDps = -1.2f;
-    telemetry_.imu.gzDps = 1.8f;
-    telemetry_.imu.rollDeg = 1.2f;
-    telemetry_.imu.pitchDeg = -0.4f;
-    telemetry_.imu.yawDeg = phase * 18.0f;
-    telemetry_.imu.accelNormG = 1.003f;
-    telemetry_.imu.lateralG = 0.04f;
-    telemetry_.imu.tempC = 27.4f;
 
     if (cameraVision0Ready_ == true)
     {
@@ -185,6 +234,23 @@ void TeensyRaceRuntime::printLinkStatus(uint32_t nowMs)
     Serial.print(teensyFrameSeq_);
     Serial.print(" sensorSeq=");
     Serial.print(sensorSeq_);
+    Serial.print(" imu=");
+    Serial.print(imu_.isPresent() ? 'P' : '-');
+    Serial.print(imu_.isCalibrated() ? 'C' : '-');
+    Serial.print(imu_.isValid(nowMs) ? 'V' : '-');
+    Serial.print((imu_.isValid(nowMs) && imu_.isAccelTrusted()) ? 'A' : '-');
+    Serial.print(" imuErr=");
+    Serial.print(imu_.readErrorCount());
+    Serial.print(" ax=");
+    Serial.print(telemetry_.imu.axG, 3);
+    Serial.print(" ay=");
+    Serial.print(telemetry_.imu.ayG, 3);
+    Serial.print(" az=");
+    Serial.print(telemetry_.imu.azG, 3);
+    Serial.print(" gz=");
+    Serial.print(telemetry_.imu.gzDps, 2);
+    Serial.print(" yaw=");
+    Serial.print(telemetry_.imu.yawDeg, 1);
     Serial.print(" s32k=");
     Serial.print(s32kSnapshot_.valid ? s32kSnapshot_.frameSeq : 0U);
     Serial.print(" rx=");

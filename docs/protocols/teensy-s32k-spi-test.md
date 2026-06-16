@@ -194,7 +194,7 @@ The Teensy sends sensor, camera, logger, and link diagnostics back to the S32K:
 
 The current Teensy link bench sends:
 
-- Deterministic synthetic IMU values marked valid.
+- Physical MPU6050 IMU values when the sensor is present and startup gyro calibration succeeds.
 - Real camera 0 line-detector output when a fresh result is available.
 - Camera 1 stale/missing on purpose.
 - SD logger not ready yet.

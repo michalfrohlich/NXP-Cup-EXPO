@@ -7,7 +7,7 @@ Teensy-side firmware for camera acquisition, camera vision, and the S32K
 
 - `include/teensy_config.h`: board-level pins, runtime rates, and link debug flags.
 - `include/config/`: camera, display, and vision configuration.
-- `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers.
+- `include/drivers/` and `src/drivers/`: Teensy-local hardware drivers, including the MPU6050 IMU.
 - `include/services/` and `src/services/`: camera vision, line detection, and race runtime services.
 - `include/comms/` and `src/comms/`: Teensy SPI slave transport.
 - `include/telemetry/` and `src/telemetry/`: packing and decoding for the shared 84-byte frame.
@@ -130,7 +130,7 @@ tool.
 `TEENSY_APP_MODE_LINK_BENCH` and `TEENSY_APP_MODE_RACE` publish the shared
 84-byte telemetry frame over SPI. The Teensy is the SPI slave and the S32K
 controls the actual transfer cadence. The Teensy updates the telemetry buffer
-at `TEENSY_LINK_SENSOR_HZ`, currently 200 Hz.
+at `TEENSY_LINK_TELEMETRY_HZ`, currently 200 Hz.
 
 Protocol v2 adds a 16-bit source sequence to each camera slot. The S32K uses
 that sequence to distinguish a newly processed camera result from repeated
@@ -141,7 +141,7 @@ components that are not implemented yet:
 
 | Component | Current behavior |
 |---|---|
-| IMU | Deterministic valid placeholder. |
+| IMU | Physical MPU6050 sample when detected and calibrated; otherwise the IMU component/status bits stay invalid. |
 | Camera 0 | Valid when fresh camera vision data has been processed. |
 | Camera 1 | Stale/default placeholder. |
 | Logger / SD | Not ready placeholder. |
