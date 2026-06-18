@@ -130,10 +130,10 @@ static void reset_uart_test_parser(void)
 static void handle_button_frame(const EspS32kButtonFrame_t *buttons)
 {
     EspS32kAckFrame_t ack;
-    const bool anyPressed = buttons->sw2Pressed || buttons->sw3Pressed || buttons->swPcbOn;
+    const bool testButtonPressed = buttons->sw2Pressed || buttons->sw3Pressed;
 
     status_store_buttons(buttons);
-    (void)gpio_set_level(ESP32_STATUS_LED_GPIO, anyPressed ? 1 : 0);
+    (void)gpio_set_level(ESP32_STATUS_LED_GPIO, testButtonPressed ? 1 : 0);
 
     ack = *buttons;
     if (send_ack_frame(&ack) == ESP_OK)

@@ -10,6 +10,7 @@
 
 #define ESP_MAIN_DISPLAY_REFRESH_MS (50U)
 #define ESP_MAIN_DISPLAY_SELF_TEST_MS (1500U)
+#define ESP_MAIN_DISPLAY_RETRY_MS (1000U)
 
 static const char *TAG = "expo_main";
 
@@ -30,7 +31,10 @@ void app_main(void)
     ESP_ERROR_CHECK(EspDisplay_InitBus());
     (void)EspDisplay_ScanI2c();
     esp_err_t displayRet = EspDisplay_Init();
-    const bool displayReady = (displayRet == ESP_OK);
+    bool displayReady = (displayRet == ESP_OK);
+    TickType_t nextDisplayRetry =
+        xTaskGetTickCount() + ticks_at_least_one(ESP_MAIN_DISPLAY_RETRY_MS);
+
     if (displayReady)
     {
         (void)EspDisplay_ShowSelfTest(0U);
@@ -55,6 +59,24 @@ void app_main(void)
     while (true)
     {
         TickType_t now = xTaskGetTickCount();
+        if ((!displayReady) && ((int32_t)(now - nextDisplayRetry) >= 0))
+        {
+            displayRet = EspDisplay_Init();
+            displayReady = (displayRet == ESP_OK);
+            if (displayReady)
+            {
+                ESP_LOGI(TAG, "Display initialized after retry");
+                (void)EspDisplay_ShowSelfTest((uint32_t)(now * portTICK_PERIOD_MS));
+                vTaskDelay(pdMS_TO_TICKS(ESP_MAIN_DISPLAY_SELF_TEST_MS));
+                lastDisplayRefresh = xTaskGetTickCount();
+            }
+            else
+            {
+                ESP_LOGW(TAG, "Display retry failed: %s", esp_err_to_name(displayRet));
+                nextDisplayRetry = now + ticks_at_least_one(ESP_MAIN_DISPLAY_RETRY_MS);
+            }
+        }
+
         if (displayReady &&
             ((now - lastDisplayRefresh) >= pdMS_TO_TICKS(ESP_MAIN_DISPLAY_REFRESH_MS)))
         {
