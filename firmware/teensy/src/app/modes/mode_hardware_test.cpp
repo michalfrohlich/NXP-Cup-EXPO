@@ -9,6 +9,7 @@
 static uint32_t nextLedMs = 0U;
 static uint32_t nextPrintMs = 0U;
 static uint8_t ledStep = 0U;
+static bool ledEnabled = true;
 
 static void configureSpiPinsAsInputs()
 {
@@ -32,14 +33,20 @@ static void updateLed(uint32_t nowMs, const BoardInputsSnapshot &inputs)
         StatusLedColor::Yellow, StatusLedColor::Cyan,  StatusLedColor::Magenta,
     };
 
+    if (BoardInputs_WasPressed(BoardButtonId::Button2))
+    {
+        ledEnabled = !ledEnabled;
+    }
+
+    if (ledEnabled != true)
+    {
+        StatusLed_Set(StatusLedColor::Off);
+        return;
+    }
+
     if (inputs.button1Pressed)
     {
         StatusLed_SetBrightness(StatusLedColor::White, ledBrightnessFromPot(inputs.potRaw));
-        return;
-    }
-    if (inputs.button2Pressed)
-    {
-        StatusLed_Set(StatusLedColor::Off);
         return;
     }
 
@@ -67,6 +74,8 @@ static void printStatus(uint32_t nowMs, const BoardInputsSnapshot &inputs)
     Serial.print(inputs.button1Pressed ? 1U : 0U);
     Serial.print(" b2=");
     Serial.print(inputs.button2Pressed ? 1U : 0U);
+    Serial.print(" led=");
+    Serial.print(ledEnabled ? 1U : 0U);
     Serial.print(" cs=");
     Serial.print(digitalReadFast(TEENSY_LINK_SPI_CS_PIN));
     Serial.print(" sck=");
@@ -88,7 +97,8 @@ void ModeHardwareTest_Setup()
 
     Serial.println("HWTEST Teensy PCB input/LED self-test");
     Serial.println("HWTEST READY held LOW; S32K SPI transfers are disabled in this mode");
-    Serial.println("HWTEST button1=white LED, button2=LED off, idle=color cycle");
+    Serial.println(
+        "HWTEST button1 hold=white LED, button2 press=toggle LED power, idle=color cycle");
     Serial.println("HWTEST Potentiometer controls LED brightness (PWM)");
 }
 

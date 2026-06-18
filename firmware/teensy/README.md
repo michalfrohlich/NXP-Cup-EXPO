@@ -52,9 +52,14 @@ The PCB input and RGB LED pins are configured in `include/teensy_config.h`:
 | RGB LED green | 2 |
 | RGB LED blue | 3 |
 
-`TEENSY_APP_MODE_HARDWARE_TEST` is the bring-up mode for these pins. On boot it
-runs a red/green/blue LED sweep, then cycles LED colors while idle. Button 1
-forces the LED white and button 2 turns it off.
+`TEENSY_APP_MODE_HARDWARE_TEST` is the bring-up mode for these pins. It cycles
+LED colors while idle. Holding button 1 forces the LED white through the
+level-based `BoardInputs_IsPressed()` path. Pressing button 2 once toggles LED
+power through the one-shot `BoardInputs_WasPressed()` path.
+
+The Teensy board-input driver debounces both momentary buttons. App code can use
+`BoardInputs_IsPressed()` for the current debounced level and
+`BoardInputs_WasPressed()` for the one-shot press edge.
 
 ## SD Logger
 
