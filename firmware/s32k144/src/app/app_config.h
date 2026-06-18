@@ -37,6 +37,8 @@
    Timing
 ========================================================= */
 #define START_DELAY_MS 1000u
+#define APP_BOOT_BANNER_MS 3000u
+#define APP_BOOT_LED_STEP_MS 250u
 #define BUTTONS_PERIOD_MS 5u
 #define DISPLAY_PERIOD_MS 20u
 #define CAM_DEBUG_DISPLAY_PERIOD_MS 100u
@@ -92,7 +94,8 @@
     (10U + (3U * VISION_LINEAR_BUFFER_SIZE) + 9U + 6U + (4U * VLIN_MAX_EDGE_CANDIDATES) + 1U)
 
 /* =========================================================
-   Runtime bench tests
+   Runtime bench
+ * tests
 ========================================================= */
 #define RECEIVER_REFRESH_MS (50U)
 

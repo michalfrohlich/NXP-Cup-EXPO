@@ -11,11 +11,15 @@
 */
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-/* Run the selected mode forever (never returns). */
-void App_RunSelectedMode(void);
+    /* Run the selected mode forever (never returns). */
+    void App_RunSelectedMode(void);
+
+    /* Run the common startup banner before the selected mode starts. */
+    void App_RunBootBanner(void);
 
 #ifdef __cplusplus
 }

@@ -16,6 +16,9 @@ RaceModeState_t g_raceMode;
 SerialTuneState_t g_serialTune;
 RuntimeTuneState_t g_runtimeTune;
 
+static boolean g_appRuntimeCoreInitialized = FALSE;
+static boolean g_appRuntimeDisplayInitialized = FALSE;
+
 const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
     {NXP_CUP_SUPERFAST_KP, NXP_CUP_SUPERFAST_KD, NXP_CUP_SUPERFAST_KI,
      NXP_CUP_SUPERFAST_ITERM_CLAMP, NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
@@ -209,22 +212,213 @@ void RuntimeTune_InitDefaults(void)
     g_runtimeTune.initialized = TRUE;
 }
 
+static const char *App_GetSelectedBuildModeMacroName(void)
+{
+    switch (App_GetSelectedBuildMode())
+    {
+        case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
+            return "APP_TEST_LINEAR_CAMERA_TEST";
+
+        case APP_BUILD_MODE_NXP_CUP:
+            return "APP_TEST_NXP_CUP";
+
+        case APP_BUILD_MODE_RACE_MODE:
+            return "APP_TEST_RACE_MODE";
+
+        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
+            return "APP_TEST_TEENSY_CAM0_RACE";
+
+        case APP_BUILD_MODE_HONOR_LAP:
+            return "APP_TEST_HONOR_LAP";
+
+        case APP_BUILD_MODE_SERVO_RATE_TEST:
+            return "APP_TEST_SERVO_RATE_TEST";
+
+        case APP_BUILD_MODE_TEENSY_LINK_TEST:
+            return "APP_TEST_TEENSY_LINK_TEST";
+
+        case APP_BUILD_MODE_ESP_LINK_TEST:
+            return "APP_TEST_ESP_LINK_TEST";
+
+        case APP_BUILD_MODE_NXP_CUP_TESTS:
+            return "APP_TEST_NXP_CUP_TESTS";
+
+        default:
+            return "APP_TEST_UNKNOWN";
+    }
+}
+
+static const char *App_GetSelectedBuildModeDisplayName(void)
+{
+    switch (App_GetSelectedBuildMode())
+    {
+        case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
+            return "Camera-s32k";
+
+        case APP_BUILD_MODE_NXP_CUP:
+            return "NXP Cup";
+
+        case APP_BUILD_MODE_RACE_MODE:
+            return "Race-old";
+
+        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
+            return "Teensy Cam0";
+
+        case APP_BUILD_MODE_HONOR_LAP:
+            return "Honor Lap";
+
+        case APP_BUILD_MODE_SERVO_RATE_TEST:
+            return "Servo Rate";
+
+        case APP_BUILD_MODE_TEENSY_LINK_TEST:
+            return "Teensy Link";
+
+        case APP_BUILD_MODE_ESP_LINK_TEST:
+            return "ESP Link";
+
+        case APP_BUILD_MODE_NXP_CUP_TESTS:
+            return "Bench Menu";
+
+        default:
+            return "Unknown";
+    }
+}
+
+static const char *App_GetSelectedBuildModeShortName(void)
+{
+    switch (App_GetSelectedBuildMode())
+    {
+        case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
+            return "LINEAR_CAMERA";
+
+        case APP_BUILD_MODE_NXP_CUP:
+            return "NXP_CUP";
+
+        case APP_BUILD_MODE_RACE_MODE:
+            return "RACE_MODE";
+
+        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
+            return "TEENSY_CAM0";
+
+        case APP_BUILD_MODE_HONOR_LAP:
+            return "HONOR_LAP";
+
+        case APP_BUILD_MODE_SERVO_RATE_TEST:
+            return "SERVO_RATE";
+
+        case APP_BUILD_MODE_TEENSY_LINK_TEST:
+            return "TEENSY_LINK";
+
+        case APP_BUILD_MODE_ESP_LINK_TEST:
+            return "ESP_LINK";
+
+        case APP_BUILD_MODE_NXP_CUP_TESTS:
+            return "NXP_CUP_TESTS";
+
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static void App_SetBootLedStep(uint32 step)
+{
+    switch (step % 5U)
+    {
+        case 0U:
+            StatusLed_Red();
+            break;
+
+        case 1U:
+            StatusLed_Yellow();
+            break;
+
+        case 2U:
+            StatusLed_Green();
+            break;
+
+        case 3U:
+            StatusLed_Cyan();
+            break;
+
+        default:
+            StatusLed_Blue();
+            break;
+    }
+}
+
 void App_InitRuntimeCore(void)
 {
     RuntimeTune_InitDefaults();
-    Board_InitDrivers();
-    Timebase_Init();
-    OnboardPot_Init();
+
+    if (g_appRuntimeCoreInitialized != TRUE)
+    {
+        Board_InitDrivers();
+        Timebase_Init();
+        OnboardPot_Init();
+        g_appRuntimeCoreInitialized = TRUE;
+    }
+
     StatusLed_Off();
 }
 
 void App_InitRuntimeCommon(void)
 {
     App_InitRuntimeCore();
-    display_power_stabilize_delay();
-    DisplayInit(0U, STD_ON);
+
+    if (g_appRuntimeDisplayInitialized != TRUE)
+    {
+        display_power_stabilize_delay();
+        DisplayInit(0U, STD_ON);
+        g_appRuntimeDisplayInitialized = TRUE;
+    }
+
     DisplayClear();
     DisplayRefresh();
+}
+
+void App_RunBootBanner(void)
+{
+    const char *macroName;
+    const char *displayName;
+    const char *shortName;
+    uint32 startMs;
+    uint32 lastLedStep = 0xFFFFFFFFU;
+
+    App_InitRuntimeCommon();
+
+    macroName = App_GetSelectedBuildModeMacroName();
+    displayName = App_GetSelectedBuildModeDisplayName();
+    shortName = App_GetSelectedBuildModeShortName();
+
+    UartHost_WriteLine("");
+    UartHost_WriteLine("=== S32K BOOT ===");
+    UartHost_WriteString("Build: ");
+    UartHost_WriteLine(macroName);
+    UartHost_WriteString("Mode: ");
+    UartHost_WriteLine(displayName);
+
+    DisplayClear();
+    DisplayTextPadded(0U, "S32K BOOT");
+    DisplayTextPadded(1U, displayName);
+    DisplayTextPadded(2U, shortName);
+    DisplayRefresh();
+
+    startMs = Timebase_GetMs();
+    while ((uint32)(Timebase_GetMs() - startMs) < APP_BOOT_BANNER_MS)
+    {
+        uint32 nowMs = Timebase_GetMs();
+        uint32 ledStep = (uint32)(nowMs - startMs) / APP_BOOT_LED_STEP_MS;
+
+        if (ledStep != lastLedStep)
+        {
+            App_SetBootLedStep(ledStep);
+            lastLedStep = ledStep;
+        }
+
+        UartHost_ServiceTx();
+    }
+
+    StatusLed_Off();
 }
 
 void App_ServiceRuntimeCore(uint32 nowMs)
