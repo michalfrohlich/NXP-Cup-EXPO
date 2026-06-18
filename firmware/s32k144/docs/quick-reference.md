@@ -4,15 +4,16 @@
 - `description.txt` describes this as an NXP Cup S32K144 sample project for line following with a linear camera.
 
 ## Main entry points
-- `src/main.c`: process entry; calls `App_RunSelectedMode()`.
+- `src/main.c`: process entry; runs the common boot banner, then calls `App_RunSelectedMode()`.
 - `src/app/app_modes.c`: compile-time mode dispatcher.
-- `src/app/app_common.c`: shared app runtime init, status LED helpers, display text helper, and ESC logical-speed helper.
-- `src/app/modes/bench_menu.c`: `APP_TEST_NXP_CUP_TESTS` runtime test menu host and standalone linear-camera wrapper.
+- `src/app/app_common.c`: shared boot banner, app runtime init, status LED helpers, display text helper, and ESC logical-speed helper.
+- `src/app/modes/bench_menu.c`: `APP_TEST_NXP_CUP_TESTS` runtime test menu host plus standalone linear-camera and ESC test wrappers.
 - `src/app/modes/bench_tests.c`: reusable bench test implementations used by the runtime menu.
+- `src/app/modes/bench_esp_link.c`: runtime-menu ESP32 tune-frame receive test.
 - `src/app/modes/bench_serial_tune.c`: UART/OLED tuning test used by the runtime menu.
 - `src/app/modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
 - `src/app/modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode for `APP_TEST_TEENSY_LINK_TEST`.
-- `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic and RAM-only full tuning receive testing; it also provides the reusable ESP tune-frame apply/service helper used by the tune-drive bench mode.
+- `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic and RAM-only full tuning receive testing; it also provides reusable tune-frame apply/service helpers used by runtime bench modes.
 - `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`: standalone app mode implementations.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
 - `src/app/app_config.h`: compile-time mode selection and app behavior/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
@@ -26,7 +27,9 @@
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
 - Invalid or missing selection is a configuration error.
+- On every S32K boot, the firmware initializes common runtime hardware, prints the active `APP_TEST_*` flag to the host UART, shows the selected build on the OLED for 3 seconds, and runs an RGB LED boot sequence before entering the selected mode.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
+- `APP_TEST_ESC_TEST` boots directly into the ESC bench test without the runtime menu.
 - `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
 - `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
 - `APP_TEST_SERVO_RATE_TEST` is a standalone servo timing/debug mode for checking the period-latched servo behavior without camera or ESC activity.
@@ -38,12 +41,13 @@
   replies with a compact sequence-matched result. OLED activity is temporarily
   disabled for transport isolation. Cyan indicates an accepted snapshot; red
   indicates a UART hardware, protocol, or transmit error.
-- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Simple test drv`, `Tune drive mode`, `Serial tune`, `Ultra+ESC`, `Receiver - x`, `Teensy Link`, and `Victory Lap`.
+- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Servo`, `ESC`, `Ultrasonic`, `Ultra+ESC`, `Camera-s32k`, `Cam+Servo-s32k`, `Drive mode-s32k`, `Tune drive mode`, `Cable tune-s32k`, `ESP Link`, `Teensy Link`, and `Victory Lap`.
+- The standalone `APP_TEST_ESC_TEST` path reuses the same ESC bench implementation as the runtime menu: `SW2` hold arms/disarms, `SW3` hold cycles the pot speed cap `30/50/100%`, and the OLED shows the current cap as `L:`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
 - `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
 - `Tune drive mode` is a bench wrapper around the Teensy Cam0 race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. It also stores incoming line-detector values in the shared RAM tune block, but those values do not affect Teensy-side camera detection until a later S32K-to-Teensy tuning protocol is added.
-- `Serial tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
+- `Cable tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
 - Camera consumers process a newly completed frame when `LinearCameraGetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.

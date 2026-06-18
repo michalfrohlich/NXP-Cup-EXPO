@@ -36,8 +36,8 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             ultrasonic_esc_test_enter(nowMs);
             break;
 
-        case RUNTIME_TEST_RECEIVER:
-            receiver_test_enter(nowMs);
+        case RUNTIME_TEST_ESP_LINK:
+            esp_link_bench_test_enter(nowMs);
             break;
 
         case RUNTIME_TEST_TEENSY_LINK:
@@ -92,8 +92,8 @@ static void runtime_test_update(RuntimeTestId_t testId, uint32 nowMs, boolean sw
             ultrasonic_esc_test_update(nowMs);
             break;
 
-        case RUNTIME_TEST_RECEIVER:
-            receiver_test_update(nowMs);
+        case RUNTIME_TEST_ESP_LINK:
+            esp_link_bench_test_update(nowMs);
             break;
 
         case RUNTIME_TEST_TEENSY_LINK:
@@ -147,8 +147,8 @@ static void runtime_test_exit(RuntimeTestId_t testId)
             ultrasonic_esc_test_exit();
             break;
 
-        case RUNTIME_TEST_RECEIVER:
-            receiver_test_exit();
+        case RUNTIME_TEST_ESP_LINK:
+            esp_link_bench_test_exit();
             break;
 
         case RUNTIME_TEST_TEENSY_LINK:
@@ -252,6 +252,17 @@ static void tests_menu_draw(const TestsMenuState_t *st)
     StatusLed_Blue();
 }
 
+static void tests_menu_draw_release_switch(void)
+{
+    DisplayClear();
+    DisplayTextPadded(0U, "NXP CUP TESTS");
+    DisplayTextPadded(1U, "SWPCB ACTIVE");
+    DisplayTextPadded(2U, "MOVE SWITCH");
+    DisplayTextPadded(3U, "TO MENU POS");
+    DisplayRefresh();
+    StatusLed_Yellow();
+}
+
 void mode_nxp_cup_tests(void)
 {
     uint32 nextButtonsMs;
@@ -259,6 +270,9 @@ void mode_nxp_cup_tests(void)
     App_InitRuntimeCommon();
     (void)memset(&g_testsMenu, 0, sizeof(g_testsMenu));
     g_testsMenu.activeTest = RUNTIME_TEST_LINEAR_CAMERA;
+    g_testsMenu.requireSwitchOff = TRUE;
+    g_testsMenu.switchGuardUntilMs = Timebase_GetMs() + TESTS_MENU_SWITCH_BOOT_GUARD_MS;
+    tests_menu_draw_release_switch();
 
     nextButtonsMs = Timebase_GetMs();
 
@@ -279,6 +293,28 @@ void mode_nxp_cup_tests(void)
         potLevel = OnboardPot_ReadLevelFiltered();
 
         modeSwitchOn = Buttons_IsOn(BUTTON_ID_SWPCB);
+
+        if (g_testsMenu.requireSwitchOff == TRUE)
+        {
+            (void)Buttons_WasPressed(BUTTON_ID_SW2);
+            (void)Buttons_WasPressed(BUTTON_ID_SW3);
+
+            if (time_reached(nowMs, g_testsMenu.switchGuardUntilMs) != TRUE)
+            {
+                continue;
+            }
+
+            if (modeSwitchOn == TRUE)
+            {
+                tests_menu_draw_release_switch();
+                continue;
+            }
+
+            g_testsMenu.requireSwitchOff = FALSE;
+            tests_menu_select_index(&g_testsMenu, potLevel);
+            tests_menu_draw(&g_testsMenu);
+            continue;
+        }
 
         if (g_testsMenu.testActive != TRUE)
         {
@@ -338,5 +374,30 @@ void mode_linear_camera_test(void)
         potLevel = OnboardPot_ReadLevelFiltered();
 
         runtime_test_update(RUNTIME_TEST_LINEAR_CAMERA, nowMs, FALSE, sw3Pressed, potLevel);
+    }
+}
+
+void mode_esc_test(void)
+{
+    uint32 nextButtonsMs;
+
+    App_InitRuntimeCommon();
+    runtime_test_enter(RUNTIME_TEST_ESC, Timebase_GetMs());
+
+    nextButtonsMs = Timebase_GetMs();
+
+    for (;;)
+    {
+        uint32 nowMs = Timebase_GetMs();
+        uint8 potLevel;
+
+        while (time_reached(nowMs, nextButtonsMs) == TRUE)
+        {
+            Buttons_Update();
+            nextButtonsMs += BUTTONS_PERIOD_MS;
+        }
+
+        potLevel = OnboardPot_ReadLevelFiltered();
+        runtime_test_update(RUNTIME_TEST_ESC, nowMs, FALSE, FALSE, potLevel);
     }
 }

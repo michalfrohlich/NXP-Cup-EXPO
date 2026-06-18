@@ -90,7 +90,7 @@ Notes:
 - The service keeps a small direct RX-ready/read path because the generated UART driver is configured for interrupt mode and the tuning shell currently uses polling-style single-byte reads.
 - TODO: replace the proof-of-concept direct RX polling with generated UART async receive once `LPUART1` interrupt routing/callback buffering is configured in `.mex`.
 - The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `UartHost_ServiceTx()` / `UartHost_EnqueueBytes()` for non-blocking background streaming.
-- The `Serial tune` runtime bench item uses this handwritten UART path; it shows shadow PID values on the OLED and echoes received UART lines.
+- The `Cable tune` runtime bench item uses this handwritten UART path; it shows shadow PID values on the OLED and echoes received UART lines.
 - `RUNTIME_TEST_LINEAR_CAMERA` and `RUNTIME_TEST_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.
 - That debug UART stream is rate-limited in `src/app/app_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.
 

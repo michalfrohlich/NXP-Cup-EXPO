@@ -15,6 +15,7 @@
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
 #define APP_TEST_LINEAR_CAMERA_TEST 0
+#define APP_TEST_ESC_TEST 0
 #define APP_TEST_SERVO_RATE_TEST 0
 #define APP_TEST_NXP_CUP 0
 #define APP_TEST_RACE_MODE 0 // old race mode
@@ -25,9 +26,10 @@
 #define APP_TEST_TEENSY_CAM0_RACE 0 // Race mode behavior
 
 #define APP_MODE_COUNT                                                                             \
-    ((APP_TEST_LINEAR_CAMERA_TEST) + (APP_TEST_NXP_CUP) + (APP_TEST_RACE_MODE) +                   \
-     (APP_TEST_TEENSY_CAM0_RACE) + (APP_TEST_HONOR_LAP) + (APP_TEST_SERVO_RATE_TEST) +             \
-     (APP_TEST_TEENSY_LINK_TEST) + (APP_TEST_ESP_LINK_TEST) + (APP_TEST_NXP_CUP_TESTS))
+    ((APP_TEST_LINEAR_CAMERA_TEST) + (APP_TEST_ESC_TEST) + (APP_TEST_NXP_CUP) +                    \
+     (APP_TEST_RACE_MODE) + (APP_TEST_TEENSY_CAM0_RACE) + (APP_TEST_HONOR_LAP) +                   \
+     (APP_TEST_SERVO_RATE_TEST) + (APP_TEST_TEENSY_LINK_TEST) + (APP_TEST_ESP_LINK_TEST) +         \
+     (APP_TEST_NXP_CUP_TESTS))
 
 #if (APP_MODE_COUNT != 1)
 #error "CONFIG ERROR: Enable EXACTLY ONE APP_TEST_* flag in app_config.h"
@@ -93,17 +95,15 @@
 #define CAM_UART_STREAM_PACKET_BYTES                                                               \
     (10U + (3U * VISION_LINEAR_BUFFER_SIZE) + 9U + 6U + (4U * VLIN_MAX_EDGE_CANDIDATES) + 1U)
 
-/* =========================================================
-   Runtime bench
- * tests
-========================================================= */
-#define RECEIVER_REFRESH_MS (50U)
-
+/* Runtime bench tests */
 #define TESTS_MENU_VISIBLE_LINES (3U)
 #define TESTS_MENU_POT_STABLE_MS (90U)
 #define TESTS_MENU_POT_HYSTERESIS (6U)
+#define TESTS_MENU_SWITCH_BOOT_GUARD_MS (50U)
 
-#define ESC_TEST_MAX_SPEED_PCT (30U)
+#define ESC_TEST_SPEED_PCT_LOW (30U)
+#define ESC_TEST_SPEED_PCT_MED (50U)
+#define ESC_TEST_SPEED_PCT_HIGH (100U)
 #define ESC_TEST_LED_BLINK_MS (250U)
 
 #define ULTRA_ESC_TEST_FAST_SPEED_PCT (50)

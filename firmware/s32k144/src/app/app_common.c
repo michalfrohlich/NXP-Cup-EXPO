@@ -1,6 +1,5 @@
 #include "app_internal.h"
 
-ReceiverTestState_t g_receiverTest;
 UltrasonicTestState_t g_ultrasonicTest;
 UltrasonicEscTestState_t g_ultrasonicEscTest;
 VictoryLapTestState_t g_victoryLapTest;
@@ -32,9 +31,9 @@ const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
      (sint16)NXP_CUP_SLOW_STEER_RATE_MAX, (uint8)NXP_CUP_SLOW_SPEED_PCT}};
 
 const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
-    "Camera         ", "ESC            ", "Servo          ", "Ultrasonic     ",
-    "Cam+Servo      ", "Simple test drv", "Tune drive mode", "Serial tune    ",
-    "Ultra+ESC      ", "Receiver - x   ", "Teensy Link    ", "Victory Lap    "};
+    "Servo          ",  "ESC            ", "Ultrasonic     ", "Ultra+ESC      ",
+    "Camera-s32k    ",  "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode",
+    "Cable tune-s32k ", "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
 
 const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
 
@@ -219,6 +218,9 @@ static const char *App_GetSelectedBuildModeMacroName(void)
         case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
             return "APP_TEST_LINEAR_CAMERA_TEST";
 
+        case APP_BUILD_MODE_ESC_TEST:
+            return "APP_TEST_ESC_TEST";
+
         case APP_BUILD_MODE_NXP_CUP:
             return "APP_TEST_NXP_CUP";
 
@@ -255,6 +257,9 @@ static const char *App_GetSelectedBuildModeDisplayName(void)
         case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
             return "Camera-s32k";
 
+        case APP_BUILD_MODE_ESC_TEST:
+            return "ESC test";
+
         case APP_BUILD_MODE_NXP_CUP:
             return "NXP Cup";
 
@@ -290,6 +295,9 @@ static const char *App_GetSelectedBuildModeShortName(void)
     {
         case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
             return "LINEAR_CAMERA";
+
+        case APP_BUILD_MODE_ESC_TEST:
+            return "ESC_TEST";
 
         case APP_BUILD_MODE_NXP_CUP:
             return "NXP_CUP";

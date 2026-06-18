@@ -2,55 +2,12 @@
 
 static void esc_test_start_arming(EscManualTestState_t *st, uint32 nowMs);
 static void esc_test_disarm(EscManualTestState_t *st);
-static void esc_test_estop(EscManualTestState_t *st);
-static sint16 esc_test_command_from_pot(uint8 pot);
+static void esc_test_cycle_speed_limit(EscManualTestState_t *st);
+static sint16 esc_test_command_from_pot(uint8 pot, uint8 speedLimitPct);
 static void esc_test_apply_outputs(EscManualTestState_t *st);
 static void esc_test_update_led(const EscManualTestState_t *st, uint32 nowMs);
 static void esc_test_draw(const EscManualTestState_t *st);
 static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st);
-
-void receiver_test_enter(uint32 nowMs)
-{
-    (void)memset(&g_receiverTest, 0, sizeof(g_receiverTest));
-
-    ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U);
-    StatusLed_Blue();
-
-    DisplayClear();
-    DisplayTextPadded(0U, "Ch0:    Ch1:");
-    DisplayTextPadded(1U, "Ch2:    Ch3:");
-    DisplayTextPadded(2U, "Ch4:    Ch5:");
-    DisplayTextPadded(3U, "Ch6:    Ch7:");
-    DisplayRefresh();
-
-    g_receiverTest.nextRefreshMs = nowMs;
-}
-
-void receiver_test_update(uint32 nowMs)
-{
-    uint8 displayValueOffset;
-    int receiverChannels[8];
-
-    if (time_reached(nowMs, g_receiverTest.nextRefreshMs) != TRUE)
-    {
-        return;
-    }
-
-    g_receiverTest.nextRefreshMs = nowMs + RECEIVER_REFRESH_MS;
-
-    for (uint8 i = 0U; i < 8U; i++)
-    {
-        receiverChannels[i] = GetReceiverChannel(i);
-        displayValueOffset = (uint8)(4U + 8U * (i % 2U));
-        DisplayValue(i / 2U, receiverChannels[i], 4U, displayValueOffset);
-    }
-
-    DisplayRefresh();
-}
-
-void receiver_test_exit(void)
-{
-}
 
 void ultrasonic_test_enter(uint32 nowMs)
 {
@@ -113,9 +70,12 @@ void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed)
 
     if ((active == TRUE) && (g_ultrasonicTest.haveValidDistance == TRUE))
     {
-        inStopRange = (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM) ? TRUE : FALSE;
+        inStopRange =
+            (g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_CRAWL_STOP_CM) ? TRUE : FALSE;
         inSlowRange = ((g_ultrasonicTest.lastDistanceCm <= (float)NXP_CUP_ULTRA_STOP_CM) &&
-                       (inStopRange != TRUE)) ? TRUE : FALSE;
+                       (inStopRange != TRUE))
+                          ? TRUE
+                          : FALSE;
 
         if (inStopRange == TRUE)
         {
@@ -195,26 +155,24 @@ void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed)
     switch (st)
     {
         case ULTRA_STATUS_BUSY:
-            DisplayText(3U, "DRV: BUSY", 9U, 0U);
+            DisplayTextPadded(3U, "DRV ST: BUSY");
             break;
         case ULTRA_STATUS_NEW_DATA:
-            DisplayText(3U, "DRV: NEW", 8U, 0U);
+            DisplayTextPadded(3U, "DRV ST: NEW");
             break;
         case ULTRA_STATUS_ERROR:
-            DisplayText(3U, "DRV: ERR", 8U, 0U);
+            DisplayTextPadded(3U, "DRV ST: ERR");
             break;
         case ULTRA_STATUS_IDLE:
         default:
-            DisplayText(3U, "DRV: IDLE", 9U, 0U);
+            DisplayTextPadded(3U, "DRV ST: IDLE");
             break;
     }
 
     DisplayRefresh();
 }
 
-void ultrasonic_test_exit(void)
-{
-}
+void ultrasonic_test_exit(void) {}
 
 void ultrasonic_esc_test_enter(uint32 nowMs)
 {
@@ -452,14 +410,13 @@ void servo_test_update(uint32 nowMs, boolean sw2Pressed, uint8 potLevel)
             sint16 rateMax;
             sint16 absFilt;
 
-            g_servoTest.steerRaw = SteeringSmooth_DeadzoneS16(g_servoTest.steerRaw,
-                                                              (sint16)SERVO_TEST_DEADBAND,
-                                                              (sint16)SERVO_TEST_CMD_CLAMP);
-            g_servoTest.steerFilt = SteeringSmooth_IirS16(g_servoTest.steerFilt,
-                                                          g_servoTest.steerRaw,
-                                                          (float)SERVO_TEST_LPF_ALPHA);
+            g_servoTest.steerRaw = SteeringSmooth_DeadzoneS16(
+                g_servoTest.steerRaw, (sint16)SERVO_TEST_DEADBAND, (sint16)SERVO_TEST_CMD_CLAMP);
+            g_servoTest.steerFilt = SteeringSmooth_IirS16(
+                g_servoTest.steerFilt, g_servoTest.steerRaw, (float)SERVO_TEST_LPF_ALPHA);
 
-            absFilt = (g_servoTest.steerFilt < 0) ? (sint16)(-g_servoTest.steerFilt) : g_servoTest.steerFilt;
+            absFilt = (g_servoTest.steerFilt < 0) ? (sint16)(-g_servoTest.steerFilt)
+                                                  : g_servoTest.steerFilt;
             rateMax = (sint16)SERVO_TEST_RATE_MAX;
             rateMax = (sint16)(rateMax + (absFilt / 6));
             if (rateMax > (sint16)SERVO_TEST_CMD_CLAMP)
@@ -467,15 +424,12 @@ void servo_test_update(uint32 nowMs, boolean sw2Pressed, uint8 potLevel)
                 rateMax = (sint16)SERVO_TEST_CMD_CLAMP;
             }
 
-            g_servoTest.steerOut = SteeringSmooth_RateLimitS16(g_servoTest.steerOut,
-                                                               g_servoTest.steerFilt,
-                                                               rateMax,
-                                                               (sint16)SERVO_TEST_CMD_CLAMP,
-                                                               0,
-                                                               0);
-            g_servoTest.steerOut = SteeringSmooth_ClampS16(g_servoTest.steerOut,
-                                                           (sint16)(-SERVO_TEST_CMD_CLAMP),
-                                                           (sint16)SERVO_TEST_CMD_CLAMP);
+            g_servoTest.steerOut =
+                SteeringSmooth_RateLimitS16(g_servoTest.steerOut, g_servoTest.steerFilt, rateMax,
+                                            (sint16)SERVO_TEST_CMD_CLAMP, 0, 0);
+            g_servoTest.steerOut =
+                SteeringSmooth_ClampS16(g_servoTest.steerOut, (sint16)(-SERVO_TEST_CMD_CLAMP),
+                                        (sint16)SERVO_TEST_CMD_CLAMP);
         }
         else
         {
@@ -514,6 +468,7 @@ void esc_test_enter(uint32 nowMs)
     (void)memset(&g_escTest, 0, sizeof(g_escTest));
 
     g_escTest.mode = ESC_TEST_MODE_BOTH;
+    g_escTest.speedLimitPct = (uint8)ESC_TEST_SPEED_PCT_LOW;
     g_escTest.nextDisplayMs = nowMs;
     Esc_Init(ESC_PWM_CH, ESC_SECOND_PWM_CH, ESC_DUTY_MIN, ESC_DUTY_MED, ESC_DUTY_MAX);
     esc_test_disarm(&g_escTest);
@@ -533,11 +488,7 @@ void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8
     sw2Action = ButtonTracker_Update(&g_escTest.sw2Tracker, BUTTON_ID_SW2, nowMs);
     sw3Action = ButtonTracker_Update(&g_escTest.sw3Tracker, BUTTON_ID_SW3, nowMs);
 
-    if (sw3Action == SW2_ACTION_HOLD)
-    {
-        esc_test_estop(&g_escTest);
-    }
-    else if (sw2Action == SW2_ACTION_HOLD)
+    if (sw2Action == SW2_ACTION_HOLD)
     {
         if ((g_escTest.state == ESC_TEST_STATE_DISARMED) ||
             (g_escTest.state == ESC_TEST_STATE_ESTOP))
@@ -549,6 +500,10 @@ void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8
             esc_test_disarm(&g_escTest);
         }
     }
+    else if (sw3Action == SW2_ACTION_HOLD)
+    {
+        esc_test_cycle_speed_limit(&g_escTest);
+    }
     else
     {
         if ((g_escTest.state == ESC_TEST_STATE_DISARMED) ||
@@ -557,8 +512,8 @@ void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8
         {
             if (sw2Action == SW2_ACTION_CLICK)
             {
-                g_escTest.mode = (EscTestModeId_t)(((uint8)g_escTest.mode + 1U) %
-                                                   (uint8)ESC_TEST_MODE_COUNT);
+                g_escTest.mode =
+                    (EscTestModeId_t)(((uint8)g_escTest.mode + 1U) % (uint8)ESC_TEST_MODE_COUNT);
             }
             if (sw3Action == SW2_ACTION_CLICK)
             {
@@ -567,7 +522,7 @@ void esc_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8
         }
     }
 
-    cmd = esc_test_command_from_pot(potLevel);
+    cmd = esc_test_command_from_pot(potLevel, g_escTest.speedLimitPct);
     if (g_escTest.reverse != TRUE)
     {
         cmd = (sint16)(-cmd);
@@ -645,24 +600,30 @@ static void esc_test_disarm(EscManualTestState_t *st)
     StatusLed_Blue();
 }
 
-static void esc_test_estop(EscManualTestState_t *st)
+static void esc_test_cycle_speed_limit(EscManualTestState_t *st)
 {
     if (st == NULL_PTR)
     {
         return;
     }
 
-    st->state = ESC_TEST_STATE_ESTOP;
-    st->requirePotZero = TRUE;
-    st->commandPct = 0;
-    st->primaryCmdPct = 0;
-    st->secondaryCmdPct = 0;
-    Esc_StopNeutral();
+    if (st->speedLimitPct < (uint8)ESC_TEST_SPEED_PCT_MED)
+    {
+        st->speedLimitPct = (uint8)ESC_TEST_SPEED_PCT_MED;
+    }
+    else if (st->speedLimitPct < (uint8)ESC_TEST_SPEED_PCT_HIGH)
+    {
+        st->speedLimitPct = (uint8)ESC_TEST_SPEED_PCT_HIGH;
+    }
+    else
+    {
+        st->speedLimitPct = (uint8)ESC_TEST_SPEED_PCT_LOW;
+    }
 }
 
-static sint16 esc_test_command_from_pot(uint8 pot)
+static sint16 esc_test_command_from_pot(uint8 pot, uint8 speedLimitPct)
 {
-    sint16 cmd = (sint16)(((uint32)pot * (uint32)ESC_TEST_MAX_SPEED_PCT) / 255U);
+    sint16 cmd = (sint16)(((uint32)pot * (uint32)speedLimitPct) / 255U);
 
     if (cmd <= (sint16)MOTOR_DEADBAND_PCT)
     {
@@ -724,16 +685,37 @@ static void esc_test_update_led(const EscManualTestState_t *st, uint32 nowMs)
     switch (st->state)
     {
         case ESC_TEST_STATE_ARMING:
-            if (blinkOn == TRUE) { StatusLed_Cyan(); } else { StatusLed_Off(); }
+            if (blinkOn == TRUE)
+            {
+                StatusLed_Cyan();
+            }
+            else
+            {
+                StatusLed_Off();
+            }
             break;
         case ESC_TEST_STATE_ARMED_NEUTRAL:
-            if (blinkOn == TRUE) { StatusLed_Green(); } else { StatusLed_Off(); }
+            if (blinkOn == TRUE)
+            {
+                StatusLed_Green();
+            }
+            else
+            {
+                StatusLed_Off();
+            }
             break;
         case ESC_TEST_STATE_RUNNING:
             StatusLed_Green();
             break;
         case ESC_TEST_STATE_ESTOP:
-            if (blinkOn == TRUE) { StatusLed_Red(); } else { StatusLed_Off(); }
+            if (blinkOn == TRUE)
+            {
+                StatusLed_Red();
+            }
+            else
+            {
+                StatusLed_Off();
+            }
             break;
         case ESC_TEST_STATE_DISARMED:
         default:
@@ -755,21 +737,39 @@ static void esc_test_draw(const EscManualTestState_t *st)
 
     switch (st->state)
     {
-        case ESC_TEST_STATE_ARMING:       stateText = "ARM "; break;
-        case ESC_TEST_STATE_ARMED_NEUTRAL:stateText = "RDY "; break;
-        case ESC_TEST_STATE_RUNNING:      stateText = "RUN "; break;
-        case ESC_TEST_STATE_ESTOP:        stateText = "STOP"; break;
+        case ESC_TEST_STATE_ARMING:
+            stateText = "ARM ";
+            break;
+        case ESC_TEST_STATE_ARMED_NEUTRAL:
+            stateText = "RDY ";
+            break;
+        case ESC_TEST_STATE_RUNNING:
+            stateText = "RUN ";
+            break;
+        case ESC_TEST_STATE_ESTOP:
+            stateText = "STOP";
+            break;
         case ESC_TEST_STATE_DISARMED:
-        default:                          stateText = "DIS "; break;
+        default:
+            stateText = "DIS ";
+            break;
     }
 
     switch (st->mode)
     {
-        case ESC_TEST_MODE_ESC1: modeText = "ESC1"; break;
-        case ESC_TEST_MODE_ESC2: modeText = "ESC2"; break;
-        case ESC_TEST_MODE_DIFF: modeText = "DIFF"; break;
+        case ESC_TEST_MODE_ESC1:
+            modeText = "ESC1";
+            break;
+        case ESC_TEST_MODE_ESC2:
+            modeText = "ESC2";
+            break;
+        case ESC_TEST_MODE_DIFF:
+            modeText = "DIFF";
+            break;
         case ESC_TEST_MODE_BOTH:
-        default:                 modeText = "BOTH"; break;
+        default:
+            modeText = "BOTH";
+            break;
     }
 
     if (st->reverse == TRUE)
@@ -782,7 +782,9 @@ static void esc_test_draw(const EscManualTestState_t *st)
 
     DisplayTextPadded(1U, "M:");
     DisplayText(1U, modeText, 4U, 2U);
-    DisplayText(1U, dirText, 3U, 8U);
+    DisplayText(1U, "L:", 2U, 7U);
+    DisplayValue(1U, (int)st->speedLimitPct, 3U, 9U);
+    DisplayText(1U, dirText, 3U, 13U);
 
     DisplayTextPadded(2U, "E1:");
     DisplayValue(2U, (int)st->primaryCmdPct, 4U, 3U);
@@ -937,7 +939,8 @@ static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
 
     for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
     {
-        packet[packetIndex++] = linear_camera_test_stream_scale_sample(st->processedFrame.Values[i]);
+        packet[packetIndex++] =
+            linear_camera_test_stream_scale_sample(st->processedFrame.Values[i]);
     }
 
     for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
@@ -947,8 +950,8 @@ static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
 
     for (i = 0U; i < (uint16)VISION_LINEAR_BUFFER_SIZE; i++)
     {
-        packet[packetIndex++] = (uint8)linear_camera_test_stream_scale_gradient(st->gradientBuf[i],
-                                                                                st->dbg.maxAbsGradient);
+        packet[packetIndex++] = (uint8)linear_camera_test_stream_scale_gradient(
+            st->gradientBuf[i], st->dbg.maxAbsGradient);
     }
 
     packet[packetIndex++] = (uint8)(st->dbg.contrast & 0xFFU);
@@ -1028,19 +1031,16 @@ static void linear_camera_test_process_latest_frame(uint32 nowMs)
     }
     else if (VisionDebug_WantsVisionDebugData(&g_linearCameraTest.vdbg) == TRUE)
     {
-        VisionDebug_PrepareVisionDbg(&g_linearCameraTest.vdbg,
-                                     &g_linearCameraTest.dbg,
+        VisionDebug_PrepareVisionDbg(&g_linearCameraTest.vdbg, &g_linearCameraTest.dbg,
                                      g_linearCameraTest.filteredBuf,
                                      g_linearCameraTest.gradientBuf);
     }
 
-    (void)memcpy(g_linearCameraTest.processedFrame.Values,
-                 &latestFrame->Values[CAM_TRIM_LEFT_PX],
-                 ((size_t)VISION_LINEAR_BUFFER_SIZE *
-                  sizeof(g_linearCameraTest.processedFrame.Values[0])));
-    LineDetector_ProcessDebug(g_linearCameraTest.processedFrame.Values,
-                                &g_linearCameraTest.result,
-                                &g_linearCameraTest.dbg);
+    (void)memcpy(
+        g_linearCameraTest.processedFrame.Values, &latestFrame->Values[CAM_TRIM_LEFT_PX],
+        ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(g_linearCameraTest.processedFrame.Values[0])));
+    LineDetector_ProcessDebug(g_linearCameraTest.processedFrame.Values, &g_linearCameraTest.result,
+                              &g_linearCameraTest.dbg);
 
     g_linearCameraTest.haveValidVision = TRUE;
     g_linearCameraTest.displayDirty = TRUE;
@@ -1095,12 +1095,9 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
         g_linearCameraTest.displayDirty = TRUE;
     }
 
-    screenTogglePressed = (boolean)((sw2Action == SW2_ACTION_CLICK) &&
-                                    (sw2ClickHandled != TRUE) &&
+    screenTogglePressed = (boolean)((sw2Action == SW2_ACTION_CLICK) && (sw2ClickHandled != TRUE) &&
                                     (g_linearCameraTest.paused != TRUE));
-    VisionDebug_OnTick(&g_linearCameraTest.vdbg,
-                       screenTogglePressed,
-                       modeNextPressed);
+    VisionDebug_OnTick(&g_linearCameraTest.vdbg, screenTogglePressed, modeNextPressed);
 
     if ((screenTogglePressed == TRUE) || (modeNextPressed == TRUE))
     {
@@ -1123,33 +1120,32 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
             VehicleControlOutput_t out =
-                SteeringController_Update(&g_linearCameraTest.ctrl,
-                                        &g_linearCameraTest.result,
-                                        dt,
-                                        g_linearCameraTest.steeringBaseSpeed);
+                SteeringController_Update(&g_linearCameraTest.ctrl, &g_linearCameraTest.result, dt,
+                                          g_linearCameraTest.steeringBaseSpeed);
 
             g_linearCameraTest.steerRaw = (sint16)out.steer_cmd;
 
-            if (((g_linearCameraTest.steerRaw < 0) ? (sint16)(-g_linearCameraTest.steerRaw) : g_linearCameraTest.steerRaw) <= 2)
+            if (((g_linearCameraTest.steerRaw < 0) ? (sint16)(-g_linearCameraTest.steerRaw)
+                                                   : g_linearCameraTest.steerRaw) <= 2)
             {
                 g_linearCameraTest.steerRaw = 0;
             }
 
-            g_linearCameraTest.steerFilt = SteeringSmooth_IirS16(g_linearCameraTest.steerFilt,
-                                                                 g_linearCameraTest.steerRaw,
-                                                                 0.45f);
+            g_linearCameraTest.steerFilt = SteeringSmooth_IirS16(
+                g_linearCameraTest.steerFilt, g_linearCameraTest.steerRaw, 0.45f);
 
             {
                 const sint16 steerRateMax = 8;
                 sint16 delta = (sint16)(g_linearCameraTest.steerFilt - g_linearCameraTest.steerOut);
 
-                delta = SteeringSmooth_ClampS16(delta, (sint16)(-steerRateMax), (sint16)(+steerRateMax));
+                delta = SteeringSmooth_ClampS16(delta, (sint16)(-steerRateMax),
+                                                (sint16)(+steerRateMax));
                 g_linearCameraTest.steerOut = (sint16)(g_linearCameraTest.steerOut + delta);
             }
 
-            g_linearCameraTest.steerOut = SteeringSmooth_ClampS16(g_linearCameraTest.steerOut,
-                                                                  (sint16)(-STEER_CMD_CLAMP),
-                                                                  (sint16)(+STEER_CMD_CLAMP));
+            g_linearCameraTest.steerOut =
+                SteeringSmooth_ClampS16(g_linearCameraTest.steerOut, (sint16)(-STEER_CMD_CLAMP),
+                                        (sint16)(+STEER_CMD_CLAMP));
 
             Servo_SetSteer((int)g_linearCameraTest.steerOut);
         }
@@ -1163,27 +1159,25 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
 
         if (g_linearCameraTest.haveValidVision == TRUE)
         {
-            const uint16 *pFiltered =
-                (g_linearCameraTest.dbg.filteredOut != NULL_PTR) ? g_linearCameraTest.filteredBuf : NULL_PTR;
-            const sint16 *pGradient =
-                (g_linearCameraTest.dbg.gradientOut != NULL_PTR) ? g_linearCameraTest.gradientBuf : NULL_PTR;
+            const uint16 *pFiltered = (g_linearCameraTest.dbg.filteredOut != NULL_PTR)
+                                          ? g_linearCameraTest.filteredBuf
+                                          : NULL_PTR;
+            const sint16 *pGradient = (g_linearCameraTest.dbg.gradientOut != NULL_PTR)
+                                          ? g_linearCameraTest.gradientBuf
+                                          : NULL_PTR;
             const LineDetector_DebugOut_t *pDbg =
-                (g_linearCameraTest.dbg.mask != (uint32)VLIN_DBG_NONE) ? &g_linearCameraTest.dbg : NULL_PTR;
+                (g_linearCameraTest.dbg.mask != (uint32)VLIN_DBG_NONE) ? &g_linearCameraTest.dbg
+                                                                       : NULL_PTR;
 
             g_linearCameraTest.displayDirty = FALSE;
-            VisionDebug_Draw(&g_linearCameraTest.vdbg,
-                             g_linearCameraTest.processedFrame.Values,
-                             pFiltered,
-                             pGradient,
-                             &g_linearCameraTest.result,
-                             pDbg);
+            VisionDebug_Draw(&g_linearCameraTest.vdbg, g_linearCameraTest.processedFrame.Values,
+                             pFiltered, pGradient, &g_linearCameraTest.result, pDbg);
         }
         else
         {
             linear_camera_test_draw_waiting(&g_linearCameraTest);
         }
     }
-
 }
 
 void linear_camera_test_exit(void)
@@ -1210,10 +1204,7 @@ static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *
 
     st->activeTune = *profile;
 
-    SteeringController_SetTunings(&st->ctrl,
-                              profile->kp,
-                              profile->kd,
-                              1.0f);
+    SteeringController_SetTunings(&st->ctrl, profile->kp, profile->kd, 1.0f);
     st->ctrl.ki = profile->ki;
     st->ctrl.iTermClamp = profile->iTermClamp;
     SteeringController_Reset(&st->ctrl);
@@ -1289,12 +1280,9 @@ static void camservo_process_latest_frame(CamServoState_t *st, uint32 nowMs)
         VisionDebug_PrepareVisionDbg(&st->vdbg, &st->dbg, st->filteredBuf, st->gradientBuf);
     }
 
-    (void)memcpy(st->processedFrame.Values,
-                 &latestFrame->Values[CAM_TRIM_LEFT_PX],
+    (void)memcpy(st->processedFrame.Values, &latestFrame->Values[CAM_TRIM_LEFT_PX],
                  ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
-    LineDetector_ProcessDebugWithParams(st->processedFrame.Values,
-                                        &st->result,
-                                        &st->dbg,
+    LineDetector_ProcessDebugWithParams(st->processedFrame.Values, &st->result, &st->dbg,
                                         &g_runtimeTune.lineDetector);
     st->haveValidVision = TRUE;
     st->lastFrameMs = nowMs;
@@ -1338,10 +1326,8 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            VehicleControlOutput_t out = SteeringController_Update(&st->ctrl,
-                                                           &st->result,
-                                                           dt,
-                                                           st->activeTune.baseSpeedPct);
+            VehicleControlOutput_t out =
+                SteeringController_Update(&st->ctrl, &st->result, dt, st->activeTune.baseSpeedPct);
 
             st->steerRaw = (sint16)out.steer_cmd;
         }
@@ -1351,28 +1337,24 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
             st->steerRaw = 0;
         }
 
-        st->steerFilt = SteeringSmooth_IirS16(st->steerFilt,
-                                              st->steerRaw,
-                                              st->activeTune.steerLpfAlpha);
+        st->steerFilt =
+            SteeringSmooth_IirS16(st->steerFilt, st->steerRaw, st->activeTune.steerLpfAlpha);
 
         {
             sint16 delta = (sint16)(st->steerFilt - st->steerOut);
 
-            delta = SteeringSmooth_ClampS16(delta,
-                                            (sint16)(-st->activeTune.steerRateMax),
+            delta = SteeringSmooth_ClampS16(delta, (sint16)(-st->activeTune.steerRateMax),
                                             (sint16)(+st->activeTune.steerRateMax));
             st->steerOut = (sint16)(st->steerOut + delta);
         }
 
-        st->steerOut = SteeringSmooth_ClampS16(st->steerOut,
-                                               (sint16)(-st->activeTune.steerClamp),
+        st->steerOut = SteeringSmooth_ClampS16(st->steerOut, (sint16)(-st->activeTune.steerClamp),
                                                (sint16)(+st->activeTune.steerClamp));
 
         Servo_SetSteer((int)st->steerOut);
     }
 
-    if ((st->haveValidVision == TRUE) &&
-        (st->displayDirty == TRUE) &&
+    if ((st->haveValidVision == TRUE) && (st->displayDirty == TRUE) &&
         (time_reached(nowMs, st->nextDisplayMs) == TRUE))
     {
         const uint16 *pFiltered = (st->dbg.filteredOut != NULL_PTR) ? st->filteredBuf : NULL_PTR;
@@ -1382,7 +1364,8 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 
         st->nextDisplayMs = nowMs + CAM_DEBUG_DISPLAY_PERIOD_MS;
         st->displayDirty = FALSE;
-        VisionDebug_Draw(&st->vdbg, st->processedFrame.Values, pFiltered, pGradient, &st->result, pDbg);
+        VisionDebug_Draw(&st->vdbg, st->processedFrame.Values, pFiltered, pGradient, &st->result,
+                         pDbg);
     }
 }
 

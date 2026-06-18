@@ -1,10 +1,10 @@
 # Architecture
 
 ## Top-level structure
-- `src/main.c` calls `App_RunSelectedMode()` and never returns.
+- `src/main.c` runs the common boot banner, then calls `App_RunSelectedMode()` and never returns.
 - `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/app_config.h` and dispatches to a dedicated mode module.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
-- `src/app/app_common.c` owns shared app-level runtime init helpers after `Board_InitDrivers()`.
+- `src/app/app_common.c` owns the common boot banner, shared app-level runtime init helpers after `Board_InitDrivers()`, status LED helpers, and display text helpers.
 - `src/app/app_internal.h` is a private app-layer header for shared mode state, helper declarations, and the static mode contract.
 - `src/app/app_config.h` owns app build selection and behavior/profile constants.
 - `include/config/board_config.h` owns board routing aliases that may reference generated RTD/MCAL symbols.
@@ -17,7 +17,8 @@
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
-- Standalone compile-time modes still own the top-level loop, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
+- Every build flavor first runs the same startup banner: initialize common hardware, print the selected `APP_TEST_*` build flag to the host UART, show the selected mode on the OLED for 3 seconds, and run a visible RGB LED color sequence.
+- Standalone compile-time modes still own the top-level loop after the boot banner, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
 - `app_modes.c` is intentionally only the compile-time flavor dispatcher.
 - Dedicated app modules own mode behavior:
   - `modes/bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
@@ -30,7 +31,9 @@
   - `modes/mode_servo_rate.c`: standalone servo timing test.
   - `modes/mode_esp_link.c`: standalone ESP32 UART integration test.
   - `modes/bench_serial_tune.c`: UART/OLED runtime tuning UI used by the bench menu.
+  - `modes/bench_esp_link.c`: runtime-menu ESP32 tune-frame receive test.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
+- `APP_TEST_ESC_TEST` boots directly into the ESC bench test while reusing the runtime menu ESC test implementation.
 - `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
 - `APP_TEST_RACE_MODE` is the standalone production race flow.
 - `APP_TEST_SERVO_RATE_TEST` is a standalone servo-only timing test for the period-latched steering output.
@@ -48,6 +51,8 @@
 - ESP tuning frame application is factored into a small app helper so runtime
   bench modes can consume the same validated PID, steering, and line-detector
   snapshot without duplicating UART parsing or tune-state writes.
+- The runtime `ESP Link` bench item is tune-frame receive only. It validates
+  RAM-only tuning frames from ESP32 without transmitting S32K button state.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
@@ -66,19 +71,23 @@
 
 ## Current control flow
 1. `main()`
-2. `App_RunSelectedMode()`
-3. Exactly one compile-time mode is selected in `app_config.h`
-4. `app_modes.c` dispatches to one mode module
-5. That mode performs common runtime init through app-owned helpers (`Board_InitDrivers()`, timebase, pot, and mode-specific display bring-up when needed)
-6. The selected mode runs forever
-7. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
-8. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
-9. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Servo_SetSteer()` commands at a selectable software cadence
+2. `App_RunBootBanner()`
+3. Common runtime init runs once (`Board_InitDrivers()`, timebase, pot, UART host, display)
+4. The selected `APP_TEST_*` build flag is printed to UART and shown on the OLED for 3 seconds while the RGB LED runs the boot color sequence
+5. `App_RunSelectedMode()`
+6. Exactly one compile-time mode is selected in `app_config.h`
+7. `app_modes.c` dispatches to one mode module
+8. That mode calls common runtime init through app-owned helpers; repeated calls are idempotent so MCAL/display bring-up is not restarted after the boot banner
+9. The selected mode runs forever
+10. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
+11. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
+12. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Servo_SetSteer()` commands at a selectable software cadence
 
 ## Mode lifecycle
 - Standalone mode lifecycle:
+  - `App_RunBootBanner()` performs shared startup identification before any mode-specific code starts.
   - `App_RunSelectedMode()` selects one build flavor.
-  - The selected `mode_*.c` module calls `App_InitRuntimeCore()` or `App_InitRuntimeCommon()`.
+  - The selected `mode_*.c` module calls `App_InitRuntimeCore()` or `App_InitRuntimeCommon()`; these helpers are safe to call after the boot banner and do not re-run MCAL bring-up.
   - The mode performs its own hardware-specific init.
   - The mode enters its forever loop.
 - Runtime bench lifecycle:
@@ -99,7 +108,7 @@
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
   - the menu includes `Tune drive mode`, which runs the Teensy Cam0 race control path as a bench item and services ESP32 UART tuning frames while driving
-  - the menu includes `Serial tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
+  - the menu includes `Cable tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
   - serial and ESP tuning write into a shared RAM-backed runtime tune block that persists for the current power cycle; `Cam Servo`, `Simple test drv`, and `Tune drive mode` read that block when entering or when a new ESP tune frame arrives
 - `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
@@ -223,13 +232,14 @@
 - `onboard_pot.c`
   - samples the potentiometer through ADC
 - `bench_menu.c` and `bench_tests.c`
-  - uses a dedicated standalone ESC test with hold-to-arm/disarm, hold-to-stop, selectable both/ESC1/ESC2/differential output modes, and a low capped potentiometer speed command
+  - uses a shared ESC bench test implementation for both the runtime menu and `APP_TEST_ESC_TEST`; `SW2` hold arms/disarms, `SW3` hold cycles the `30/50/100%` speed cap, and the potentiometer maps into the selected cap
   - draws an ESC test screen with state, selected output mode, direction, pot level, and both ESC commands
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
   - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning obstacle slowing and stop behavior
   - exposes a `Victory Lap` runtime test in `APP_TEST_NXP_CUP_TESTS` for pole-triggered fanfare behavior
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
+  - exposes an `ESP Link` runtime test in `APP_TEST_NXP_CUP_TESTS` that validates RAM-only tuning frames from ESP32 without transmitting S32K button state
 - `mode_race.c`
   - exposes `Tune drive mode` in `APP_TEST_NXP_CUP_TESTS`, reusing the Teensy Cam0 race scheduler with ESP32 UART tuning enabled
 - `mode_nxp_cup.c`
@@ -237,7 +247,7 @@
 - `bench_tests.c`
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `debug/uart_host_link.c`
-  - still provides the blocking shell-style serial path used by `Serial tune`
+  - still provides the blocking shell-style serial path used by `Cable tune`
   - now also exposes a small non-blocking TX queue so camera telemetry can be drained in the background from the runtime camera tests
 - `esc.c`
   - applies motor command through PWM and an internal ESC state machine on both configured ESC outputs

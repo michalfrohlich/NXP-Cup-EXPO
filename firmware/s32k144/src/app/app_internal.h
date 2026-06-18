@@ -13,7 +13,6 @@
 #include "drivers/timebase.h"
 #include "drivers/buttons.h"
 #include "drivers/onboard_pot.h"
-#include "drivers/receiver.h"
 #include "drivers/servo.h"
 #include "drivers/esc.h"
 #include "drivers/linear_camera.h"
@@ -40,23 +39,24 @@ typedef enum
     APP_BUILD_MODE_SERVO_RATE_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
     APP_BUILD_MODE_ESP_LINK_TEST,
-    APP_BUILD_MODE_NXP_CUP_TESTS
+    APP_BUILD_MODE_NXP_CUP_TESTS,
+    APP_BUILD_MODE_ESC_TEST
 } AppBuildMode_t;
 
 AppBuildMode_t App_GetSelectedBuildMode(void);
 
 typedef enum
 {
-    RUNTIME_TEST_LINEAR_CAMERA = 0,
+    RUNTIME_TEST_SERVO = 0,
     RUNTIME_TEST_ESC,
-    RUNTIME_TEST_SERVO,
     RUNTIME_TEST_ULTRASONIC,
+    RUNTIME_TEST_ULTRA_ESC,
+    RUNTIME_TEST_LINEAR_CAMERA,
     RUNTIME_TEST_CAMSERVO,
     RUNTIME_TEST_SIMPLE_DRIVE,
     RUNTIME_TEST_TUNE_DRIVE,
     RUNTIME_TEST_SERIAL_TUNE,
-    RUNTIME_TEST_ULTRA_ESC,
-    RUNTIME_TEST_RECEIVER,
+    RUNTIME_TEST_ESP_LINK,
     RUNTIME_TEST_TEENSY_LINK,
     RUNTIME_TEST_VICTORY_LAP,
     RUNTIME_TEST_COUNT
@@ -75,11 +75,6 @@ typedef struct
     boolean holdHandled;
     uint32 pressedSinceMs;
 } Sw2Tracker_t;
-
-typedef struct
-{
-    uint32 nextRefreshMs;
-} ReceiverTestState_t;
 
 typedef enum
 {
@@ -244,6 +239,7 @@ typedef struct
     sint16 primaryCmdPct;
     sint16 secondaryCmdPct;
     uint8 lastPotLevel;
+    uint8 speedLimitPct;
     boolean reverse;
     boolean requirePotZero;
 } EscManualTestState_t;
@@ -343,7 +339,9 @@ typedef struct
     uint8 selectedIndex;
     uint8 topIndex;
     uint32 lastPotMs;
+    uint32 switchGuardUntilMs;
     boolean testActive;
+    boolean requireSwitchOff;
     RuntimeTestId_t activeTest;
 } TestsMenuState_t;
 
@@ -432,7 +430,6 @@ typedef struct
     boolean initialized;
 } RuntimeTuneState_t;
 
-extern ReceiverTestState_t g_receiverTest;
 extern UltrasonicTestState_t g_ultrasonicTest;
 extern UltrasonicEscTestState_t g_ultrasonicEscTest;
 extern VictoryLapTestState_t g_victoryLapTest;
@@ -480,9 +477,9 @@ void serial_tune_test_enter(uint32 nowMs);
 void serial_tune_test_update(void);
 void serial_tune_test_exit(void);
 
-void receiver_test_enter(uint32 nowMs);
-void receiver_test_update(uint32 nowMs);
-void receiver_test_exit(void);
+void esp_link_bench_test_enter(uint32 nowMs);
+void esp_link_bench_test_update(uint32 nowMs);
+void esp_link_bench_test_exit(void);
 void teensy_link_test_enter(uint32 nowMs);
 void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed);
 void teensy_link_test_exit(void);
@@ -518,8 +515,12 @@ void tune_drive_test_update(uint32 nowMs, boolean stopPressed);
 void tune_drive_test_exit(void);
 void esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune);
 boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outLastTune);
+void esp_link_test_enter(uint32 nowMs);
+void esp_link_test_update(uint32 nowMs);
+void esp_link_test_exit(void);
 
 void mode_linear_camera_test(void);
+void mode_esc_test(void);
 void mode_nxp_cup_tests(void);
 void mode_nxp_cup(void);
 void mode_honor_lap(void);

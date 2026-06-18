@@ -20,6 +20,8 @@ AppBuildMode_t App_GetSelectedBuildMode(void)
     return APP_BUILD_MODE_RACE_MODE;
 #elif APP_TEST_LINEAR_CAMERA_TEST
     return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
+#elif APP_TEST_ESC_TEST
+    return APP_BUILD_MODE_ESC_TEST;
 #else
 #error "CONFIG ERROR: App_GetSelectedBuildMode has no active APP_TEST_* selection"
 #endif
@@ -31,6 +33,10 @@ void App_RunSelectedMode(void)
     {
         case APP_BUILD_MODE_LINEAR_CAMERA_TEST:
             mode_linear_camera_test();
+            break;
+
+        case APP_BUILD_MODE_ESC_TEST:
+            mode_esc_test();
             break;
 
         case APP_BUILD_MODE_NXP_CUP:
