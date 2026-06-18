@@ -24,6 +24,10 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             simple_drive_test_enter(nowMs);
             break;
 
+        case RUNTIME_TEST_TUNE_DRIVE:
+            tune_drive_test_enter(nowMs);
+            break;
+
         case RUNTIME_TEST_SERIAL_TUNE:
             serial_tune_test_enter(nowMs);
             break;
@@ -51,11 +55,8 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
     }
 }
 
-static void runtime_test_update(RuntimeTestId_t testId,
-                                uint32 nowMs,
-                                boolean sw2Pressed,
-                                boolean modeNextPressed,
-                                uint8 potLevel)
+static void runtime_test_update(RuntimeTestId_t testId, uint32 nowMs, boolean sw2Pressed,
+                                boolean modeNextPressed, uint8 potLevel)
 {
     switch (testId)
     {
@@ -77,6 +78,10 @@ static void runtime_test_update(RuntimeTestId_t testId,
 
         case RUNTIME_TEST_SIMPLE_DRIVE:
             simple_drive_test_update(nowMs, sw2Pressed, modeNextPressed);
+            break;
+
+        case RUNTIME_TEST_TUNE_DRIVE:
+            tune_drive_test_update(nowMs, modeNextPressed);
             break;
 
         case RUNTIME_TEST_SERIAL_TUNE:
@@ -128,6 +133,10 @@ static void runtime_test_exit(RuntimeTestId_t testId)
 
         case RUNTIME_TEST_SIMPLE_DRIVE:
             simple_drive_test_exit();
+            break;
+
+        case RUNTIME_TEST_TUNE_DRIVE:
+            tune_drive_test_exit();
             break;
 
         case RUNTIME_TEST_SERIAL_TUNE:
@@ -297,7 +306,8 @@ void mode_nxp_cup_tests(void)
             {
                 sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
                 sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
-                runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, sw3Pressed, potLevel);
+                runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, sw3Pressed,
+                                    potLevel);
             }
         }
     }

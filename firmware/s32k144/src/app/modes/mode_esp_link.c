@@ -74,6 +74,43 @@ static void esp_link_draw_tune(const EspUartLink_Diagnostics_t *diag,
 }
 #endif
 
+void esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune)
+{
+    if (tune == NULL_PTR)
+    {
+        return;
+    }
+
+    g_runtimeTune.profile.kp = (float)tune->proportionalMilli / 1000.0f;
+    g_runtimeTune.profile.ki = (float)tune->integralMilli / 1000.0f;
+    g_runtimeTune.profile.kd = (float)tune->derivativeMilli / 1000.0f;
+    g_runtimeTune.profile.steerClamp = (sint16)tune->steerClamp;
+    g_runtimeTune.profile.steerLpfAlpha = (float)tune->steerLpfMilli / 1000.0f;
+    g_runtimeTune.lineDetector.minContrast = tune->minContrast;
+    g_runtimeTune.lineDetector.edgeHighPct = tune->edgeHighPct;
+    g_runtimeTune.lineDetector.edgeLowPct = tune->edgeLowPct;
+}
+
+boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outLastTune)
+{
+    EspUartLink_TuneFrame_t tune;
+    boolean received = FALSE;
+
+    EspUartLink_Service(nowMs);
+    while (EspUartLink_TakeTune(&tune) == TRUE)
+    {
+        esp_link_apply_tune_frame(&tune);
+        (void)EspUartLink_QueueTuneResult(tune.sequence, TRUE);
+        if (outLastTune != NULL_PTR)
+        {
+            *outLastTune = tune;
+        }
+        received = TRUE;
+    }
+
+    return received;
+}
+
 void mode_esp_link_test(void)
 {
     uint32 nowMs;
@@ -180,18 +217,8 @@ void mode_esp_link_test(void)
             nextQueueMs = nowMs + ESP_UART_LINK_TX_PERIOD_MS;
         }
 
-        EspUartLink_Service(nowMs);
-
-        if (EspUartLink_TakeTune(&tune) == TRUE)
+        if (esp_link_service_tune_frames(nowMs, &tune) == TRUE)
         {
-            g_runtimeTune.profile.kp = (float)tune.proportionalMilli / 1000.0f;
-            g_runtimeTune.profile.ki = (float)tune.integralMilli / 1000.0f;
-            g_runtimeTune.profile.kd = (float)tune.derivativeMilli / 1000.0f;
-            g_runtimeTune.profile.steerClamp = (sint16)tune.steerClamp;
-            g_runtimeTune.profile.steerLpfAlpha = (float)tune.steerLpfMilli / 1000.0f;
-            g_runtimeTune.lineDetector.minContrast = tune.minContrast;
-            g_runtimeTune.lineDetector.edgeHighPct = tune.edgeHighPct;
-            g_runtimeTune.lineDetector.edgeLowPct = tune.edgeLowPct;
 #if (ESP_LINK_DISPLAY_ENABLED == 1U)
             lastTune = tune;
 #endif
@@ -200,7 +227,6 @@ void mode_esp_link_test(void)
 #if (ESP_LINK_DISPLAY_ENABLED == 1U)
             nextDisplayMs = nowMs;
 #endif
-            (void)EspUartLink_QueueTuneResult(tune.sequence, TRUE);
         }
 
         EspUartLink_GetDiagnostics(&diag);

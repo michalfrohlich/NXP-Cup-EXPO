@@ -30,8 +30,8 @@ const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
 
 const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
     "Camera         ", "ESC            ", "Servo          ", "Ultrasonic     ",
-    "Cam+Servo      ", "Simple test drv", "Serial tune    ", "Ultra+ESC      ",
-    "Receiver - x   ", "Teensy Link    ", "Victory Lap    "};
+    "Cam+Servo      ", "Simple test drv", "Tune drive mode", "Serial tune    ",
+    "Ultra+ESC      ", "Receiver - x   ", "Teensy Link    ", "Victory Lap    "};
 
 const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
 

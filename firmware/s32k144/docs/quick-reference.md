@@ -12,7 +12,7 @@
 - `src/app/modes/bench_serial_tune.c`: UART/OLED tuning test used by the runtime menu.
 - `src/app/modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
 - `src/app/modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode for `APP_TEST_TEENSY_LINK_TEST`.
-- `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic and RAM-only full tuning receive testing.
+- `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic and RAM-only full tuning receive testing; it also provides the reusable ESP tune-frame apply/service helper used by the tune-drive bench mode.
 - `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`: standalone app mode implementations.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
 - `src/app/app_config.h`: compile-time mode selection and app behavior/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
@@ -38,15 +38,16 @@
   replies with a compact sequence-matched result. OLED activity is temporarily
   disabled for transport isolation. Cyan indicates an accepted snapshot; red
   indicates a UART hardware, protocol, or transmit error.
-- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Simple test drv`, `Serial tune`, `Ultra+ESC`, `Receiver - x`, `Teensy Link`, and `Victory Lap`.
+- The `APP_TEST_NXP_CUP_TESTS` menu contains the individual test screens: `Camera`, `ESC`, `Servo`, `Ultrasonic`, `Cam+Servo`, `Simple test drv`, `Tune drive mode`, `Serial tune`, `Ultra+ESC`, `Receiver - x`, `Teensy Link`, and `Victory Lap`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
 - `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
+- `Tune drive mode` is a bench wrapper around the Teensy Cam0 race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. It also stores incoming line-detector values in the shared RAM tune block, but those values do not affect Teensy-side camera detection until a later S32K-to-Teensy tuning protocol is added.
 - `Serial tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
 - Camera consumers process a newly completed frame when `LinearCameraGetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
-- `Cam+Servo` and `Simple test drv` now consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
+- `Cam+Servo`, `Simple test drv`, and `Tune drive mode` consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
 - Steering PID uses the active `KP/KD/KI/ITERM_CLAMP` values plus the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied.
 - `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - `Ultra+ESC` centers the servo, drives both motors at 50% when clear, slows at 45 cm, and stops at 8 cm.

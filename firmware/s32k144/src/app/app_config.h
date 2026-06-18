@@ -15,14 +15,14 @@
    BUILD MODE FLAGS (Enable EXACTLY ONE REAL MODE)
 ========================================================= */
 #define APP_TEST_LINEAR_CAMERA_TEST 0
-#define APP_TEST_NXP_CUP 0
-#define APP_TEST_RACE_MODE 0
-#define APP_TEST_TEENSY_CAM0_RACE 1
-#define APP_TEST_HONOR_LAP 0
 #define APP_TEST_SERVO_RATE_TEST 0
+#define APP_TEST_NXP_CUP 0
+#define APP_TEST_RACE_MODE 0 // old race mode
+#define APP_TEST_HONOR_LAP 0
 #define APP_TEST_TEENSY_LINK_TEST 0
 #define APP_TEST_ESP_LINK_TEST 0
-#define APP_TEST_NXP_CUP_TESTS 0
+#define APP_TEST_NXP_CUP_TESTS 1    // Tuning and testing different tests here
+#define APP_TEST_TEENSY_CAM0_RACE 0 // Race mode behavior
 
 #define APP_MODE_COUNT                                                                             \
     ((APP_TEST_LINEAR_CAMERA_TEST) + (APP_TEST_NXP_CUP) + (APP_TEST_RACE_MODE) +                   \

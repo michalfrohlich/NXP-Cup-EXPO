@@ -26,7 +26,7 @@
   - `modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode.
   - `modes/mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
   - `modes/mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
-  - `modes/mode_race.c`: local-camera race flow and Teensy-camera synchronized race flow.
+  - `modes/mode_race.c`: local-camera race flow, Teensy-camera synchronized race flow, and the tune-drive bench wrapper.
   - `modes/mode_servo_rate.c`: standalone servo timing test.
   - `modes/mode_esp_link.c`: standalone ESP32 UART integration test.
   - `modes/bench_serial_tune.c`: UART/OLED runtime tuning UI used by the bench menu.
@@ -45,6 +45,9 @@
   OLED activity is temporarily disabled in this mode while the link is
   validated. Once per second, immediately after a valid ACK, the mode reports
   UART and protocol error counters on the host debug UART.
+- ESP tuning frame application is factored into a small app helper so runtime
+  bench modes can consume the same validated PID, steering, and line-detector
+  snapshot without duplicating UART parsing or tune-state writes.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
@@ -95,8 +98,9 @@
   - the menu includes a `Victory Lap` runtime test that approaches a pole with ultrasonic and then runs a Mario-style victory note sequence for future motor-music support
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
+  - the menu includes `Tune drive mode`, which runs the Teensy Cam0 race control path as a bench item and services ESP32 UART tuning frames while driving
   - the menu includes `Serial tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
-  - serial tuning writes into a shared RAM-backed runtime tune block that persists for the current power cycle, and the generic camera/servo drive path now reads that block when entering `Cam Servo` and `Simple test drv`
+  - serial and ESP tuning write into a shared RAM-backed runtime tune block that persists for the current power cycle; `Cam Servo`, `Simple test drv`, and `Tune drive mode` read that block when entering or when a new ESP tune frame arrives
 - `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
 ## Servo Rate Test
@@ -198,6 +202,7 @@
   - switches from race-speed policy to honor-lap obstacle-stop policy after confirmed finish detection
   - holds steering straight during the honor phase when ultrasonic sees an obstacle inside the slow threshold
   - only renders OLED telemetry when `swPcb` enables debug display
+  - exposes `Tune drive mode` as a runtime bench wrapper around the Teensy Cam0 race path; live ESP frames update S32K-side PID and steering shaping while line-detector values are stored for future forwarding to the Teensy camera stack
 
 ### Teensy SPI link path
 - `mode_teensy_link.c`
@@ -225,6 +230,8 @@
   - exposes a `Victory Lap` runtime test in `APP_TEST_NXP_CUP_TESTS` for pole-triggered fanfare behavior
   - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
+- `mode_race.c`
+  - exposes `Tune drive mode` in `APP_TEST_NXP_CUP_TESTS`, reusing the Teensy Cam0 race scheduler with ESP32 UART tuning enabled
 - `mode_nxp_cup.c`
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
 - `bench_tests.c`

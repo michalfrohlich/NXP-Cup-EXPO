@@ -53,6 +53,7 @@ typedef enum
     RUNTIME_TEST_ULTRASONIC,
     RUNTIME_TEST_CAMSERVO,
     RUNTIME_TEST_SIMPLE_DRIVE,
+    RUNTIME_TEST_TUNE_DRIVE,
     RUNTIME_TEST_SERIAL_TUNE,
     RUNTIME_TEST_ULTRA_ESC,
     RUNTIME_TEST_RECEIVER,
@@ -512,6 +513,11 @@ void camservo_exit(void);
 void simple_drive_test_enter(uint32 nowMs);
 void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed);
 void simple_drive_test_exit(void);
+void tune_drive_test_enter(uint32 nowMs);
+void tune_drive_test_update(uint32 nowMs, boolean stopPressed);
+void tune_drive_test_exit(void);
+void esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune);
+boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outLastTune);
 
 void mode_linear_camera_test(void);
 void mode_nxp_cup_tests(void);
