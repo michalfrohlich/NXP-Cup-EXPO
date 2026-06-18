@@ -16,4 +16,5 @@ enum class StatusLedColor : uint8_t
 
 void StatusLed_Init();
 void StatusLed_Set(StatusLedColor color);
+void StatusLed_SetBrightness(StatusLedColor color, uint8_t brightness);
 void StatusLed_BootSweep();

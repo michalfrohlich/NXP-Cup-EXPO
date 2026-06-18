@@ -18,6 +18,7 @@ static TeensyLinkS32kSnapshot s32kSnapshot = {};
 static uint32_t nextLogMs = 0U;
 static uint32_t nextPrintMs = 0U;
 static uint16_t testSeq = 0U;
+static uint32_t button2PressStartMs = 0U;
 
 static void configureSpiReadyLow()
 {
@@ -28,19 +29,24 @@ static void configureSpiReadyLow()
     digitalWriteFast(TEENSY_LINK_READY_PIN, LOW);
 }
 
-static void updateLed()
+static uint8_t ledBrightnessFromPot(uint16_t potRaw)
+{
+    return (uint8_t)((potRaw * 255UL) / 4095UL);
+}
+
+static void updateLed(uint16_t potRaw)
 {
     if (sdLogger.hasError())
     {
-        StatusLed_Set(StatusLedColor::Red);
+        StatusLed_SetBrightness(StatusLedColor::Red, ledBrightnessFromPot(potRaw));
     }
     else if (sdLogger.isReady())
     {
-        StatusLed_Set(StatusLedColor::Green);
+        StatusLed_SetBrightness(StatusLedColor::Green, ledBrightnessFromPot(potRaw));
     }
     else
     {
-        StatusLed_Set(StatusLedColor::Yellow);
+        StatusLed_SetBrightness(StatusLedColor::Yellow, ledBrightnessFromPot(potRaw));
     }
 }
 
@@ -106,7 +112,6 @@ void ModeSdLogTest_Setup()
 
     BoardInputs_Init();
     StatusLed_Init();
-    StatusLed_BootSweep();
     configureSpiReadyLow();
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
@@ -123,7 +128,7 @@ void ModeSdLogTest_Setup()
         Serial.println("SDTEST off; no card or open failed");
     }
 
-    updateLed();
+    Serial.println("SDTEST Potentiometer controls LED brightness (PWM)");
     nextLogMs = millis();
     nextPrintMs = millis();
 }
@@ -144,8 +149,28 @@ void ModeSdLogTest_Loop()
         } while ((int32_t)(nowMs - nextLogMs) >= 0);
     }
 
+    // Hold button2 for 2 seconds to finalize and close the log file
+    if (inputs.button2Pressed)
+    {
+        if (button2PressStartMs == 0U)
+        {
+            button2PressStartMs = nowMs;
+        }
+        else if ((int32_t)(nowMs - button2PressStartMs) >= 2000)
+        {
+            Serial.println("SDTEST finalizing log file...");
+            sdLogger.end();
+            Serial.println("SDTEST log file closed");
+            button2PressStartMs = 0U;
+        }
+    }
+    else
+    {
+        button2PressStartMs = 0U;
+    }
+
     sdLogger.service(nowMs);
-    updateLed();
+    updateLed(inputs.potRaw);
     printStatus(nowMs, inputs);
 }
 

@@ -19,6 +19,11 @@ static void configureSpiPinsAsInputs()
     digitalWriteFast(TEENSY_LINK_READY_PIN, LOW);
 }
 
+static uint8_t ledBrightnessFromPot(uint16_t potRaw)
+{
+    return (uint8_t)((potRaw * 255UL) / 4095UL);
+}
+
 static void updateLed(uint32_t nowMs, const BoardInputsSnapshot &inputs)
 {
     static StatusLedColor idleColor = StatusLedColor::Red;
@@ -29,7 +34,7 @@ static void updateLed(uint32_t nowMs, const BoardInputsSnapshot &inputs)
 
     if (inputs.button1Pressed)
     {
-        StatusLed_Set(StatusLedColor::White);
+        StatusLed_SetBrightness(StatusLedColor::White, ledBrightnessFromPot(inputs.potRaw));
         return;
     }
     if (inputs.button2Pressed)
@@ -44,7 +49,8 @@ static void updateLed(uint32_t nowMs, const BoardInputsSnapshot &inputs)
         idleColor = cycle[ledStep];
         ledStep = (uint8_t)((ledStep + 1U) % (uint8_t)(sizeof(cycle) / sizeof(cycle[0])));
     }
-    StatusLed_Set(idleColor);
+
+    StatusLed_SetBrightness(idleColor, ledBrightnessFromPot(inputs.potRaw));
 }
 
 static void printStatus(uint32_t nowMs, const BoardInputsSnapshot &inputs)
@@ -78,12 +84,12 @@ void ModeHardwareTest_Setup()
 
     BoardInputs_Init();
     StatusLed_Init();
-    StatusLed_BootSweep();
     configureSpiPinsAsInputs();
 
     Serial.println("HWTEST Teensy PCB input/LED self-test");
     Serial.println("HWTEST READY held LOW; S32K SPI transfers are disabled in this mode");
     Serial.println("HWTEST button1=white LED, button2=LED off, idle=color cycle");
+    Serial.println("HWTEST Potentiometer controls LED brightness (PWM)");
 }
 
 void ModeHardwareTest_Loop()
