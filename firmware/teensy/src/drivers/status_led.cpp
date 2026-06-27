@@ -4,6 +4,28 @@
 
 static StatusLedColor currentColor = StatusLedColor::Off;
 static uint8_t currentBrightness = 255U;
+static bool currentDiscreteColorValid = false;
+static uint8_t currentRed = 0U;
+static uint8_t currentGreen = 0U;
+static uint8_t currentBlue = 0U;
+static bool currentRgbValid = false;
+
+static void applyRgb(uint8_t red, uint8_t green, uint8_t blue)
+{
+    if ((currentRgbValid == true) && (red == currentRed) && (green == currentGreen) &&
+        (blue == currentBlue))
+    {
+        return;
+    }
+
+    currentRed = red;
+    currentGreen = green;
+    currentBlue = blue;
+    currentRgbValid = true;
+    analogWrite(TEENSY_RGB_LED_R_PIN, red);
+    analogWrite(TEENSY_RGB_LED_G_PIN, green);
+    analogWrite(TEENSY_RGB_LED_B_PIN, blue);
+}
 
 static void applyColor(StatusLedColor color, uint8_t brightness)
 {
@@ -44,9 +66,7 @@ static void applyColor(StatusLedColor color, uint8_t brightness)
             break;
     }
 
-    analogWrite(TEENSY_RGB_LED_R_PIN, red);
-    analogWrite(TEENSY_RGB_LED_G_PIN, green);
-    analogWrite(TEENSY_RGB_LED_B_PIN, blue);
+    applyRgb(red, green, blue);
 }
 
 void StatusLed_Init()
@@ -57,6 +77,7 @@ void StatusLed_Init()
     applyColor(StatusLedColor::Off, 0U);
     currentColor = StatusLedColor::Off;
     currentBrightness = 255U;
+    currentDiscreteColorValid = true;
 }
 
 void StatusLed_Set(StatusLedColor color)
@@ -66,7 +87,7 @@ void StatusLed_Set(StatusLedColor color)
 
 void StatusLed_SetBrightness(StatusLedColor color, uint8_t brightness)
 {
-    if (color == currentColor)
+    if ((currentDiscreteColorValid == true) && (color == currentColor))
     {
         if ((color == StatusLedColor::Off) || (brightness == currentBrightness))
         {
@@ -76,7 +97,14 @@ void StatusLed_SetBrightness(StatusLedColor color, uint8_t brightness)
 
     currentColor = color;
     currentBrightness = brightness;
+    currentDiscreteColorValid = true;
     applyColor(color, brightness);
+}
+
+void StatusLed_SetRgb(uint8_t red, uint8_t green, uint8_t blue)
+{
+    currentDiscreteColorValid = false;
+    applyRgb(red, green, blue);
 }
 
 void StatusLed_BootSweep()
@@ -96,4 +124,5 @@ void StatusLed_BootSweep()
     applyColor(StatusLedColor::Off, 0U);
     currentColor = StatusLedColor::Off;
     currentBrightness = 255U;
+    currentDiscreteColorValid = true;
 }

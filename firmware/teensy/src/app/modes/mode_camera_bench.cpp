@@ -9,22 +9,25 @@
 #include "debug/camera_stream.h"
 #include "drivers/display.h"
 #include "drivers/linear_camera.h"
+#include "drivers/status_led.h"
+#include "services/line_detector.h"
 #include "teensy_config.h"
 
 static LinearCamera camera0;
+static LineDetector trackingLedDetector;
 static uint32_t nextDebugPrintMs = 0U;
 static uint32_t nextDisplayRefreshMs = 0U;
 static uint32_t nextStreamMs = 0U;
 static LinearCameraFrame latestFrame = {};
+static uint16_t trackingLedPixels[VISION_LINEAR_BUFFER_SIZE] = {};
+static VisionOutput trackingLedVision = {};
 static bool latestFrameValid = false;
 static bool displayReady = false;
 static uint8_t displayFramePercent[TEENSY_LINEAR_CAMERA_PIXEL_COUNT] = {};
 
 static const LinearCameraConfig camera0Config = {
-    TEENSY_LINEAR_CAMERA0_SI_PIN,
-    TEENSY_LINEAR_CAMERA0_CLK_PIN,
-    TEENSY_LINEAR_CAMERA0_ANALOG_PIN,
-    TEENSY_LINEAR_CAMERA_PIXEL_CLOCK_HZ,
+    TEENSY_LINEAR_CAMERA0_SI_PIN,       TEENSY_LINEAR_CAMERA0_CLK_PIN,
+    TEENSY_LINEAR_CAMERA0_ANALOG_PIN,   TEENSY_LINEAR_CAMERA_PIXEL_CLOCK_HZ,
     TEENSY_LINEAR_CAMERA_FRAME_RATE_HZ,
 };
 
@@ -45,29 +48,58 @@ static const char *statusName(LinearCameraStatus status)
 
 static uint8_t scaleAdcSampleToByte(uint16_t sample)
 {
-    static constexpr uint32_t adcMax =
-        (1UL << TEENSY_LINEAR_CAMERA_ADC_BITS) - 1UL;
+    static constexpr uint32_t adcMax = (1UL << TEENSY_LINEAR_CAMERA_ADC_BITS) - 1UL;
 
     return (uint8_t)((((uint32_t)sample * 255UL) + (adcMax / 2UL)) / adcMax);
 }
 
 static uint8_t scaleAdcSampleToPercent(uint16_t sample)
 {
-    static constexpr uint32_t adcMax =
-        (1UL << TEENSY_LINEAR_CAMERA_ADC_BITS) - 1UL;
+    static constexpr uint32_t adcMax = (1UL << TEENSY_LINEAR_CAMERA_ADC_BITS) - 1UL;
 
     return (uint8_t)((((uint32_t)sample * 100UL) + (adcMax / 2UL)) / adcMax);
 }
 
 static void streamLatestFrame()
 {
-    if ((TEENSY_LINEAR_CAMERA_STREAM_ENABLED != true) ||
-        (latestFrameValid != true))
+    if ((TEENSY_LINEAR_CAMERA_STREAM_ENABLED != true) || (latestFrameValid != true))
     {
         return;
     }
 
     CameraStream_WriteRawFrame(latestFrame);
+}
+
+static void updateTrackingLed()
+{
+    if (latestFrameValid != true)
+    {
+        StatusLed_SetRgb(128U, 0U, 0U);
+        return;
+    }
+
+    memcpy(trackingLedPixels, &latestFrame.values[CAM_TRIM_LEFT_PX], sizeof(trackingLedPixels));
+    trackingLedDetector.process(trackingLedPixels, trackingLedVision);
+
+    if (trackingLedVision.status == VISION_TRACK_LOST)
+    {
+        StatusLed_SetRgb(128U, 0U, 0U);
+        return;
+    }
+
+    float error = trackingLedVision.error;
+    if (error > 1.0f)
+    {
+        error = 1.0f;
+    }
+    else if (error < -1.0f)
+    {
+        error = -1.0f;
+    }
+
+    const uint8_t green = (error < 0.0f) ? (uint8_t)(((-error) * 255.0f) + 0.5f) : 0U;
+    const uint8_t blue = (error > 0.0f) ? (uint8_t)((error * 255.0f) + 0.5f) : 0U;
+    StatusLed_SetRgb(0U, green, blue);
 }
 
 static void refreshCameraDisplay()
@@ -97,17 +129,11 @@ static void refreshCameraDisplay()
     char header[TEENSY_DISPLAY_CHARACTER_COLUMNS + 1U];
     memset(header, ' ', sizeof(header));
     header[TEENSY_DISPLAY_CHARACTER_COLUMNS] = '\0';
-    snprintf(header,
-             sizeof(header),
-             "%04u %04u",
-             (unsigned)minValue,
-             (unsigned)maxValue);
+    snprintf(header, sizeof(header), "%04u %04u", (unsigned)minValue, (unsigned)maxValue);
 
     DisplayClear();
     DisplayText(0U, header, TEENSY_DISPLAY_CHARACTER_COLUMNS, 0U);
-    DisplayGraph(1U,
-                 displayFramePercent,
-                 TEENSY_LINEAR_CAMERA_PIXEL_COUNT,
+    DisplayGraph(1U, displayFramePercent, TEENSY_LINEAR_CAMERA_PIXEL_COUNT,
                  (uint8_t)(TEENSY_DISPLAY_CHARACTER_ROWS - 1U));
     DisplayRefresh();
 }
@@ -186,9 +212,9 @@ static void printCameraDebugFrame(uint32_t nowMs)
         Serial.print("/");
         Serial.print(counters.maxCaptureUs);
         Serial.print(" capClk=");
-        Serial.print((uint32_t)((((uint64_t)counters.lastCaptureUs * camera0.pixelClockHz()) +
-                                 500000ULL) /
-                                1000000ULL));
+        Serial.print(
+            (uint32_t)((((uint64_t)counters.lastCaptureUs * camera0.pixelClockHz()) + 500000ULL) /
+                       1000000ULL));
         Serial.print(" adcErr=");
         Serial.print(counters.adcErrorCount);
         Serial.print(" dma=");
@@ -242,6 +268,10 @@ static void printCameraDebugFrame(uint32_t nowMs)
 
 void ModeCameraBench_Setup()
 {
+    StatusLed_Init();
+    StatusLed_SetRgb(128U, 0U, 0U);
+    trackingLedDetector.init();
+
     if (TEENSY_DISPLAY_CAMERA_DEBUG_ENABLED == true)
     {
         displayReady = DisplayInit();
@@ -312,6 +342,7 @@ void ModeCameraBench_Loop()
     if (camera0.getLatestFrame(latestFrame) == true)
     {
         latestFrameValid = true;
+        updateTrackingLed();
     }
 
     if ((displayReady == true) &&
@@ -330,8 +361,7 @@ void ModeCameraBench_Loop()
         } while ((int32_t)(nowMs - nextDisplayRefreshMs) >= 0);
     }
 
-    if (((int32_t)(nowMs - nextStreamMs) >= 0) &&
-        (camera0.isReadoutActive() != true))
+    if (((int32_t)(nowMs - nextStreamMs) >= 0) && (camera0.isReadoutActive() != true))
     {
         streamLatestFrame();
         do
@@ -340,8 +370,7 @@ void ModeCameraBench_Loop()
         } while ((int32_t)(nowMs - nextStreamMs) >= 0);
     }
 
-    if (((int32_t)(nowMs - nextDebugPrintMs) >= 0) &&
-        (camera0.isReadoutActive() != true))
+    if (((int32_t)(nowMs - nextDebugPrintMs) >= 0) && (camera0.isReadoutActive() != true))
     {
         if (TEENSY_LINEAR_CAMERA_DEBUG_ENABLED == true)
         {

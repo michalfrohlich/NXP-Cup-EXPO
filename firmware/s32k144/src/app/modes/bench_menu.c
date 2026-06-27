@@ -1,5 +1,52 @@
 #include "../app_internal.h"
 
+#define TESTS_MENU_BUTTON_CHORD_MS (500U)
+
+static uint32 g_testsMenuButtonChordSinceMs = 0U;
+static boolean g_testsMenuButtonChordArmed = TRUE;
+static boolean g_testsMenuSwitchBypass = FALSE;
+static boolean g_testsMenuIgnoreSwitchUntilOff = FALSE;
+
+static boolean tests_menu_button_chord_pressed(uint32 nowMs)
+{
+    boolean sw2Down = Buttons_IsPressed(BUTTON_ID_SW2);
+    boolean sw3Down = Buttons_IsPressed(BUTTON_ID_SW3);
+
+    if ((sw2Down != TRUE) || (sw3Down != TRUE))
+    {
+        g_testsMenuButtonChordSinceMs = 0U;
+        g_testsMenuButtonChordArmed = TRUE;
+        return FALSE;
+    }
+
+    if (g_testsMenuButtonChordSinceMs == 0U)
+    {
+        g_testsMenuButtonChordSinceMs = nowMs;
+        return FALSE;
+    }
+
+    if ((g_testsMenuButtonChordArmed == TRUE) &&
+        (time_reached(nowMs, g_testsMenuButtonChordSinceMs + TESTS_MENU_BUTTON_CHORD_MS) == TRUE))
+    {
+        g_testsMenuButtonChordArmed = FALSE;
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static boolean tests_menu_button_chord_is_down(void)
+{
+    return (boolean)((Buttons_IsPressed(BUTTON_ID_SW2) == TRUE) &&
+                     (Buttons_IsPressed(BUTTON_ID_SW3) == TRUE));
+}
+
+static void tests_menu_drain_button_events(void)
+{
+    (void)Buttons_WasPressed(BUTTON_ID_SW2);
+    (void)Buttons_WasPressed(BUTTON_ID_SW3);
+}
+
 static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
 {
     switch (testId)
@@ -269,6 +316,10 @@ void mode_nxp_cup_tests(void)
 
     App_InitRuntimeCommon();
     (void)memset(&g_testsMenu, 0, sizeof(g_testsMenu));
+    g_testsMenuButtonChordSinceMs = 0U;
+    g_testsMenuButtonChordArmed = TRUE;
+    g_testsMenuSwitchBypass = FALSE;
+    g_testsMenuIgnoreSwitchUntilOff = FALSE;
     g_testsMenu.activeTest = RUNTIME_TEST_LINEAR_CAMERA;
     g_testsMenu.requireSwitchOff = TRUE;
     g_testsMenu.switchGuardUntilMs = Timebase_GetMs() + TESTS_MENU_SWITCH_BOOT_GUARD_MS;
@@ -282,6 +333,7 @@ void mode_nxp_cup_tests(void)
         boolean sw2Pressed = FALSE;
         boolean sw3Pressed = FALSE;
         boolean modeSwitchOn;
+        boolean effectiveModeSwitchOn;
         uint8 potLevel;
 
         while (time_reached(nowMs, nextButtonsMs) == TRUE)
@@ -293,21 +345,34 @@ void mode_nxp_cup_tests(void)
         potLevel = OnboardPot_ReadLevelFiltered();
 
         modeSwitchOn = Buttons_IsOn(BUTTON_ID_SWPCB);
+        if ((g_testsMenuIgnoreSwitchUntilOff == TRUE) && (modeSwitchOn != TRUE))
+        {
+            g_testsMenuIgnoreSwitchUntilOff = FALSE;
+        }
+        effectiveModeSwitchOn =
+            (boolean)((g_testsMenuIgnoreSwitchUntilOff == TRUE) ? FALSE : modeSwitchOn);
 
         if (g_testsMenu.requireSwitchOff == TRUE)
         {
-            (void)Buttons_WasPressed(BUTTON_ID_SW2);
-            (void)Buttons_WasPressed(BUTTON_ID_SW3);
+            boolean buttonChordPressed;
+
+            tests_menu_drain_button_events();
+            buttonChordPressed = tests_menu_button_chord_pressed(nowMs);
 
             if (time_reached(nowMs, g_testsMenu.switchGuardUntilMs) != TRUE)
             {
                 continue;
             }
 
-            if (modeSwitchOn == TRUE)
+            if ((modeSwitchOn == TRUE) && (buttonChordPressed != TRUE))
             {
                 tests_menu_draw_release_switch();
                 continue;
+            }
+
+            if ((modeSwitchOn == TRUE) && (buttonChordPressed == TRUE))
+            {
+                g_testsMenuIgnoreSwitchUntilOff = TRUE;
             }
 
             g_testsMenu.requireSwitchOff = FALSE;
@@ -318,30 +383,49 @@ void mode_nxp_cup_tests(void)
 
         if (g_testsMenu.testActive != TRUE)
         {
-            (void)Buttons_WasPressed(BUTTON_ID_SW2);
-            (void)Buttons_WasPressed(BUTTON_ID_SW3);
+            boolean buttonChordPressed;
+
+            tests_menu_drain_button_events();
+            buttonChordPressed = tests_menu_button_chord_pressed(nowMs);
             tests_menu_select_index(&g_testsMenu, potLevel);
             tests_menu_draw(&g_testsMenu);
 
-            if (modeSwitchOn == TRUE)
+            if ((effectiveModeSwitchOn == TRUE) || (buttonChordPressed == TRUE))
             {
                 g_testsMenu.activeTest = (RuntimeTestId_t)g_testsMenu.selectedIndex;
+                g_testsMenuSwitchBypass = buttonChordPressed;
                 runtime_test_enter(g_testsMenu.activeTest, nowMs);
                 g_testsMenu.testActive = TRUE;
             }
         }
         else
         {
-            if (modeSwitchOn != TRUE)
+            boolean buttonChordDown = tests_menu_button_chord_is_down();
+            boolean buttonChordPressed = tests_menu_button_chord_pressed(nowMs);
+            boolean switchExitRequested =
+                (boolean)((g_testsMenuSwitchBypass != TRUE) && (effectiveModeSwitchOn != TRUE));
+
+            if ((switchExitRequested == TRUE) || (buttonChordPressed == TRUE))
             {
                 runtime_test_exit(g_testsMenu.activeTest);
                 g_testsMenu.testActive = FALSE;
+                g_testsMenuSwitchBypass = FALSE;
+                tests_menu_drain_button_events();
                 tests_menu_draw(&g_testsMenu);
             }
             else
             {
-                sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
-                sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
+                if (buttonChordDown == TRUE)
+                {
+                    tests_menu_drain_button_events();
+                    sw2Pressed = FALSE;
+                    sw3Pressed = FALSE;
+                }
+                else
+                {
+                    sw2Pressed = Buttons_WasPressed(BUTTON_ID_SW2);
+                    sw3Pressed = Buttons_WasPressed(BUTTON_ID_SW3);
+                }
                 runtime_test_update(g_testsMenu.activeTest, nowMs, sw2Pressed, sw3Pressed,
                                     potLevel);
             }
