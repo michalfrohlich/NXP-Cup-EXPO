@@ -43,16 +43,20 @@
   driver parses CRC-protected button ACK and full tuning frames; the mode
   consumes the latest validated snapshot, updates all eight RAM runtime-tune
   values, queues a compact sequence-matched result, and owns LED diagnostics.
+  It also ACKs compact ESP start/stop command frames without moving the
+  vehicle.
   The LPUART2 ISR copies received bytes into a 256-byte software ring and
   records hardware error flags; parsing remains in the foreground service.
   OLED activity is temporarily disabled in this mode while the link is
   validated. Once per second, immediately after a valid ACK, the mode reports
   UART and protocol error counters on the host debug UART.
-- ESP tuning frame application is factored into a small app helper so runtime
+- ESP tuning frame and drive-command servicing is factored into small app helpers so runtime
   bench modes can consume the same validated PID, steering, and line-detector
-  snapshot without duplicating UART parsing or tune-state writes.
-- The runtime `ESP Link` bench item is tune-frame receive only. It validates
-  RAM-only tuning frames from ESP32 without transmitting S32K button state.
+  snapshot, or ACK start/stop requests, without duplicating UART parsing or
+  tune-state writes.
+- The runtime `ESP Link` bench item validates RAM-only tuning frames and ACKs
+  start/stop command frames from ESP32 without transmitting S32K button state
+  or moving the vehicle.
 - Invalid or missing `APP_TEST_*` selection is treated as a configuration error.
 - Timing is a mix of:
   - polling against `Timebase_GetMs()`
@@ -108,8 +112,9 @@
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
   - the menu includes `Tune drive mode`, which runs the Teensy Cam0 race control path as a bench item and services ESP32 UART tuning frames while driving
+  - the menu includes `Stack drive`, which runs the S32K-camera race control path, services ESP32 tuning and start/stop commands, keeps Teensy SPI status service active, and does not hard-stop on missing Teensy camera/SPI data
   - the menu includes `Cable tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
-  - serial and ESP tuning write into a shared RAM-backed runtime tune block that persists for the current power cycle; `Cam Servo`, `Simple test drv`, and `Tune drive mode` read that block when entering or when a new ESP tune frame arrives
+  - serial and ESP tuning write into a shared RAM-backed runtime tune block that persists for the current power cycle; `Cam Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` read that block when entering or when a new ESP tune frame arrives
 - `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
 ## Servo Rate Test
@@ -242,6 +247,7 @@
   - exposes an `ESP Link` runtime test in `APP_TEST_NXP_CUP_TESTS` that validates RAM-only tuning frames from ESP32 without transmitting S32K button state
 - `mode_race.c`
   - exposes `Tune drive mode` in `APP_TEST_NXP_CUP_TESTS`, reusing the Teensy Cam0 race scheduler with ESP32 UART tuning enabled
+  - exposes `Stack drive` in `APP_TEST_NXP_CUP_TESTS`, using the S32K camera for steering while ESP tuning/drive commands and Teensy SPI status service continue to run
 - `mode_nxp_cup.c`
   - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
 - `bench_tests.c`

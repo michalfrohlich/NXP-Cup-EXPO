@@ -31,9 +31,9 @@ const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
      (sint16)NXP_CUP_SLOW_STEER_RATE_MAX, (uint8)NXP_CUP_SLOW_SPEED_PCT}};
 
 const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
-    "Servo          ",  "ESC            ", "Ultrasonic     ", "Ultra+ESC      ",
-    "Camera-s32k    ",  "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode",
-    "Cable tune-s32k ", "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
+    "Servo          ", "ESC            ", "Ultrasonic     ", "Ultra+ESC      ", "Camera-s32k    ",
+    "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode", "Stack drive    ", "Cable tune-s32k ",
+    "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
 
 const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
 

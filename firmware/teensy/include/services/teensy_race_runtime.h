@@ -12,6 +12,9 @@ struct TeensyRaceRuntimeConfig
     bool serialStatusEnabled;
     bool cameraStreamEnabled;
     uint32_t serialStatusPeriodMs;
+    bool trackingLedEnabled;
+    bool stackDisplayEnabled;
+    uint32_t stackDisplayPeriodMs;
 };
 
 class TeensyRaceRuntime
@@ -23,6 +26,10 @@ class TeensyRaceRuntime
   private:
     void publishFrame(uint32_t nowMs);
     void updateSensors(uint32_t nowUs, uint32_t nowMs);
+    void updateTrackingLed();
+    void initStackDisplay();
+    void serviceStackDisplay(uint32_t nowMs);
+    void drawStackDisplay();
     void printLinkStatus(uint32_t nowMs);
     void streamCameraVision0();
 
@@ -41,5 +48,7 @@ class TeensyRaceRuntime
     uint32_t nextSensorUs_ = 0U;
     uint32_t nextSerialMs_ = 0U;
     uint32_t nextCameraStreamMs_ = 0U;
+    uint32_t nextStackDisplayMs_ = 0U;
     bool cameraVision0Ready_ = false;
+    bool stackDisplayReady_ = false;
 };

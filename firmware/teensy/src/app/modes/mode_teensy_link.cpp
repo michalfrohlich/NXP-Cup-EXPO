@@ -12,6 +12,9 @@ void ModeTeensyLink_Setup()
         TEENSY_LINK_SERIAL_DEBUG_ENABLED,
         TEENSY_LINEAR_CAMERA_STREAM_ENABLED,
         TEENSY_LINK_SERIAL_PERIOD_MS,
+        false,
+        false,
+        0U,
     };
 
     linkBenchRuntime.begin(config);

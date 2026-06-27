@@ -13,3 +13,5 @@ void ModeHardwareTest_Setup();
 void ModeHardwareTest_Loop();
 void ModeSdLogTest_Setup();
 void ModeSdLogTest_Loop();
+void ModeStackDrive_Setup();
+void ModeStackDrive_Loop();

@@ -75,6 +75,10 @@ static void runtime_test_enter(RuntimeTestId_t testId, uint32 nowMs)
             tune_drive_test_enter(nowMs);
             break;
 
+        case RUNTIME_TEST_STACK_DRIVE:
+            stack_drive_test_enter(nowMs);
+            break;
+
         case RUNTIME_TEST_SERIAL_TUNE:
             serial_tune_test_enter(nowMs);
             break;
@@ -131,6 +135,10 @@ static void runtime_test_update(RuntimeTestId_t testId, uint32 nowMs, boolean sw
             tune_drive_test_update(nowMs, modeNextPressed);
             break;
 
+        case RUNTIME_TEST_STACK_DRIVE:
+            stack_drive_test_update(nowMs, sw2Pressed, modeNextPressed);
+            break;
+
         case RUNTIME_TEST_SERIAL_TUNE:
             serial_tune_test_update();
             break;
@@ -184,6 +192,10 @@ static void runtime_test_exit(RuntimeTestId_t testId)
 
         case RUNTIME_TEST_TUNE_DRIVE:
             tune_drive_test_exit();
+            break;
+
+        case RUNTIME_TEST_STACK_DRIVE:
+            stack_drive_test_exit();
             break;
 
         case RUNTIME_TEST_SERIAL_TUNE:

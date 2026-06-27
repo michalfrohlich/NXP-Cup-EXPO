@@ -6,6 +6,8 @@
 #define RACE_TEENSY_CONTROL_PHASE_MS (17U)
 #define RACE_TEENSY_CONTROL_DEADLINE_MS (19U)
 #define RACE_TEENSY_CAMERA_OUTLIER_THRESHOLD (0.20f)
+#define STACK_DRIVE_DISPLAY_MS (150U)
+#define STACK_DRIVE_PAGE_COUNT (4U)
 
 typedef struct
 {
@@ -26,6 +28,7 @@ typedef struct
     uint32 cameraDuplicateCount;
     uint32 cameraRejectedCount;
     uint32 lastCollectedRxMs;
+    uint32 nextServiceMs;
     uint16 controlSeq;
     uint16 lastCameraSequence;
     uint8 nextSpiSlot;
@@ -47,6 +50,10 @@ typedef struct
 static RaceTeensyCam0LinkState_t g_raceTeensyCam0Link;
 static boolean g_raceUsesTeensyCam0;
 static boolean g_raceTuneDriveMode;
+static boolean g_raceServiceTeensyLink;
+static boolean g_raceEnforceTeensyCameraFault;
+static uint8 g_stackDriveDisplayPage;
+static uint8 g_stackDriveLastCommand;
 
 static void race_mode_apply_runtime_tune(RaceModeState_t *st)
 {
@@ -61,12 +68,15 @@ static void race_mode_apply_runtime_tune(RaceModeState_t *st)
     st->ctrl.iTermClamp = g_runtimeTune.profile.iTermClamp;
 }
 
-static void race_mode_enter(uint32 nowMs, boolean useTeensyCam0, boolean tuneDriveMode)
+static void race_mode_enter_ex(uint32 nowMs, boolean useTeensyCam0, boolean tuneDriveMode,
+                               boolean serviceTeensyLink, boolean enforceTeensyCameraFault)
 {
     (void)memset(&g_raceMode, 0, sizeof(g_raceMode));
     (void)memset(&g_raceTeensyCam0Link, 0, sizeof(g_raceTeensyCam0Link));
     g_raceUsesTeensyCam0 = useTeensyCam0;
     g_raceTuneDriveMode = tuneDriveMode;
+    g_raceServiceTeensyLink = serviceTeensyLink;
+    g_raceEnforceTeensyCameraFault = enforceTeensyCameraFault;
 
     RuntimeTune_InitDefaults();
 
@@ -89,12 +99,17 @@ static void race_mode_enter(uint32 nowMs, boolean useTeensyCam0, boolean tuneDri
     }
     SteerStraight();
 
-    if (useTeensyCam0 == TRUE)
+    if (serviceTeensyLink == TRUE)
     {
         TeensyLink_Init();
-        g_raceTeensyCam0Link.lastValidCameraMs = nowMs;
+        g_raceTeensyCam0Link.nextServiceMs = nowMs;
+        if (useTeensyCam0 == TRUE)
+        {
+            g_raceTeensyCam0Link.lastValidCameraMs = nowMs;
+        }
     }
-    else
+
+    if (useTeensyCam0 != TRUE)
     {
         if (LinearCameraIsBusy() == TRUE)
         {
@@ -122,6 +137,11 @@ static void race_mode_enter(uint32 nowMs, boolean useTeensyCam0, boolean tuneDri
     StatusLed_Blue();
 }
 
+static void race_mode_enter(uint32 nowMs, boolean useTeensyCam0, boolean tuneDriveMode)
+{
+    race_mode_enter_ex(nowMs, useTeensyCam0, tuneDriveMode, useTeensyCam0, useTeensyCam0);
+}
+
 static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
 {
     const LinearCameraFrame *latestFrame = NULL_PTR;
@@ -140,7 +160,15 @@ static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
 
     (void)memcpy(st->processedFrame.Values, &latestFrame->Values[CAM_TRIM_LEFT_PX],
                  ((size_t)VISION_LINEAR_BUFFER_SIZE * sizeof(st->processedFrame.Values[0])));
-    LineDetector_Process(st->processedFrame.Values, &st->result);
+    if (g_raceTuneDriveMode == TRUE)
+    {
+        LineDetector_ProcessWithParams(st->processedFrame.Values, &st->result,
+                                       &g_runtimeTune.lineDetector);
+    }
+    else
+    {
+        LineDetector_Process(st->processedFrame.Values, &st->result);
+    }
     st->haveValidVision = TRUE;
 }
 
@@ -162,6 +190,43 @@ static void race_mode_default_link_camera(TeensyLinkCameraResult_t *camera)
     camera->sequence = 0U;
 }
 
+static void race_mode_fill_s32k_link_camera(const RaceModeState_t *st,
+                                            TeensyLinkCameraResult_t *camera)
+{
+    sint32 errorPct;
+
+    if ((st == NULL_PTR) || (camera == NULL_PTR))
+    {
+        return;
+    }
+
+    if ((st->haveValidVision != TRUE) || (st->result.status == VISION_TRACK_LOST))
+    {
+        race_mode_default_link_camera(camera);
+        return;
+    }
+
+    errorPct = (sint32)(st->result.error * 100.0f);
+    if (errorPct > 127)
+    {
+        errorPct = 127;
+    }
+    else if (errorPct < -127)
+    {
+        errorPct = -127;
+    }
+
+    camera->errorPct = (sint8)errorPct;
+    camera->status = (uint8)st->result.status;
+    camera->feature = (uint8)st->result.feature;
+    camera->confidence = st->result.confidence;
+    camera->leftLineIdx = st->result.leftLineIdx;
+    camera->rightLineIdx = st->result.rightLineIdx;
+    camera->ageMs = 0U;
+    camera->flags = (uint8)(TEENSY_LINK_CAMERA_FLAG_VALID | TEENSY_LINK_CAMERA_FLAG_SOURCE_S32K);
+    camera->sequence = g_raceTeensyCam0Link.controlSeq;
+}
+
 static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
                                              TeensyLinkS32kInputs_t *input)
 {
@@ -175,8 +240,10 @@ static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
     (void)memset(input, 0, sizeof(*input));
     input->controlLoopSeq = g_raceTeensyCam0Link.controlSeq;
     input->controlDtUs = 20000U;
-    input->appMode = (uint8)APP_BUILD_MODE_TEENSY_CAM0_RACE;
-    input->appState = (uint8)st->phase;
+    input->appMode = (uint8)((g_raceUsesTeensyCam0 == TRUE) ? APP_BUILD_MODE_TEENSY_CAM0_RACE
+                                                            : APP_BUILD_MODE_NXP_CUP_TESTS);
+    input->appState = (uint8)((g_raceUsesTeensyCam0 == TRUE) ? (uint8)st->phase
+                                                             : (uint8)RUNTIME_TEST_STACK_DRIVE);
     input->safetyFlags = (g_raceTeensyCam0Link.hardFault == TRUE) ? 1U : 0U;
     if (g_raceTeensyCam0Link.spiSlotMissCount != 0U)
     {
@@ -186,11 +253,11 @@ static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
     {
         input->diagnosticFlags |= (uint16)TEENSY_LINK_S32K_DIAG_CONTROL_DEADLINE_MISS;
     }
-    if (g_raceTeensyCam0Link.lastSamplesUsed == 0U)
+    if ((g_raceUsesTeensyCam0 == TRUE) && (g_raceTeensyCam0Link.lastSamplesUsed == 0U))
     {
         input->diagnosticFlags |= (uint16)TEENSY_LINK_S32K_DIAG_VISION_NO_SAMPLE;
     }
-    if (g_raceTeensyCam0Link.outlierRejected == TRUE)
+    if ((g_raceUsesTeensyCam0 == TRUE) && (g_raceTeensyCam0Link.outlierRejected == TRUE))
     {
         input->diagnosticFlags |= (uint16)TEENSY_LINK_S32K_DIAG_VISION_OUTLIER;
     }
@@ -199,7 +266,14 @@ static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
     {
         input->diagnosticFlags |= (uint16)TEENSY_LINK_S32K_DIAG_SERVO_COMMIT_MISS;
     }
-    race_mode_default_link_camera(&input->camera[0]);
+    if (g_raceUsesTeensyCam0 == TRUE)
+    {
+        race_mode_default_link_camera(&input->camera[0]);
+    }
+    else
+    {
+        race_mode_fill_s32k_link_camera(st, &input->camera[0]);
+    }
     race_mode_default_link_camera(&input->camera[1]);
     input->steerRaw = st->steerRaw;
     input->steerFilt = st->steerFilt;
@@ -552,6 +626,31 @@ static void race_mode_update_teensy_cam0(RaceModeState_t *st, uint32 nowMs)
     }
 }
 
+static void race_mode_service_teensy_link_status(RaceModeState_t *st, uint32 nowMs)
+{
+    TeensyLinkS32kInputs_t input;
+
+    if ((st == NULL_PTR) || (g_raceServiceTeensyLink != TRUE) || (g_raceUsesTeensyCam0 == TRUE))
+    {
+        return;
+    }
+
+    if (time_reached(nowMs, g_raceTeensyCam0Link.nextServiceMs) != TRUE)
+    {
+        return;
+    }
+
+    race_mode_fill_teensy_link_input(st, &input);
+    (void)TeensyLink_Service(nowMs, &input);
+
+    g_raceTeensyCam0Link.nextServiceMs += (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+    if (time_reached(nowMs, g_raceTeensyCam0Link.nextServiceMs) == TRUE)
+    {
+        g_raceTeensyCam0Link.spiSlotMissCount++;
+        g_raceTeensyCam0Link.nextServiceMs = nowMs + (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+    }
+}
+
 static void race_mode_update_ultrasonic(RaceModeState_t *st, uint32 nowMs)
 {
     const uint32 ultraStaleMs =
@@ -660,8 +759,10 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         }
 
         controllerDt = ((float)STEER_UPDATE_MS) * 0.001f;
-        outputFilterAlpha = 0.45f;
-        steerRateMax = 8;
+        outputFilterAlpha =
+            (g_raceTuneDriveMode == TRUE) ? g_runtimeTune.profile.steerLpfAlpha : 0.45f;
+        steerRateMax = (g_raceTuneDriveMode == TRUE) ? g_runtimeTune.profile.steerRateMax : 8;
+        g_raceTeensyCam0Link.controlSeq++;
     }
 
     if (stopPressed == TRUE)
@@ -878,7 +979,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
 
 static void race_mode_apply_teensy_camera_hard_fault(RaceModeState_t *st)
 {
-    if ((st == NULL_PTR) || (g_raceUsesTeensyCam0 != TRUE) ||
+    if ((st == NULL_PTR) || (g_raceEnforceTeensyCameraFault != TRUE) ||
         (g_raceTeensyCam0Link.hardFault != TRUE))
     {
         return;
@@ -971,6 +1072,206 @@ static void race_mode_draw(const RaceModeState_t *st)
         DisplayText(3U, "LST", 3U, 2U);
     }
     DisplayValue(3U, (int)st->finishStreak, 2U, 12U);
+    DisplayRefresh();
+}
+
+static const char *stack_drive_phase_text(RacePhase_t phase)
+{
+    switch (phase)
+    {
+        case RACE_PHASE_ESC_ARM:
+            return "ARM";
+        case RACE_PHASE_SPEED_RUN:
+            return "RUN";
+        case RACE_PHASE_HONOR_RUN:
+            return "HONOR";
+        case RACE_PHASE_STOPPED:
+            return "STOP";
+        case RACE_PHASE_FAULT:
+            return "FAULT";
+        default:
+            return "UNK";
+    }
+}
+
+static const char *stack_drive_track_text(uint8 status)
+{
+    switch ((VisionTrackStatus_t)status)
+    {
+        case VISION_TRACK_BOTH:
+            return "BOTH";
+        case VISION_TRACK_LEFT:
+            return "LEFT";
+        case VISION_TRACK_RIGHT:
+            return "RGHT";
+        case VISION_TRACK_LOST:
+        default:
+            return "LOST";
+    }
+}
+
+static void stack_drive_apply_stop(RaceModeState_t *st)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    st->phase = RACE_PHASE_STOPPED;
+    st->targetSpeedPct = 0;
+    st->currentSpeedPct = 0;
+    st->steerRaw = 0;
+    st->steerFilt = 0;
+    st->steerOut = 0;
+    Esc_StopNeutral();
+    SteerStraight();
+}
+
+static void stack_drive_apply_start(RaceModeState_t *st, uint32 nowMs)
+{
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    if ((st->phase == RACE_PHASE_STOPPED) || (st->phase == RACE_PHASE_FAULT))
+    {
+        st->phase = RACE_PHASE_ESC_ARM;
+        st->armDoneMs = nowMs + ESC_ARM_TIME_MS;
+        st->nextControlMs = nowMs;
+        st->nextSpeedRampMs = nowMs;
+        st->targetSpeedPct = 0;
+        st->currentSpeedPct = 0;
+        st->finishStreak = 0U;
+        st->lostSinceMs = 0U;
+        SteeringController_Reset(&st->ctrl);
+        Esc_StopNeutral();
+        SteerStraight();
+    }
+}
+
+static void stack_drive_apply_remote_command(const EspUartLink_DriveCommandFrame_t *command,
+                                             uint32 nowMs)
+{
+    if (command == NULL_PTR)
+    {
+        return;
+    }
+
+    g_stackDriveLastCommand = command->command;
+
+    if (command->command == ESP_UART_LINK_DRIVE_COMMAND_STOP)
+    {
+        stack_drive_apply_stop(&g_raceMode);
+    }
+    else if (command->command == ESP_UART_LINK_DRIVE_COMMAND_START)
+    {
+        stack_drive_apply_start(&g_raceMode, nowMs);
+    }
+
+    g_raceMode.nextDisplayMs = nowMs;
+}
+
+static void stack_drive_draw(const RaceModeState_t *st)
+{
+    EspUartLink_Diagnostics_t espDiag;
+    TeensyLinkDiagnostics_t teensyDiag;
+    TeensyLinkSnapshot_t teensySnapshot;
+    char lineBuf[17];
+    uint16 espErrors;
+
+    if (st == NULL_PTR)
+    {
+        return;
+    }
+
+    (void)memset(&espDiag, 0, sizeof(espDiag));
+    (void)memset(&teensyDiag, 0, sizeof(teensyDiag));
+    (void)memset(&teensySnapshot, 0, sizeof(teensySnapshot));
+    EspUartLink_GetDiagnostics(&espDiag);
+    (void)TeensyLink_GetDiagnostics(&teensyDiag);
+    (void)TeensyLink_GetSnapshot(&teensySnapshot);
+
+    DisplayClear();
+
+    switch (g_stackDriveDisplayPage)
+    {
+        case 1U:
+            DisplayTextPadded(0U, "S32K CAMERA");
+            DisplayTextPadded(1U, "ST:     CF:");
+            DisplayText(1U, stack_drive_track_text((uint8)st->result.status),
+                        (uint16)strlen(stack_drive_track_text((uint8)st->result.status)), 3U);
+            DisplayValue(1U, (int)st->result.confidence, 3U, 12U);
+            DisplayTextPadded(2U, "ERR:    L:");
+            DisplayValue(2U, (int)(st->result.error * 100.0f), 4U, 4U);
+            DisplayValue(2U, (int)st->result.leftLineIdx, 3U, 12U);
+            DisplayTextPadded(3U, "R:    F:");
+            DisplayValue(3U, (int)st->result.rightLineIdx, 3U, 2U);
+            DisplayValue(3U, (int)st->finishStreak, 3U, 10U);
+            break;
+
+        case 2U:
+            espErrors =
+                (uint16)(espDiag.rxProtocolErrors + espDiag.rxHardwareErrors + espDiag.txErrors);
+            DisplayTextPadded(0U, "ESP LIVE TUNE");
+            (void)snprintf(lineBuf, sizeof(lineBuf), "T%03u C%03u E%03u",
+                           (unsigned int)(espDiag.rxTuneFrames % 1000U),
+                           (unsigned int)(espDiag.rxDriveCommandFrames % 1000U),
+                           (unsigned int)(espErrors % 1000U));
+            DisplayTextPadded(1U, lineBuf);
+            (void)snprintf(
+                lineBuf, sizeof(lineBuf), "KP:%lu.%02lu",
+                (unsigned long)((uint32)(g_runtimeTune.profile.kp * 1000.0f) / 1000U),
+                (unsigned long)(((uint32)(g_runtimeTune.profile.kp * 1000.0f) % 1000U) / 10U));
+            DisplayTextPadded(2U, lineBuf);
+            (void)snprintf(lineBuf, sizeof(lineBuf), "M%u H%u L%u",
+                           (unsigned int)g_runtimeTune.lineDetector.minContrast,
+                           (unsigned int)g_runtimeTune.lineDetector.edgeHighPct,
+                           (unsigned int)g_runtimeTune.lineDetector.edgeLowPct);
+            DisplayTextPadded(3U, lineBuf);
+            break;
+
+        case 3U:
+            DisplayTextPadded(0U, "TEENSY SPI");
+            DisplayTextPadded(1U, "RDY:  LIVE:");
+            DisplayText(1U, (teensyDiag.readyHigh == TRUE) ? "Y" : "N", 1U, 4U);
+            DisplayText(1U, (teensySnapshot.live == TRUE) ? "Y" : "N", 1U, 11U);
+            DisplayTextPadded(2U, "GOOD:   ERR:");
+            DisplayValue(2U, (int)(teensyDiag.goodFrameCount % 1000U), 3U, 5U);
+            DisplayValue(2U,
+                         (int)((teensyDiag.crcErrorCount + teensyDiag.protocolErrorCount +
+                                teensyDiag.spiErrorCount) %
+                               1000U),
+                         3U, 13U);
+            DisplayTextPadded(3U, "H:");
+            DisplayValue(3U, (int)teensyDiag.rawRxHeader[0], 3U, 2U);
+            DisplayValue(3U, (int)teensyDiag.rawRxHeader[1], 3U, 6U);
+            DisplayValue(3U, (int)teensyDiag.rawRxHeader[2], 3U, 10U);
+            DisplayValue(3U, (int)teensyDiag.rawRxHeader[3], 3U, 13U);
+            break;
+
+        case 0U:
+        default:
+            DisplayTextPadded(0U, "STACK DRIVE");
+            (void)snprintf(
+                lineBuf, sizeof(lineBuf), "%s %s S:%03d", stack_drive_phase_text(st->phase),
+                (g_stackDriveLastCommand == ESP_UART_LINK_DRIVE_COMMAND_STOP) ? "ST" : "GO",
+                (int)st->currentSpeedPct);
+            DisplayTextPadded(1U, lineBuf);
+            (void)snprintf(
+                lineBuf, sizeof(lineBuf), "V:%s C:%03u",
+                ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST)) ? "OK"
+                                                                                            : "LS",
+                (unsigned int)st->result.confidence);
+            DisplayTextPadded(2U, lineBuf);
+            (void)snprintf(
+                lineBuf, sizeof(lineBuf), "ESP:%03u SPI:%03u",
+                (unsigned int)((espDiag.rxTuneFrames + espDiag.rxDriveCommandFrames) % 1000U),
+                (unsigned int)(teensyDiag.goodFrameCount % 1000U));
+            DisplayTextPadded(3U, lineBuf);
+            break;
+    }
+
     DisplayRefresh();
 }
 
@@ -1093,5 +1394,82 @@ void tune_drive_test_exit(void)
     g_raceTuneDriveMode = FALSE;
     Esc_StopNeutral();
     SteerStraight();
+    StatusLed_Off();
+}
+
+void stack_drive_test_enter(uint32 nowMs)
+{
+    EspUartLink_Init();
+    race_mode_enter_ex(nowMs, FALSE, TRUE, TRUE, FALSE);
+    g_stackDriveDisplayPage = 0U;
+    g_stackDriveLastCommand = ESP_UART_LINK_DRIVE_COMMAND_START;
+    g_raceMode.nextDisplayMs = nowMs;
+
+    DisplayClear();
+    DisplayTextPadded(0U, "STACK DRIVE");
+    DisplayTextPadded(1U, "S32K CAM CTRL");
+    DisplayTextPadded(2U, "ESP+TEENSY ON");
+    DisplayTextPadded(3U, "SW2 PAGE SW3STOP");
+    DisplayRefresh();
+}
+
+void stack_drive_test_update(uint32 nowMs, boolean pagePressed, boolean stopPressed)
+{
+    EspUartLink_TuneFrame_t tune;
+    EspUartLink_DriveCommandFrame_t command;
+
+    if (pagePressed == TRUE)
+    {
+        g_stackDriveDisplayPage =
+            (uint8)((g_stackDriveDisplayPage + 1U) % (uint8)STACK_DRIVE_PAGE_COUNT);
+        g_raceMode.nextDisplayMs = nowMs;
+    }
+
+    if (esp_link_service_tune_frames(nowMs, &tune) == TRUE)
+    {
+        race_mode_apply_runtime_tune(&g_raceMode);
+    }
+
+    if (esp_link_service_drive_commands(nowMs, &command) == TRUE)
+    {
+        stack_drive_apply_remote_command(&command, nowMs);
+    }
+
+    App_ServiceRuntimeCore(nowMs);
+    race_mode_update_vision(&g_raceMode, nowMs);
+    race_mode_service_teensy_link_status(&g_raceMode, nowMs);
+    nowMs = Timebase_GetMs();
+    if (stopPressed == TRUE)
+    {
+        g_stackDriveLastCommand = ESP_UART_LINK_DRIVE_COMMAND_STOP;
+        stack_drive_apply_stop(&g_raceMode);
+    }
+    race_mode_update_control(&g_raceMode, nowMs, FALSE);
+    nowMs = Timebase_GetMs();
+    App_ServiceRuntimeCore(nowMs);
+    race_mode_update_ultrasonic(&g_raceMode, nowMs);
+    race_mode_service_teensy_link_status(&g_raceMode, nowMs);
+    App_ServiceRuntimeCore(nowMs);
+
+    if (time_reached(nowMs, g_raceMode.nextDisplayMs) == TRUE)
+    {
+        g_raceMode.nextDisplayMs = nowMs + STACK_DRIVE_DISPLAY_MS;
+        stack_drive_draw(&g_raceMode);
+    }
+}
+
+void stack_drive_test_exit(void)
+{
+    g_raceTuneDriveMode = FALSE;
+    g_raceServiceTeensyLink = FALSE;
+    g_raceEnforceTeensyCameraFault = FALSE;
+    Esc_StopNeutral();
+    SteerStraight();
+
+    if (LinearCameraIsBusy() == TRUE)
+    {
+        LinearCameraStopStream();
+    }
+
     StatusLed_Off();
 }

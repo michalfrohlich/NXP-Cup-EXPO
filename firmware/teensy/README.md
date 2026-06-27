@@ -201,6 +201,19 @@ At 500 kHz, interrupts are deferred for the bounded 1.344 ms transfer so the
 software slave cannot miss SCK edges; camera PWM, ADC triggering, and DMA
 continue in hardware.
 
+## Stack Drive Mode
+
+Build and upload the coordinated Stack Drive firmware with:
+
+```powershell
+pio run --environment teensy41-stack-drive --target upload
+```
+
+This mode services camera 0 vision, the MPU6050 IMU, S32K SPI telemetry, the
+RGB line-tracking indicator, and the SH1122 256x64 status display. It does not
+control the vehicle directly; the S32K remains responsible for control timing
+and actuator commands.
+
 Keep `TEENSY_LINK_SERIAL_DEBUG_ENABLED` disabled when using the Python camera
 stream, because both use USB serial.
 

@@ -7,9 +7,7 @@ static TeensyRaceRuntime raceRuntime;
 void ModeRace_Setup()
 {
     const TeensyRaceRuntimeConfig config = {
-        false,
-        false,
-        0U,
+        false, false, 0U, false, false, 0U,
     };
 
     raceRuntime.begin(config);
