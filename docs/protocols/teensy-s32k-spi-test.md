@@ -94,8 +94,8 @@ the S32K SPI baud rate temporarily and keep the packet at 84 bytes.
 | Word size | 8 bits |
 | Frame size | 84 bytes |
 | S32K service period | 5 ms |
-| Target SCK | 2 MHz |
-| Wire time at 2 MHz | about 0.336 ms |
+| Target SCK | 500 kHz |
+| Wire time at 500 kHz | about 1.344 ms |
 
 The S32K generated SPI configuration is in `Nxp_Cup.mex` and generated RTD
 files. The important generated names are:

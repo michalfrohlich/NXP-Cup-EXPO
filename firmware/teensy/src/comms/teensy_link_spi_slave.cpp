@@ -4,13 +4,10 @@
 
 #include "teensy_config.h"
 
-static constexpr uint32_t SPI_SLAVE_TIMEOUT_US = 2000UL;
+static constexpr uint32_t SPI_SLAVE_TIMEOUT_US = 5000UL;
 static constexpr uint32_t SPI_TIMEOUT_POLL_MASK = 0x3FFU;
 
-void TeensyLinkSpiSlave::begin(uint8_t csPin,
-                               uint8_t sckPin,
-                               uint8_t mosiPin,
-                               uint8_t misoPin,
+void TeensyLinkSpiSlave::begin(uint8_t csPin, uint8_t sckPin, uint8_t mosiPin, uint8_t misoPin,
                                uint8_t readyPin)
 {
     csPin_ = csPin;
@@ -20,8 +17,8 @@ void TeensyLinkSpiSlave::begin(uint8_t csPin,
     readyPin_ = readyPin;
 
     pinMode(csPin_, INPUT_PULLUP);
-    pinMode(sckPin_, INPUT);
-    pinMode(mosiPin_, INPUT);
+    pinMode(sckPin_, INPUT_PULLDOWN);
+    pinMode(mosiPin_, INPUT_PULLDOWN);
     pinMode(misoPin_, OUTPUT);
     pinMode(readyPin_, OUTPUT);
 
@@ -44,8 +41,7 @@ void TeensyLinkSpiSlave::publishFrame(const uint8_t frame[TEENSY_LINK_FRAME_BYTE
 
 void TeensyLinkSpiSlave::driveBit(uint8_t txByte, uint8_t bitMask)
 {
-    digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN,
-                     ((txByte & bitMask) != 0U) ? HIGH : LOW);
+    digitalWriteFast(TEENSY_LINK_SPI_MISO_PIN, ((txByte & bitMask) != 0U) ? HIGH : LOW);
 }
 
 void TeensyLinkSpiSlave::markReady(bool ready)
@@ -78,9 +74,8 @@ bool TeensyLinkSpiSlave::service()
     noInterrupts();
     (void)memcpy(localTx, txFrame_, TEENSY_LINK_FRAME_BYTES);
 
-    /* At 2 MHz each half-cycle is 250 ns. Keep the CPU dedicated to the
-       software SPI slave for the bounded 336 us transfer. Camera PWM, ADC,
-       and DMA continue in hardware while interrupt delivery is deferred. */
+    // At 500 kHz, the transfer occupies 1.344 ms. Camera PWM, ADC triggering,
+    // and DMA continue in hardware while interrupt delivery is deferred.
     driveBit(localTx[byteIndex], bitMask);
     startUs = micros();
 

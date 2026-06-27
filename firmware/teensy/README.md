@@ -197,7 +197,7 @@ components that are not implemented yet:
 
 The active SPI slave backend is the fixed-pin, software bit-banged
 implementation. There is no DMA/LPSPI4 backend selector in the current code.
-At 2 MHz, interrupts are deferred for the bounded 336 us transfer so the
+At 500 kHz, interrupts are deferred for the bounded 1.344 ms transfer so the
 software slave cannot miss SCK edges; camera PWM, ADC triggering, and DMA
 continue in hardware.
 

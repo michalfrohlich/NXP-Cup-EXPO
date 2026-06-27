@@ -13,7 +13,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 - **Type**: Full-duplex SPI, synchronous blocking transfers
 - **Cadence**: 5 ms (200 Hz) fixed service interval
 - **Frame Size**: Fixed 84 bytes (16 B header + 66 B payload + 2 B CRC)
-- **Clock**: 2 MHz, SPI Mode 0 (CPOL=0, CPHA=0)
+- **Clock**: 500 kHz, SPI Mode 0 (CPOL=0, CPHA=0)
 - **Data**: Bidirectional sensor + command exchange
 - **Reliability**: CRC-16/CCITT-FALSE error detection, sequence number tracking
 
@@ -45,7 +45,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 
 | Aspect | Value | Rationale |
 |--------|-------|-----------|
-| **Latency** | ~0.336 ms per frame | 84 bytes at 2 MHz |
+| **Latency** | ~1.344 ms per frame | 84 bytes at 500 kHz |
 | **Frequency** | 200 Hz (5 ms) | Matches the current camera/sensor cadence |
 | **Payload** | 66 B | Control commands + sensor telemetry |
 | **Camera identity** | 16-bit sequence per camera | Rejects repeated telemetry as duplicate camera data |
@@ -61,7 +61,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 3. Fixed frame structure: 16-byte header, 66-byte payload, 2-byte CRC.
 4. Rationale for fixed-size full-duplex polling at 5 ms.
 5. Pros/cons against UART, I2C, variable-length SPI, and Teensy-master SPI.
-6. Timing budget: about 0.336 ms wire time at 2 MHz inside a 5 ms service slot.
+6. Timing budget: about 1.344 ms wire time at 500 kHz inside a 5 ms service slot.
 7. Acceptance behavior: valid CRC/sequence updates, OLED leaves WAIT, stale within 100 ms.
 
 **Recommended Order for Report:**

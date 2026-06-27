@@ -74,11 +74,11 @@ Both boards use 3.3 V logic. Do not route a 5 V signal into either SPI pin.
 - Teensy is slave.
 - SPI mode 0.
 - 8-bit words, MSB first.
-- 2 MHz SCK.
+- 500 kHz SCK.
 - Fixed 84-byte full-duplex transfer every 5 ms.
 - Synchronous blocking transfer for protocol v2.
 
-At 2 MHz, the 84-byte transfer is about 0.336 ms of wire time, or 6.72 percent
+At 500 kHz, the 84-byte transfer is about 1.344 ms of wire time, or 26.88 percent
 of each 5 ms service period.
 
 The Teensy uses one fixed-pin software bit-banged backend. The failed
