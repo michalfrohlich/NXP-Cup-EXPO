@@ -98,10 +98,19 @@ void esp_link_bench_test_update(uint32 nowMs)
 {
     EspUartLink_Diagnostics_t diag;
     EspUartLink_TuneFrame_t tune;
+    EspUartLink_DriveCommandFrame_t command;
 
     if (esp_link_service_tune_frames(nowMs, &tune) == TRUE)
     {
         g_espLinkBench.lastTune = tune;
+        g_espLinkBench.lastTuneMs = nowMs;
+        g_espLinkBench.tuneReceived = TRUE;
+        g_espLinkBench.nextDisplayMs = nowMs;
+    }
+
+    if (esp_link_service_drive_commands(nowMs, &command) == TRUE)
+    {
+        (void)command;
         g_espLinkBench.lastTuneMs = nowMs;
         g_espLinkBench.tuneReceived = TRUE;
         g_espLinkBench.nextDisplayMs = nowMs;

@@ -40,7 +40,9 @@ The first build downloads the pinned U8g2 ESP-IDF component into
 ## Wiring And Use
 
 1. Flash the ESP32.
-2. Flash the S32K with `APP_TEST_ESP_LINK_TEST` enabled.
+2. Flash the S32K with `APP_TEST_ESP_LINK_TEST` enabled for UART bring-up, or
+   with `APP_TEST_NXP_CUP_TESTS` and select `Stack drive` for the full
+   S32K-camera drive bench.
 3. Wire ESP32 TX GPIO17 to S32K LPUART2 RX PTD6.
 4. Wire ESP32 RX GPIO16 to S32K LPUART2 TX PTD7.
 5. Connect ESP32 and S32K ground.
@@ -48,7 +50,8 @@ The first build downloads the pinned U8g2 ESP-IDF component into
 7. Connect the PC or phone to `EXPO_NXP_DATA`.
 8. Enter the password shown above.
 9. Open `http://192.168.4.1/`.
-10. Edit values and press **Apply to S32K**.
+10. Edit values and press **Apply to S32K**, or use **Start drive** /
+    **Stop drive** while the S32K stack-drive bench is active.
 
 If the operating system says the Wi-Fi network has no internet, remain
 connected; that is expected for this direct local link.
@@ -87,6 +90,18 @@ validating and storing the complete snapshot, the S32K replies:
 `O` means accepted. `E` is reserved for a rejected, well-formed request.
 The browser reports success only after the matching S32K response arrives.
 Values remain RAM-only and return to defaults after reset.
+
+The same page also exposes explicit drive commands:
+
+```text
+#C07S0Xcc_
+#C08S1Xcc_
+```
+
+`S0` means stop and `S1` means start. The S32K replies with the same compact
+result frame used by tuning requests. In the current S32K implementation,
+`Stack drive` reacts to these commands: stop immediately forces neutral and
+enters `STOPPED`; start re-enters ESC arm before normal driving resumes.
 
 ## Source Ownership
 
@@ -132,6 +147,8 @@ The bring-up protocol also:
   `#A100Q04T1234Xcc_`.
 - Sends full tuning snapshots and waits for the matching S32K result, retrying
   once if the first 150 ms attempt times out.
+- Sends compact start/stop drive-command frames and waits for the same
+  sequence-matched result frame.
 - Tracks UART receive, protocol, ACK, tuning-result, and timeout counters.
 
 Shared frame definitions are in
@@ -160,8 +177,11 @@ The display shows UART diagnostics and one of these network states:
 
 - The browser sends one HTTP `POST /tune` only when **Apply to S32K** is
   pressed. Sliders do not continuously transmit.
+- The browser sends one HTTP `POST /drive` only when **Start drive** or
+  **Stop drive** is pressed.
 - The 48-byte tuning frame takes about `1.02 ms` on the UART wire at
   `470588 8N1`.
+- The 10-byte drive-command frame takes about `0.21 ms` on the UART wire.
 - The S32K LPUART2 ISR stores received bytes in a 256-byte software ring and
   records hardware errors. The foreground service performs all frame parsing.
 - The S32K applies the validated snapshot immediately in the ESP link test,
@@ -180,9 +200,8 @@ The display shows UART diagnostics and one of these network states:
 
 ## Deferred
 
-- Applying ESP32 tuning snapshots safely while a race controller is running.
 - Reporting active S32K values back to a newly connected browser.
 - Persistent settings.
-- Stop command and high-level vehicle telemetry.
+- High-level vehicle telemetry.
 - Bluetooth.
 - Station or AP+station Wi-Fi modes.

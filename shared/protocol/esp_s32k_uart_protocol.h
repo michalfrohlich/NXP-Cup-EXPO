@@ -16,6 +16,7 @@
 
 #define ESP_S32K_TUNE_FRAME_LEN (48U)
 #define ESP_S32K_TUNE_RESULT_FRAME_LEN (9U)
+#define ESP_S32K_DRIVE_COMMAND_FRAME_LEN (10U)
 #define ESP_S32K_TUNE_GAIN_MILLI_MAX (99999U)
 #define ESP_S32K_TUNE_STEER_CLAMP_MAX (100U)
 #define ESP_S32K_TUNE_LPF_MILLI_MAX (1000U)
@@ -27,6 +28,9 @@
 #define ESP_S32K_ACK_FRAME_LEN (17U)
 #define ESP_S32K_BUTTON_SEQ_MAX (99U)
 #define ESP_S32K_TIME_MODULO_MS (10000U)
+
+#define ESP_S32K_DRIVE_COMMAND_STOP (0U)
+#define ESP_S32K_DRIVE_COMMAND_START (1U)
 
 /* S32K -> ESP: #BxyzQnnTmmmmXcc_
  * ESP -> S32K: #AxyzQnnTmmmmXcc_
@@ -54,6 +58,12 @@ typedef struct
     uint8_t sequence;
     bool accepted;
 } EspS32kTuneResultFrame_t;
+
+typedef struct
+{
+    uint8_t sequence;
+    uint8_t command;
+} EspS32kDriveCommandFrame_t;
 
 typedef struct
 {
@@ -467,6 +477,70 @@ static inline bool EspS32kTuneResultFrame_Decode(const uint8_t *frame, size_t fr
 
     outResult->sequence = (uint8_t)sequence;
     outResult->accepted = (frame[4] == (uint8_t)'O');
+    return true;
+}
+
+static inline bool EspS32kDriveCommandFrame_Encode(const EspS32kDriveCommandFrame_t *command,
+                                                   uint8_t *frame, size_t frameLen)
+{
+    uint8_t checksum;
+
+    if ((command == NULL) || (frame == NULL) || (frameLen < ESP_S32K_DRIVE_COMMAND_FRAME_LEN) ||
+        ((command->command != ESP_S32K_DRIVE_COMMAND_STOP) &&
+         (command->command != ESP_S32K_DRIVE_COMMAND_START)))
+    {
+        return false;
+    }
+
+    frame[0] = (uint8_t)ESP_S32K_FRAME_START;
+    frame[1] = (uint8_t)'C';
+    if (!EspS32k_EncodeDecimal(EspS32k_NormalizeSeq(command->sequence), &frame[2], 2U))
+    {
+        return false;
+    }
+    frame[4] = (uint8_t)'S';
+    frame[5] = (uint8_t)('0' + command->command);
+    frame[6] = (uint8_t)'X';
+    checksum = EspS32k_FrameCrc8(frame, 1U, 6U);
+    frame[7] = EspS32k_HexDigit((uint8_t)(checksum >> 4U));
+    frame[8] = EspS32k_HexDigit(checksum);
+    frame[9] = (uint8_t)ESP_S32K_FRAME_END;
+    return true;
+}
+
+static inline bool EspS32kDriveCommandFrame_Decode(const uint8_t *frame, size_t frameLen,
+                                                   EspS32kDriveCommandFrame_t *outCommand)
+{
+    uint32_t sequence;
+    uint8_t checksumHigh;
+    uint8_t checksumLow;
+    uint8_t command;
+
+    if ((frame == NULL) || (outCommand == NULL) || (frameLen != ESP_S32K_DRIVE_COMMAND_FRAME_LEN) ||
+        (frame[0] != (uint8_t)ESP_S32K_FRAME_START) || (frame[1] != (uint8_t)'C') ||
+        (frame[4] != (uint8_t)'S') || (frame[6] != (uint8_t)'X') ||
+        (frame[9] != (uint8_t)ESP_S32K_FRAME_END) ||
+        !EspS32k_DecodeDecimal(&frame[2], 2U, &sequence) ||
+        !EspS32k_DecodeHexDigit(frame[7], &checksumHigh) ||
+        !EspS32k_DecodeHexDigit(frame[8], &checksumLow) ||
+        (((uint8_t)(checksumHigh << 4U) | checksumLow) != EspS32k_FrameCrc8(frame, 1U, 6U)))
+    {
+        return false;
+    }
+
+    if ((frame[5] < (uint8_t)'0') || (frame[5] > (uint8_t)'1'))
+    {
+        return false;
+    }
+
+    command = (uint8_t)(frame[5] - (uint8_t)'0');
+    if ((command != ESP_S32K_DRIVE_COMMAND_STOP) && (command != ESP_S32K_DRIVE_COMMAND_START))
+    {
+        return false;
+    }
+
+    outCommand->sequence = (uint8_t)sequence;
+    outCommand->command = command;
     return true;
 }
 

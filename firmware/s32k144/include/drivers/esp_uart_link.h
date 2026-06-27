@@ -10,6 +10,8 @@ extern "C"
 #endif
 
 #define ESP_UART_LINK_TX_PERIOD_MS (50U)
+#define ESP_UART_LINK_DRIVE_COMMAND_STOP (0U)
+#define ESP_UART_LINK_DRIVE_COMMAND_START (1U)
 
     typedef struct
     {
@@ -37,13 +39,21 @@ extern "C"
 
     typedef struct
     {
+        uint8 sequence;
+        uint8 command;
+    } EspUartLink_DriveCommandFrame_t;
+
+    typedef struct
+    {
         uint16 txFrames;
         uint16 txQueuedFrames;
         uint16 txOverwrites;
         uint16 txTuneResults;
         uint16 rxAckFrames;
         uint16 rxTuneFrames;
+        uint16 rxDriveCommandFrames;
         uint16 rxTuneOverwrites;
+        uint16 rxDriveCommandOverwrites;
         uint16 rxBytes;
         uint16 rxHardwareErrors;
         uint16 rxOverrunErrors;
@@ -55,12 +65,14 @@ extern "C"
         uint32 lastTxMs;
         uint32 lastAckMs;
         uint32 lastTuneMs;
+        uint32 lastDriveCommandMs;
         uint16 lastAckAgeMs;
         boolean initialized;
         boolean txBusy;
         boolean txPending;
         boolean ackValid;
         boolean tunePending;
+        boolean driveCommandPending;
     } EspUartLink_Diagnostics_t;
 
     void EspUartLink_Init(void);
@@ -70,6 +82,7 @@ extern "C"
     void EspUartLink_Poll(uint32 nowMs);
     boolean EspUartLink_GetLastAck(EspUartLink_AckFrame_t *outAck);
     boolean EspUartLink_TakeTune(EspUartLink_TuneFrame_t *outTune);
+    boolean EspUartLink_TakeDriveCommand(EspUartLink_DriveCommandFrame_t *outCommand);
     Std_ReturnType EspUartLink_QueueTuneResult(uint8 sequence, boolean accepted);
     void EspUartLink_GetDiagnostics(EspUartLink_Diagnostics_t *outDiagnostics);
 

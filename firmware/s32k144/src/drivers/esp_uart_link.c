@@ -18,6 +18,7 @@
 
 static EspUartLink_AckFrame_t g_espUartLastAck;
 static EspUartLink_TuneFrame_t g_espUartPendingTune;
+static EspUartLink_DriveCommandFrame_t g_espUartPendingDriveCommand;
 static EspUartLink_ButtonFrame_t g_espUartPendingTx;
 static EspS32kTuneResultFrame_t g_espUartPendingTuneResult;
 static EspUartLink_Diagnostics_t g_espUartDiag;
@@ -118,6 +119,7 @@ static void consume_rx_byte(uint8 byte, uint32 nowMs)
 {
     EspS32kAckFrame_t decodedAck;
     EspS32kTuneFrame_t decodedTune;
+    EspS32kDriveCommandFrame_t decodedDriveCommand;
 
     if (byte == (uint8)ESP_S32K_FRAME_START)
     {
@@ -183,6 +185,21 @@ static void consume_rx_byte(uint8 byte, uint32 nowMs)
         g_espUartDiag.lastTuneMs = nowMs;
         g_espUartDiag.tunePending = TRUE;
     }
+    else if ((g_espUartRxLen == ESP_S32K_DRIVE_COMMAND_FRAME_LEN) &&
+             (EspS32kDriveCommandFrame_Decode(g_espUartRxFrame, (size_t)g_espUartRxLen,
+                                              &decodedDriveCommand) == true))
+    {
+        if (g_espUartDiag.driveCommandPending == TRUE)
+        {
+            g_espUartDiag.rxDriveCommandOverwrites++;
+        }
+
+        g_espUartPendingDriveCommand.sequence = decodedDriveCommand.sequence;
+        g_espUartPendingDriveCommand.command = decodedDriveCommand.command;
+        g_espUartDiag.rxDriveCommandFrames++;
+        g_espUartDiag.lastDriveCommandMs = nowMs;
+        g_espUartDiag.driveCommandPending = TRUE;
+    }
     else
     {
         g_espUartDiag.rxProtocolErrors++;
@@ -195,6 +212,7 @@ void EspUartLink_Init(void)
 {
     (void)memset(&g_espUartLastAck, 0, sizeof(g_espUartLastAck));
     (void)memset(&g_espUartPendingTune, 0, sizeof(g_espUartPendingTune));
+    (void)memset(&g_espUartPendingDriveCommand, 0, sizeof(g_espUartPendingDriveCommand));
     (void)memset(&g_espUartPendingTx, 0, sizeof(g_espUartPendingTx));
     (void)memset(&g_espUartPendingTuneResult, 0, sizeof(g_espUartPendingTuneResult));
     (void)memset(&g_espUartDiag, 0, sizeof(g_espUartDiag));
@@ -486,6 +504,18 @@ boolean EspUartLink_TakeTune(EspUartLink_TuneFrame_t *outTune)
 
     *outTune = g_espUartPendingTune;
     g_espUartDiag.tunePending = FALSE;
+    return TRUE;
+}
+
+boolean EspUartLink_TakeDriveCommand(EspUartLink_DriveCommandFrame_t *outCommand)
+{
+    if ((outCommand == NULL_PTR) || (g_espUartDiag.driveCommandPending != TRUE))
+    {
+        return FALSE;
+    }
+
+    *outCommand = g_espUartPendingDriveCommand;
+    g_espUartDiag.driveCommandPending = FALSE;
     return TRUE;
 }
 

@@ -433,6 +433,78 @@ done:
     return result;
 }
 
+esp_err_t S32kUartLink_SendDriveCommandAndWait(EspS32kDriveCommandFrame_t *command)
+{
+    uint8_t frame[ESP_S32K_DRIVE_COMMAND_FRAME_LEN];
+    bool accepted;
+    esp_err_t result = ESP_FAIL;
+    uint8_t attempt;
+
+    if ((command == NULL) || (s_tuneMutex == NULL) || (s_tuneResultReady == NULL))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(s_tuneMutex, ticks_at_least_one(S32K_UART_LINK_TUNE_LOCK_TIMEOUT_MS)) !=
+        pdTRUE)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    command->sequence = s_nextTuneSequence;
+    s_nextTuneSequence = (uint8_t)((s_nextTuneSequence + 1U) % (ESP_S32K_BUTTON_SEQ_MAX + 1U));
+    while (xSemaphoreTake(s_tuneResultReady, 0U) == pdTRUE)
+    {
+    }
+
+    portENTER_CRITICAL(&s_statusLock);
+    s_waitingTuneSequence = command->sequence;
+    s_tuneResultAccepted = false;
+    s_waitingForTuneResult = true;
+    portEXIT_CRITICAL(&s_statusLock);
+
+    if (!EspS32kDriveCommandFrame_Encode(command, frame, sizeof(frame)))
+    {
+        result = ESP_ERR_INVALID_ARG;
+        goto done;
+    }
+
+    for (attempt = 0U; attempt < S32K_UART_LINK_TUNE_SEND_ATTEMPTS; attempt++)
+    {
+        int written = uart_write_bytes(S32K_UART_LINK_PORT, (const char *)frame, sizeof(frame));
+        if (written != (int)sizeof(frame))
+        {
+            result = ESP_FAIL;
+            goto done;
+        }
+
+        if (xSemaphoreTake(s_tuneResultReady,
+                           ticks_at_least_one(S32K_UART_LINK_TUNE_ACK_ATTEMPT_MS)) == pdTRUE)
+        {
+            portENTER_CRITICAL(&s_statusLock);
+            accepted = s_tuneResultAccepted;
+            portEXIT_CRITICAL(&s_statusLock);
+            result = accepted ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
+            goto done;
+        }
+
+        ESP_LOGW(TAG, "Drive command response timeout seq=%u attempt=%u",
+                 (unsigned)command->sequence, (unsigned)(attempt + 1U));
+    }
+
+    portENTER_CRITICAL(&s_statusLock);
+    s_tuneTimeouts++;
+    portEXIT_CRITICAL(&s_statusLock);
+    result = ESP_ERR_TIMEOUT;
+
+done:
+    portENTER_CRITICAL(&s_statusLock);
+    s_waitingForTuneResult = false;
+    portEXIT_CRITICAL(&s_statusLock);
+    (void)xSemaphoreGive(s_tuneMutex);
+    return result;
+}
+
 esp_err_t S32kUartLink_Read(uint8_t *data, size_t maxLength, size_t *outRead)
 {
     if (outRead != NULL)

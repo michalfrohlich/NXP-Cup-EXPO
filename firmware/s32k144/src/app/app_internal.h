@@ -480,6 +480,8 @@ void serial_tune_test_exit(void);
 void esp_link_bench_test_enter(uint32 nowMs);
 void esp_link_bench_test_update(uint32 nowMs);
 void esp_link_bench_test_exit(void);
+boolean esp_link_service_drive_commands(uint32 nowMs,
+                                        EspUartLink_DriveCommandFrame_t *outLastCommand);
 void teensy_link_test_enter(uint32 nowMs);
 void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed);
 void teensy_link_test_exit(void);

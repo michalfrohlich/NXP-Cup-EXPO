@@ -53,6 +53,22 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 | **Sequence Tracking** | 16-bit per direction | Detects dropped frames |
 | **Stale Timeout** | 100 ms | Marks old sensors as unreliable |
 
+## ESP32-S32K UART Web Link
+
+The ESP32 web UI communicates with the S32K over UART using the shared frame
+definitions in `shared/protocol/esp_s32k_uart_protocol.h`.
+
+Current ESP-to-S32K request frames are:
+
+| Purpose | Format | Notes |
+|---|---|---|
+| Tuning snapshot | `#TnnPxxxxxIxxxxxDxxxxxCxxxLxxxxMxxxxHxxxExxxXcc_` | PID, steering shaping, and line-detector RAM tune values |
+| Drive command | `#CnnSxXcc_` | `S0` stop, `S1` start |
+
+The S32K replies to both request types with `#RnnOXcc_` for accepted or
+`#RnnEXcc_` for rejected. `nn` is the request sequence and `cc` is CRC-8/ATM
+over the frame payload before `X`.
+
 ### For Your Engineering Report
 
 **Include:**

@@ -136,6 +136,26 @@ boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outL
     return received;
 }
 
+boolean esp_link_service_drive_commands(uint32 nowMs,
+                                        EspUartLink_DriveCommandFrame_t *outLastCommand)
+{
+    EspUartLink_DriveCommandFrame_t command;
+    boolean received = FALSE;
+
+    EspUartLink_Service(nowMs);
+    while (EspUartLink_TakeDriveCommand(&command) == TRUE)
+    {
+        (void)EspUartLink_QueueTuneResult(command.sequence, TRUE);
+        if (outLastCommand != NULL_PTR)
+        {
+            *outLastCommand = command;
+        }
+        received = TRUE;
+    }
+
+    return received;
+}
+
 void esp_link_test_enter(uint32 nowMs)
 {
     (void)memset(&g_espLinkTest, 0, sizeof(g_espLinkTest));
@@ -170,6 +190,7 @@ void esp_link_test_update(uint32 nowMs)
 {
     EspUartLink_Diagnostics_t diag;
     EspUartLink_TuneFrame_t tune;
+    EspUartLink_DriveCommandFrame_t command;
     char diagLine[112];
     boolean stateChanged;
     boolean rxLive;
@@ -229,6 +250,16 @@ void esp_link_test_update(uint32 nowMs)
 #if (ESP_LINK_DISPLAY_ENABLED == 1U)
         g_espLinkTest.lastTune = tune;
 #endif
+        g_espLinkTest.lastTuneMs = nowMs;
+        g_espLinkTest.tuneReceived = TRUE;
+#if (ESP_LINK_DISPLAY_ENABLED == 1U)
+        g_espLinkTest.nextDisplayMs = nowMs;
+#endif
+    }
+
+    if (esp_link_service_drive_commands(nowMs, &command) == TRUE)
+    {
+        (void)command;
         g_espLinkTest.lastTuneMs = nowMs;
         g_espLinkTest.tuneReceived = TRUE;
 #if (ESP_LINK_DISPLAY_ENABLED == 1U)
