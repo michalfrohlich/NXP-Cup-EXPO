@@ -53,13 +53,16 @@ The PCB input and RGB LED pins are configured in `include/teensy_config.h`:
 | RGB LED blue | 3 |
 
 `TEENSY_APP_MODE_HARDWARE_TEST` is the bring-up mode for these pins. It cycles
-LED colors while idle. Holding button 1 forces the LED white through the
-level-based `BoardInputs_IsPressed()` path. Pressing button 2 once toggles LED
-power through the one-shot `BoardInputs_WasPressed()` path.
+the selected LED channel red, green, and blue on successive button 1 presses.
+Pressing button 2 once toggles LED power. The potentiometer controls brightness.
 
 The Teensy board-input driver debounces both momentary buttons. App code can use
 `BoardInputs_IsPressed()` for the current debounced level and
 `BoardInputs_WasPressed()` for the one-shot press edge.
+
+Camera Bench, Race, and Stack Drive share one rate-limited tracking LED policy.
+See `../../docs/system/status-led-semantics.md` for the color meanings. Stack
+Drive button 2 toggles this indication without stopping camera or SPI service.
 
 ## SD Logger
 
@@ -212,7 +215,8 @@ pio run --environment teensy41-stack-drive --target upload
 This mode services camera 0 vision, the MPU6050 IMU, S32K SPI telemetry, the
 RGB line-tracking indicator, and the SH1122 256x64 status display. It does not
 control the vehicle directly; the S32K remains responsible for control timing
-and actuator commands.
+and actuator commands. Press Teensy PCB button 2 to toggle the RGB tracking
+indicator off or on.
 
 Keep `TEENSY_LINK_SERIAL_DEBUG_ENABLED` disabled when using the Python camera
 stream, because both use USB serial.

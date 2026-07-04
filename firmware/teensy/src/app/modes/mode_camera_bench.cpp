@@ -11,10 +11,12 @@
 #include "drivers/linear_camera.h"
 #include "drivers/status_led.h"
 #include "services/line_detector.h"
+#include "services/tracking_status_led.h"
 #include "teensy_config.h"
 
 static LinearCamera camera0;
 static LineDetector trackingLedDetector;
+static TrackingStatusLed trackingStatusLed;
 static uint32_t nextDebugPrintMs = 0U;
 static uint32_t nextDisplayRefreshMs = 0U;
 static uint32_t nextStreamMs = 0U;
@@ -67,39 +69,13 @@ static void streamLatestFrame()
         return;
     }
 
-    CameraStream_WriteRawFrame(latestFrame);
+    CameraStream_WriteFrameVision(latestFrame, trackingLedVision, true);
 }
 
-static void updateTrackingLed()
+static void updateTrackingLed(uint32_t nowMs, uint32_t nowUs)
 {
-    if (latestFrameValid != true)
-    {
-        StatusLed_SetRgb(128U, 0U, 0U);
-        return;
-    }
-
-    memcpy(trackingLedPixels, &latestFrame.values[CAM_TRIM_LEFT_PX], sizeof(trackingLedPixels));
-    trackingLedDetector.process(trackingLedPixels, trackingLedVision);
-
-    if (trackingLedVision.status == VISION_TRACK_LOST)
-    {
-        StatusLed_SetRgb(128U, 0U, 0U);
-        return;
-    }
-
-    float error = trackingLedVision.error;
-    if (error > 1.0f)
-    {
-        error = 1.0f;
-    }
-    else if (error < -1.0f)
-    {
-        error = -1.0f;
-    }
-
-    const uint8_t green = (error < 0.0f) ? (uint8_t)(((-error) * 255.0f) + 0.5f) : 0U;
-    const uint8_t blue = (error > 0.0f) ? (uint8_t)((error * 255.0f) + 0.5f) : 0U;
-    StatusLed_SetRgb(0U, green, blue);
+    trackingStatusLed.update(nowMs, nowUs, camera0.status() != LinearCameraStatus::Fault,
+                             latestFrameValid, latestFrame.timestampUs, trackingLedVision);
 }
 
 static void refreshCameraDisplay()
@@ -268,8 +244,7 @@ static void printCameraDebugFrame(uint32_t nowMs)
 
 void ModeCameraBench_Setup()
 {
-    StatusLed_Init();
-    StatusLed_SetRgb(128U, 0U, 0U);
+    trackingStatusLed.begin(true);
     trackingLedDetector.init();
 
     if (TEENSY_DISPLAY_CAMERA_DEBUG_ENABLED == true)
@@ -342,8 +317,10 @@ void ModeCameraBench_Loop()
     if (camera0.getLatestFrame(latestFrame) == true)
     {
         latestFrameValid = true;
-        updateTrackingLed();
+        memcpy(trackingLedPixels, &latestFrame.values[CAM_TRIM_LEFT_PX], sizeof(trackingLedPixels));
+        trackingLedDetector.process(trackingLedPixels, trackingLedVision);
     }
+    updateTrackingLed(nowMs, nowUs);
 
     if ((displayReady == true) &&
         (camera0.hasIdleTimeBeforeNextFrame(nowUs, TEENSY_DISPLAY_SERVICE_MIN_IDLE_US) == true))

@@ -5,6 +5,7 @@
 #include "comms/teensy_link_spi_slave.h"
 #include "drivers/mpu6050_imu.h"
 #include "services/camera_vision.h"
+#include "services/tracking_status_led.h"
 #include "telemetry/teensy_link_telemetry.h"
 
 struct TeensyRaceRuntimeConfig
@@ -22,6 +23,7 @@ class TeensyRaceRuntime
   public:
     void begin(const TeensyRaceRuntimeConfig &config);
     void service();
+    void setTrackingLedEnabled(bool enabled);
 
   private:
     void publishFrame(uint32_t nowMs);
@@ -37,6 +39,7 @@ class TeensyRaceRuntime
     TeensyLinkSpiSlave s32kSpi_;
     CameraVision cameraVision0_;
     Mpu6050Imu imu_;
+    TrackingStatusLed trackingLed_;
     TeensyLinkTelemetryInputs telemetry_ = {};
     TeensyLinkS32kSnapshot s32kSnapshot_ = {};
     uint8_t txFrame_[TEENSY_LINK_FRAME_BYTES] = {};

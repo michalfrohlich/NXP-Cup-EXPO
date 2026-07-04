@@ -57,11 +57,7 @@ void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
         }
     }
 
-    if (config_.trackingLedEnabled == true)
-    {
-        StatusLed_Init();
-        StatusLed_SetRgb(128U, 0U, 0U);
-    }
+    trackingLed_.begin(config_.trackingLedEnabled);
 
     if (config_.stackDisplayEnabled == true)
     {
@@ -166,6 +162,17 @@ void TeensyRaceRuntime::service()
     }
 }
 
+void TeensyRaceRuntime::setTrackingLedEnabled(bool enabled)
+{
+    if (config_.trackingLedEnabled == enabled)
+    {
+        return;
+    }
+
+    config_.trackingLedEnabled = enabled;
+    trackingLed_.setEnabled(enabled);
+}
+
 void TeensyRaceRuntime::publishFrame(uint32_t nowMs)
 {
     uint16_t ackS32kSeq = s32kSnapshot_.valid ? s32kSnapshot_.frameSeq : 0U;
@@ -262,33 +269,7 @@ void TeensyRaceRuntime::updateTrackingLed()
                        (cameraVision0_.getLatestVision(vision, sequence, timestampUs) == true);
 
     (void)sequence;
-    (void)timestampUs;
-
-    if (valid != true)
-    {
-        StatusLed_SetRgb(128U, 0U, 0U);
-        return;
-    }
-
-    if (vision.status == VISION_TRACK_LOST)
-    {
-        StatusLed_SetRgb(128U, 0U, 0U);
-        return;
-    }
-
-    float error = vision.error;
-    if (error > 1.0f)
-    {
-        error = 1.0f;
-    }
-    else if (error < -1.0f)
-    {
-        error = -1.0f;
-    }
-
-    const uint8_t green = (error < 0.0f) ? (uint8_t)(((-error) * 255.0f) + 0.5f) : 0U;
-    const uint8_t blue = (error > 0.0f) ? (uint8_t)((error * 255.0f) + 0.5f) : 0U;
-    StatusLed_SetRgb(0U, green, blue);
+    trackingLed_.update(millis(), micros(), cameraVision0Ready_, valid, timestampUs, vision);
 }
 
 static const char *trackStatusName(uint8_t status)
@@ -386,8 +367,9 @@ void TeensyRaceRuntime::drawStackDisplay()
     }
     stackDisplay.drawStr(0, 46, line);
 
-    (void)snprintf(line, sizeof(line), "seq T%05u S%05u age%03u", (unsigned)teensyFrameSeq_,
-                   (unsigned)telemetry_.sensorSeq, (unsigned)telemetry_.sensorAgeMs);
+    (void)snprintf(line, sizeof(line), "seq T%05u S%05u age%03u LED:%s", (unsigned)teensyFrameSeq_,
+                   (unsigned)telemetry_.sensorSeq, (unsigned)telemetry_.sensorAgeMs,
+                   (config_.trackingLedEnabled == true) ? "ON" : "OFF");
     stackDisplay.drawStr(0, 60, line);
     stackDisplay.sendBuffer();
 }

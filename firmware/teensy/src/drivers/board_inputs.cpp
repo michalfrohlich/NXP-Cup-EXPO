@@ -13,9 +13,21 @@ struct ButtonContext
     bool lastRawState;
     bool pressedEvent;
     uint32_t candidateSinceMs;
+    uint32_t lastPressEventMs;
 };
 
 static ButtonContext buttonState[BUTTON_COUNT];
+static volatile bool buttonPressPending[BUTTON_COUNT];
+
+static void onButton1Pressed()
+{
+    buttonPressPending[(uint8_t)BoardButtonId::Button1] = true;
+}
+
+static void onButton2Pressed()
+{
+    buttonPressPending[(uint8_t)BoardButtonId::Button2] = true;
+}
 
 static uint8_t buttonIndex(BoardButtonId id)
 {
@@ -55,14 +67,20 @@ static void updateButton(BoardButtonId id, uint32_t nowMs)
     if ((rawPressed != button.stableState) &&
         ((uint32_t)(nowMs - button.candidateSinceMs) >= BUTTON_DEBOUNCE_MS))
     {
-        const bool previousStable = button.stableState;
         button.stableState = rawPressed;
-
-        if ((previousStable != true) && (button.stableState == true))
-        {
-            button.pressedEvent = true;
-        }
     }
+}
+
+static bool takePressPending(BoardButtonId id)
+{
+    const uint8_t index = buttonIndex(id);
+    bool pending;
+
+    noInterrupts();
+    pending = buttonPressPending[index];
+    buttonPressPending[index] = false;
+    interrupts();
+    return pending;
 }
 } // namespace
 
@@ -81,7 +99,12 @@ void BoardInputs_Init()
         buttonState[i].lastRawState = readButtonRaw(id);
         buttonState[i].pressedEvent = false;
         buttonState[i].candidateSinceMs = nowMs;
+        buttonState[i].lastPressEventMs = nowMs - BUTTON_DEBOUNCE_MS;
+        buttonPressPending[i] = false;
     }
+
+    attachInterrupt(digitalPinToInterrupt(TEENSY_BUTTON_1_PIN), onButton1Pressed, FALLING);
+    attachInterrupt(digitalPinToInterrupt(TEENSY_BUTTON_2_PIN), onButton2Pressed, FALLING);
 }
 
 void BoardInputs_Update()
@@ -90,7 +113,16 @@ void BoardInputs_Update()
 
     for (uint8_t i = 0U; i < BUTTON_COUNT; i++)
     {
-        updateButton((BoardButtonId)i, nowMs);
+        const BoardButtonId id = (BoardButtonId)i;
+        ButtonContext &button = buttonState[i];
+
+        updateButton(id, nowMs);
+        if ((takePressPending(id) == true) &&
+            ((uint32_t)(nowMs - button.lastPressEventMs) >= BUTTON_DEBOUNCE_MS))
+        {
+            button.pressedEvent = true;
+            button.lastPressEventMs = nowMs;
+        }
     }
 }
 
