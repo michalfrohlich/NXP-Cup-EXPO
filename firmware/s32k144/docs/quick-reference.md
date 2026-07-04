@@ -20,9 +20,9 @@
 - `include/config/board_config.h`: generated PWM/channel routing aliases and board-specific input/device addresses.
 - `include/config/actuator_config.h`: servo and ESC physical calibration values.
 - `include/config/sensor_config.h`: camera geometry/timing and ultrasonic sensor calibration/validity limits.
-- `include/domain/vehicle_types.h`: shared domain packets passed between vision, control, and app code.
+- `include/domain/vehicle_types.h`: hardware-independent perception packets passed between vision, control, and app code.
 - `include/config/vision_config.h`: vision detector tuning constants.
-- `include/config/control_config.h`: baseline steering PID, steering shaping, and controller speed policy constants.
+- `include/config/control_config.h`: baseline steering PID and steering signal-shaping constants.
 
 ## Mode selection
 - Exactly one `APP_TEST_*` flag must be enabled.
@@ -57,7 +57,7 @@
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
 - Camera consumers process a newly completed frame when `LinearCameraGetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
 - `Cam+Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
-- Steering PID uses the active `KP/KD/KI/ITERM_CLAMP` values plus the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied.
+- Steering PID uses the active `KP/KD/KI/ITERM_CLAMP` values plus the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied. The controller returns only a steering request. Race mode independently owns speed selection, slowdown, ramping, braking/neutral, and safety policy.
 - `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - `Ultra+ESC` centers the servo, drives both motors at 50% when clear, slows at 45 cm, and stops at 8 cm.
 - `Victory Lap` is a separate pole-detection test: it approaches slowly, stops at 8 cm, then steps through a Mario-style victory note table for future BLDC music support.

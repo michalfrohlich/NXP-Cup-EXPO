@@ -20,13 +20,12 @@
 #define APP_RACE_S32K_ONLY 0 // Race using the S32K linear camera
 #define APP_TEST_TEENSY_LINK_TEST 0
 #define APP_TEST_ESP_LINK_TEST 0
-#define APP_TEST_NXP_CUP_TESTS 1    // Tuning and testing different tests here
-#define APP_RACE 0 // Full race using Teensy camera data over SPI
+#define APP_TEST_NXP_CUP_TESTS 1 // Tuning and testing different tests here
+#define APP_RACE 0               // Full race using Teensy camera data over SPI
 
 #define APP_MODE_COUNT                                                                             \
-    ((APP_TEST_LINEAR_CAMERA_TEST) + (APP_TEST_ESC_TEST) + (APP_RACE_S32K_ONLY) +                 \
-     (APP_RACE) + (APP_TEST_SERVO_RATE_TEST) +                                                    \
-     (APP_TEST_TEENSY_LINK_TEST) + (APP_TEST_ESP_LINK_TEST) +                                     \
+    ((APP_TEST_LINEAR_CAMERA_TEST) + (APP_TEST_ESC_TEST) + (APP_RACE_S32K_ONLY) + (APP_RACE) +     \
+     (APP_TEST_SERVO_RATE_TEST) + (APP_TEST_TEENSY_LINK_TEST) + (APP_TEST_ESP_LINK_TEST) +         \
      (APP_TEST_NXP_CUP_TESTS))
 
 #if (APP_MODE_COUNT != 1)
@@ -135,7 +134,8 @@
    - POT (manual) mode should stay FULL RANGE (-100..+100)
    - FULL AUTO (Simple test drive runtime test) should be capped here
 */
-#define FULL_AUTO_SPEED_PCT 25       /* was effectively: 100 (uncapped) */
+#define FULL_AUTO_SPEED_PCT 25 /* was effectively: 100 (uncapped) */
+#define RACE_STEER_SLOWDOWN_MAX_PCT 25
 #define FULL_AUTO_RAMP_STEP_PCT 2    /* was: (none) */
 #define FULL_AUTO_RAMP_PERIOD_MS 20u /* was: (none) */
 

@@ -87,8 +87,7 @@ static void race_mode_draw_speed_selection(SpeedModeSetting_t selected)
     DisplayTextPadded(0U, "SPEED MODE");
     DisplayTextPadded(1U, (selected == SPEED_MODE_SUPERFAST) ? ">SUPERFAST" : " SUPERFAST");
     DisplayTextPadded(2U, (selected == SPEED_MODE_5050) ? ">5050" : " 5050");
-    DisplayTextPadded(3U, (selected == SPEED_MODE_SLOW) ? ">SLOW SW2 SELECT"
-                                                        : " SLOW SW2 SELECT");
+    DisplayTextPadded(3U, (selected == SPEED_MODE_SLOW) ? ">SLOW SW2 SELECT" : " SLOW SW2 SELECT");
     DisplayRefresh();
 }
 
@@ -165,8 +164,8 @@ static SpeedModeSetting_t race_mode_select_speed_mode(void)
 
 static boolean race_mode_is_active(const RaceModeState_t *st)
 {
-    return (boolean)((st != NULL_PTR) && ((st->phase == RACE_PHASE_SPEED_RUN) ||
-                                         (st->phase == RACE_PHASE_HONOR_RUN)));
+    return (boolean)((st != NULL_PTR) &&
+                     ((st->phase == RACE_PHASE_SPEED_RUN) || (st->phase == RACE_PHASE_HONOR_RUN)));
 }
 
 static void race_mode_latch_fault(RaceModeState_t *st, RaceFaultReason_t reason)
@@ -683,8 +682,7 @@ static void race_mode_collect_teensy_camera(RaceModeState_t *st, uint32 nowMs)
     g_raceTeensyCam0Link.cameraReceivedCount++;
 
     if (TeensyCameraSource_GetCamera0Vision(&g_raceTeensyCam0Link.snapshot, nowMs,
-                                            (uint32)RACE_TEENSY_CAMERA_MAX_AGE_MS,
-                                            &vision) != TRUE)
+                                            (uint32)RACE_TEENSY_CAMERA_MAX_AGE_MS, &vision) != TRUE)
     {
         g_raceTeensyCam0Link.cameraRejectedCount++;
         return;
@@ -827,8 +825,7 @@ static void race_mode_check_health(RaceModeState_t *st, uint32 nowMs)
         st->lastServoPeriodMs = nowMs;
     }
     else if ((servoSnapshot.Initialized != TRUE) ||
-             ((uint32)(nowMs - st->lastServoPeriodMs) >=
-              (uint32)RACE_SERVO_TIMING_STALE_MS))
+             ((uint32)(nowMs - st->lastServoPeriodMs) >= (uint32)RACE_SERVO_TIMING_STALE_MS))
     {
         race_mode_latch_fault(st, RACE_FAULT_SERVO_TIMING);
     }
@@ -912,7 +909,6 @@ static void race_mode_update_ultrasonic(RaceModeState_t *st, uint32 nowMs)
 
 static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean stopPressed)
 {
-    uint8 controllerBaseSpeed;
     boolean holdStraightForObstacle = FALSE;
     float controllerDt;
     float outputFilterAlpha;
@@ -1036,13 +1032,9 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         }
         else if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
         {
-            VehicleControlOutput_t out;
-
-            controllerBaseSpeed = (st->currentSpeedPct > 0) ? (uint8)st->currentSpeedPct
-                                                            : race_mode_base_speed_pct();
-            out = SteeringController_Update(&st->ctrl, &st->result, controllerDt,
-                                            controllerBaseSpeed);
-            st->steerRaw = (sint16)out.steer_cmd;
+            SteeringControllerOutput_t out =
+                SteeringController_Update(&st->ctrl, &st->result, controllerDt);
+            st->steerRaw = out.steerCmd;
 
             if (((st->steerRaw < 0) ? (sint16)(-st->steerRaw) : st->steerRaw) <= 2)
             {
@@ -1088,7 +1080,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
     {
         sint32 steerSlowPct =
             ((sint32)((st->steerOut < 0) ? (sint16)(-st->steerOut) : st->steerOut) *
-             (sint32)SPEED_SLOW_PER_STEER) /
+             (sint32)RACE_STEER_SLOWDOWN_MAX_PCT) /
             (sint32)STEER_CMD_CLAMP;
 
         st->targetSpeedPct = (sint32)race_mode_base_speed_pct() - steerSlowPct;

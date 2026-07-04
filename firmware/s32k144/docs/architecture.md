@@ -10,7 +10,7 @@
 - `include/config/board_config.h` owns board routing aliases that may reference generated RTD/MCAL symbols.
 - `include/config/actuator_config.h` owns servo and ESC physical calibration values.
 - `include/config/sensor_config.h` owns sensor geometry, timing, conversion, and validity-limit constants.
-- `include/domain/vehicle_types.h` defines the shared vision/control/app handoff packets.
+- `include/domain/vehicle_types.h` defines hardware-independent perception data shared with control and app code.
 - `include/config/vision_config.h` defines vision detector tunables used by the vision service and debug code.
 - `include/config/control_config.h` defines baseline steering-control tunings used by the control service and app runtime tune initialization.
 - `SteeringControllerConfig_t` is the app-to-controller tuning boundary. Race
@@ -18,6 +18,18 @@
   `SteeringController_ApplyConfig()`; app modes do not write controller tuning
   fields directly. Applying a config preserves PID history, while
   `SteeringController_Reset()` explicitly clears that history at mode entry.
+- `SteeringController_Update()` owns lateral control only. It converts the
+  current `VisionOutput_t` into `SteeringControllerOutput_t.steerCmd`; it does
+  not select throttle, braking, race phases, or actuator safety behavior.
+- Race mode owns the current open-loop longitudinal policy: profile speed,
+  steering-based slowdown, line-quality slowdown, ultrasonic Honor behavior,
+  speed ramping, and stop/fault handling. This remains app-local because there
+  is no measured-speed feedback loop that would justify a separate speed
+  controller.
+- A future IMU-based vehicle-dynamics stage may adjust a combined steering and
+  speed request after nominal lateral and longitudinal decisions are made.
+  Keeping this as a documented boundary avoids coupling raw IMU processing to
+  the steering PID before the required yaw-rate and speed estimates exist.
 - `src/debug/uart_host_link.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model

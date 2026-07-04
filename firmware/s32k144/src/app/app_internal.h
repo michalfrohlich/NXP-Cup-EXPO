@@ -206,7 +206,6 @@ typedef struct
     boolean displayDirty;
     boolean paused;
     boolean servoEnabled;
-    uint8 steeringBaseSpeed;
 } LinearCameraTestState_t;
 
 typedef enum
@@ -440,8 +439,7 @@ SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel);
 const char *SpeedMode_GetName(SpeedModeSetting_t setting);
 const CamTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting);
 void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting);
-void App_ApplySteeringProfile(SteeringControllerState_t *state,
-                              const CamTuneProfile_t *profile);
+void App_ApplySteeringProfile(SteeringControllerState_t *state, const CamTuneProfile_t *profile);
 
 void serial_tune_test_enter(uint32 nowMs);
 void serial_tune_test_update(void);

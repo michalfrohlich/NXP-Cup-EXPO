@@ -70,12 +70,14 @@ void ultrasonic_test_update(uint32 nowMs, boolean sw2Pressed)
 
     if ((active == TRUE) && (g_ultrasonicTest.haveValidDistance == TRUE))
     {
-        inStopRange =
-            (g_ultrasonicTest.lastDistanceCm <= (float)ULTRASONIC_TEST_STOP_DISTANCE_CM) ? TRUE : FALSE;
-        inSlowRange = ((g_ultrasonicTest.lastDistanceCm <= (float)ULTRASONIC_TEST_SLOW_DISTANCE_CM) &&
-                       (inStopRange != TRUE))
+        inStopRange = (g_ultrasonicTest.lastDistanceCm <= (float)ULTRASONIC_TEST_STOP_DISTANCE_CM)
                           ? TRUE
                           : FALSE;
+        inSlowRange =
+            ((g_ultrasonicTest.lastDistanceCm <= (float)ULTRASONIC_TEST_SLOW_DISTANCE_CM) &&
+             (inStopRange != TRUE))
+                ? TRUE
+                : FALSE;
 
         if (inStopRange == TRUE)
         {
@@ -805,7 +807,6 @@ void linear_camera_test_enter_common(uint32 nowMs, boolean servoEnabled)
     (void)memset(&g_linearCameraTest, 0, sizeof(g_linearCameraTest));
 
     g_linearCameraTest.servoEnabled = servoEnabled;
-    g_linearCameraTest.steeringBaseSpeed = 20U;
     LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
     LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
     LineDetector_Init();
@@ -1139,11 +1140,10 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
         else
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            VehicleControlOutput_t out =
-                SteeringController_Update(&g_linearCameraTest.ctrl, &g_linearCameraTest.result, dt,
-                                          g_linearCameraTest.steeringBaseSpeed);
+            SteeringControllerOutput_t out =
+                SteeringController_Update(&g_linearCameraTest.ctrl, &g_linearCameraTest.result, dt);
 
-            g_linearCameraTest.steerRaw = (sint16)out.steer_cmd;
+            g_linearCameraTest.steerRaw = out.steerCmd;
 
             if (((g_linearCameraTest.steerRaw < 0) ? (sint16)(-g_linearCameraTest.steerRaw)
                                                    : g_linearCameraTest.steerRaw) <= 2)
@@ -1357,10 +1357,9 @@ void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2)
 
         {
             const float dt = ((float)STEER_UPDATE_MS) * 0.001f;
-            VehicleControlOutput_t out =
-                SteeringController_Update(&st->ctrl, &st->result, dt, st->activeTune.baseSpeedPct);
+            SteeringControllerOutput_t out = SteeringController_Update(&st->ctrl, &st->result, dt);
 
-            st->steerRaw = (sint16)out.steer_cmd;
+            st->steerRaw = out.steerCmd;
         }
 
         if (((st->steerRaw < 0) ? (sint16)(-st->steerRaw) : st->steerRaw) <= 2)
@@ -1480,8 +1479,7 @@ void simple_drive_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Press
                             (int)(-g_simpleDriveTest.autoSpeedPct));
     }
 
-    if ((uint32)(nowMs - g_simpleDriveTest.camSt.lastFrameMs) >=
-        (uint32)RACE_CAMERA_STALE_MS)
+    if ((uint32)(nowMs - g_simpleDriveTest.camSt.lastFrameMs) >= (uint32)RACE_CAMERA_STALE_MS)
     {
         g_simpleDriveTest.autoSpeedPct = 0;
         Esc_StopNeutral();

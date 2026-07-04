@@ -6,19 +6,12 @@
 ========================================================= */
 static float clamp_f(float x, float lo, float hi)
 {
-    if (x < lo) return lo;
-    if (x > hi) return hi;
+    if (x < lo)
+        return lo;
+    if (x > hi)
+        return hi;
     return x;
 }
-
-static sint32 clamp_s32(sint32 x, sint32 lo, sint32 hi)
-{
-    if (x < lo) return lo;
-    if (x > hi) return hi;
-    return x;
-}
-
-static sint32 abs_s32(sint32 x) { return (x < 0) ? -x : x; }
 
 static float lpf_f(float y_prev, float x, float alpha)
 {
@@ -49,7 +42,10 @@ void SteeringController_Init(SteeringControllerState_t *s)
 {
     SteeringControllerConfig_t config;
 
-    if (s == (SteeringControllerState_t*)0) { return; }
+    if (s == (SteeringControllerState_t *)0)
+    {
+        return;
+    }
 
     SteeringController_GetDefaultConfig(&config);
     SteeringController_ApplyConfig(s, &config);
@@ -58,7 +54,10 @@ void SteeringController_Init(SteeringControllerState_t *s)
 
 void SteeringController_GetDefaultConfig(SteeringControllerConfig_t *config)
 {
-    if (config == (SteeringControllerConfig_t*)0) { return; }
+    if (config == (SteeringControllerConfig_t *)0)
+    {
+        return;
+    }
 
     config->kp = (float)KP;
     config->ki = (float)KI;
@@ -69,7 +68,10 @@ void SteeringController_GetDefaultConfig(SteeringControllerConfig_t *config)
 
 void SteeringController_Reset(SteeringControllerState_t *s)
 {
-    if (s == (SteeringControllerState_t*)0) { return; }
+    if (s == (SteeringControllerState_t *)0)
+    {
+        return;
+    }
 
     s->i_term = 0.0f;
     s->prev_error = 0.0f;
@@ -84,8 +86,10 @@ void SteeringController_Reset(SteeringControllerState_t *s)
 void SteeringController_ApplyConfig(SteeringControllerState_t *s,
                                     const SteeringControllerConfig_t *config)
 {
-    if ((s == (SteeringControllerState_t*)0) ||
-        (config == (const SteeringControllerConfig_t*)0)) { return; }
+    if ((s == (SteeringControllerState_t *)0) || (config == (const SteeringControllerConfig_t *)0))
+    {
+        return;
+    }
 
     s->kp = clamp_f(config->kp, 0.0f, 20.0f);
     s->ki = clamp_f(config->ki, 0.0f, 100.0f);
@@ -99,32 +103,23 @@ void SteeringController_ApplyConfig(SteeringControllerState_t *s,
    ---------------------------------------------------------
    r->error is expected in [-1..+1].
    Output:
-     - out.steer_cmd in [-STEER_CMD_CLAMP..+STEER_CMD_CLAMP]
-     - out.throttle_pct slowed down when steering hard
-     - out.brake TRUE if line is lost
+     - out.steerCmd in
+   [-STEER_CMD_CLAMP..+STEER_CMD_CLAMP]
 ========================================================= */
-VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
-                                        const VisionOutput_t *r,
-                                        float dt_seconds,
-                                        uint8 base_speed)
+SteeringControllerOutput_t SteeringController_Update(SteeringControllerState_t *s,
+                                                     const VisionOutput_t *r, float dt_seconds)
 {
-    VehicleControlOutput_t out;
-    out.brake = FALSE;
-    out.throttle_pct = 0u;
-    out.steer_cmd = 0;
+    SteeringControllerOutput_t out;
+    out.steerCmd = 0;
 
-    if ((s == (SteeringControllerState_t*)0) ||
-        (r == (const VisionOutput_t*)0) ||
+    if ((s == (SteeringControllerState_t *)0) || (r == (const VisionOutput_t *)0) ||
         (r->status == VISION_TRACK_LOST))
     {
-        if (s != (SteeringControllerState_t*)0)
+        if (s != (SteeringControllerState_t *)0)
         {
             SteeringController_Reset(s);
         }
 
-        out.brake = TRUE;
-        out.throttle_pct = 0u;
-        out.steer_cmd = 0;
         return out;
     }
 
@@ -169,8 +164,10 @@ VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
     {
         s->i_term += err * dt_seconds;
 
-        if (s->i_term >  s->iTermClamp) s->i_term =  s->iTermClamp;
-        if (s->i_term < -s->iTermClamp) s->i_term = -s->iTermClamp;
+        if (s->i_term > s->iTermClamp)
+            s->i_term = s->iTermClamp;
+        if (s->i_term < -s->iTermClamp)
+            s->i_term = -s->iTermClamp;
     }
 
     {
@@ -182,16 +179,7 @@ VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
         cmd = clamp_f(cmd, (float)(-STEER_CMD_CLAMP), (float)(+STEER_CMD_CLAMP));
         cmd *= (float)STEER_SIGN;
 
-        out.steer_cmd = (sint16)cmd;
-    }
-
-    {
-        sint32 absSteer = abs_s32((sint32)out.steer_cmd);
-        sint32 speed = (sint32)base_speed
-                     - ((sint32)SPEED_SLOW_PER_STEER * absSteer) / 100;
-
-        speed = clamp_s32(speed, (sint32)SPEED_MIN, (sint32)SPEED_MAX);
-        out.throttle_pct = (uint8)speed;
+        out.steerCmd = (sint16)cmd;
     }
 
     return out;
