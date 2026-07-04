@@ -7,6 +7,10 @@
 
 ## Build configuration visible in repo
 - Active managed build configuration: `Debug_FLASH`
+- `Debug_FLASH/` is IDE-generated and ignored by Git. The generated CLI
+  `clean` target removes the make metadata along with object files; regenerate
+  the configuration from S32 Design Studio before the next CLI build if that
+  target is used.
 - Linker script referenced by `.cproject`:
   - `Project_Settings/Linker_Files/linker_flash_s32k144.ld`
 

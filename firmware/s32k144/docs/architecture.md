@@ -13,10 +13,25 @@
 - `include/domain/vehicle_types.h` defines the shared vision/control/app handoff packets.
 - `include/config/vision_config.h` defines vision detector tunables used by the vision service and debug code.
 - `include/config/control_config.h` defines baseline steering-control tunings used by the control service and app runtime tune initialization.
+- `SteeringControllerConfig_t` is the app-to-controller tuning boundary. Race
+  and camera/servo profiles are converted by the app and applied through
+  `SteeringController_ApplyConfig()`; app modes do not write controller tuning
+  fields directly. Applying a config preserves PID history, while
+  `SteeringController_Reset()` explicitly clears that history at mode entry.
 - `src/debug/uart_host_link.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.
+- Race-family modes keep the authoritative actuator safety state. Fault detection
+  records the first `RaceFaultReason_t`, forces neutral/center immediately, and
+  leaves all vehicle-status color selection to one renderer. Cross-board LED
+  meanings are documented in `../../../docs/system/status-led-semantics.md`.
+- `SpeedModeSetting_t` identifies the shared `SUPERFAST`, `5050`, and `SLOW`
+  control profiles. Each profile contains base speed, PID gains, integral clamp,
+  steering clamp, output LPF, and steering rate limit. Standalone S32K-camera and
+  Teensy-camera Race builds use a common `SELECT -> READY -> START` launcher;
+  bench code can apply the same profiles explicitly through
+  `RuntimeTune_ApplySpeedMode()` without duplicating constants.
 - Every build flavor first runs the same startup banner: initialize common hardware, print the selected `APP_TEST_*` build flag to the host UART, show the selected mode on the OLED for 3 seconds, and run a visible RGB LED color sequence.
 - Standalone compile-time modes still own the top-level loop after the boot banner, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
 - `app_modes.c` is intentionally only the compile-time flavor dispatcher.
@@ -25,8 +40,6 @@
   - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
   - `modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
   - `modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode.
-  - `modes/mode_nxp_cup.c`: NXP Cup profile, ready, rearm, run, and ultrasonic obstacle state machine.
-  - `modes/mode_honor_lap.c`: standalone honor-lap line-following plus ultrasonic speed policy.
   - `modes/mode_race.c`: local-camera race flow, Teensy-camera synchronized race flow, and the tune-drive bench wrapper.
   - `modes/mode_servo_rate.c`: standalone servo timing test.
   - `modes/mode_esp_link.c`: standalone ESP32 UART integration test.
@@ -34,11 +47,10 @@
   - `modes/bench_esp_link.c`: runtime-menu ESP32 tune-frame receive test.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains a special-case standalone test mode for direct camera bring-up/debug.
 - `APP_TEST_ESC_TEST` boots directly into the ESC bench test while reusing the runtime menu ESC test implementation.
-- `APP_TEST_NXP_CUP` is a standalone competition mode with profile selection, ready, dual-ESC rearm, and autonomous run phases.
-- `APP_TEST_RACE_MODE` is the standalone production race flow.
+- `APP_RACE_S32K_ONLY` is the standalone fallback race flow using the S32K linear camera.
+- `APP_RACE` is the full standalone race flow using Teensy camera results over SPI.
 - `APP_TEST_SERVO_RATE_TEST` is a standalone servo-only timing test for the period-latched steering output.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode that exposes the rest of the individual test screens.
-- `APP_TEST_HONOR_LAP` is a separate standalone compile-time mode that boots straight into line following plus ultrasonic speed limiting.
 - `APP_TEST_ESP_LINK_TEST` is a standalone UART integration mode. The link
   driver parses CRC-protected button ACK and full tuning frames; the mode
   consumes the latest validated snapshot, updates all eight RAM runtime-tune
@@ -46,7 +58,9 @@
   It also ACKs compact ESP start/stop command frames without moving the
   vehicle.
   The LPUART2 ISR copies received bytes into a 256-byte software ring and
-  records hardware error flags; parsing remains in the foreground service.
+  records hardware error flags; ordered reset markers discard only the damaged
+  frame while preserving later retry bytes. Parsing remains in the foreground
+  service, and Stack Drive services RX and result TX around its SPI/control work.
   OLED activity is temporarily disabled in this mode while the link is
   validated. Once per second, immediately after a valid ACK, the mode reports
   UART and protocol error counters on the host debug UART.
@@ -63,7 +77,7 @@
   - periodic state-machine updates
   - interrupt callbacks wired to RTD notifications
 - The Teensy SPI link runs in the direct `APP_TEST_TEENSY_LINK_TEST`, the
-  runtime `Teensy Link` bench test, and `APP_TEST_TEENSY_CAM0_RACE`. The race
+  runtime `Teensy Link` bench test, and `APP_RACE`. The race
   path consumes fresh Teensy camera results on a servo-period schedule.
 
 ## LED conventions in app modes
@@ -84,7 +98,7 @@
 8. That mode calls common runtime init through app-owned helpers; repeated calls are idempotent so MCAL/display bring-up is not restarted after the boot banner
 9. The selected mode runs forever
 10. Only `APP_TEST_NXP_CUP_TESTS` can switch between tests at runtime; the other modes boot straight into their own dedicated flows
-11. `APP_TEST_RACE_MODE` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
+11. `APP_RACE_S32K_ONLY` keeps a fixed execution order of `vision -> ultrasonic -> control`, and only touches the OLED when `swPcb` requests debug output
 12. `APP_TEST_SERVO_RATE_TEST` initializes only common runtime hardware plus the servo/display path and then sends synthetic `Servo_SetSteer()` commands at a selectable software cadence
 
 ## Mode lifecycle
@@ -111,11 +125,10 @@
   - the menu includes a `Victory Lap` runtime test that approaches a pole with ultrasonic and then runs a Mario-style victory note sequence for future motor-music support
   - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
   - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
-  - the menu includes `Tune drive mode`, which runs the Teensy Cam0 race control path as a bench item and services ESP32 UART tuning frames while driving
+  - the menu includes `Tune drive mode`, which runs the Teensy-camera race control path as a bench item and services ESP32 UART tuning frames while driving
   - the menu includes `Stack drive`, which runs the S32K-camera race control path, services ESP32 tuning and start/stop commands, keeps Teensy SPI status service active, and does not hard-stop on missing Teensy camera/SPI data
   - the menu includes `Cable tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
   - serial and ESP tuning write into a shared RAM-backed runtime tune block that persists for the current power cycle; `Cam Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` read that block when entering or when a new ESP tune frame arrives
-- `APP_TEST_HONOR_LAP` remains a standalone compile-time mode and is not part of the runtime test menu
 
 ## Servo Rate Test
 - `APP_TEST_SERVO_RATE_TEST` is meant to isolate servo command timing from camera, ESC, ultrasonic, and steering-controller code.
@@ -125,18 +138,8 @@
 - The RGB LED is green while the servo driver/callback path keeps up, and red if the PWM-period callback is not firing or if a new command slot arrives while the previous command is still buffered.
 - The physical PWM frame is still the generated `50 Hz` servo PWM. This test changes how often handwritten code publishes new desired steering commands into the period-latched servo driver.
 
-## NXP Cup mode
-- `APP_TEST_NXP_CUP` is a profile-driven competition flow built on the current camera, vision, steering, and ultrasonic paths.
-- The user flow is:
-  - menu: select `SUPERFAST`, `5050`, or `SLOW` with the pot and confirm with `SW2`
-  - ready: `SW3` starts the run sequence, `SW2` goes back
-  - ESC rearm: both ESC outputs finish their arm/beep sequence after profile selection, while camera steering is already running in the background
-  - run: camera vision steers, motor speed ramps toward the selected profile target, ultrasonic can force stop/crawl/cutoff behavior
-- `SW2` returns to the menu and `SW3` returns to the ready screen from both the rearm and run phases.
-- During ultrasonic obstacle handling, steering is held straight instead of continuing camera corrections.
-
 ## Race mode
-- `APP_TEST_RACE_MODE` is the cleaned-up production successor to `APP_TEST_FINAL_DUMMY`.
+- `APP_RACE_S32K_ONLY` and `APP_RACE` share the cleaned-up production race state machine.
 - The mode owns dual ESC outputs, servo, linear camera, vision, and ultrasonic directly instead of switching between sub-modes.
 - After startup it:
   - arms both ESC outputs
@@ -144,7 +147,7 @@
   - runs the normal race speed policy until a confirmed finish-line detection
   - transitions once into the honor-lap ultrasonic stopping policy
   - stays stopped on stop/fault conditions
-- The race phase and honor-lap phase are also differentiated on the RGB LED: green in race run, cyan in honor-lap run, red on fault.
+- The race phase and honor-lap phase are differentiated on the RGB LED: green in race run, yellow in honor-lap run, red on hardware/timing fault, white on line loss, and off on commanded stop.
 - Finish-line detection switches to honor-lap mode on the first accepted finish-line frame that meets `RACE_FINISH_MIN_CONFIDENCE`.
 - The OLED is intentionally kept out of the hot path. In race mode it may be initialized only during ESC arm, and is refreshed later only if `swPcb` is on and the display was already brought up before the race started.
 
@@ -188,22 +191,11 @@
   - discards a phased request that misses its window so it cannot apply one
     period late
 
-### Honor lap path
-- `mode_honor_lap.c`
-  - reuses the linear camera debug/servo path for continuous line following
-  - keeps the OLED active in linear-camera debug mode even before first valid frame by showing camera trigger/DMA/ADC counters
-  - overrides steering tunings with the `HONOR_*` constants from `app_config.h`
-  - arms both ESC outputs at startup, then commands forward speed from the honor-lap distance policy
-- `ultrasonic.c`
-  - provides periodic obstacle distance samples
-  - can reduce commanded speed through the `HONOR_SLOW*` and `HONOR_STOP_*` thresholds
-  - holds steering straight once the obstacle is inside the first slow threshold
-
 ### Race mode path
 - `mode_race.c`
   - initializes the dual-ESC path, servo, camera, steering, and ultrasonic once at mode entry
   - keeps the original local-camera path on its existing schedule
-  - in `APP_TEST_TEENSY_CAM0_RACE`, uses the servo PWM rising edge as the
+  - in `APP_RACE`, uses the servo PWM rising edge as the
     20 ms scheduling epoch
   - services SPI at phases 0, 5, 10, and 15 ms, skipping missed slots instead
     of replaying them back-to-back
@@ -216,7 +208,7 @@
   - switches from race-speed policy to honor-lap obstacle-stop policy after confirmed finish detection
   - holds steering straight during the honor phase when ultrasonic sees an obstacle inside the slow threshold
   - only renders OLED telemetry when `swPcb` enables debug display
-  - exposes `Tune drive mode` as a runtime bench wrapper around the Teensy Cam0 race path; live ESP frames update S32K-side PID and steering shaping while line-detector values are stored for future forwarding to the Teensy camera stack
+  - exposes `Tune drive mode` as a runtime bench wrapper around the Teensy-camera race path; live ESP frames update S32K-side PID and steering shaping while line-detector values are stored for future forwarding to the Teensy camera stack
 
 ### Teensy SPI link path
 - `mode_teensy_link.c`
@@ -246,10 +238,8 @@
   - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
   - exposes an `ESP Link` runtime test in `APP_TEST_NXP_CUP_TESTS` that validates RAM-only tuning frames from ESP32 without transmitting S32K button state
 - `mode_race.c`
-  - exposes `Tune drive mode` in `APP_TEST_NXP_CUP_TESTS`, reusing the Teensy Cam0 race scheduler with ESP32 UART tuning enabled
+  - exposes `Tune drive mode` in `APP_TEST_NXP_CUP_TESTS`, reusing the Teensy-camera race scheduler with ESP32 UART tuning enabled
   - exposes `Stack drive` in `APP_TEST_NXP_CUP_TESTS`, using the S32K camera for steering while ESP tuning/drive commands and Teensy SPI status service continue to run
-- `mode_nxp_cup.c`
-  - exposes a standalone `APP_TEST_NXP_CUP` mode that reuses the current `CamServo` path with a profile menu and dedicated ready / rearm / run state machine
 - `bench_tests.c`
   - uses a two-stage standalone servo test: the potentiometer first selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and then the live screen shows raw, filtered, and applied steering while `SW2` re-centers the servo
 - `debug/uart_host_link.c`
@@ -269,7 +259,7 @@
 
 ## Key implementation files
 - App dispatch, config, and shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`, `src/app/app_config.h`, `include/config/board_config.h`, `include/config/actuator_config.h`, `include/config/sensor_config.h`
-- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
+- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`
 - Board bring-up: `src/app/board_init.c`
 - Vision: `src/services/line_detector.c`, `src/app/vision_debug.c`
 - Steering: `src/services/steering_controller.c`, `src/drivers/servo.c`

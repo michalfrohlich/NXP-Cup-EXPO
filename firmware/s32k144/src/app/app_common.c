@@ -9,8 +9,6 @@ EscManualTestState_t g_escTest;
 LinearCameraTestState_t g_linearCameraTest;
 SimpleDriveState_t g_simpleDriveTest;
 TestsMenuState_t g_testsMenu;
-HonorLapState_t g_honorLap;
-NxpCupState_t g_nxpCup;
 RaceModeState_t g_raceMode;
 SerialTuneState_t g_serialTune;
 RuntimeTuneState_t g_runtimeTune;
@@ -18,17 +16,56 @@ RuntimeTuneState_t g_runtimeTune;
 static boolean g_appRuntimeCoreInitialized = FALSE;
 static boolean g_appRuntimeDisplayInitialized = FALSE;
 
-const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
-    {NXP_CUP_SUPERFAST_KP, NXP_CUP_SUPERFAST_KD, NXP_CUP_SUPERFAST_KI,
-     NXP_CUP_SUPERFAST_ITERM_CLAMP, NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
-     (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP, (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
-     (uint8)NXP_CUP_SUPERFAST_SPEED_PCT},
-    {NXP_CUP_5050_KP, NXP_CUP_5050_KD, NXP_CUP_5050_KI, NXP_CUP_5050_ITERM_CLAMP,
-     NXP_CUP_5050_STEER_LPF_ALPHA, (sint16)NXP_CUP_5050_STEER_CLAMP,
-     (sint16)NXP_CUP_5050_STEER_RATE_MAX, (uint8)NXP_CUP_5050_SPEED_PCT},
-    {NXP_CUP_SLOW_KP, NXP_CUP_SLOW_KD, NXP_CUP_SLOW_KI, NXP_CUP_SLOW_ITERM_CLAMP,
-     NXP_CUP_SLOW_STEER_LPF_ALPHA, (sint16)NXP_CUP_SLOW_STEER_CLAMP,
-     (sint16)NXP_CUP_SLOW_STEER_RATE_MAX, (uint8)NXP_CUP_SLOW_SPEED_PCT}};
+const CamTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT] = {
+    {SPEED_MODE_SUPERFAST_KP, SPEED_MODE_SUPERFAST_KD, SPEED_MODE_SUPERFAST_KI,
+     SPEED_MODE_SUPERFAST_ITERM_CLAMP, SPEED_MODE_SUPERFAST_STEER_LPF_ALPHA,
+     (sint16)SPEED_MODE_SUPERFAST_STEER_CLAMP, (sint16)SPEED_MODE_SUPERFAST_STEER_RATE_MAX,
+     (uint8)SPEED_MODE_SUPERFAST_SPEED_PCT},
+    {SPEED_MODE_5050_KP, SPEED_MODE_5050_KD, SPEED_MODE_5050_KI,
+     SPEED_MODE_5050_ITERM_CLAMP, SPEED_MODE_5050_STEER_LPF_ALPHA,
+     (sint16)SPEED_MODE_5050_STEER_CLAMP, (sint16)SPEED_MODE_5050_STEER_RATE_MAX,
+     (uint8)SPEED_MODE_5050_SPEED_PCT},
+    {SPEED_MODE_SLOW_KP, SPEED_MODE_SLOW_KD, SPEED_MODE_SLOW_KI,
+     SPEED_MODE_SLOW_ITERM_CLAMP, SPEED_MODE_SLOW_STEER_LPF_ALPHA,
+     (sint16)SPEED_MODE_SLOW_STEER_CLAMP, (sint16)SPEED_MODE_SLOW_STEER_RATE_MAX,
+     (uint8)SPEED_MODE_SLOW_SPEED_PCT}};
+
+SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel)
+{
+    if (potLevel < 85U)
+    {
+        return SPEED_MODE_SUPERFAST;
+    }
+    if (potLevel < 171U)
+    {
+        return SPEED_MODE_5050;
+    }
+    return SPEED_MODE_SLOW;
+}
+
+const char *SpeedMode_GetName(SpeedModeSetting_t setting)
+{
+    switch (setting)
+    {
+        case SPEED_MODE_SUPERFAST:
+            return "SUPERFAST";
+        case SPEED_MODE_5050:
+            return "5050";
+        case SPEED_MODE_SLOW:
+            return "SLOW";
+        default:
+            return "INVALID";
+    }
+}
+
+const CamTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting)
+{
+    if ((uint8)setting >= (uint8)SPEED_MODE_COUNT)
+    {
+        return NULL_PTR;
+    }
+    return &g_speedModeProfiles[(uint8)setting];
+}
 
 const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
     "Servo          ", "ESC            ", "Ultrasonic     ", "Ultra+ESC      ", "Camera-s32k    ",
@@ -150,6 +187,11 @@ void StatusLed_Yellow(void)
     RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = true, .b = false});
 }
 
+void StatusLed_White(void)
+{
+    RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = true, .b = true});
+}
+
 void StatusLed_Red(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = false, .b = false});
@@ -211,6 +253,17 @@ void RuntimeTune_InitDefaults(void)
     g_runtimeTune.initialized = TRUE;
 }
 
+void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting)
+{
+    const CamTuneProfile_t *profile = SpeedMode_GetProfile(setting);
+
+    RuntimeTune_InitDefaults();
+    if (profile != NULL_PTR)
+    {
+        g_runtimeTune.profile = *profile;
+    }
+}
+
 void App_ApplySteeringProfile(SteeringControllerState_t *state,
                               const CamTuneProfile_t *profile)
 {
@@ -239,17 +292,11 @@ static const char *App_GetSelectedBuildModeMacroName(void)
         case APP_BUILD_MODE_ESC_TEST:
             return "APP_TEST_ESC_TEST";
 
-        case APP_BUILD_MODE_NXP_CUP:
-            return "APP_TEST_NXP_CUP";
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            return "APP_RACE_S32K_ONLY";
 
-        case APP_BUILD_MODE_RACE_MODE:
-            return "APP_TEST_RACE_MODE";
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            return "APP_TEST_TEENSY_CAM0_RACE";
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            return "APP_TEST_HONOR_LAP";
+        case APP_BUILD_MODE_RACE:
+            return "APP_RACE";
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             return "APP_TEST_SERVO_RATE_TEST";
@@ -278,17 +325,11 @@ static const char *App_GetSelectedBuildModeDisplayName(void)
         case APP_BUILD_MODE_ESC_TEST:
             return "ESC test";
 
-        case APP_BUILD_MODE_NXP_CUP:
-            return "NXP Cup";
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            return "Race S32K";
 
-        case APP_BUILD_MODE_RACE_MODE:
-            return "Race-old";
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            return "Teensy Cam0";
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            return "Honor Lap";
+        case APP_BUILD_MODE_RACE:
+            return "Race Full";
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             return "Servo Rate";
@@ -317,17 +358,11 @@ static const char *App_GetSelectedBuildModeShortName(void)
         case APP_BUILD_MODE_ESC_TEST:
             return "ESC_TEST";
 
-        case APP_BUILD_MODE_NXP_CUP:
-            return "NXP_CUP";
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            return "RACE_S32K";
 
-        case APP_BUILD_MODE_RACE_MODE:
-            return "RACE_MODE";
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            return "TEENSY_CAM0";
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            return "HONOR_LAP";
+        case APP_BUILD_MODE_RACE:
+            return "RACE_FULL";
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             return "SERVO_RATE";

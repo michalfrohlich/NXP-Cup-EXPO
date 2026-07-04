@@ -317,7 +317,7 @@ RGB LED meaning:
 
 ## Deterministic Camera Race Mode
 
-`APP_TEST_TEENSY_CAM0_RACE` uses protocol v2 camera sequences and the servo
+`APP_RACE` uses protocol v2 camera sequences and the servo
 PWM rising edge to produce exactly one steering decision per 20 ms period.
 
 | PWM phase | Action |

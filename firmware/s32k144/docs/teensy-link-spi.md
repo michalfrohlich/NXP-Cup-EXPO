@@ -125,7 +125,7 @@ without being treated as a new control sample.
 
 ## Deterministic Teensy-Camera Race Schedule
 
-`APP_TEST_TEENSY_CAM0_RACE` uses the 50 Hz servo PWM rising edge as the master
+`APP_RACE` uses the 50 Hz servo PWM rising edge as the master
 20 ms epoch:
 
 | PWM phase | Work |

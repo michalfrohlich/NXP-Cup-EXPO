@@ -31,7 +31,7 @@ Notes:
 - The servo driver defaults to applying the latest pending request from the
   PWM falling-edge callback. Existing bench, regular race, NXP Cup, honor-lap,
   and servo-rate modes retain this behavior.
-- `APP_TEST_TEENSY_CAM0_RACE` explicitly selects the phase-synchronized policy,
+- `APP_RACE` explicitly selects the phase-synchronized policy,
   which stages at most one duty update while `17 <= phase < 19 ms` in each
   generated 50 Hz PWM period.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
@@ -49,8 +49,8 @@ Notes:
 Notes:
 - `timebase.c` documents GPT channel `2` for the ms tick and channel `3` for the microsecond helper.
 - `include/config/board_config.h` defines the ultrasonic trigger DIO channel and ICU echo channel; `include/config/sensor_config.h` defines the current distance/timeout calibration.
-- `APP_TEST_HONOR_LAP` uses `ultrasonic.c` directly from `app_modes.c` to trigger measurements, consume fresh distance samples, and slow/stop the ESC command.
-- `APP_TEST_RACE_MODE` uses the same ultrasonic driver path, but only after finish detection switches the speed policy into the honor-lap stopping thresholds.
+- Race mode uses `ultrasonic.c` during its honor phase to consume fresh distance samples and slow/stop the ESC command.
+- `APP_RACE_S32K_ONLY` uses the same ultrasonic driver path, but only after finish detection switches the speed policy into the honor-lap stopping thresholds.
 - The standalone ultrasonic test mode and the `APP_TEST_NXP_CUP_TESTS` ultrasonic menu item both use `ultrasonic.c` directly from `app_modes.c` for a state-based diagnostic flow with enable delay, frequent retriggering, and `WAIT` / `SCAN` / `CLEAR` / `SLOW` / `STOP` display states.
 
 ## I2C
@@ -63,7 +63,7 @@ Notes:
 - `display.c` uses I2C address `0x3C`.
 - The display code is written for a 128x32 SSD1306-style display.
 - `src/unused/display_async.c` is retained for reference and not called by the active runtime. It adds double-buffered non-blocking refresh (`I2c_AsyncTransmit` + `I2c_GetStatus`) with latest-frame-wins queuing.
-- In `APP_TEST_RACE_MODE`, OLED initialization is allowed only during the ESC-arm phase. After that, `swPcb` can only enable refreshes on an already-initialized display, so the blocking display bring-up cannot stall the active race loop.
+- In `APP_RACE_S32K_ONLY`, OLED initialization is allowed only during the ESC-arm phase. After that, `swPcb` can only enable refreshes on an already-initialized display, so the blocking display bring-up cannot stall the active race loop.
 
 ## DIO / GPIO
 | Purpose | Driver/module | Key files |
@@ -76,7 +76,7 @@ Notes:
 Notes:
 - `swPcb` is generated as GPIO input on `PTA12` and is consumed from handwritten code through the `buttons` module.
 - The `buttons` module now distinguishes momentary buttons from maintained toggle switches; `swPcb` is level-based only and does not publish click events.
-- `APP_TEST_NXP_CUP_TESTS` uses `swPcb` to enter/leave the selected test, while `APP_TEST_RACE_MODE` uses it only to enable optional OLED telemetry.
+- `APP_TEST_NXP_CUP_TESTS` uses `swPcb` to enter/leave the selected test, while `APP_RACE_S32K_ONLY` uses it only to enable optional OLED telemetry.
 
 ## UART
 | Purpose | Driver/module | Key files |

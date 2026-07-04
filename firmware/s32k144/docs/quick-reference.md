@@ -14,7 +14,7 @@
 - `src/app/modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
 - `src/app/modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode for `APP_TEST_TEENSY_LINK_TEST`.
 - `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic, RAM-only full tuning receive testing, and compact drive-command ACK testing; it also provides reusable ESP UART service helpers used by runtime bench modes.
-- `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`: standalone app mode implementations.
+- `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`, `src/app/modes/mode_esp_link.c`, and `src/app/modes/mode_teensy_link.c`: standalone app mode implementations.
 - `src/app/board_init.c`: RTD/MCAL driver bring-up.
 - `src/app/app_config.h`: compile-time mode selection and app behavior/profile constants, including the `HONOR_*` honor-lap parameters and race-mode display / finish-confidence constants.
 - `include/config/board_config.h`: generated PWM/channel routing aliases and board-specific input/device addresses.
@@ -30,11 +30,13 @@
 - On every S32K boot, the firmware initializes common runtime hardware, prints the active `APP_TEST_*` flag to the host UART, shows the selected build on the OLED for 3 seconds, and runs an RGB LED boot sequence before entering the selected mode.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
 - `APP_TEST_ESC_TEST` boots directly into the ESC bench test without the runtime menu.
-- `APP_TEST_NXP_CUP` is a standalone competition flow with profile selection, ready screen, ESC rearm, then camera-guided run with ultrasonic obstacle handling.
-- `APP_TEST_RACE_MODE` is the standalone production race path: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
+- `APP_RACE_S32K_ONLY` is the standalone fallback race path using the S32K linear camera: ESC arm, automatic line following, finish-line transition, then honor-lap obstacle stop.
+- `APP_RACE` is the full race path using Teensy camera results received over SPI.
 - `APP_TEST_SERVO_RATE_TEST` is a standalone servo timing/debug mode for checking the period-latched servo behavior without camera or ESC activity.
 - `APP_TEST_NXP_CUP_TESTS` is the compile-time mode for the rest of the interactive test screens.
-- `APP_TEST_HONOR_LAP` is available as a standalone compile-time mode for automatic line following with ultrasonic obstacle slowing/stopping.
+- `APP_RACE_S32K_ONLY` and `APP_RACE` first show the shared
+  `SUPERFAST` / `5050` / `SLOW` profile selector. Use the potentiometer to select,
+  SW2 to confirm or return, and SW3 on the ready screen to start ESC arming.
 - `APP_TEST_ESP_LINK_TEST` sends CRC-protected button state to the ESP32 and
   receives one validated snapshot containing PID, servo clamp/LPF, and
   line-detector values. It stores all eight values in `g_runtimeTune` and
@@ -48,7 +50,7 @@
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
 - `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
-- `Tune drive mode` is a bench wrapper around the Teensy Cam0 race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. It also stores incoming line-detector values in the shared RAM tune block, but those values do not affect Teensy-side camera detection until a later S32K-to-Teensy tuning protocol is added.
+- `Tune drive mode` is a bench wrapper around the Teensy-camera race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. It also stores incoming line-detector values in the shared RAM tune block, but those values do not affect Teensy-side camera detection until a later S32K-to-Teensy tuning protocol is added.
 - `Stack drive` is a bench wrapper around the local S32K-camera race path. It keeps ESP UART tuning and Teensy SPI status service active, ignores missing Teensy camera/SPI as a hard stop source, and reacts to ESP start/stop commands. Stop forces ESC neutral and `STOPPED`; start re-enters ESC arm before driving resumes.
 - `Cable tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
@@ -61,13 +63,13 @@
 - `Victory Lap` is a separate pole-detection test: it approaches slowly, stops at 8 cm, then steps through a Mario-style victory note table for future BLDC music support.
 - Honor/race ultrasonic handling now also holds the steering straight once the object is inside the 45 cm slow zone.
 - The Teensy SPI link runs in the `Teensy Link` bench/direct test and in
-  `APP_TEST_TEENSY_CAM0_RACE`. The race path aligns four SPI slots and one
+  `APP_RACE`. The race path aligns four SPI slots and one
   averaged controller execution to each 20 ms servo PWM period.
-- In `APP_TEST_RACE_MODE`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
+- In `APP_RACE_S32K_ONLY`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules
 - App dispatch/shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`
-- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_nxp_cup.c`, `src/app/modes/mode_honor_lap.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`, `src/app/modes/mode_esp_link.c`
+- App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`, `src/app/modes/mode_esp_link.c`, `src/app/modes/mode_teensy_link.c`
 - App vision debug UI: `src/app/vision_debug.c`
 - Vision / control: `src/services/line_detector.c`, `src/services/steering_controller.c`, `src/services/steering_smoothing.c`
 - Hardware-facing modules: `src/drivers/linear_camera.c`, `src/drivers/esc.c`, `src/drivers/servo.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/display.c`, `src/drivers/buttons.c`, `src/drivers/rgb_led.c`, `src/drivers/timebase.c`

@@ -32,10 +32,8 @@
 typedef enum
 {
     APP_BUILD_MODE_LINEAR_CAMERA_TEST = 0,
-    APP_BUILD_MODE_NXP_CUP,
-    APP_BUILD_MODE_RACE_MODE,
-    APP_BUILD_MODE_TEENSY_CAM0_RACE,
-    APP_BUILD_MODE_HONOR_LAP,
+    APP_BUILD_MODE_RACE_S32K_ONLY,
+    APP_BUILD_MODE_RACE,
     APP_BUILD_MODE_SERVO_RATE_TEST,
     APP_BUILD_MODE_TEENSY_LINK_TEST,
     APP_BUILD_MODE_ESP_LINK_TEST,
@@ -201,6 +199,7 @@ typedef struct
     uint32 nextSteerMs;
     uint32 nextDisplayMs;
     uint32 nextStreamMs;
+    uint32 lastFrameMs;
     uint16 streamSeq;
     uint16 streamDropCount;
     boolean haveValidVision;
@@ -259,11 +258,11 @@ typedef struct
 
 typedef enum
 {
-    NXP_CUP_PROFILE_SUPERFAST = 0,
-    NXP_CUP_PROFILE_5050,
-    NXP_CUP_PROFILE_SLOW,
-    NXP_CUP_PROFILE_COUNT
-} NxpCupProfileId_t;
+    SPEED_MODE_SUPERFAST = 0,
+    SPEED_MODE_5050,
+    SPEED_MODE_SLOW,
+    SPEED_MODE_COUNT
+} SpeedModeSetting_t;
 
 typedef struct
 {
@@ -286,46 +285,6 @@ typedef struct
     CamTuneProfile_t activeTune;
 } CamServoState_t;
 
-typedef enum
-{
-    NXP_CUP_ULTRA_CLEAR = 0,
-    NXP_CUP_ULTRA_STOP_HOLD,
-    NXP_CUP_ULTRA_CRAWL,
-    NXP_CUP_ULTRA_CUTOFF
-} NxpCupUltraMode_t;
-
-typedef struct
-{
-    uint32 nextTriggerMs;
-    uint32 ultraEnableMs;
-    uint32 modeUntilMs;
-    uint32 lastDistanceMs;
-    float lastDistanceCm;
-    boolean haveValidDistance;
-    NxpCupUltraMode_t mode;
-} NxpCupUltraState_t;
-
-typedef enum
-{
-    NXP_CUP_STATE_MENU = 0,
-    NXP_CUP_STATE_READY,
-    NXP_CUP_STATE_ESC_REARM,
-    NXP_CUP_STATE_RUN
-} NxpCupModeState_t;
-
-typedef struct
-{
-    NxpCupModeState_t state;
-    NxpCupProfileId_t profileId;
-    NxpCupUltraState_t ultraSt;
-    CamServoState_t camSt;
-    sint32 autoSpeedPct;
-    uint32 nextAutoSpeedMs;
-    uint32 nextDisplayMs;
-    uint32 escRearmDoneMs;
-    boolean cameraStarted;
-} NxpCupState_t;
-
 typedef struct
 {
     uint32 armDoneMs;
@@ -346,16 +305,6 @@ typedef struct
     RuntimeTestId_t activeTest;
 } TestsMenuState_t;
 
-typedef struct
-{
-    uint32 nextUltraTrigMs;
-    uint32 nextDisplayMs;
-    uint32 lastDistanceMs;
-    float lastDistanceCm;
-    sint32 commandedSpeedPct;
-    boolean hasValidDistance;
-} HonorLapState_t;
-
 typedef enum
 {
     RACE_PHASE_ESC_ARM = 0,
@@ -365,9 +314,20 @@ typedef enum
     RACE_PHASE_FAULT
 } RacePhase_t;
 
+typedef enum
+{
+    RACE_FAULT_NONE = 0,
+    RACE_FAULT_LINE_LOST,
+    RACE_FAULT_S32K_CAMERA_STALE,
+    RACE_FAULT_TEENSY_CAMERA_STALE,
+    RACE_FAULT_CONTROL_STALE,
+    RACE_FAULT_SERVO_TIMING
+} RaceFaultReason_t;
+
 typedef struct
 {
     RacePhase_t phase;
+    RaceFaultReason_t faultReason;
     SteeringControllerState_t ctrl;
     LinearCameraFrame processedFrame;
     VisionOutput_t result;
@@ -378,6 +338,10 @@ typedef struct
     uint32 armDoneMs;
     uint32 lostSinceMs;
     uint32 lastDistanceMs;
+    uint32 lastVisionFrameMs;
+    uint32 lastControlMs;
+    uint32 lastServoPeriodMs;
+    uint32 lastServoPeriodSequence;
     float lastDistanceCm;
     sint16 steerRaw;
     sint16 steerFilt;
@@ -440,13 +404,11 @@ extern EscManualTestState_t g_escTest;
 extern LinearCameraTestState_t g_linearCameraTest;
 extern SimpleDriveState_t g_simpleDriveTest;
 extern TestsMenuState_t g_testsMenu;
-extern HonorLapState_t g_honorLap;
-extern NxpCupState_t g_nxpCup;
 extern RaceModeState_t g_raceMode;
 extern SerialTuneState_t g_serialTune;
 extern RuntimeTuneState_t g_runtimeTune;
 
-extern const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT];
+extern const CamTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT];
 extern const char g_testsMenuItems[RUNTIME_TEST_COUNT][17];
 extern const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT];
 extern const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT];
@@ -461,6 +423,7 @@ void StatusLed_Blue(void);
 void StatusLed_Green(void);
 void StatusLed_Cyan(void);
 void StatusLed_Yellow(void);
+void StatusLed_White(void);
 void StatusLed_Red(void);
 void StatusLed_Off(void);
 
@@ -473,6 +436,10 @@ void App_InitRuntimeCommon(void);
 void App_ServiceRuntimeCore(uint32 nowMs);
 void DisplayTextPadded(uint16 displayLine, const char *text);
 void RuntimeTune_InitDefaults(void);
+SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel);
+const char *SpeedMode_GetName(SpeedModeSetting_t setting);
+const CamTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting);
+void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting);
 void App_ApplySteeringProfile(SteeringControllerState_t *state,
                               const CamTuneProfile_t *profile);
 
@@ -530,14 +497,10 @@ void esp_link_test_exit(void);
 void mode_linear_camera_test(void);
 void mode_esc_test(void);
 void mode_nxp_cup_tests(void);
-void mode_nxp_cup(void);
-void mode_honor_lap(void);
-void mode_race_mode(void);
-void mode_teensy_cam0_race(void);
+void mode_race_s32k_only(void);
+void mode_race(void);
 void mode_servo_rate_test(void);
 void mode_teensy_link_test(void);
 void mode_esp_link_test(void);
-
-sint32 honor_speed_from_distance(boolean hasValidDistance, float distanceCm);
 
 #endif /* APP_INTERNAL_H */
