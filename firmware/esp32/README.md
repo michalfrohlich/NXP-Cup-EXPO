@@ -91,6 +91,10 @@ validating and storing the complete snapshot, the S32K replies:
 The browser reports success only after the matching S32K response arrives.
 Values remain RAM-only and return to defaults after reset.
 
+The onboard blue LED is a command-pending indicator. It stays on while waiting
+for the S32K response and has a nonblocking 100 ms minimum visible pulse. See
+`../../docs/system/status-led-semantics.md` for cross-board LED meanings.
+
 The same page also exposes explicit drive commands:
 
 ```text
@@ -149,6 +153,8 @@ The bring-up protocol also:
   once if the first 150 ms attempt times out.
 - Sends compact start/stop drive-command frames and waits for the same
   sequence-matched result frame.
+- Lights the onboard GPIO2 LED while a web command is awaiting its matching
+  S32K result; the LED turns off on acceptance, rejection, failure, or timeout.
 - Tracks UART receive, protocol, ACK, tuning-result, and timeout counters.
 
 Shared frame definitions are in

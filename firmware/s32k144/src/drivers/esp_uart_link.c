@@ -25,6 +25,7 @@ static EspUartLink_Diagnostics_t g_espUartDiag;
 static uint8 g_espUartRxFrame[ESP_UART_LINK_RX_FRAME_MAX];
 static uint8 g_espUartTxFrame[ESP_UART_LINK_TX_FRAME_MAX];
 static volatile uint8 g_espUartRxRing[ESP_UART_LINK_RX_RING_BYTES];
+static volatile boolean g_espUartRxResetMarker[ESP_UART_LINK_RX_RING_BYTES];
 static volatile uint8 g_espUartRxHead;
 static volatile uint8 g_espUartRxTail;
 static volatile uint16 g_espUartPendingHardwareErrors;
@@ -32,7 +33,7 @@ static volatile uint16 g_espUartPendingOverrunErrors;
 static volatile uint16 g_espUartPendingNoiseErrors;
 static volatile uint16 g_espUartPendingFramingErrors;
 static volatile uint16 g_espUartPendingParityErrors;
-static volatile boolean g_espUartRxResetPending;
+static volatile boolean g_espUartRxOverflowResetPending;
 static uint8 g_espUartRxLen;
 static uint8 g_espUartTxIndex;
 static uint8 g_espUartTxLen;
@@ -57,6 +58,8 @@ ISR(LPUART2_RxTx_IRQHandler)
 
     if (errors != 0U)
     {
+        uint8 nextHead = (uint8)(g_espUartRxHead + 1U);
+
         g_espUartPendingHardwareErrors++;
         if ((errors & LPUART_STAT_OR_MASK) != 0U)
         {
@@ -75,8 +78,18 @@ ISR(LPUART2_RxTx_IRQHandler)
             g_espUartPendingParityErrors++;
         }
 
+        if (nextHead == g_espUartRxTail)
+        {
+            g_espUartPendingOverrunErrors++;
+        }
+        else
+        {
+            g_espUartRxRing[g_espUartRxHead] = 0U;
+            g_espUartRxResetMarker[g_espUartRxHead] = TRUE;
+            g_espUartRxHead = nextHead;
+        }
+
         IP_LPUART2->STAT = (status & (~LPUART_FEATURE_STAT_REG_FLAGS_MASK)) | errors;
-        g_espUartRxResetPending = TRUE;
     }
     else if (byteReady == TRUE)
     {
@@ -86,11 +99,12 @@ ISR(LPUART2_RxTx_IRQHandler)
         {
             g_espUartPendingHardwareErrors++;
             g_espUartPendingOverrunErrors++;
-            g_espUartRxResetPending = TRUE;
+            g_espUartRxOverflowResetPending = TRUE;
         }
         else
         {
             g_espUartRxRing[g_espUartRxHead] = byte;
+            g_espUartRxResetMarker[g_espUartRxHead] = FALSE;
             g_espUartRxHead = nextHead;
         }
     }
@@ -218,6 +232,7 @@ void EspUartLink_Init(void)
     (void)memset(&g_espUartDiag, 0, sizeof(g_espUartDiag));
     (void)memset(g_espUartRxFrame, 0, sizeof(g_espUartRxFrame));
     (void)memset(g_espUartTxFrame, 0, sizeof(g_espUartTxFrame));
+    (void)memset((void *)g_espUartRxResetMarker, 0, sizeof(g_espUartRxResetMarker));
     reset_rx_parser();
     g_espUartRxHead = 0U;
     g_espUartRxTail = 0U;
@@ -226,7 +241,7 @@ void EspUartLink_Init(void)
     g_espUartPendingNoiseErrors = 0U;
     g_espUartPendingFramingErrors = 0U;
     g_espUartPendingParityErrors = 0U;
-    g_espUartRxResetPending = FALSE;
+    g_espUartRxOverflowResetPending = FALSE;
     g_espUartTxIndex = 0U;
     g_espUartTxLen = 0U;
     g_espUartTxPending = FALSE;
@@ -290,7 +305,7 @@ static void service_rx(uint32 nowMs)
     uint16 noiseErrors;
     uint16 framingErrors;
     uint16 parityErrors;
-    boolean resetPending;
+    boolean overflowResetPending;
     uint8 availableHead;
 
     if (g_espUartDiag.initialized != TRUE)
@@ -304,17 +319,14 @@ static void service_rx(uint32 nowMs)
     noiseErrors = g_espUartPendingNoiseErrors;
     framingErrors = g_espUartPendingFramingErrors;
     parityErrors = g_espUartPendingParityErrors;
-    resetPending = g_espUartRxResetPending;
+    overflowResetPending = g_espUartRxOverflowResetPending;
+    availableHead = g_espUartRxHead;
     g_espUartPendingHardwareErrors = 0U;
     g_espUartPendingOverrunErrors = 0U;
     g_espUartPendingNoiseErrors = 0U;
     g_espUartPendingFramingErrors = 0U;
     g_espUartPendingParityErrors = 0U;
-    g_espUartRxResetPending = FALSE;
-    if (resetPending == TRUE)
-    {
-        g_espUartRxTail = g_espUartRxHead;
-    }
+    g_espUartRxOverflowResetPending = FALSE;
     IntCtrl_Ip_EnableIrq(LPUART2_RxTx_IRQn);
 
     g_espUartDiag.rxHardwareErrors += hardwareErrors;
@@ -323,18 +335,27 @@ static void service_rx(uint32 nowMs)
     g_espUartDiag.rxFramingErrors += framingErrors;
     g_espUartDiag.rxParityErrors += parityErrors;
 
-    if (resetPending == TRUE)
-    {
-        reset_rx_parser();
-    }
-
-    availableHead = g_espUartRxHead;
     while (g_espUartRxTail != availableHead)
     {
-        uint8 byte = g_espUartRxRing[g_espUartRxTail];
+        uint8 tail = g_espUartRxTail;
+        uint8 byte = g_espUartRxRing[tail];
+        boolean resetParser = g_espUartRxResetMarker[tail];
         g_espUartRxTail = (uint8)(g_espUartRxTail + 1U);
-        consume_rx_byte(byte, nowMs);
-        g_espUartDiag.rxBytes++;
+
+        if (resetParser == TRUE)
+        {
+            reset_rx_parser();
+        }
+        else
+        {
+            consume_rx_byte(byte, nowMs);
+            g_espUartDiag.rxBytes++;
+        }
+    }
+
+    if (overflowResetPending == TRUE)
+    {
+        reset_rx_parser();
     }
 }
 

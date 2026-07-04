@@ -133,6 +133,11 @@ boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outL
         received = TRUE;
     }
 
+    if (received == TRUE)
+    {
+        EspUartLink_Service(nowMs);
+    }
+
     return received;
 }
 
@@ -151,6 +156,11 @@ boolean esp_link_service_drive_commands(uint32 nowMs,
             *outLastCommand = command;
         }
         received = TRUE;
+    }
+
+    if (received == TRUE)
+    {
+        EspUartLink_Service(nowMs);
     }
 
     return received;

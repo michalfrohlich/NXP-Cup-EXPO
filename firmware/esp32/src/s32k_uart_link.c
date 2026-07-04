@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -27,6 +28,7 @@
 #define S32K_UART_LINK_TUNE_LOCK_TIMEOUT_MS (500U)
 #define S32K_UART_LINK_TUNE_ACK_ATTEMPT_MS (150U)
 #define S32K_UART_LINK_TUNE_SEND_ATTEMPTS (2U)
+#define S32K_UART_LINK_PENDING_LED_MIN_US (100000LL)
 
 static const char *TAG = "s32k_uart_link";
 static TaskHandle_t s_uartTaskHandle;
@@ -48,6 +50,8 @@ static uint8_t s_nextTuneSequence;
 static uint8_t s_waitingTuneSequence;
 static bool s_tuneResultAccepted;
 static bool s_waitingForTuneResult;
+static esp_timer_handle_t s_pendingLedOffTimer;
+static int64_t s_pendingLedOnSinceUs;
 static EspS32kButtonFrame_t s_lastButtons;
 
 static void status_store_buttons(const EspS32kButtonFrame_t *buttons)
@@ -107,6 +111,37 @@ static TickType_t ticks_at_least_one(uint32_t delayMs)
     return (ticks > 0U) ? ticks : 1U;
 }
 
+static void pending_led_off_callback(void *context)
+{
+    (void)context;
+    (void)gpio_set_level(ESP32_STATUS_LED_GPIO, 0);
+}
+
+static void command_pending_led_begin(void)
+{
+    if (s_pendingLedOffTimer != NULL)
+    {
+        (void)esp_timer_stop(s_pendingLedOffTimer);
+    }
+    s_pendingLedOnSinceUs = esp_timer_get_time();
+    (void)gpio_set_level(ESP32_STATUS_LED_GPIO, 1);
+}
+
+static void command_pending_led_end(void)
+{
+    int64_t elapsedUs = esp_timer_get_time() - s_pendingLedOnSinceUs;
+
+    if ((elapsedUs >= S32K_UART_LINK_PENDING_LED_MIN_US) || (s_pendingLedOffTimer == NULL))
+    {
+        (void)gpio_set_level(ESP32_STATUS_LED_GPIO, 0);
+    }
+    else
+    {
+        (void)esp_timer_start_once(s_pendingLedOffTimer,
+                                   (uint64_t)(S32K_UART_LINK_PENDING_LED_MIN_US - elapsedUs));
+    }
+}
+
 static esp_err_t send_ack_frame(const EspS32kAckFrame_t *ack)
 {
     uint8_t frame[ESP_S32K_ACK_FRAME_LEN];
@@ -130,10 +165,8 @@ static void reset_uart_test_parser(void)
 static void handle_button_frame(const EspS32kButtonFrame_t *buttons)
 {
     EspS32kAckFrame_t ack;
-    const bool testButtonPressed = buttons->sw2Pressed || buttons->sw3Pressed;
 
     status_store_buttons(buttons);
-    (void)gpio_set_level(ESP32_STATUS_LED_GPIO, testButtonPressed ? 1 : 0);
 
     ack = *buttons;
     if (send_ack_frame(&ack) == ESP_OK)
@@ -258,6 +291,23 @@ static esp_err_t init_gpio(void)
     if (ret != ESP_OK)
     {
         return ret;
+    }
+
+    if (s_pendingLedOffTimer == NULL)
+    {
+        const esp_timer_create_args_t timerArgs = {
+            .callback = pending_led_off_callback,
+            .arg = NULL,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "cmd_led_off",
+            .skip_unhandled_events = true,
+        };
+
+        ret = esp_timer_create(&timerArgs, &s_pendingLedOffTimer);
+        if (ret != ESP_OK)
+        {
+            return ret;
+        }
     }
 
     gpio_config_t inputConfig = {
@@ -390,6 +440,7 @@ esp_err_t S32kUartLink_SendTuneAndWait(EspS32kTuneFrame_t *tune)
     s_tuneResultAccepted = false;
     s_waitingForTuneResult = true;
     portEXIT_CRITICAL(&s_statusLock);
+    command_pending_led_begin();
 
     if (!EspS32kTuneFrame_Encode(tune, frame, sizeof(frame)))
     {
@@ -426,6 +477,7 @@ esp_err_t S32kUartLink_SendTuneAndWait(EspS32kTuneFrame_t *tune)
     result = ESP_ERR_TIMEOUT;
 
 done:
+    command_pending_led_end();
     portENTER_CRITICAL(&s_statusLock);
     s_waitingForTuneResult = false;
     portEXIT_CRITICAL(&s_statusLock);
@@ -462,6 +514,7 @@ esp_err_t S32kUartLink_SendDriveCommandAndWait(EspS32kDriveCommandFrame_t *comma
     s_tuneResultAccepted = false;
     s_waitingForTuneResult = true;
     portEXIT_CRITICAL(&s_statusLock);
+    command_pending_led_begin();
 
     if (!EspS32kDriveCommandFrame_Encode(command, frame, sizeof(frame)))
     {
@@ -498,6 +551,7 @@ esp_err_t S32kUartLink_SendDriveCommandAndWait(EspS32kDriveCommandFrame_t *comma
     result = ESP_ERR_TIMEOUT;
 
 done:
+    command_pending_led_end();
     portENTER_CRITICAL(&s_statusLock);
     s_waitingForTuneResult = false;
     portEXIT_CRITICAL(&s_statusLock);

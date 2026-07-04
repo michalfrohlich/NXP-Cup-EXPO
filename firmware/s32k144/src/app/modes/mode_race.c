@@ -1363,6 +1363,22 @@ static void stack_drive_apply_remote_command(const EspUartLink_DriveCommandFrame
     g_raceMode.nextDisplayMs = nowMs;
 }
 
+static void stack_drive_service_esp(uint32 nowMs)
+{
+    EspUartLink_TuneFrame_t tune;
+    EspUartLink_DriveCommandFrame_t command;
+
+    if (esp_link_service_tune_frames(nowMs, &tune) == TRUE)
+    {
+        race_mode_apply_runtime_tune(&g_raceMode);
+    }
+
+    if (esp_link_service_drive_commands(nowMs, &command) == TRUE)
+    {
+        stack_drive_apply_remote_command(&command, nowMs);
+    }
+}
+
 static void stack_drive_draw(const RaceModeState_t *st)
 {
     EspUartLink_Diagnostics_t espDiag;
@@ -1616,9 +1632,6 @@ void stack_drive_test_enter(uint32 nowMs)
 
 void stack_drive_test_update(uint32 nowMs, boolean pagePressed, boolean stopPressed)
 {
-    EspUartLink_TuneFrame_t tune;
-    EspUartLink_DriveCommandFrame_t command;
-
     if (pagePressed == TRUE)
     {
         g_stackDriveDisplayPage =
@@ -1626,36 +1639,33 @@ void stack_drive_test_update(uint32 nowMs, boolean pagePressed, boolean stopPres
         g_raceMode.nextDisplayMs = nowMs;
     }
 
-    if (esp_link_service_tune_frames(nowMs, &tune) == TRUE)
-    {
-        race_mode_apply_runtime_tune(&g_raceMode);
-    }
-
-    if (esp_link_service_drive_commands(nowMs, &command) == TRUE)
-    {
-        stack_drive_apply_remote_command(&command, nowMs);
-    }
+    stack_drive_service_esp(nowMs);
 
     App_ServiceRuntimeCore(nowMs);
     race_mode_update_vision(&g_raceMode, nowMs);
     race_mode_service_teensy_link_status(&g_raceMode, nowMs);
     nowMs = Timebase_GetMs();
+    stack_drive_service_esp(nowMs);
     if (stopPressed == TRUE)
     {
         g_stackDriveLastCommand = ESP_UART_LINK_DRIVE_COMMAND_STOP;
         stack_drive_apply_stop(&g_raceMode);
     }
+    race_mode_check_health(&g_raceMode, nowMs);
     race_mode_update_control(&g_raceMode, nowMs, FALSE);
     nowMs = Timebase_GetMs();
     App_ServiceRuntimeCore(nowMs);
     race_mode_update_ultrasonic(&g_raceMode, nowMs);
     race_mode_service_teensy_link_status(&g_raceMode, nowMs);
     App_ServiceRuntimeCore(nowMs);
+    EspUartLink_Service(Timebase_GetMs());
+    race_mode_render_status_led(&g_raceMode);
 
     if (time_reached(nowMs, g_raceMode.nextDisplayMs) == TRUE)
     {
         g_raceMode.nextDisplayMs = nowMs + STACK_DRIVE_DISPLAY_MS;
         stack_drive_draw(&g_raceMode);
+        EspUartLink_Service(Timebase_GetMs());
     }
 }
 
