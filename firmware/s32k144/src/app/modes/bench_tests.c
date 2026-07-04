@@ -1204,9 +1204,7 @@ static void camservo_apply_profile(CamServoState_t *st, const CamTuneProfile_t *
 
     st->activeTune = *profile;
 
-    SteeringController_SetTunings(&st->ctrl, profile->kp, profile->kd, 1.0f);
-    st->ctrl.ki = profile->ki;
-    st->ctrl.iTermClamp = profile->iTermClamp;
+    App_ApplySteeringProfile(&st->ctrl, profile);
     SteeringController_Reset(&st->ctrl);
 
     st->steerRaw = 0;

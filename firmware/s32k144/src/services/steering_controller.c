@@ -47,21 +47,24 @@ static float deadzone_f(float x, float dz)
 ========================================================= */
 void SteeringController_Init(SteeringControllerState_t *s)
 {
+    SteeringControllerConfig_t config;
+
     if (s == (SteeringControllerState_t*)0) { return; }
 
+    SteeringController_GetDefaultConfig(&config);
+    SteeringController_ApplyConfig(s, &config);
     SteeringController_Reset(s);
+}
 
-    /* Baseline tunings come from control_config.h, but app modes may override the state. */
-    s->kp = (float)KP;
-    s->kd = (float)KD;
-    s->ki = (float)KI;
-    s->iTermClamp = (float)ITERM_CLAMP;
+void SteeringController_GetDefaultConfig(SteeringControllerConfig_t *config)
+{
+    if (config == (SteeringControllerConfig_t*)0) { return; }
 
-#ifdef STEER_SCALE
-    s->steerScale = (float)STEER_SCALE;
-#else
-    s->steerScale = 1.0f;
-#endif
+    config->kp = (float)KP;
+    config->ki = (float)KI;
+    config->kd = (float)KD;
+    config->iTermClamp = (float)ITERM_CLAMP;
+    config->steerScale = 1.0f;
 }
 
 void SteeringController_Reset(SteeringControllerState_t *s)
@@ -78,15 +81,17 @@ void SteeringController_Reset(SteeringControllerState_t *s)
 /* =========================================================
    Runtime tuning
 ========================================================= */
-void SteeringController_SetTunings(SteeringControllerState_t *s, float kp, float kd, float steerScale)
+void SteeringController_ApplyConfig(SteeringControllerState_t *s,
+                                    const SteeringControllerConfig_t *config)
 {
-    if (s == (SteeringControllerState_t*)0) { return; }
+    if ((s == (SteeringControllerState_t*)0) ||
+        (config == (const SteeringControllerConfig_t*)0)) { return; }
 
-    s->kp = clamp_f(kp, 0.0f, 20.0f);
-    s->kd = clamp_f(kd, 0.0f, 20.0f);
-    s->steerScale = clamp_f(steerScale, 0.5f, 4.0f);
-
-    /* KI and iTermClamp are stored in the state for per-profile overrides. */
+    s->kp = clamp_f(config->kp, 0.0f, 20.0f);
+    s->ki = clamp_f(config->ki, 0.0f, 100.0f);
+    s->kd = clamp_f(config->kd, 0.0f, 20.0f);
+    s->iTermClamp = clamp_f(config->iTermClamp, 0.0f, 100.0f);
+    s->steerScale = clamp_f(config->steerScale, 0.5f, 4.0f);
 }
 
 /* =========================================================

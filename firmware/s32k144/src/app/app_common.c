@@ -211,6 +211,24 @@ void RuntimeTune_InitDefaults(void)
     g_runtimeTune.initialized = TRUE;
 }
 
+void App_ApplySteeringProfile(SteeringControllerState_t *state,
+                              const CamTuneProfile_t *profile)
+{
+    SteeringControllerConfig_t config;
+
+    if ((state == NULL_PTR) || (profile == NULL_PTR))
+    {
+        return;
+    }
+
+    config.kp = profile->kp;
+    config.ki = profile->ki;
+    config.kd = profile->kd;
+    config.iTermClamp = profile->iTermClamp;
+    config.steerScale = 1.0f;
+    SteeringController_ApplyConfig(state, &config);
+}
+
 static const char *App_GetSelectedBuildModeMacroName(void)
 {
     switch (App_GetSelectedBuildMode())

@@ -2,8 +2,8 @@
 /*
   Steering-control tunings shared by app modes and the control service.
 
-  App modes may override SteeringControllerState_t at runtime; this header keeps the
-  control service independent from app-private configuration headers.
+  App modes apply runtime profiles through SteeringController_ApplyConfig(); this
+  header keeps the control service independent from app-private configuration.
 */
 
 #define STEER_SIGN                        (+1)

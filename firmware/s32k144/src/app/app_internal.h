@@ -473,6 +473,8 @@ void App_InitRuntimeCommon(void);
 void App_ServiceRuntimeCore(uint32 nowMs);
 void DisplayTextPadded(uint16 displayLine, const char *text);
 void RuntimeTune_InitDefaults(void);
+void App_ApplySteeringProfile(SteeringControllerState_t *state,
+                              const CamTuneProfile_t *profile);
 
 void serial_tune_test_enter(uint32 nowMs);
 void serial_tune_test_update(void);

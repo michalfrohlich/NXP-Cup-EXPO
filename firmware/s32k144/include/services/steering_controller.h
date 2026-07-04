@@ -3,8 +3,17 @@
 /* VehicleControlOutput_t and VisionOutput_t are defined in vehicle_types.h. */
 #include "domain/vehicle_types.h"
 
+typedef struct
+{
+    float kp;
+    float ki;
+    float kd;
+    float iTermClamp;
+    float steerScale;
+} SteeringControllerConfig_t;
+
 /* =========================================================
-   Controller internal state
+   Controller state
 ========================================================= */
 typedef struct
 {
@@ -31,9 +40,9 @@ typedef struct
 ========================================================= */
 void SteeringController_Init(SteeringControllerState_t *s);
 void SteeringController_Reset(SteeringControllerState_t *s);
-
-/* Keep SAME signature as the original project so UI callers do not break. */
-void SteeringController_SetTunings(SteeringControllerState_t *s, float kp, float kd, float steerScale);
+void SteeringController_GetDefaultConfig(SteeringControllerConfig_t *config);
+void SteeringController_ApplyConfig(SteeringControllerState_t *s,
+                                    const SteeringControllerConfig_t *config);
 
 VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
                                         const VisionOutput_t *r,

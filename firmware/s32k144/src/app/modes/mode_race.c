@@ -62,10 +62,7 @@ static void race_mode_apply_runtime_tune(RaceModeState_t *st)
         return;
     }
 
-    SteeringController_SetTunings(&st->ctrl, g_runtimeTune.profile.kp, g_runtimeTune.profile.kd,
-                                  1.0f);
-    st->ctrl.ki = g_runtimeTune.profile.ki;
-    st->ctrl.iTermClamp = g_runtimeTune.profile.iTermClamp;
+    App_ApplySteeringProfile(&st->ctrl, &g_runtimeTune.profile);
 }
 
 static void race_mode_enter_ex(uint32 nowMs, boolean useTeensyCam0, boolean tuneDriveMode,
