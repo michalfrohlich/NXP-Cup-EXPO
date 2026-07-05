@@ -26,8 +26,7 @@ static void writeU32Le(uint8_t *bytes, uint16_t offset, uint32_t value)
 
 static uint16_t readU16Le(const uint8_t *bytes, uint16_t offset)
 {
-    return (uint16_t)(((uint16_t)bytes[offset]) |
-                      ((uint16_t)bytes[offset + 1U] << 8U));
+    return (uint16_t)(((uint16_t)bytes[offset]) | ((uint16_t)bytes[offset + 1U] << 8U));
 }
 
 static int16_t readS16Le(const uint8_t *bytes, uint16_t offset)
@@ -37,8 +36,7 @@ static int16_t readS16Le(const uint8_t *bytes, uint16_t offset)
 
 static uint32_t readU32Le(const uint8_t *bytes, uint16_t offset)
 {
-    return (uint32_t)(((uint32_t)bytes[offset]) |
-                      ((uint32_t)bytes[offset + 1U] << 8U) |
+    return (uint32_t)(((uint32_t)bytes[offset]) | ((uint32_t)bytes[offset + 1U] << 8U) |
                       ((uint32_t)bytes[offset + 2U] << 16U) |
                       ((uint32_t)bytes[offset + 3U] << 24U));
 }
@@ -65,7 +63,7 @@ static int8_t clampErrorPct(int8_t value)
     return value;
 }
 
-static void encodeCamera(uint8_t *payload, uint16_t offset, const TeensyLinkCameraResult &camera)
+static void encodeCamera(uint8_t *payload, uint16_t offset, const TeensyLinkCameraResult_t &camera)
 {
     payload[offset + 0U] = (uint8_t)clampErrorPct(camera.errorPct);
     payload[offset + 1U] = camera.status;
@@ -78,7 +76,7 @@ static void encodeCamera(uint8_t *payload, uint16_t offset, const TeensyLinkCame
     writeU16Le(payload, offset + 8U, camera.sequence);
 }
 
-static void decodeCamera(const uint8_t *payload, uint16_t offset, TeensyLinkCameraResult &camera)
+static void decodeCamera(const uint8_t *payload, uint16_t offset, TeensyLinkCameraResult_t &camera)
 {
     camera.errorPct = (int8_t)payload[offset + 0U];
     camera.status = payload[offset + 1U];
@@ -91,7 +89,7 @@ static void decodeCamera(const uint8_t *payload, uint16_t offset, TeensyLinkCame
     camera.sequence = readU16Le(payload, offset + 8U);
 }
 
-void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult &camera, uint8_t sourceFlag)
+void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult_t &camera, uint8_t sourceFlag)
 {
     camera.errorPct = 0;
     camera.status = TEENSY_LINK_CAMERA_STATUS_TRACK_LOST;
@@ -104,13 +102,10 @@ void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult &camera, uint8_t s
     camera.sequence = 0U;
 }
 
-void TeensyLinkTelemetry_BuildTeensyFrame(uint8_t frame[TEENSY_LINK_FRAME_BYTES],
-                                          uint16_t frameSeq,
-                                          uint32_t nowMs,
-                                          uint16_t ackS32kSeq,
+void TeensyLinkTelemetry_BuildTeensyFrame(uint8_t frame[TEENSY_LINK_FRAME_BYTES], uint16_t frameSeq,
+                                          uint32_t nowMs, uint16_t ackS32kSeq,
                                           const TeensyLinkTelemetryInputs &inputs,
-                                          uint16_t teensyRxFrames,
-                                          uint16_t teensyRxErrors)
+                                          uint16_t teensyRxFrames, uint16_t teensyRxErrors)
 {
     uint8_t *payload = &frame[TEENSY_LINK_HEADER_BYTES];
     uint16_t flags = TEENSY_LINK_FLAG_PAYLOAD_VALID;
@@ -156,20 +151,26 @@ void TeensyLinkTelemetry_BuildTeensyFrame(uint8_t frame[TEENSY_LINK_FRAME_BYTES]
     writeS16Le(payload, TEENSY_LINK_TEENSY_GX_DPS10_OFF, clampFloatToI16(inputs.imu.gxDps * 10.0f));
     writeS16Le(payload, TEENSY_LINK_TEENSY_GY_DPS10_OFF, clampFloatToI16(inputs.imu.gyDps * 10.0f));
     writeS16Le(payload, TEENSY_LINK_TEENSY_GZ_DPS10_OFF, clampFloatToI16(inputs.imu.gzDps * 10.0f));
-    writeS16Le(payload, TEENSY_LINK_TEENSY_ROLL_CDEG_OFF, clampFloatToI16(inputs.imu.rollDeg * 100.0f));
-    writeS16Le(payload, TEENSY_LINK_TEENSY_PITCH_CDEG_OFF, clampFloatToI16(inputs.imu.pitchDeg * 100.0f));
-    writeS16Le(payload, TEENSY_LINK_TEENSY_YAW_CDEG_OFF, clampFloatToI16(inputs.imu.yawDeg * 100.0f));
-    writeS16Le(payload, TEENSY_LINK_TEENSY_ACCEL_NORM_MG_OFF, clampFloatToI16(inputs.imu.accelNormG * 1000.0f));
-    writeS16Le(payload, TEENSY_LINK_TEENSY_LATERAL_MG_OFF, clampFloatToI16(inputs.imu.lateralG * 1000.0f));
+    writeS16Le(payload, TEENSY_LINK_TEENSY_ROLL_CDEG_OFF,
+               clampFloatToI16(inputs.imu.rollDeg * 100.0f));
+    writeS16Le(payload, TEENSY_LINK_TEENSY_PITCH_CDEG_OFF,
+               clampFloatToI16(inputs.imu.pitchDeg * 100.0f));
+    writeS16Le(payload, TEENSY_LINK_TEENSY_YAW_CDEG_OFF,
+               clampFloatToI16(inputs.imu.yawDeg * 100.0f));
+    writeS16Le(payload, TEENSY_LINK_TEENSY_ACCEL_NORM_MG_OFF,
+               clampFloatToI16(inputs.imu.accelNormG * 1000.0f));
+    writeS16Le(payload, TEENSY_LINK_TEENSY_LATERAL_MG_OFF,
+               clampFloatToI16(inputs.imu.lateralG * 1000.0f));
     writeS16Le(payload, TEENSY_LINK_TEENSY_TEMP_C10_OFF, clampFloatToI16(inputs.imu.tempC * 10.0f));
 
     writeU16Le(payload, TEENSY_LINK_TEENSY_LOGGER_FLAGS_OFF, inputs.loggerFlags);
     writeU16Le(payload, TEENSY_LINK_TEENSY_LOGGER_DROPS_OFF, inputs.loggerDropCount);
     writeU16Le(payload, TEENSY_LINK_TEENSY_RX_FRAMES_OFF, teensyRxFrames);
     writeU16Le(payload, TEENSY_LINK_TEENSY_RX_ERRORS_OFF, teensyRxErrors);
+    writeU16Le(payload, TEENSY_LINK_TEENSY_LINE_CONFIG_ACK_OFF,
+               inputs.lineDetectorConfigAckGeneration);
 
-    writeU16Le(frame,
-               TEENSY_LINK_CRC_OFFSET,
+    writeU16Le(frame, TEENSY_LINK_CRC_OFFSET,
                TeensyLink_Crc16CcittFalse(frame, TEENSY_LINK_CRC_OFFSET));
 }
 
@@ -182,10 +183,8 @@ bool TeensyLinkTelemetry_DecodeS32kFrame(const uint8_t frame[TEENSY_LINK_FRAME_B
 
     (void)memset(&outSnapshot, 0, sizeof(outSnapshot));
 
-    if ((frame[0] != TEENSY_LINK_SYNC0) ||
-        (frame[1] != TEENSY_LINK_SYNC1) ||
-        (frame[2] != TEENSY_LINK_VERSION) ||
-        (frame[3] != TEENSY_LINK_FRAME_TYPE_S32K) ||
+    if ((frame[0] != TEENSY_LINK_SYNC0) || (frame[1] != TEENSY_LINK_SYNC1) ||
+        (frame[2] != TEENSY_LINK_VERSION) || (frame[3] != TEENSY_LINK_FRAME_TYPE_S32K) ||
         (readU16Le(frame, 4U) != TEENSY_LINK_FRAME_BYTES) ||
         (readU16Le(frame, 14U) != TEENSY_LINK_PAYLOAD_BYTES))
     {
@@ -224,5 +223,11 @@ bool TeensyLinkTelemetry_DecodeS32kFrame(const uint8_t frame[TEENSY_LINK_FRAME_B
     outSnapshot.ultrasonicAgeMs = readU16Le(payload, TEENSY_LINK_S32K_ULTRA_AGE_MS_OFF);
     outSnapshot.ultrasonicFlags = readU16Le(payload, TEENSY_LINK_S32K_ULTRA_FLAGS_OFF);
     outSnapshot.diagFlags = readU16Le(payload, TEENSY_LINK_S32K_DIAG_FLAGS_OFF);
+    outSnapshot.lineDetectorConfigGeneration =
+        readU16Le(payload, TEENSY_LINK_S32K_LINE_CONFIG_GENERATION_OFF);
+    outSnapshot.lineDetectorMinContrast =
+        readU16Le(payload, TEENSY_LINK_S32K_LINE_MIN_CONTRAST_OFF);
+    outSnapshot.lineDetectorEdgeHighPct = payload[TEENSY_LINK_S32K_LINE_EDGE_HIGH_PCT_OFF];
+    outSnapshot.lineDetectorEdgeLowPct = payload[TEENSY_LINK_S32K_LINE_EDGE_LOW_PCT_OFF];
     return true;
 }

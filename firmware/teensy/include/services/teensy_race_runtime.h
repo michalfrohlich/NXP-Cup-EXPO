@@ -27,6 +27,7 @@ class TeensyRaceRuntime
 
   private:
     void publishFrame(uint32_t nowMs);
+    void applyS32kLineDetectorConfig();
     void updateSensors(uint32_t nowUs, uint32_t nowMs);
     void updateTrackingLed();
     void initStackDisplay();
@@ -43,6 +44,11 @@ class TeensyRaceRuntime
     TeensyLinkTelemetryInputs telemetry_ = {};
     TeensyLinkS32kSnapshot s32kSnapshot_ = {};
     uint8_t txFrame_[TEENSY_LINK_FRAME_BYTES] = {};
+    LineDetectorParams appliedLineDetectorParams_ = {
+        VISION_LINEAR_MIN_CONTRAST,
+        VISION_LINEAR_EDGE_HIGH_PCT,
+        VISION_LINEAR_EDGE_LOW_PCT,
+    };
 
     uint16_t teensyFrameSeq_ = 0U;
     uint16_t sensorSeq_ = 0U;

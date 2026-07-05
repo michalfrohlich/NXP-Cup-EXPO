@@ -202,11 +202,14 @@ static void serial_tune_print_vision_menu(void)
     UartHost_WriteLine("");
     UartHost_WriteLine("=== Vision Tune Menu ===");
     UartHost_WriteLine("Current:");
-    (void)snprintf(lineBuf, sizeof(lineBuf), "minContrast: %u", (unsigned int)g_cableTune.visionMinContrast);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "minContrast: %u",
+                   (unsigned int)g_cableTune.visionMinContrast);
     UartHost_WriteLine(lineBuf);
-    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeHighPct: %u", (unsigned int)g_cableTune.visionEdgeHighPct);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeHighPct: %u",
+                   (unsigned int)g_cableTune.visionEdgeHighPct);
     UartHost_WriteLine(lineBuf);
-    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeLowPct: %u", (unsigned int)g_cableTune.visionEdgeLowPct);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeLowPct: %u",
+                   (unsigned int)g_cableTune.visionEdgeLowPct);
     UartHost_WriteLine(lineBuf);
     UartHost_WriteLine("");
     UartHost_WriteLine("m - edit min contrast");
@@ -666,6 +669,7 @@ static void serial_tune_handle_edit_char(CableTuneState_t *st, char ch)
         if (serial_tune_is_vision_screen(st->screen) == TRUE)
         {
             sint16 parsedIntValue;
+            LineDetectorParams_t lineDetector = g_runtimeTune.lineDetector;
 
             if (serial_tune_parse_int_value(st->inputBuf, &parsedIntValue) != TRUE)
             {
@@ -686,7 +690,7 @@ static void serial_tune_handle_edit_char(CableTuneState_t *st, char ch)
                         return;
                     }
                     st->visionMinContrast = (uint16)parsedIntValue;
-                    g_runtimeTune.lineDetector.minContrast = st->visionMinContrast;
+                    lineDetector.minContrast = st->visionMinContrast;
                     break;
                 case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
                     if ((parsedIntValue < 1) || (parsedIntValue > 100))
@@ -697,7 +701,7 @@ static void serial_tune_handle_edit_char(CableTuneState_t *st, char ch)
                         return;
                     }
                     st->visionEdgeHighPct = (uint8)parsedIntValue;
-                    g_runtimeTune.lineDetector.edgeHighPct = st->visionEdgeHighPct;
+                    lineDetector.edgeHighPct = st->visionEdgeHighPct;
                     break;
                 case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
                     if ((parsedIntValue < 1) || (parsedIntValue > 100))
@@ -708,11 +712,19 @@ static void serial_tune_handle_edit_char(CableTuneState_t *st, char ch)
                         return;
                     }
                     st->visionEdgeLowPct = (uint8)parsedIntValue;
-                    g_runtimeTune.lineDetector.edgeLowPct = st->visionEdgeLowPct;
+                    lineDetector.edgeLowPct = st->visionEdgeLowPct;
                     break;
                 default:
                     serial_tune_return_from_edit(st);
                     return;
+            }
+
+            if (RuntimeTune_SetLineDetectorParams(&lineDetector) != TRUE)
+            {
+                UartHost_WriteLine("");
+                UartHost_WriteLine("Invalid detector parameters.");
+                UartHost_WriteString("edit> ");
+                return;
             }
         }
         else if (serial_tune_active_int_ptr(st) != NULL_PTR)

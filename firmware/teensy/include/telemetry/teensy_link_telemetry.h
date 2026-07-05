@@ -5,19 +5,6 @@
 
 #include "../../../../shared/protocol/teensy_link_protocol.h"
 
-struct TeensyLinkCameraResult
-{
-    int8_t errorPct;
-    uint8_t status;
-    uint8_t feature;
-    uint8_t confidence;
-    uint8_t leftLineIdx;
-    uint8_t rightLineIdx;
-    uint8_t ageMs;
-    uint8_t flags;
-    uint16_t sequence;
-};
-
 struct TeensyLinkImuSample
 {
     float axG;
@@ -41,10 +28,11 @@ struct TeensyLinkTelemetryInputs
     uint16_t sensorAgeMs;
     uint16_t statusFlags;
     uint16_t componentMask;
-    TeensyLinkCameraResult camera[TEENSY_LINK_CAMERA_COUNT];
+    TeensyLinkCameraResult_t camera[TEENSY_LINK_CAMERA_COUNT];
     TeensyLinkImuSample imu;
     uint16_t loggerFlags;
     uint16_t loggerDropCount;
+    uint16_t lineDetectorConfigAckGeneration;
 };
 
 struct TeensyLinkS32kSnapshot
@@ -59,7 +47,7 @@ struct TeensyLinkS32kSnapshot
     uint8_t appMode;
     uint8_t appState;
     uint16_t safetyFlags;
-    TeensyLinkCameraResult camera[TEENSY_LINK_CAMERA_COUNT];
+    TeensyLinkCameraResult_t camera[TEENSY_LINK_CAMERA_COUNT];
     int16_t steerRaw;
     int16_t steerFilt;
     int16_t steerOut;
@@ -73,15 +61,16 @@ struct TeensyLinkS32kSnapshot
     uint16_t ultrasonicAgeMs;
     uint16_t ultrasonicFlags;
     uint16_t diagFlags;
+    uint16_t lineDetectorConfigGeneration;
+    uint16_t lineDetectorMinContrast;
+    uint8_t lineDetectorEdgeHighPct;
+    uint8_t lineDetectorEdgeLowPct;
 };
 
-void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult &camera, uint8_t sourceFlag);
-void TeensyLinkTelemetry_BuildTeensyFrame(uint8_t frame[TEENSY_LINK_FRAME_BYTES],
-                                          uint16_t frameSeq,
-                                          uint32_t nowMs,
-                                          uint16_t ackS32kSeq,
+void TeensyLinkTelemetry_DefaultCamera(TeensyLinkCameraResult_t &camera, uint8_t sourceFlag);
+void TeensyLinkTelemetry_BuildTeensyFrame(uint8_t frame[TEENSY_LINK_FRAME_BYTES], uint16_t frameSeq,
+                                          uint32_t nowMs, uint16_t ackS32kSeq,
                                           const TeensyLinkTelemetryInputs &inputs,
-                                          uint16_t teensyRxFrames,
-                                          uint16_t teensyRxErrors);
+                                          uint16_t teensyRxFrames, uint16_t teensyRxErrors);
 bool TeensyLinkTelemetry_DecodeS32kFrame(const uint8_t frame[TEENSY_LINK_FRAME_BYTES],
                                          TeensyLinkS32kSnapshot &outSnapshot);

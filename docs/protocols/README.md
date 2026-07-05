@@ -51,6 +51,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 | **Camera identity** | 16-bit sequence per camera | Rejects repeated telemetry as duplicate camera data |
 | **Error Detection** | CRC-16/CCITT | Catches bit flips, validates on RX |
 | **Sequence Tracking** | 16-bit per direction | Detects dropped frames |
+| **Detector tuning** | S32K generation + Teensy applied-generation ACK | Applies camera-0 thresholds asynchronously |
 | **Stale Timeout** | 100 ms | Marks old sensors as unreliable |
 
 ## ESP32-S32K UART Web Link
@@ -86,7 +87,7 @@ over the frame payload before `X`.
 3. Explain the 5 ms schedule and 100 ms stale timeout.
 4. Show the OLED bring-up mode as the verification path.
 5. Summarize trade-offs and alternatives considered.
-6. Explain the v2 camera sequence and the 50 Hz PWM-synchronized control schedule.
+6. Explain the v3 camera sequence/configuration handshake and the 50 Hz PWM-synchronized control schedule.
 
 ### Implementation References
 
@@ -98,4 +99,4 @@ over the frame payload before `X`.
 
 ---
 
-**Status**: Protocol v2 with deterministic Teensy-camera race scheduling | Last Updated: June 2026
+**Status**: Protocol v3 with live camera-0 tuning and deterministic race scheduling | Last Updated: July 2026

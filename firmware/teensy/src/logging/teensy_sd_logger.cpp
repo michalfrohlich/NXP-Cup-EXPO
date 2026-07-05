@@ -78,7 +78,7 @@ void TeensySdLogger::writeHeader()
     }
 }
 
-static void printCamera(Print &out, const TeensyLinkCameraResult &camera)
+static void printCamera(Print &out, const TeensyLinkCameraResult_t &camera)
 {
     out.print(camera.errorPct);
     out.print(',');

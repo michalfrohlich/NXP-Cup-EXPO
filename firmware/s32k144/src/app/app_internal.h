@@ -264,6 +264,7 @@ typedef struct
 {
     DriveTuneProfile_t profile;
     LineDetectorParams_t lineDetector;
+    uint16 lineDetectorGeneration;
     boolean initialized;
 } RuntimeTuneState_t;
 
@@ -299,6 +300,7 @@ void App_InitRuntimeCommon(void);
 void App_ServiceRuntimeCore(uint32 nowMs);
 void DisplayTextPadded(uint16 displayLine, const char *text);
 void RuntimeTune_InitDefaults(void);
+boolean RuntimeTune_SetLineDetectorParams(const LineDetectorParams_t *params);
 SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel);
 const char *SpeedMode_GetName(SpeedModeSetting_t setting);
 const DriveTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting);
@@ -350,7 +352,7 @@ void tune_drive_test_exit(void);
 void stack_drive_test_enter(uint32 nowMs);
 void stack_drive_test_update(uint32 nowMs, boolean pagePressed, boolean stopPressed);
 void stack_drive_test_exit(void);
-void esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune);
+boolean esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune);
 boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outLastTune);
 void esp_link_test_enter(uint32 nowMs);
 void esp_link_test_update(uint32 nowMs);

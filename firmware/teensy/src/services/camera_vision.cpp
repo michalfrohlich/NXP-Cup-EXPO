@@ -70,8 +70,12 @@ void CameraVision::service(uint32_t nowUs)
     }
 }
 
-bool CameraVision::getLatestVision(VisionOutput &out,
-                                   uint32_t &sequence,
+bool CameraVision::setLineDetectorParams(const LineDetectorParams &params)
+{
+    return detector_.setParams(params);
+}
+
+bool CameraVision::getLatestVision(VisionOutput &out, uint32_t &sequence,
                                    uint32_t &timestampUs) const
 {
     if (latestValid_ != true)
@@ -85,10 +89,8 @@ bool CameraVision::getLatestVision(VisionOutput &out,
     return true;
 }
 
-bool CameraVision::getLatestFrameAndVision(LinearCameraFrame &frame,
-                                           VisionOutput &out,
-                                           uint32_t &sequence,
-                                           uint32_t &timestampUs) const
+bool CameraVision::getLatestFrameAndVision(LinearCameraFrame &frame, VisionOutput &out,
+                                           uint32_t &sequence, uint32_t &timestampUs) const
 {
     if (latestValid_ != true)
     {
@@ -102,7 +104,7 @@ bool CameraVision::getLatestFrameAndVision(LinearCameraFrame &frame,
     return true;
 }
 
-void CameraVision::getTelemetryResult(TeensyLinkCameraResult &outCamera, uint32_t nowUs)
+void CameraVision::getTelemetryResult(TeensyLinkCameraResult_t &outCamera, uint32_t nowUs)
 {
     uint32_t ageMs = 0UL;
 
@@ -165,9 +167,7 @@ void CameraVision::resetLatest()
 
 void CameraVision::processFrame(const LinearCameraFrame &frame)
 {
-    (void)memcpy(processedPixels_,
-                 &frame.values[CAM_TRIM_LEFT_PX],
-                 sizeof(processedPixels_));
+    (void)memcpy(processedPixels_, &frame.values[CAM_TRIM_LEFT_PX], sizeof(processedPixels_));
 
     detector_.process(processedPixels_, latestOutput_);
     latestSequence_ = frame.sequence;

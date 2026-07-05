@@ -8,8 +8,8 @@
 #include "Dio_Cfg.h"
 #include "../../../../shared/protocol/teensy_link_crc.h"
 
-#define TEENSY_LINK_DEG_TO_RAD_F  (0.0174532925f)
-#define TEENSY_LINK_GRAVITY_MPS2  (9.80665f)
+#define TEENSY_LINK_DEG_TO_RAD_F (0.0174532925f)
+#define TEENSY_LINK_GRAVITY_MPS2 (9.80665f)
 
 static Spi_DataBufferType g_teensyLinkTx[TEENSY_LINK_FRAME_BYTES];
 static Spi_DataBufferType g_teensyLinkRx[TEENSY_LINK_FRAME_BYTES];
@@ -38,8 +38,7 @@ static void write_u32_le(uint8 *bytes, uint16 offset, uint32 value)
 
 static uint16 read_u16_le(const uint8 *bytes, uint16 offset)
 {
-    return (uint16)(((uint16)bytes[offset]) |
-                    ((uint16)bytes[offset + 1U] << 8U));
+    return (uint16)(((uint16)bytes[offset]) | ((uint16)bytes[offset + 1U] << 8U));
 }
 
 static sint16 read_s16_le(const uint8 *bytes, uint16 offset)
@@ -153,6 +152,11 @@ static void build_s32k_frame(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
         write_u16_le(payload, TEENSY_LINK_S32K_ULTRA_DIST_CM10_OFF, in->ultrasonicDistanceCm10);
         write_u16_le(payload, TEENSY_LINK_S32K_ULTRA_AGE_MS_OFF, in->ultrasonicAgeMs);
         write_u16_le(payload, TEENSY_LINK_S32K_ULTRA_FLAGS_OFF, in->ultrasonicFlags);
+        write_u16_le(payload, TEENSY_LINK_S32K_LINE_CONFIG_GENERATION_OFF,
+                     in->lineDetectorConfigGeneration);
+        write_u16_le(payload, TEENSY_LINK_S32K_LINE_MIN_CONTRAST_OFF, in->lineDetectorMinContrast);
+        payload[TEENSY_LINK_S32K_LINE_EDGE_HIGH_PCT_OFF] = in->lineDetectorEdgeHighPct;
+        payload[TEENSY_LINK_S32K_LINE_EDGE_LOW_PCT_OFF] = in->lineDetectorEdgeLowPct;
     }
     else
     {
@@ -160,8 +164,7 @@ static void build_s32k_frame(uint32 nowMs, const TeensyLinkS32kInputs_t *in)
         encode_camera(payload, TEENSY_LINK_S32K_CAMERA1_OFF, NULL_PTR);
     }
 
-    write_u16_le(payload,
-                 TEENSY_LINK_S32K_DIAG_FLAGS_OFF,
+    write_u16_le(payload, TEENSY_LINK_S32K_DIAG_FLAGS_OFF,
                  (in != NULL_PTR) ? in->diagnosticFlags : 0U);
 
     crc = TeensyLink_Crc16CcittFalse(tx, (uint16)TEENSY_LINK_CRC_OFFSET);
@@ -173,10 +176,8 @@ static boolean validate_teensy_frame(const uint8 *rx)
     uint16 expectedCrc;
     uint16 actualCrc;
 
-    if ((rx[0] != (uint8)TEENSY_LINK_SYNC0) ||
-        (rx[1] != (uint8)TEENSY_LINK_SYNC1) ||
-        (rx[2] != (uint8)TEENSY_LINK_VERSION) ||
-        (rx[3] != (uint8)TEENSY_LINK_FRAME_TYPE_TEENSY) ||
+    if ((rx[0] != (uint8)TEENSY_LINK_SYNC0) || (rx[1] != (uint8)TEENSY_LINK_SYNC1) ||
+        (rx[2] != (uint8)TEENSY_LINK_VERSION) || (rx[3] != (uint8)TEENSY_LINK_FRAME_TYPE_TEENSY) ||
         (read_u16_le(rx, 4U) != (uint16)TEENSY_LINK_FRAME_BYTES) ||
         (read_u16_le(rx, 14U) != (uint16)TEENSY_LINK_PAYLOAD_BYTES))
     {
@@ -211,7 +212,8 @@ static void decode_teensy_frame(const uint8 *rx, uint32 nowMs)
     g_teensyLinkSnapshot.sensorDtUs = read_u16_le(payload, TEENSY_LINK_TEENSY_SENSOR_DT_US_OFF);
     g_teensyLinkSnapshot.sensorAgeMs = read_u16_le(payload, TEENSY_LINK_TEENSY_SENSOR_AGE_MS_OFF);
     g_teensyLinkSnapshot.statusFlags = read_u16_le(payload, TEENSY_LINK_TEENSY_STATUS_FLAGS_OFF);
-    g_teensyLinkSnapshot.componentMask = read_u16_le(payload, TEENSY_LINK_TEENSY_COMPONENT_MASK_OFF);
+    g_teensyLinkSnapshot.componentMask =
+        read_u16_le(payload, TEENSY_LINK_TEENSY_COMPONENT_MASK_OFF);
 
     decode_camera(payload, TEENSY_LINK_TEENSY_CAMERA0_OFF, &g_teensyLinkSnapshot.camera[0]);
     decode_camera(payload, TEENSY_LINK_TEENSY_CAMERA1_OFF, &g_teensyLinkSnapshot.camera[1]);
@@ -225,19 +227,26 @@ static void decode_teensy_frame(const uint8 *rx, uint32 nowMs)
     g_teensyLinkSnapshot.imu.rollCdeg = read_s16_le(payload, TEENSY_LINK_TEENSY_ROLL_CDEG_OFF);
     g_teensyLinkSnapshot.imu.pitchCdeg = read_s16_le(payload, TEENSY_LINK_TEENSY_PITCH_CDEG_OFF);
     g_teensyLinkSnapshot.imu.yawCdeg = read_s16_le(payload, TEENSY_LINK_TEENSY_YAW_CDEG_OFF);
-    g_teensyLinkSnapshot.imu.accelNormMg = read_s16_le(payload, TEENSY_LINK_TEENSY_ACCEL_NORM_MG_OFF);
+    g_teensyLinkSnapshot.imu.accelNormMg =
+        read_s16_le(payload, TEENSY_LINK_TEENSY_ACCEL_NORM_MG_OFF);
     g_teensyLinkSnapshot.imu.lateralMg = read_s16_le(payload, TEENSY_LINK_TEENSY_LATERAL_MG_OFF);
     g_teensyLinkSnapshot.imu.tempC10 = read_s16_le(payload, TEENSY_LINK_TEENSY_TEMP_C10_OFF);
 
     g_teensyLinkSnapshot.loggerFlags = read_u16_le(payload, TEENSY_LINK_TEENSY_LOGGER_FLAGS_OFF);
-    g_teensyLinkSnapshot.loggerDropCount = read_u16_le(payload, TEENSY_LINK_TEENSY_LOGGER_DROPS_OFF);
-    g_teensyLinkSnapshot.teensyRxFrameCount = read_u16_le(payload, TEENSY_LINK_TEENSY_RX_FRAMES_OFF);
-    g_teensyLinkSnapshot.teensyRxErrorCount = read_u16_le(payload, TEENSY_LINK_TEENSY_RX_ERRORS_OFF);
+    g_teensyLinkSnapshot.loggerDropCount =
+        read_u16_le(payload, TEENSY_LINK_TEENSY_LOGGER_DROPS_OFF);
+    g_teensyLinkSnapshot.teensyRxFrameCount =
+        read_u16_le(payload, TEENSY_LINK_TEENSY_RX_FRAMES_OFF);
+    g_teensyLinkSnapshot.teensyRxErrorCount =
+        read_u16_le(payload, TEENSY_LINK_TEENSY_RX_ERRORS_OFF);
+    g_teensyLinkSnapshot.lineDetectorConfigAckGeneration =
+        read_u16_le(payload, TEENSY_LINK_TEENSY_LINE_CONFIG_ACK_OFF);
 
-    g_teensyLinkSnapshot.live =
-        ((g_teensyLinkSnapshot.ackS32kSeq == g_teensyLinkDiag.txSeq) ||
-         (g_teensyLinkSnapshot.ackS32kSeq == txSeqPrevious) ||
-         (g_teensyLinkSnapshot.teensySeq != previousTeensySeq)) ? TRUE : FALSE;
+    g_teensyLinkSnapshot.live = ((g_teensyLinkSnapshot.ackS32kSeq == g_teensyLinkDiag.txSeq) ||
+                                 (g_teensyLinkSnapshot.ackS32kSeq == txSeqPrevious) ||
+                                 (g_teensyLinkSnapshot.teensySeq != previousTeensySeq))
+                                    ? TRUE
+                                    : FALSE;
 
     g_teensyLinkDiag.lastTeensySeq = g_teensyLinkSnapshot.teensySeq;
     g_teensyLinkDiag.goodFrameCount++;
@@ -290,9 +299,7 @@ Std_ReturnType TeensyLink_Service(uint32 nowMs, const TeensyLinkS32kInputs_t *in
     g_teensyLinkDiag.txSeq++;
     build_s32k_frame(nowMs, in);
 
-    ret = Spi_SetupEB(SpiConf_SpiChannel_TeensySpiFrameChannel,
-                      g_teensyLinkTx,
-                      g_teensyLinkRx,
+    ret = Spi_SetupEB(SpiConf_SpiChannel_TeensySpiFrameChannel, g_teensyLinkTx, g_teensyLinkRx,
                       (Spi_NumberOfDataType)TEENSY_LINK_FRAME_BYTES);
 
     if (ret == E_OK)

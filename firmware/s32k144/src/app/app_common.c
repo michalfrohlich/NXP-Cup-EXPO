@@ -17,14 +17,12 @@ const DriveTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT] = {
      SPEED_MODE_SUPERFAST_ITERM_CLAMP, SPEED_MODE_SUPERFAST_STEER_LPF_ALPHA,
      (sint16)SPEED_MODE_SUPERFAST_STEER_CLAMP, (sint16)SPEED_MODE_SUPERFAST_STEER_RATE_MAX,
      (uint8)SPEED_MODE_SUPERFAST_SPEED_PCT},
-    {SPEED_MODE_5050_KP, SPEED_MODE_5050_KD, SPEED_MODE_5050_KI,
-     SPEED_MODE_5050_ITERM_CLAMP, SPEED_MODE_5050_STEER_LPF_ALPHA,
-     (sint16)SPEED_MODE_5050_STEER_CLAMP, (sint16)SPEED_MODE_5050_STEER_RATE_MAX,
-     (uint8)SPEED_MODE_5050_SPEED_PCT},
-    {SPEED_MODE_SLOW_KP, SPEED_MODE_SLOW_KD, SPEED_MODE_SLOW_KI,
-     SPEED_MODE_SLOW_ITERM_CLAMP, SPEED_MODE_SLOW_STEER_LPF_ALPHA,
-     (sint16)SPEED_MODE_SLOW_STEER_CLAMP, (sint16)SPEED_MODE_SLOW_STEER_RATE_MAX,
-     (uint8)SPEED_MODE_SLOW_SPEED_PCT}};
+    {SPEED_MODE_5050_KP, SPEED_MODE_5050_KD, SPEED_MODE_5050_KI, SPEED_MODE_5050_ITERM_CLAMP,
+     SPEED_MODE_5050_STEER_LPF_ALPHA, (sint16)SPEED_MODE_5050_STEER_CLAMP,
+     (sint16)SPEED_MODE_5050_STEER_RATE_MAX, (uint8)SPEED_MODE_5050_SPEED_PCT},
+    {SPEED_MODE_SLOW_KP, SPEED_MODE_SLOW_KD, SPEED_MODE_SLOW_KI, SPEED_MODE_SLOW_ITERM_CLAMP,
+     SPEED_MODE_SLOW_STEER_LPF_ALPHA, (sint16)SPEED_MODE_SLOW_STEER_CLAMP,
+     (sint16)SPEED_MODE_SLOW_STEER_RATE_MAX, (uint8)SPEED_MODE_SLOW_SPEED_PCT}};
 
 SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel)
 {
@@ -230,7 +228,37 @@ void RuntimeTune_InitDefaults(void)
     g_runtimeTune.lineDetector.minContrast = VISION_LINEAR_MIN_CONTRAST;
     g_runtimeTune.lineDetector.edgeHighPct = VISION_LINEAR_EDGE_HIGH_PCT;
     g_runtimeTune.lineDetector.edgeLowPct = VISION_LINEAR_EDGE_LOW_PCT;
+    g_runtimeTune.lineDetectorGeneration = 1U;
     g_runtimeTune.initialized = TRUE;
+}
+
+boolean RuntimeTune_SetLineDetectorParams(const LineDetectorParams_t *params)
+{
+    uint16 nextGeneration;
+
+    if ((params == NULL_PTR) || (params->minContrast > 4095U) || (params->edgeHighPct < 1U) ||
+        (params->edgeHighPct > 100U) || (params->edgeLowPct < 1U) || (params->edgeLowPct > 100U))
+    {
+        return FALSE;
+    }
+
+    RuntimeTune_InitDefaults();
+    if ((params->minContrast == g_runtimeTune.lineDetector.minContrast) &&
+        (params->edgeHighPct == g_runtimeTune.lineDetector.edgeHighPct) &&
+        (params->edgeLowPct == g_runtimeTune.lineDetector.edgeLowPct))
+    {
+        return TRUE;
+    }
+
+    nextGeneration = (uint16)(g_runtimeTune.lineDetectorGeneration + 1U);
+    if (nextGeneration == 0U)
+    {
+        nextGeneration = 1U;
+    }
+
+    g_runtimeTune.lineDetector = *params;
+    g_runtimeTune.lineDetectorGeneration = nextGeneration;
+    return TRUE;
 }
 
 void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting)
@@ -244,8 +272,7 @@ void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting)
     }
 }
 
-void App_ApplySteeringProfile(SteeringControllerState_t *state,
-                              const DriveTuneProfile_t *profile)
+void App_ApplySteeringProfile(SteeringControllerState_t *state, const DriveTuneProfile_t *profile)
 {
     SteeringControllerConfig_t config;
 

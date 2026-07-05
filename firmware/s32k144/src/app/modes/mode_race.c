@@ -466,8 +466,8 @@ static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
     input->controlDtUs = 20000U;
     input->appMode = (uint8)((g_raceUsesTeensyCam0 == TRUE) ? APP_BUILD_MODE_RACE
                                                             : APP_BUILD_MODE_NXP_CUP_TESTS);
-    input->appState = (uint8)((g_raceUsesTeensyCam0 == TRUE) ? (uint8)st->phase
-                                                             : (uint8)BENCH_MODE_STACK_DRIVE);
+    input->appState =
+        (uint8)((g_raceUsesTeensyCam0 == TRUE) ? (uint8)st->phase : (uint8)BENCH_MODE_STACK_DRIVE);
     input->safetyFlags = (g_raceTeensyCam0Link.hardFault == TRUE) ? 1U : 0U;
     if (g_raceTeensyCam0Link.spiSlotMissCount != 0U)
     {
@@ -507,6 +507,10 @@ static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
     input->escPrimaryLogical = (sint16)(-st->currentSpeedPct);
     input->escSecondaryLogical = (sint16)(-st->currentSpeedPct);
     input->servoCmd = st->steerOut;
+    input->lineDetectorConfigGeneration = g_runtimeTune.lineDetectorGeneration;
+    input->lineDetectorMinContrast = g_runtimeTune.lineDetector.minContrast;
+    input->lineDetectorEdgeHighPct = g_runtimeTune.lineDetector.edgeHighPct;
+    input->lineDetectorEdgeLowPct = g_runtimeTune.lineDetector.edgeLowPct;
 
     if (st->haveValidDistance == TRUE)
     {
@@ -1494,11 +1498,10 @@ static void stack_drive_draw(const RaceModeState_t *st)
                                 teensyDiag.spiErrorCount) %
                                1000U),
                          3U, 13U);
-            DisplayTextPadded(3U, "H:");
-            DisplayValue(3U, (int)teensyDiag.rawRxHeader[0], 3U, 2U);
-            DisplayValue(3U, (int)teensyDiag.rawRxHeader[1], 3U, 6U);
-            DisplayValue(3U, (int)teensyDiag.rawRxHeader[2], 3U, 10U);
-            DisplayValue(3U, (int)teensyDiag.rawRxHeader[3], 3U, 13U);
+            DisplayTextPadded(3U, "CFG:    ACK:");
+            DisplayValue(3U, (int)(g_runtimeTune.lineDetectorGeneration % 10000U), 4U, 4U);
+            DisplayValue(3U, (int)(teensySnapshot.lineDetectorConfigAckGeneration % 10000U), 4U,
+                         12U);
             break;
 
         case 0U:
