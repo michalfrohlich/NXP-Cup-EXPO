@@ -39,8 +39,8 @@
   leaves all vehicle-status color selection to one renderer. Cross-board LED
   meanings are documented in `../../../docs/system/status-led-semantics.md`.
 - `SpeedModeSetting_t` identifies the shared `SUPERFAST`, `5050`, and `SLOW`
-  control profiles. Each profile contains base speed, PID gains, integral clamp,
-  steering clamp, output LPF, and steering rate limit. Standalone S32K-camera and
+  settings. Each `DriveTuneProfile_t` contains base speed, PID gains, integral
+  clamp, steering clamp, output LPF, and steering rate limit. Standalone S32K-camera and
   Teensy-camera Race builds use a common `SELECT -> READY -> START` launcher;
   bench code can apply the same profiles explicitly through
   `RuntimeTune_ApplySpeedMode()` without duplicating constants.
@@ -48,9 +48,9 @@
 - Standalone compile-time modes still own the top-level loop after the boot banner, but the reusable test implementations are internally split into `enter` / `update` / `exit` helpers.
 - `app_modes.c` is intentionally only the compile-time flavor dispatcher.
 - Dedicated app modules own mode behavior:
-  - `modes/bench_menu.c`: runtime test menu host and linear-camera standalone wrapper.
+  - `modes/bench_menu.c`: bench mode menu host and linear-camera standalone wrapper.
   - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
-  - `modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
+  - `modes/bench_teensy_link.c`: S32K-master Teensy SPI bench mode service and OLED viewer.
   - `modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode.
   - `modes/mode_race.c`: local-camera race flow, Teensy-camera synchronized race flow, and the tune-drive bench wrapper.
   - `modes/mode_servo_rate.c`: standalone servo timing test.
@@ -132,14 +132,14 @@
   - the pot selects the highlighted test
   - the dedicated `swPcb` toggle switch enters or leaves the selected test
   - `swPcb` is treated as a maintained level input, not a click-style button event
-  - the menu includes an `Ultrasonic` runtime test that, after a short enable delay, classifies the measured distance into `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP`, with `SW2` resetting the test state
-  - the menu includes an `Ultra+ESC` runtime test that centers the servo, drives both ESC outputs at 50% when clear, slows at 45 cm, and fully stops at 8 cm
-  - the menu includes a `Victory Lap` runtime test that approaches a pole with ultrasonic and then runs a Mario-style victory note sequence for future motor-music support
-  - the menu includes a `Cam Servo` runtime test that reuses the camera debug flow and adds automatic servo steering from the detected line
-  - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal runtime test with its own enter/update/exit path
+  - the menu includes an `Ultrasonic` bench mode that, after a short enable delay, classifies the measured distance into `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP`, with `SW2` resetting the test state
+  - the menu includes an `Ultra+ESC` bench mode that centers the servo, drives both ESC outputs at 50% when clear, slows at 45 cm, and fully stops at 8 cm
+  - the menu includes a `Victory Lap` bench mode that approaches a pole with ultrasonic and then runs a Mario-style victory note sequence for future motor-music support
+  - the menu includes a `Cam Servo` bench mode that reuses the camera debug flow and adds automatic servo steering from the detected line
+  - the menu includes `Simple test drv`, which reuses the old `FINAL_DUMMY` camera-driving behavior as a normal bench mode with its own enter/update/exit path
   - the menu includes `Tune drive mode`, which runs the Teensy-camera race control path as a bench item and services ESP32 UART tuning frames while driving
   - the menu includes `Stack drive`, which runs the S32K-camera race control path, services ESP32 tuning and start/stop commands, keeps Teensy SPI status service active, and does not hard-stop on missing Teensy camera/SPI data
-  - the menu includes `Cable tune`, which reuses the existing UART/OLED tuning UI as a runtime test and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
+  - the menu includes `Cable tune`, which reuses the existing UART/OLED tuning UI as a bench mode and polls UART non-blockingly so the test can still be exited with the shared `swPcb` wrapper
   - serial and ESP tuning write into a shared RAM-backed runtime tune block that persists for the current power cycle; `Cam Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` read that block when entering or when a new ESP tune frame arrives
 
 ## Servo Rate Test
@@ -177,8 +177,8 @@
   - exposes a neutral debug-counters snapshot for requested frames, frame starts, capture events, completed frames, and dropped frames
 - `bench_tests.c`
   - the linear-camera waiting screen consumes the driver debug-counters snapshot instead of several driver-internal counter getters
-  - the waiting screen is rendered once before `LinearCameraStartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
-  - consumes completed camera frames as soon as `LinearCameraGetLatestFrame()` reports a ready buffer, while UI/debug/control housekeeping remains separately rate-limited
+  - the waiting screen is rendered once before `LinearCamera_StartStream()` so the OLED can show a visible startup frame before camera ISR traffic begins
+  - consumes completed camera frames as soon as `LinearCamera_GetLatestFrame()` reports a ready buffer, while UI/debug/control housekeeping remains separately rate-limited
   - the runtime `Camera` / `Cam Servo` tests now opportunistically queue one compact UART telemetry packet per processed frame, dropping packets instead of blocking if the software TX queue is full
 - `services/line_detector.c`
   - filters the frame
@@ -244,11 +244,11 @@
   - uses a shared ESC bench test implementation for both the runtime menu and `APP_TEST_ESC_TEST`; `SW2` hold arms/disarms, `SW3` hold cycles the `30/50/100%` speed cap, and the potentiometer maps into the selected cap
   - draws an ESC test screen with state, selected output mode, direction, pot level, and both ESC commands
   - exposes a standalone ultrasonic test screen and the same test inside `APP_TEST_NXP_CUP_TESTS`
-  - exposes an `Ultra+ESC` runtime test in `APP_TEST_NXP_CUP_TESTS` for tuning obstacle slowing and stop behavior
-  - exposes a `Victory Lap` runtime test in `APP_TEST_NXP_CUP_TESTS` for pole-triggered fanfare behavior
-  - exposes a `Cam Servo` runtime test in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
-  - exposes a `Simple test drv` runtime test in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
-  - exposes an `ESP Link` runtime test in `APP_TEST_NXP_CUP_TESTS` that validates RAM-only tuning frames from ESP32 without transmitting S32K button state
+  - exposes an `Ultra+ESC` bench mode in `APP_TEST_NXP_CUP_TESTS` for tuning obstacle slowing and stop behavior
+  - exposes a `Victory Lap` bench mode in `APP_TEST_NXP_CUP_TESTS` for pole-triggered fanfare behavior
+  - exposes a `Cam Servo` bench mode in `APP_TEST_NXP_CUP_TESTS` that follows the linear camera debug flow while also steering automatically
+  - exposes a `Simple test drv` bench mode in `APP_TEST_NXP_CUP_TESTS` that initializes ESC, camera, and servo together, waits through ESC arm time, and then starts only after `SW3` is pressed before ramping to `FULL_AUTO_SPEED_PCT` while camera steering stays active
+  - exposes an `ESP Link` bench mode in `APP_TEST_NXP_CUP_TESTS` that validates RAM-only tuning frames from ESP32 without transmitting S32K button state
 - `mode_race.c`
   - exposes `Tune drive mode` in `APP_TEST_NXP_CUP_TESTS`, reusing the Teensy-camera race scheduler with ESP32 UART tuning enabled
   - exposes `Stack drive` in `APP_TEST_NXP_CUP_TESTS`, using the S32K camera for steering while ESP tuning/drive commands and Teensy SPI status service continue to run

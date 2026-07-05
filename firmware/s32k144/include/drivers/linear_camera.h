@@ -52,16 +52,16 @@ typedef struct
     volatile LinearCameraStatus Status;
 } LinearCamera;
 
-void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
+void LinearCamera_Init(Pwm_ChannelType ClkPwmChannel,
                       Gpt_ChannelType ShutterGptChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel);
 
 /* Starts free-running camera clock with SI-aligned manual ADC sampling. */
-boolean LinearCameraStartStream(void);
+boolean LinearCamera_StartStream(void);
 void LinearCameraStopStream(void);
 void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks);
-boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame);
+boolean LinearCamera_GetLatestFrame(const LinearCameraFrame **Frame);
 
 LinearCameraStatus LinearCameraGetStatus(void);
 boolean LinearCameraIsBusy(void);

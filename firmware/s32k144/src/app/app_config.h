@@ -89,10 +89,10 @@
     (10U + (3U * VISION_LINEAR_BUFFER_SIZE) + 9U + 6U + (4U * VLIN_MAX_EDGE_CANDIDATES) + 1U)
 
 /* Runtime bench tests */
-#define TESTS_MENU_VISIBLE_LINES (3U)
-#define TESTS_MENU_POT_STABLE_MS (90U)
-#define TESTS_MENU_POT_HYSTERESIS (6U)
-#define TESTS_MENU_SWITCH_BOOT_GUARD_MS (50U)
+#define BENCH_MENU_VISIBLE_LINES (3U)
+#define BENCH_MENU_POT_STABLE_MS (90U)
+#define BENCH_MENU_POT_HYSTERESIS (6U)
+#define BENCH_MENU_SWITCH_BOOT_GUARD_MS (50U)
 
 #define ESC_TEST_SPEED_PCT_LOW (30U)
 #define ESC_TEST_SPEED_PCT_MED (50U)
@@ -132,7 +132,7 @@
 
 /* IMPORTANT:
    - POT (manual) mode should stay FULL RANGE (-100..+100)
-   - FULL AUTO (Simple test drive runtime test) should be capped here
+   - FULL AUTO (Simple test drive bench mode) should be capped here
 */
 #define FULL_AUTO_SPEED_PCT 25 /* was effectively: 100 (uncapped) */
 #define RACE_STEER_SLOWDOWN_MAX_PCT 25

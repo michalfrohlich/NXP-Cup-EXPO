@@ -38,7 +38,7 @@ every 5 ms and uses SW2 to cycle OLED pages:
 - IMU/logger status,
 - received 84-byte SPI frame counters.
 
-The menu item is named `Teensy Link`. It lives in the runtime test menu, not in
+The menu item is named `Teensy Link`. It lives in the bench mode menu, not in
 a separate Project Explorer folder.
 
 ## Hardware Setup

@@ -177,7 +177,7 @@ void CameraAdcFinished(void)
     }
 }
 
-void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
+void LinearCamera_Init(Pwm_ChannelType ClkPwmChannel,
                       Gpt_ChannelType ShutterGptChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel)
@@ -212,7 +212,7 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
 }
 
-boolean LinearCameraStartStream(void)
+boolean LinearCamera_StartStream(void)
 {
     if (LinearCameraInstance.Status != LINEAR_CAMERA_IDLE)
     {
@@ -267,7 +267,7 @@ void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks)
     }
 }
 
-boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame)
+boolean LinearCamera_GetLatestFrame(const LinearCameraFrame **Frame)
 {
     if (Frame == (const LinearCameraFrame **)0)
     {

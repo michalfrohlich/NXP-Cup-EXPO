@@ -15,7 +15,7 @@ static void servo_rate_test_enter(uint32 nowMs)
     (void)memset(&g_servoRateTest, 0, sizeof(g_servoRateTest));
 
     Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
-    SteerStraight();
+    Servo_SetStraight();
 
     g_servoRateTest.freqId = SERVO_RATE_TEST_FREQ_50HZ;
     g_servoRateTest.motionId = SERVO_RATE_TEST_MOTION_POT;
@@ -168,7 +168,7 @@ static void servo_rate_test_draw(const ServoRateTestState_t *st)
                    (int)st->command,
                    (unsigned long)st->servoDbg.PeriodSequence);
     DisplayTextPadded(3U, lineBuf);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void mode_servo_rate_test(void)

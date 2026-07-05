@@ -83,9 +83,9 @@ typedef struct
 
 void Servo_Init(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinDutyCycle, uint16 MedDutyCycle);
 void Servo_SetSteer(int Direction);    /*takes a value between -100 (left) and 100 (right) and translates it into a duty cycle*/
-void SteerLeft(void);    /*sets the duty cycle to the configured maximum*/
-void SteerRight(void);/*sets the duty cycle to the configured minimum*/
-void SteerStraight(void);    /*sets the duty cycle to the configured middle*/
+void Servo_SetFullLeft(void);    /*sets the duty cycle to the configured maximum*/
+void Servo_SetFullRight(void);/*sets the duty cycle to the configured minimum*/
+void Servo_SetStraight(void);    /*sets the duty cycle to the configured middle*/
 void Servo_SetUpdatePolicy(ServoUpdatePolicy Policy);
 void Servo_Service(uint32 nowMs);
 void Servo_Period_Finished(void);

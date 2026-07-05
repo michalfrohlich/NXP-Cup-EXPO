@@ -65,7 +65,7 @@ static void serial_tune_draw(const SerialTuneState_t *st)
         DisplayTextPadded(2U, lineBuf);
         (void)snprintf(lineBuf, sizeof(lineBuf), "LOW:%4u%%", (unsigned int)st->visionEdgeLowPct);
         DisplayTextPadded(3U, lineBuf);
-        DisplayRefresh();
+        Display_Refresh();
         return;
     }
 
@@ -90,7 +90,7 @@ static void serial_tune_draw(const SerialTuneState_t *st)
         (void)snprintf(lineBuf, sizeof(lineBuf), "LPF:%5d.%02d", wholePart, fracPart);
         DisplayTextPadded(2U, lineBuf);
         DisplayTextPadded(3U, "");
-        DisplayRefresh();
+        Display_Refresh();
         return;
     }
 
@@ -136,7 +136,7 @@ static void serial_tune_draw(const SerialTuneState_t *st)
     (void)snprintf(lineBuf, sizeof(lineBuf), "KD:%3d.%02d", wholePart, fracPart);
     DisplayTextPadded(3U, lineBuf);
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void serial_tune_print_pid_menu(void)

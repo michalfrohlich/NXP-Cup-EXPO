@@ -88,12 +88,12 @@ static void race_mode_draw_speed_selection(SpeedModeSetting_t selected)
     DisplayTextPadded(1U, (selected == SPEED_MODE_SUPERFAST) ? ">SUPERFAST" : " SUPERFAST");
     DisplayTextPadded(2U, (selected == SPEED_MODE_5050) ? ">5050" : " 5050");
     DisplayTextPadded(3U, (selected == SPEED_MODE_SLOW) ? ">SLOW SW2 SELECT" : " SLOW SW2 SELECT");
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void race_mode_draw_speed_ready(SpeedModeSetting_t selected)
 {
-    const CamTuneProfile_t *profile = SpeedMode_GetProfile(selected);
+    const DriveTuneProfile_t *profile = SpeedMode_GetProfile(selected);
     char lineBuf[17];
 
     DisplayClear();
@@ -104,7 +104,7 @@ static void race_mode_draw_speed_ready(SpeedModeSetting_t selected)
     DisplayTextPadded(1U, lineBuf);
     DisplayTextPadded(2U, "SW3 START");
     DisplayTextPadded(3U, "SW2 BACK");
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static SpeedModeSetting_t race_mode_select_speed_mode(void)
@@ -187,7 +187,7 @@ static void race_mode_latch_fault(RaceModeState_t *st, RaceFaultReason_t reason)
     st->steerFilt = 0;
     st->steerOut = 0;
     Esc_StopNeutral();
-    SteerStraight();
+    Servo_SetStraight();
 }
 
 static void race_mode_render_status_led(const RaceModeState_t *st)
@@ -270,7 +270,7 @@ static void race_mode_enter_ex(uint32 nowMs, boolean useTeensyCam0, boolean tune
     {
         Servo_SetUpdatePolicy(SERVO_UPDATE_PHASED_FOREGROUND);
     }
-    SteerStraight();
+    Servo_SetStraight();
 
     if (serviceTeensyLink == TRUE)
     {
@@ -289,7 +289,7 @@ static void race_mode_enter_ex(uint32 nowMs, boolean useTeensyCam0, boolean tune
             LinearCameraStopStream();
         }
 
-        LinearCameraInit(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
+        LinearCamera_Init(CAM_CLK_PWM_CH, CAM_SHUTTER_GPT_CH, CAM_ADC_GROUP, CAM_SHUTTER_PCR);
         LinearCameraSetFrameIntervalTicks(CAM_FRAME_INTERVAL_TICKS);
         LineDetector_Init();
     }
@@ -305,7 +305,7 @@ static void race_mode_enter_ex(uint32 nowMs, boolean useTeensyCam0, boolean tune
 
     if (useTeensyCam0 != TRUE)
     {
-        (void)LinearCameraStartStream();
+        (void)LinearCamera_StartStream();
     }
     StatusLed_White();
 }
@@ -324,7 +324,7 @@ static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
         return;
     }
 
-    if (LinearCameraGetLatestFrame(&latestFrame) != TRUE)
+    if (LinearCamera_GetLatestFrame(&latestFrame) != TRUE)
     {
         return;
     }
@@ -415,7 +415,7 @@ static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
     input->appMode = (uint8)((g_raceUsesTeensyCam0 == TRUE) ? APP_BUILD_MODE_RACE
                                                             : APP_BUILD_MODE_NXP_CUP_TESTS);
     input->appState = (uint8)((g_raceUsesTeensyCam0 == TRUE) ? (uint8)st->phase
-                                                             : (uint8)RUNTIME_TEST_STACK_DRIVE);
+                                                             : (uint8)BENCH_MODE_STACK_DRIVE);
     input->safetyFlags = (g_raceTeensyCam0Link.hardFault == TRUE) ? 1U : 0U;
     if (g_raceTeensyCam0Link.spiSlotMissCount != 0U)
     {
@@ -1028,7 +1028,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
             st->steerRaw = 0;
             st->steerFilt = 0;
             st->steerOut = 0;
-            SteerStraight();
+            Servo_SetStraight();
         }
         else if ((st->haveValidVision == TRUE) && (st->result.status != VISION_TRACK_LOST))
         {
@@ -1065,7 +1065,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
             st->steerRaw = 0;
             st->steerFilt = 0;
             st->steerOut = 0;
-            SteerStraight();
+            Servo_SetStraight();
         }
     }
     else
@@ -1073,7 +1073,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
         st->steerRaw = 0;
         st->steerFilt = 0;
         st->steerOut = 0;
-        SteerStraight();
+        Servo_SetStraight();
     }
 
     if (st->phase == RACE_PHASE_SPEED_RUN)
@@ -1184,9 +1184,9 @@ static void race_mode_ensure_display_ready(RaceModeState_t *st)
     /* The OLED path is blocking, so race mode keeps it completely out of the
        hot path until the dedicated debug switch explicitly requests it. */
     display_power_stabilize_delay();
-    DisplayInit(0U, STD_ON);
+    Display_Init(0U, STD_ON);
     DisplayClear();
-    DisplayRefresh();
+    Display_Refresh();
     st->displayInitialized = TRUE;
 }
 
@@ -1250,7 +1250,7 @@ static void race_mode_draw(const RaceModeState_t *st)
         DisplayText(3U, "LST", 3U, 2U);
     }
     DisplayValue(3U, (int)st->finishStreak, 2U, 12U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static const char *stack_drive_phase_text(RacePhase_t phase)
@@ -1302,7 +1302,7 @@ static void stack_drive_apply_stop(RaceModeState_t *st)
     st->steerFilt = 0;
     st->steerOut = 0;
     Esc_StopNeutral();
-    SteerStraight();
+    Servo_SetStraight();
     StatusLed_Off();
 }
 
@@ -1329,7 +1329,7 @@ static void stack_drive_apply_start(RaceModeState_t *st, uint32 nowMs)
         st->lostSinceMs = 0U;
         SteeringController_Reset(&st->ctrl);
         Esc_StopNeutral();
-        SteerStraight();
+        Servo_SetStraight();
     }
 }
 
@@ -1471,7 +1471,7 @@ static void stack_drive_draw(const RaceModeState_t *st)
             break;
     }
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void race_mode_run(boolean useTeensyCam0)
@@ -1571,7 +1571,7 @@ void tune_drive_test_enter(uint32 nowMs)
     DisplayTextPadded(1U, "ESP LIVE TUNE");
     DisplayTextPadded(2U, "SW3 STOP");
     DisplayTextPadded(3U, "SWPCB EXIT");
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void tune_drive_test_update(uint32 nowMs, boolean stopPressed)
@@ -1602,7 +1602,7 @@ void tune_drive_test_exit(void)
 {
     g_raceTuneDriveMode = FALSE;
     Esc_StopNeutral();
-    SteerStraight();
+    Servo_SetStraight();
     StatusLed_Off();
 }
 
@@ -1619,7 +1619,7 @@ void stack_drive_test_enter(uint32 nowMs)
     DisplayTextPadded(1U, "S32K CAM CTRL");
     DisplayTextPadded(2U, "ESP+TEENSY ON");
     DisplayTextPadded(3U, "SW2 PAGE SW3STOP");
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void stack_drive_test_update(uint32 nowMs, boolean pagePressed, boolean stopPressed)
@@ -1667,7 +1667,7 @@ void stack_drive_test_exit(void)
     g_raceServiceTeensyLink = FALSE;
     g_raceEnforceTeensyCameraFault = FALSE;
     Esc_StopNeutral();
-    SteerStraight();
+    Servo_SetStraight();
 
     if (LinearCameraIsBusy() == TRUE)
     {

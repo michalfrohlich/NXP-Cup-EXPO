@@ -45,21 +45,21 @@ AppBuildMode_t App_GetSelectedBuildMode(void);
 
 typedef enum
 {
-    RUNTIME_TEST_SERVO = 0,
-    RUNTIME_TEST_ESC,
-    RUNTIME_TEST_ULTRASONIC,
-    RUNTIME_TEST_ULTRA_ESC,
-    RUNTIME_TEST_LINEAR_CAMERA,
-    RUNTIME_TEST_CAMSERVO,
-    RUNTIME_TEST_SIMPLE_DRIVE,
-    RUNTIME_TEST_TUNE_DRIVE,
-    RUNTIME_TEST_STACK_DRIVE,
-    RUNTIME_TEST_SERIAL_TUNE,
-    RUNTIME_TEST_ESP_LINK,
-    RUNTIME_TEST_TEENSY_LINK,
-    RUNTIME_TEST_VICTORY_LAP,
-    RUNTIME_TEST_COUNT
-} RuntimeTestId_t;
+    BENCH_MODE_SERVO = 0,
+    BENCH_MODE_ESC,
+    BENCH_MODE_ULTRASONIC,
+    BENCH_MODE_ULTRA_ESC,
+    BENCH_MODE_LINEAR_CAMERA,
+    BENCH_MODE_CAMSERVO,
+    BENCH_MODE_SIMPLE_DRIVE,
+    BENCH_MODE_TUNE_DRIVE,
+    BENCH_MODE_STACK_DRIVE,
+    BENCH_MODE_SERIAL_TUNE,
+    BENCH_MODE_ESP_LINK,
+    BENCH_MODE_TEENSY_LINK,
+    BENCH_MODE_VICTORY_LAP,
+    BENCH_MODE_COUNT
+} BenchModeId_t;
 
 typedef enum
 {
@@ -253,7 +253,7 @@ typedef struct
     sint16 steerClamp;
     sint16 steerRateMax;
     uint8 baseSpeedPct;
-} CamTuneProfile_t;
+} DriveTuneProfile_t;
 
 typedef enum
 {
@@ -281,7 +281,7 @@ typedef struct
     uint32 nextSteerMs;
     uint32 nextDisplayMs;
     boolean displayDirty;
-    CamTuneProfile_t activeTune;
+    DriveTuneProfile_t activeTune;
 } CamServoState_t;
 
 typedef struct
@@ -299,10 +299,10 @@ typedef struct
     uint8 topIndex;
     uint32 lastPotMs;
     uint32 switchGuardUntilMs;
-    boolean testActive;
+    boolean modeActive;
     boolean requireSwitchOff;
-    RuntimeTestId_t activeTest;
-} TestsMenuState_t;
+    BenchModeId_t activeMode;
+} BenchMenuState_t;
 
 typedef enum
 {
@@ -389,7 +389,7 @@ typedef struct
 
 typedef struct
 {
-    CamTuneProfile_t profile;
+    DriveTuneProfile_t profile;
     LineDetectorParams_t lineDetector;
     boolean initialized;
 } RuntimeTuneState_t;
@@ -402,13 +402,13 @@ extern ServoRateTestState_t g_servoRateTest;
 extern EscManualTestState_t g_escTest;
 extern LinearCameraTestState_t g_linearCameraTest;
 extern SimpleDriveState_t g_simpleDriveTest;
-extern TestsMenuState_t g_testsMenu;
+extern BenchMenuState_t g_benchMenu;
 extern RaceModeState_t g_raceMode;
 extern SerialTuneState_t g_serialTune;
 extern RuntimeTuneState_t g_runtimeTune;
 
-extern const CamTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT];
-extern const char g_testsMenuItems[RUNTIME_TEST_COUNT][17];
+extern const DriveTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT];
+extern const char g_benchMenuItems[BENCH_MODE_COUNT][17];
 extern const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT];
 extern const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT];
 extern const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12];
@@ -437,9 +437,9 @@ void DisplayTextPadded(uint16 displayLine, const char *text);
 void RuntimeTune_InitDefaults(void);
 SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel);
 const char *SpeedMode_GetName(SpeedModeSetting_t setting);
-const CamTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting);
+const DriveTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting);
 void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting);
-void App_ApplySteeringProfile(SteeringControllerState_t *state, const CamTuneProfile_t *profile);
+void App_ApplySteeringProfile(SteeringControllerState_t *state, const DriveTuneProfile_t *profile);
 
 void serial_tune_test_enter(uint32 nowMs);
 void serial_tune_test_update(void);
@@ -473,7 +473,7 @@ void linear_camera_test_enter(uint32 nowMs);
 void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potLevel);
 void linear_camera_test_exit(void);
 void camservo_enter_with_profile(CamServoState_t *st, uint32 nowMs,
-                                 const CamTuneProfile_t *profile);
+                                 const DriveTuneProfile_t *profile);
 void camservo_enter(CamServoState_t *st, uint32 nowMs);
 void camservo_update(CamServoState_t *st, uint32 nowMs, boolean sw2);
 void camservo_exit(void);

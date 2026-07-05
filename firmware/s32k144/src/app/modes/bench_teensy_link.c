@@ -25,7 +25,7 @@ static void teensy_link_test_fill_default_input(void)
     in->controlLoopSeq = g_teensyLinkTest.controlSeq;
     in->controlDtUs = (uint16)((uint16)TEENSY_LINK_SERVICE_PERIOD_MS * 1000U);
     in->appMode = (uint8)APP_BUILD_MODE_NXP_CUP_TESTS;
-    in->appState = (uint8)RUNTIME_TEST_TEENSY_LINK;
+    in->appState = (uint8)BENCH_MODE_TEENSY_LINK;
 
     for (uint8 i = 0U; i < (uint8)TEENSY_LINK_CAMERA_COUNT; i++)
     {
@@ -125,7 +125,7 @@ static void teensy_link_test_draw_link(void)
                        g_teensyLinkTest.diag.spiErrorCount),
                  5U,
                  4U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_camera(uint8 cameraIndex)
@@ -146,7 +146,7 @@ static void teensy_link_test_draw_camera(uint8 cameraIndex)
     DisplayTextPadded(3U, "R:    AGE:");
     DisplayValue(3U, (int)camera->rightLineIdx, 3U, 2U);
     DisplayValue(3U, (int)camera->ageMs, 3U, 11U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_imu(void)
@@ -168,7 +168,7 @@ static void teensy_link_test_draw_imu(void)
                 1U,
                 3U);
     DisplayValue(3U, (int)g_teensyLinkTest.snapshot.loggerDropCount, 5U, 10U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_rx_data(void)
@@ -186,7 +186,7 @@ static void teensy_link_test_draw_rx_data(void)
     DisplayTextPadded(3U, "SPI:    TEN:");
     DisplayValue(3U, (int)(g_teensyLinkTest.diag.spiErrorCount % 1000U), 3U, 4U);
     DisplayValue(3U, (int)(g_teensyLinkTest.snapshot.teensyRxErrorCount % 1000U), 3U, 12U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_raw_header(void)
@@ -204,7 +204,7 @@ static void teensy_link_test_draw_raw_header(void)
     DisplayTextPadded(3U, "B4:    B5:");
     DisplayValue(3U, (int)g_teensyLinkTest.diag.rawRxHeader[4], 3U, 3U);
     DisplayValue(3U, (int)g_teensyLinkTest.diag.rawRxHeader[5], 3U, 10U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw(void)
@@ -289,6 +289,6 @@ void teensy_link_test_exit(void)
 {
     DisplayClear();
     DisplayTextPadded(0U, "TLINK EXIT");
-    DisplayRefresh();
+    Display_Refresh();
     StatusLed_Blue();
 }

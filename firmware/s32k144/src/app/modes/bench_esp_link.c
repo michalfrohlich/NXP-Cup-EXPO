@@ -80,7 +80,7 @@ static void esp_link_bench_draw(const EspUartLink_Diagnostics_t *diag)
                    (unsigned int)g_espLinkBench.lastTune.edgeLowPct);
     DisplayTextPadded(3U, lineBuf);
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void esp_link_bench_test_enter(uint32 nowMs)

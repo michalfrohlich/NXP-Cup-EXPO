@@ -59,10 +59,10 @@ void SteeringController_GetDefaultConfig(SteeringControllerConfig_t *config)
         return;
     }
 
-    config->kp = (float)KP;
-    config->ki = (float)KI;
-    config->kd = (float)KD;
-    config->iTermClamp = (float)ITERM_CLAMP;
+    config->kp = (float)STEERING_DEFAULT_KP;
+    config->ki = (float)STEERING_DEFAULT_KI;
+    config->kd = (float)STEERING_DEFAULT_KD;
+    config->iTermClamp = (float)STEERING_DEFAULT_I_TERM_CLAMP;
     config->steerScale = 1.0f;
 }
 

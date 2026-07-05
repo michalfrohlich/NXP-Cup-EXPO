@@ -156,7 +156,7 @@ static void drawRunHudOverlay(void)
     DisplayValue(3U, (int)(g_lastDistCm + 0.5f), 3U, 10U);
     DisplayText(3U, "cm", 2U, 13U);
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void drawMenu(void)
@@ -174,7 +174,7 @@ static void drawMenu(void)
         DisplayText(row, g_mainItems[idx], 15U, 1U);
     }
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void drawTerminalList(const char *title16)
@@ -191,7 +191,7 @@ static void drawTerminalList(const char *title16)
     }
 
     DisplayText(3U, "SW2=OK  SW3=Run ", 16U, 0U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void drawSettings(void)
@@ -249,7 +249,7 @@ static void drawSettings(void)
         }
     }
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 /* ---------- public API ---------- */

@@ -142,7 +142,7 @@ void Servo_SetSteer(int Direction){
     Servo_PublishPendingDuty(ServoDutyCycle);
 }
 
-void SteerLeft(void){
+void Servo_SetFullLeft(void){
     if (Servo_Initialized != TRUE)
     {
         return;
@@ -152,7 +152,7 @@ void SteerLeft(void){
     Servo_PublishPendingDuty(ServoInstance.MinDutyCycle);
 }
 
-void SteerRight(void){
+void Servo_SetFullRight(void){
     if (Servo_Initialized != TRUE)
     {
         return;
@@ -162,7 +162,7 @@ void SteerRight(void){
     Servo_PublishPendingDuty(ServoInstance.MaxDutyCycle);
 }
 
-void SteerStraight(void){
+void Servo_SetStraight(void){
     if (Servo_Initialized != TRUE)
     {
         return;

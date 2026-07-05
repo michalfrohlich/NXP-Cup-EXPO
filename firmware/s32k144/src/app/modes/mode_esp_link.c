@@ -70,7 +70,7 @@ static void esp_link_draw_tune(const EspUartLink_Diagnostics_t *diag,
                        (unsigned int)tune->edgeLowPct);
         DisplayTextPadded(3U, lineBuf);
     }
-    DisplayRefresh();
+    Display_Refresh();
 }
 #endif
 

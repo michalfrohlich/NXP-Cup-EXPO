@@ -7,11 +7,11 @@
 - `src/main.c`: process entry; runs the common boot banner, then calls `App_RunSelectedMode()`.
 - `src/app/app_modes.c`: compile-time mode dispatcher.
 - `src/app/app_common.c`: shared boot banner, app runtime init, status LED helpers, display text helper, and ESC logical-speed helper.
-- `src/app/modes/bench_menu.c`: `APP_TEST_NXP_CUP_TESTS` runtime test menu host plus standalone linear-camera and ESC test wrappers.
+- `src/app/modes/bench_menu.c`: `APP_TEST_NXP_CUP_TESTS` bench mode menu host plus standalone linear-camera and ESC test wrappers.
 - `src/app/modes/bench_tests.c`: reusable bench test implementations used by the runtime menu.
 - `src/app/modes/bench_esp_link.c`: runtime-menu ESP32 tune-frame receive test.
 - `src/app/modes/bench_serial_tune.c`: UART/OLED tuning test used by the runtime menu.
-- `src/app/modes/bench_teensy_link.c`: S32K-master Teensy SPI runtime test service and OLED viewer.
+- `src/app/modes/bench_teensy_link.c`: S32K-master Teensy SPI bench mode service and OLED viewer.
 - `src/app/modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode for `APP_TEST_TEENSY_LINK_TEST`.
 - `src/app/modes/mode_esp_link.c`: direct compile-time ESP32 UART link mode for button/ACK traffic, RAM-only full tuning receive testing, and compact drive-command ACK testing; it also provides reusable ESP UART service helpers used by runtime bench modes.
 - `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`, `src/app/modes/mode_esp_link.c`, and `src/app/modes/mode_teensy_link.c`: standalone app mode implementations.
@@ -37,6 +37,8 @@
 - `APP_RACE_S32K_ONLY` and `APP_RACE` first show the shared
   `SUPERFAST` / `5050` / `SLOW` profile selector. Use the potentiometer to select,
   SW2 to confirm or return, and SW3 on the ready screen to start ESC arming.
+- Each selection resolves to an app-local `DriveTuneProfile_t` containing the
+  steering gains, servo-output shaping, and base-speed setting for that drive behavior.
 - `APP_TEST_ESP_LINK_TEST` sends CRC-protected button state to the ESP32 and
   receives one validated snapshot containing PID, servo clamp/LPF, and
   line-detector values. It stores all eight values in `g_runtimeTune` and
@@ -49,15 +51,15 @@
 - The standalone `APP_TEST_ESC_TEST` path reuses the same ESC bench implementation as the runtime menu: `SW2` hold arms/disarms, `SW3` hold cycles the pot speed cap `30/50/100%`, and the OLED shows the current cap as `L:`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
-- `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal runtime test: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
+- `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal bench mode: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
 - `Tune drive mode` is a bench wrapper around the Teensy-camera race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. It also stores incoming line-detector values in the shared RAM tune block, but those values do not affect Teensy-side camera detection until a later S32K-to-Teensy tuning protocol is added.
 - `Stack drive` is a bench wrapper around the local S32K-camera race path. It keeps ESP UART tuning and Teensy SPI status service active, ignores missing Teensy camera/SPI as a hard stop source, and reacts to ESP start/stop commands. Stop forces ESC neutral and `STOPPED`; start re-enters ESC arm before driving resumes.
-- `Cable tune` is the UART proof-of-concept moved into the runtime tests menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
+- `Cable tune` is the UART proof-of-concept moved into the bench modes menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
-- Camera consumers process a newly completed frame when `LinearCameraGetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
-- `Cam+Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` consume the current session runtime tuning block instead of always rebuilding from the compile-time `KP/KI/KD` defaults.
-- Steering PID uses the active `KP/KD/KI/ITERM_CLAMP` values plus the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied. The controller returns only a steering request. Race mode independently owns speed selection, slowdown, ramping, braking/neutral, and safety policy.
+- Camera consumers process a newly completed frame when `LinearCamera_GetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
+- `Cam+Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` consume the current session runtime tuning block instead of always rebuilding from `STEERING_DEFAULT_KP`, `STEERING_DEFAULT_KI`, and `STEERING_DEFAULT_KD`.
+- Steering PID starts from the namespaced `STEERING_DEFAULT_*` values and uses the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied. The controller returns only a steering request. Race mode independently owns speed selection, slowdown, ramping, braking/neutral, and safety policy.
 - `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - `Ultra+ESC` centers the servo, drives both motors at 50% when clear, slows at 45 cm, and stops at 8 cm.
 - `Victory Lap` is a separate pole-detection test: it approaches slowly, stops at 8 cm, then steps through a Mario-style victory note table for future BLDC music support.

@@ -1,5 +1,5 @@
 function linear_camera_single_graph_viewer(portName)
-% Live viewer for RUNTIME_TEST_LINEAR_CAMERA UART telemetry.
+% Live viewer for BENCH_MODE_LINEAR_CAMERA UART telemetry.
 % Single-graph layout: raw, filtered, gradient, thresholds, edges, and stats
 % all overlaid into one axes using dual Y axes.
 % Example:

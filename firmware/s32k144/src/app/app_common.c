@@ -8,15 +8,15 @@ ServoRateTestState_t g_servoRateTest;
 EscManualTestState_t g_escTest;
 LinearCameraTestState_t g_linearCameraTest;
 SimpleDriveState_t g_simpleDriveTest;
-TestsMenuState_t g_testsMenu;
+BenchMenuState_t g_benchMenu;
 RaceModeState_t g_raceMode;
 SerialTuneState_t g_serialTune;
 RuntimeTuneState_t g_runtimeTune;
 
 static boolean g_appRuntimeCoreInitialized = FALSE;
-static boolean g_appRuntimeDisplayInitialized = FALSE;
+static boolean g_appRuntimeDisplay_Initialized = FALSE;
 
-const CamTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT] = {
+const DriveTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT] = {
     {SPEED_MODE_SUPERFAST_KP, SPEED_MODE_SUPERFAST_KD, SPEED_MODE_SUPERFAST_KI,
      SPEED_MODE_SUPERFAST_ITERM_CLAMP, SPEED_MODE_SUPERFAST_STEER_LPF_ALPHA,
      (sint16)SPEED_MODE_SUPERFAST_STEER_CLAMP, (sint16)SPEED_MODE_SUPERFAST_STEER_RATE_MAX,
@@ -58,7 +58,7 @@ const char *SpeedMode_GetName(SpeedModeSetting_t setting)
     }
 }
 
-const CamTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting)
+const DriveTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting)
 {
     if ((uint8)setting >= (uint8)SPEED_MODE_COUNT)
     {
@@ -67,7 +67,7 @@ const CamTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting)
     return &g_speedModeProfiles[(uint8)setting];
 }
 
-const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
+const char g_benchMenuItems[BENCH_MODE_COUNT][17] = {
     "Servo          ", "ESC            ", "Ultrasonic     ", "Ultra+ESC      ", "Camera-s32k    ",
     "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode", "Stack drive    ", "Cable tune-s32k ",
     "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
@@ -239,10 +239,10 @@ void RuntimeTune_InitDefaults(void)
         return;
     }
 
-    g_runtimeTune.profile.kp = KP;
-    g_runtimeTune.profile.kd = KD;
-    g_runtimeTune.profile.ki = KI;
-    g_runtimeTune.profile.iTermClamp = ITERM_CLAMP;
+    g_runtimeTune.profile.kp = STEERING_DEFAULT_KP;
+    g_runtimeTune.profile.kd = STEERING_DEFAULT_KD;
+    g_runtimeTune.profile.ki = STEERING_DEFAULT_KI;
+    g_runtimeTune.profile.iTermClamp = STEERING_DEFAULT_I_TERM_CLAMP;
     g_runtimeTune.profile.steerLpfAlpha = SERVO_TEST_LPF_ALPHA;
     g_runtimeTune.profile.steerClamp = (sint16)SERVO_TEST_CMD_CLAMP;
     g_runtimeTune.profile.steerRateMax = (sint16)SERVO_TEST_RATE_MAX;
@@ -255,7 +255,7 @@ void RuntimeTune_InitDefaults(void)
 
 void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting)
 {
-    const CamTuneProfile_t *profile = SpeedMode_GetProfile(setting);
+    const DriveTuneProfile_t *profile = SpeedMode_GetProfile(setting);
 
     RuntimeTune_InitDefaults();
     if (profile != NULL_PTR)
@@ -265,7 +265,7 @@ void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting)
 }
 
 void App_ApplySteeringProfile(SteeringControllerState_t *state,
-                              const CamTuneProfile_t *profile)
+                              const DriveTuneProfile_t *profile)
 {
     SteeringControllerConfig_t config;
 
@@ -426,15 +426,15 @@ void App_InitRuntimeCommon(void)
 {
     App_InitRuntimeCore();
 
-    if (g_appRuntimeDisplayInitialized != TRUE)
+    if (g_appRuntimeDisplay_Initialized != TRUE)
     {
         display_power_stabilize_delay();
-        DisplayInit(0U, STD_ON);
-        g_appRuntimeDisplayInitialized = TRUE;
+        Display_Init(0U, STD_ON);
+        g_appRuntimeDisplay_Initialized = TRUE;
     }
 
     DisplayClear();
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void App_RunBootBanner(void)
@@ -462,7 +462,7 @@ void App_RunBootBanner(void)
     DisplayTextPadded(0U, "S32K BOOT");
     DisplayTextPadded(1U, displayName);
     DisplayTextPadded(2U, shortName);
-    DisplayRefresh();
+    Display_Refresh();
 
     startMs = Timebase_GetMs();
     while ((uint32)(Timebase_GetMs() - startMs) < APP_BOOT_BANNER_MS)

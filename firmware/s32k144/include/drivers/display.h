@@ -33,7 +33,7 @@ extern "C" {
 typedef struct{
     I2c_AddressType I2cAddress;
     uint8 I2cChannel;
-    /*this is a buffer for the displayed characters, on calling DisplayRefresh() its contents are shown on screen*/
+    /*this is a buffer for the displayed characters, on calling Display_Refresh() its contents are shown on screen*/
     unsigned char ScreenCharBuffer[CharacterRows][CharacterColumns];
 }Display;
 /*==================================================================================================
@@ -59,7 +59,7 @@ typedef struct{
 /*==================================================================================================
 *                                   LOCAL FUNCTION PROTOTYPES
 ==================================================================================================*/
-void DisplayRefresh(void);
+void Display_Refresh(void);
 void DisplayText(uint16 DisplayLine, const char Text[16], uint16 TextLength, uint16 TextOffset);
 void DisplayValue(uint16 DisplayLine, int Value, uint16 TextLength, uint16 TextOffset);
 void DisplayGraph(uint8 DisplayLine, uint8 Values[128], uint16 ValuesCount, uint8 LinesSpan);
@@ -73,8 +73,8 @@ void DisplayOverlayVerticalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 x); //
 void DisplayOverlayHorizontalLine(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx); //for camera testing
 void DisplayOverlayHorizontalSegment(uint8 DisplayLine, uint8 LinesSpan, uint8 yPx, uint8 x0, uint8 x1); //for camera testing
 void DisplayClear(void);
-void RotateFontmap(void);
-void DisplayInit(uint8 I2cChannel, uint8 FontmapRotation);
+void Display_RotateFontmap(void);
+void Display_Init(uint8 I2cChannel, uint8 FontmapRotation);
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS

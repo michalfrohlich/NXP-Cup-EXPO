@@ -106,7 +106,7 @@ static void victory_lap_update_fanfare(uint32 nowMs)
     const VictoryLapNote_t *note;
 
     Esc_StopNeutral();
-    SteerStraight();
+    Servo_SetStraight();
 
     if (g_victoryLapTest.phase == VICTORY_LAP_PHASE_NOTE)
     {
@@ -172,7 +172,7 @@ static void victory_lap_draw(uint32 nowMs)
         DisplayValue(3U, (int)g_victoryLapTest.currentNoteHz, 4U, 3U);
     }
 
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void victory_lap_test_enter(uint32 nowMs)
@@ -183,7 +183,7 @@ void victory_lap_test_enter(uint32 nowMs)
     Esc_StopNeutral();
 
     Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
-    SteerStraight();
+    Servo_SetStraight();
 
     Ultrasonic_Init();
 
@@ -197,7 +197,7 @@ void victory_lap_test_enter(uint32 nowMs)
     DisplayTextPadded(1U, "ARMING ESC");
     DisplayTextPadded(2U, "POLE AT 8cm");
     DisplayTextPadded(3U, "MARIO FANFARE");
-    DisplayRefresh();
+    Display_Refresh();
     StatusLed_Blue();
 }
 
@@ -209,7 +209,7 @@ void victory_lap_test_update(uint32 nowMs)
     {
         g_victoryLapTest.commandedSpeedPct = 0;
         Esc_StopNeutral();
-        SteerStraight();
+        Servo_SetStraight();
         StatusLed_Blue();
 
         if (time_reached(nowMs, g_victoryLapTest.armDoneMs) == TRUE)
@@ -219,7 +219,7 @@ void victory_lap_test_update(uint32 nowMs)
     }
     else if (g_victoryLapTest.phase == VICTORY_LAP_PHASE_APPROACH)
     {
-        SteerStraight();
+        Servo_SetStraight();
 
         if ((g_victoryLapTest.hasValidDistance == TRUE) &&
             (g_victoryLapTest.lastDistanceCm <= (float)VICTORY_LAP_POLE_CM))
@@ -252,7 +252,7 @@ void victory_lap_test_update(uint32 nowMs)
     {
         g_victoryLapTest.commandedSpeedPct = 0;
         Esc_StopNeutral();
-        SteerStraight();
+        Servo_SetStraight();
         StatusLed_Green();
     }
 
@@ -262,6 +262,6 @@ void victory_lap_test_update(uint32 nowMs)
 void victory_lap_test_exit(void)
 {
     Esc_StopNeutral();
-    SteerStraight();
+    Servo_SetStraight();
     StatusLed_Off();
 }
