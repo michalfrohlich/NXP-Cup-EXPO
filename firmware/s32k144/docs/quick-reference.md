@@ -70,7 +70,7 @@
 - In `APP_RACE_S32K_ONLY`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
 ## Major modules
-- App dispatch/shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`
+- App dispatch/shared glue: `src/app/app_modes.c`, `src/app/app_common.c`, `src/app/app_internal.h`; dedicated mode state remains private in its owning `.c` file.
 - App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`, `src/app/modes/mode_esp_link.c`, `src/app/modes/mode_teensy_link.c`
 - App vision debug UI: `src/app/vision_debug.c`
 - Vision / control: `src/services/line_detector.c`, `src/services/steering_controller.c`, `src/services/steering_smoothing.c`

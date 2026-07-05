@@ -2,6 +2,23 @@
 
 #define BENCH_MENU_BUTTON_CHORD_MS (500U)
 
+typedef struct
+{
+    uint8 selectedIndex;
+    uint8 topIndex;
+    uint32 lastPotMs;
+    uint32 switchGuardUntilMs;
+    boolean modeActive;
+    boolean requireSwitchOff;
+    BenchModeId_t activeMode;
+} BenchMenuState_t;
+
+static BenchMenuState_t g_benchMenu;
+static const char g_benchMenuItems[BENCH_MODE_COUNT][17] = {
+    "Servo          ", "ESC            ", "Ultrasonic     ", "Ultra+ESC      ", "Camera-s32k    ",
+    "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode", "Stack drive    ", "Cable tune-s32k ",
+    "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
+
 static uint32 g_benchMenuButtonChordSinceMs = 0U;
 static boolean g_benchMenuButtonChordArmed = TRUE;
 static boolean g_benchMenuSwitchBypass = FALSE;

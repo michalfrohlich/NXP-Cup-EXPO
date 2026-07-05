@@ -25,6 +25,25 @@ extern "C" {
 /*==================================================================================================
 *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
+typedef enum
+{
+    Forward,
+    Braking,
+    Neutral,
+    Reverse
+} EscState_t;
+
+typedef struct
+{
+    boolean Initialized;
+    EscState_t State;
+    Pwm_ChannelType Channel;
+    uint16 MinDutyCycle;
+    uint16 MaxDutyCycle;
+    uint16 MedDutyCycle;
+    int Speed;
+    uint8 Brake;
+} EscInstance_t;
 
 /*==================================================================================================
 *                                       LOCAL MACROS
@@ -33,7 +52,7 @@ extern "C" {
 /*==================================================================================================
 *                                      LOCAL CONSTANTS
 ==================================================================================================*/
-static volatile Esc EscInstances[2];
+static volatile EscInstance_t EscInstances[2];
 /*==================================================================================================
 *                                      LOCAL VARIABLES
 ==================================================================================================*/
@@ -67,7 +86,7 @@ static int EscClampSpeed(int Speed)
     return Speed;
 }
 
-static void SetPwm(volatile Esc *EscInstance, int EscSpeedCommand)
+static void SetPwm(volatile EscInstance_t *EscInstance, int EscSpeedCommand)
 {
     uint16 EscDutyCycle;
 
@@ -86,7 +105,7 @@ static void SetPwm(volatile Esc *EscInstance, int EscSpeedCommand)
     }
 }
 
-static void Esc_InitOne(volatile Esc *EscInstance,
+static void Esc_InitOne(volatile EscInstance_t *EscInstance,
                        Pwm_ChannelType EscPwmChannel,
                        uint16 MinDutyCycle,
                        uint16 MedDutyCycle,
@@ -108,7 +127,7 @@ static void Esc_InitOne(volatile Esc *EscInstance,
     Pwm_SetDutyCycle(EscInstance->Channel, EscInstance->MedDutyCycle);/*sending the 'Neutral' command arms the esc*/
 }
 
-static void EscPeriodFinishedOne(volatile Esc *EscInstance)
+static void EscPeriodFinishedOne(volatile EscInstance_t *EscInstance)
 {
     int EscSpeedCommand;
 

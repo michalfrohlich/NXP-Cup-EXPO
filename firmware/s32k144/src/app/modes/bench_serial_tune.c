@@ -1,6 +1,40 @@
 #include "../app_internal.h"
 
-static void serial_tune_draw(const SerialTuneState_t *st)
+typedef enum
+{
+    CABLE_TUNE_SCREEN_WAIT = 0,
+    CABLE_TUNE_SCREEN_MENU,
+    CABLE_TUNE_SCREEN_SERVO_MENU,
+    CABLE_TUNE_SCREEN_VISION_MENU,
+    CABLE_TUNE_SCREEN_EDIT_KP,
+    CABLE_TUNE_SCREEN_EDIT_KI,
+    CABLE_TUNE_SCREEN_EDIT_KD,
+    CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP,
+    CABLE_TUNE_SCREEN_EDIT_SERVO_LPF,
+    CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST,
+    CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH,
+    CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW
+} CableTuneScreen_t;
+
+typedef struct
+{
+    CableTuneScreen_t screen;
+    float kp;
+    float ki;
+    float kd;
+    sint16 servoClamp;
+    float servoLpfAlpha;
+    uint16 visionMinContrast;
+    uint8 visionEdgeHighPct;
+    uint8 visionEdgeLowPct;
+    char inputBuf[SERIAL_TUNE_INPUT_MAX_LEN + 1U];
+    uint8 inputLen;
+    boolean connected;
+} CableTuneState_t;
+
+static CableTuneState_t g_cableTune;
+
+static void serial_tune_draw(const CableTuneState_t *st)
 {
     char lineBuf[17];
     int scaledValue;
@@ -15,49 +49,49 @@ static void serial_tune_draw(const SerialTuneState_t *st)
     DisplayClear();
     switch (st->screen)
     {
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP:
             DisplayTextPadded(0U, "EDIT SERVO CLMP");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_LPF:
             DisplayTextPadded(0U, "EDIT SERVO LPF");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
             DisplayTextPadded(0U, "EDIT VISION MIN");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
             DisplayTextPadded(0U, "EDIT EDGE HIGH");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
             DisplayTextPadded(0U, "EDIT EDGE LOW");
             break;
-        case SERIAL_TUNE_SCREEN_VISION_MENU:
+        case CABLE_TUNE_SCREEN_VISION_MENU:
             DisplayTextPadded(0U, "VISION TUNE");
             break;
-        case SERIAL_TUNE_SCREEN_SERVO_MENU:
+        case CABLE_TUNE_SCREEN_SERVO_MENU:
             DisplayTextPadded(0U, "SERVO TUNE MENU");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_KP:
+        case CABLE_TUNE_SCREEN_EDIT_KP:
             DisplayTextPadded(0U, "EDIT KP");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_KI:
+        case CABLE_TUNE_SCREEN_EDIT_KI:
             DisplayTextPadded(0U, "EDIT KI");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_KD:
+        case CABLE_TUNE_SCREEN_EDIT_KD:
             DisplayTextPadded(0U, "EDIT KD");
             break;
-        case SERIAL_TUNE_SCREEN_MENU:
+        case CABLE_TUNE_SCREEN_MENU:
             DisplayTextPadded(0U, "CONNECTED MENU");
             break;
-        case SERIAL_TUNE_SCREEN_WAIT:
+        case CABLE_TUNE_SCREEN_WAIT:
         default:
             DisplayTextPadded(0U, "WAITING SERIAL");
             break;
     }
 
-    if ((st->screen == SERIAL_TUNE_SCREEN_VISION_MENU) ||
-        (st->screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
-        (st->screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
-        (st->screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW))
+    if ((st->screen == CABLE_TUNE_SCREEN_VISION_MENU) ||
+        (st->screen == CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+        (st->screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+        (st->screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW))
     {
         (void)snprintf(lineBuf, sizeof(lineBuf), "MIN:%5u", (unsigned int)st->visionMinContrast);
         DisplayTextPadded(1U, lineBuf);
@@ -69,9 +103,9 @@ static void serial_tune_draw(const SerialTuneState_t *st)
         return;
     }
 
-    if ((st->screen == SERIAL_TUNE_SCREEN_SERVO_MENU) ||
-        (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
-        (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+    if ((st->screen == CABLE_TUNE_SCREEN_SERVO_MENU) ||
+        (st->screen == CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+        (st->screen == CABLE_TUNE_SCREEN_EDIT_SERVO_LPF))
     {
         (void)snprintf(lineBuf, sizeof(lineBuf), "CLAMP:%4d", (int)st->servoClamp);
         DisplayTextPadded(1U, lineBuf);
@@ -168,11 +202,11 @@ static void serial_tune_print_vision_menu(void)
     UartHost_WriteLine("");
     UartHost_WriteLine("=== Vision Tune Menu ===");
     UartHost_WriteLine("Current:");
-    (void)snprintf(lineBuf, sizeof(lineBuf), "minContrast: %u", (unsigned int)g_serialTune.visionMinContrast);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "minContrast: %u", (unsigned int)g_cableTune.visionMinContrast);
     UartHost_WriteLine(lineBuf);
-    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeHighPct: %u", (unsigned int)g_serialTune.visionEdgeHighPct);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeHighPct: %u", (unsigned int)g_cableTune.visionEdgeHighPct);
     UartHost_WriteLine(lineBuf);
-    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeLowPct: %u", (unsigned int)g_serialTune.visionEdgeLowPct);
+    (void)snprintf(lineBuf, sizeof(lineBuf), "edgeLowPct: %u", (unsigned int)g_cableTune.visionEdgeLowPct);
     UartHost_WriteLine(lineBuf);
     UartHost_WriteLine("");
     UartHost_WriteLine("m - edit min contrast");
@@ -183,39 +217,39 @@ static void serial_tune_print_vision_menu(void)
     UartHost_WriteString("vision> ");
 }
 
-static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
+static void serial_tune_print_edit_help(CableTuneScreen_t screen)
 {
     switch (screen)
     {
-        case SERIAL_TUNE_SCREEN_EDIT_KP:
+        case CABLE_TUNE_SCREEN_EDIT_KP:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing KP");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_KI:
+        case CABLE_TUNE_SCREEN_EDIT_KI:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing KI");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_KD:
+        case CABLE_TUNE_SCREEN_EDIT_KD:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing KD");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing SERVO CLAMP");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_LPF:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing SERVO LPF");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing minContrast");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing edgeHighPct");
             break;
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
             UartHost_WriteLine("");
             UartHost_WriteLine("Editing edgeLowPct");
             break;
@@ -223,9 +257,9 @@ static void serial_tune_print_edit_help(SerialTuneScreen_t screen)
             return;
     }
 
-    if ((screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
-        (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
-        (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW))
+    if ((screen == CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+        (screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+        (screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW))
     {
         UartHost_WriteLine("Type digits.");
     }
@@ -336,7 +370,7 @@ static boolean serial_tune_parse_int_value(const char *text, sint16 *value)
     return TRUE;
 }
 
-float *serial_tune_active_value_ptr(SerialTuneState_t *st)
+float *serial_tune_active_value_ptr(CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
@@ -345,20 +379,20 @@ float *serial_tune_active_value_ptr(SerialTuneState_t *st)
 
     switch (st->screen)
     {
-        case SERIAL_TUNE_SCREEN_EDIT_KP:
+        case CABLE_TUNE_SCREEN_EDIT_KP:
             return &st->kp;
-        case SERIAL_TUNE_SCREEN_EDIT_KI:
+        case CABLE_TUNE_SCREEN_EDIT_KI:
             return &st->ki;
-        case SERIAL_TUNE_SCREEN_EDIT_KD:
+        case CABLE_TUNE_SCREEN_EDIT_KD:
             return &st->kd;
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_LPF:
             return &st->servoLpfAlpha;
         default:
             return NULL_PTR;
     }
 }
 
-sint16 *serial_tune_active_int_ptr(SerialTuneState_t *st)
+sint16 *serial_tune_active_int_ptr(CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
@@ -367,14 +401,14 @@ sint16 *serial_tune_active_int_ptr(SerialTuneState_t *st)
 
     switch (st->screen)
     {
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP:
             return &st->servoClamp;
         default:
             return NULL_PTR;
     }
 }
 
-const char *serial_tune_active_label(const SerialTuneState_t *st)
+const char *serial_tune_active_label(const CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
@@ -383,53 +417,53 @@ const char *serial_tune_active_label(const SerialTuneState_t *st)
 
     switch (st->screen)
     {
-        case SERIAL_TUNE_SCREEN_EDIT_KP:
+        case CABLE_TUNE_SCREEN_EDIT_KP:
             return "KP";
-        case SERIAL_TUNE_SCREEN_EDIT_KI:
+        case CABLE_TUNE_SCREEN_EDIT_KI:
             return "KI";
-        case SERIAL_TUNE_SCREEN_EDIT_KD:
+        case CABLE_TUNE_SCREEN_EDIT_KD:
             return "KD";
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP:
             return "SERVO CLAMP";
-        case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+        case CABLE_TUNE_SCREEN_EDIT_SERVO_LPF:
             return "SERVO LPF";
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
             return "minContrast";
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
             return "edgeHighPct";
-        case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+        case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
             return "edgeLowPct";
         default:
             return "";
     }
 }
 
-static boolean serial_tune_is_vision_screen(SerialTuneScreen_t screen)
+static boolean serial_tune_is_vision_screen(CableTuneScreen_t screen)
 {
-    return (boolean)((screen == SERIAL_TUNE_SCREEN_VISION_MENU) ||
-                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
-                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
-                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW));
+    return (boolean)((screen == CABLE_TUNE_SCREEN_VISION_MENU) ||
+                     (screen == CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+                     (screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+                     (screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW));
 }
 
-static boolean serial_tune_requires_integer(SerialTuneScreen_t screen)
+static boolean serial_tune_requires_integer(CableTuneScreen_t screen)
 {
-    return (boolean)((screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
-                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
-                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
-                     (screen == SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW));
+    return (boolean)((screen == CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+                     (screen == CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST) ||
+                     (screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH) ||
+                     (screen == CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW));
 }
 
-static void serial_tune_return_from_edit(SerialTuneState_t *st);
+static void serial_tune_return_from_edit(CableTuneState_t *st);
 
-static void serial_tune_enter_pid_menu(SerialTuneState_t *st)
+static void serial_tune_enter_pid_menu(CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
         return;
     }
 
-    st->screen = SERIAL_TUNE_SCREEN_MENU;
+    st->screen = CABLE_TUNE_SCREEN_MENU;
     st->inputLen = 0U;
     st->inputBuf[0] = '\0';
     serial_tune_draw(st);
@@ -437,14 +471,14 @@ static void serial_tune_enter_pid_menu(SerialTuneState_t *st)
     serial_tune_print_pid_menu();
 }
 
-static void serial_tune_enter_servo_menu(SerialTuneState_t *st)
+static void serial_tune_enter_servo_menu(CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
         return;
     }
 
-    st->screen = SERIAL_TUNE_SCREEN_SERVO_MENU;
+    st->screen = CABLE_TUNE_SCREEN_SERVO_MENU;
     st->inputLen = 0U;
     st->inputBuf[0] = '\0';
     serial_tune_draw(st);
@@ -452,14 +486,14 @@ static void serial_tune_enter_servo_menu(SerialTuneState_t *st)
     serial_tune_print_servo_menu();
 }
 
-static void serial_tune_enter_vision_menu(SerialTuneState_t *st)
+static void serial_tune_enter_vision_menu(CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
         return;
     }
 
-    st->screen = SERIAL_TUNE_SCREEN_VISION_MENU;
+    st->screen = CABLE_TUNE_SCREEN_VISION_MENU;
     st->inputLen = 0U;
     st->inputBuf[0] = '\0';
     serial_tune_draw(st);
@@ -467,15 +501,15 @@ static void serial_tune_enter_vision_menu(SerialTuneState_t *st)
     serial_tune_print_vision_menu();
 }
 
-static void serial_tune_return_from_edit(SerialTuneState_t *st)
+static void serial_tune_return_from_edit(CableTuneState_t *st)
 {
     if (st == NULL_PTR)
     {
         return;
     }
 
-    if ((st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
-        (st->screen == SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF))
+    if ((st->screen == CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP) ||
+        (st->screen == CABLE_TUNE_SCREEN_EDIT_SERVO_LPF))
     {
         serial_tune_enter_servo_menu(st);
     }
@@ -489,7 +523,7 @@ static void serial_tune_return_from_edit(SerialTuneState_t *st)
     }
 }
 
-static void serial_tune_enter_edit(SerialTuneState_t *st, SerialTuneScreen_t screen)
+static void serial_tune_enter_edit(CableTuneState_t *st, CableTuneScreen_t screen)
 {
     if (st == NULL_PTR)
     {
@@ -504,7 +538,7 @@ static void serial_tune_enter_edit(SerialTuneState_t *st, SerialTuneScreen_t scr
     serial_tune_print_edit_help(screen);
 }
 
-static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch)
+static void serial_tune_handle_pid_menu_char(CableTuneState_t *st, char ch)
 {
     if (st == NULL_PTR)
     {
@@ -514,13 +548,13 @@ static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch)
     switch (ch)
     {
         case 'p':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_KP);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_KP);
             break;
         case 'i':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_KI);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_KI);
             break;
         case 'd':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_KD);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_KD);
             break;
         case 's':
             serial_tune_enter_servo_menu(st);
@@ -538,7 +572,7 @@ static void serial_tune_handle_pid_menu_char(SerialTuneState_t *st, char ch)
     }
 }
 
-static void serial_tune_handle_vision_menu_char(SerialTuneState_t *st, char ch)
+static void serial_tune_handle_vision_menu_char(CableTuneState_t *st, char ch)
 {
     if (st == NULL_PTR)
     {
@@ -548,13 +582,13 @@ static void serial_tune_handle_vision_menu_char(SerialTuneState_t *st, char ch)
     switch (ch)
     {
         case 'm':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST);
             break;
         case 'h':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH);
             break;
         case 'l':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW);
             break;
         case 'p':
             serial_tune_enter_pid_menu(st);
@@ -569,7 +603,7 @@ static void serial_tune_handle_vision_menu_char(SerialTuneState_t *st, char ch)
     }
 }
 
-static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch)
+static void serial_tune_handle_servo_menu_char(CableTuneState_t *st, char ch)
 {
     if (st == NULL_PTR)
     {
@@ -579,10 +613,10 @@ static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch)
     switch (ch)
     {
         case 'c':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_SERVO_CLAMP);
             break;
         case 'l':
-            serial_tune_enter_edit(st, SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF);
+            serial_tune_enter_edit(st, CABLE_TUNE_SCREEN_EDIT_SERVO_LPF);
             break;
         case 'p':
             serial_tune_enter_pid_menu(st);
@@ -597,7 +631,7 @@ static void serial_tune_handle_servo_menu_char(SerialTuneState_t *st, char ch)
     }
 }
 
-static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
+static void serial_tune_handle_edit_char(CableTuneState_t *st, char ch)
 {
     float parsedValue;
     float *activeValue;
@@ -643,7 +677,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
 
             switch (st->screen)
             {
-                case SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
+                case CABLE_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST:
                     if (parsedIntValue > 4095)
                     {
                         UartHost_WriteLine("");
@@ -654,7 +688,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
                     st->visionMinContrast = (uint16)parsedIntValue;
                     g_runtimeTune.lineDetector.minContrast = st->visionMinContrast;
                     break;
-                case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
+                case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH:
                     if ((parsedIntValue < 1) || (parsedIntValue > 100))
                     {
                         UartHost_WriteLine("");
@@ -665,7 +699,7 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
                     st->visionEdgeHighPct = (uint8)parsedIntValue;
                     g_runtimeTune.lineDetector.edgeHighPct = st->visionEdgeHighPct;
                     break;
-                case SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
+                case CABLE_TUNE_SCREEN_EDIT_VISION_EDGE_LOW:
                     if ((parsedIntValue < 1) || (parsedIntValue > 100))
                     {
                         UartHost_WriteLine("");
@@ -717,16 +751,16 @@ static void serial_tune_handle_edit_char(SerialTuneState_t *st, char ch)
 
             switch (st->screen)
             {
-                case SERIAL_TUNE_SCREEN_EDIT_KP:
+                case CABLE_TUNE_SCREEN_EDIT_KP:
                     g_runtimeTune.profile.kp = st->kp;
                     break;
-                case SERIAL_TUNE_SCREEN_EDIT_KI:
+                case CABLE_TUNE_SCREEN_EDIT_KI:
                     g_runtimeTune.profile.ki = st->ki;
                     break;
-                case SERIAL_TUNE_SCREEN_EDIT_KD:
+                case CABLE_TUNE_SCREEN_EDIT_KD:
                     g_runtimeTune.profile.kd = st->kd;
                     break;
-                case SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF:
+                case CABLE_TUNE_SCREEN_EDIT_SERVO_LPF:
                     g_runtimeTune.profile.steerLpfAlpha = st->servoLpfAlpha;
                     break;
                 default:
@@ -769,18 +803,18 @@ void serial_tune_test_enter(uint32 nowMs)
     (void)nowMs;
     RuntimeTune_InitDefaults();
 
-    (void)memset(&g_serialTune, 0, sizeof(g_serialTune));
-    g_serialTune.kp = g_runtimeTune.profile.kp;
-    g_serialTune.ki = g_runtimeTune.profile.ki;
-    g_serialTune.kd = g_runtimeTune.profile.kd;
-    g_serialTune.servoClamp = g_runtimeTune.profile.steerClamp;
-    g_serialTune.servoLpfAlpha = g_runtimeTune.profile.steerLpfAlpha;
-    g_serialTune.visionMinContrast = g_runtimeTune.lineDetector.minContrast;
-    g_serialTune.visionEdgeHighPct = g_runtimeTune.lineDetector.edgeHighPct;
-    g_serialTune.visionEdgeLowPct = g_runtimeTune.lineDetector.edgeLowPct;
-    g_serialTune.screen = SERIAL_TUNE_SCREEN_WAIT;
+    (void)memset(&g_cableTune, 0, sizeof(g_cableTune));
+    g_cableTune.kp = g_runtimeTune.profile.kp;
+    g_cableTune.ki = g_runtimeTune.profile.ki;
+    g_cableTune.kd = g_runtimeTune.profile.kd;
+    g_cableTune.servoClamp = g_runtimeTune.profile.steerClamp;
+    g_cableTune.servoLpfAlpha = g_runtimeTune.profile.steerLpfAlpha;
+    g_cableTune.visionMinContrast = g_runtimeTune.lineDetector.minContrast;
+    g_cableTune.visionEdgeHighPct = g_runtimeTune.lineDetector.edgeHighPct;
+    g_cableTune.visionEdgeLowPct = g_runtimeTune.lineDetector.edgeLowPct;
+    g_cableTune.screen = CABLE_TUNE_SCREEN_WAIT;
 
-    serial_tune_draw(&g_serialTune);
+    serial_tune_draw(&g_cableTune);
     StatusLed_Blue();
     UartHost_WriteLine("");
     UartHost_WriteLine("=== Serial Tune Mode ===");
@@ -797,7 +831,7 @@ void serial_tune_test_update(void)
 
     while (UartHost_TryReadChar(&rxChar) == TRUE)
     {
-        if (g_serialTune.connected != TRUE)
+        if (g_cableTune.connected != TRUE)
         {
             if (rxChar != SERIAL_TUNE_CONNECT_CHAR)
             {
@@ -809,27 +843,27 @@ void serial_tune_test_update(void)
                 continue;
             }
 
-            g_serialTune.connected = TRUE;
+            g_cableTune.connected = TRUE;
             StatusLed_Green();
-            serial_tune_enter_pid_menu(&g_serialTune);
+            serial_tune_enter_pid_menu(&g_cableTune);
             continue;
         }
 
-        if (g_serialTune.screen == SERIAL_TUNE_SCREEN_MENU)
+        if (g_cableTune.screen == CABLE_TUNE_SCREEN_MENU)
         {
-            serial_tune_handle_pid_menu_char(&g_serialTune, rxChar);
+            serial_tune_handle_pid_menu_char(&g_cableTune, rxChar);
         }
-        else if (g_serialTune.screen == SERIAL_TUNE_SCREEN_SERVO_MENU)
+        else if (g_cableTune.screen == CABLE_TUNE_SCREEN_SERVO_MENU)
         {
-            serial_tune_handle_servo_menu_char(&g_serialTune, rxChar);
+            serial_tune_handle_servo_menu_char(&g_cableTune, rxChar);
         }
-        else if (g_serialTune.screen == SERIAL_TUNE_SCREEN_VISION_MENU)
+        else if (g_cableTune.screen == CABLE_TUNE_SCREEN_VISION_MENU)
         {
-            serial_tune_handle_vision_menu_char(&g_serialTune, rxChar);
+            serial_tune_handle_vision_menu_char(&g_cableTune, rxChar);
         }
         else
         {
-            serial_tune_handle_edit_char(&g_serialTune, rxChar);
+            serial_tune_handle_edit_char(&g_cableTune, rxChar);
         }
     }
 }

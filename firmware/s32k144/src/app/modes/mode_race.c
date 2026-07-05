@@ -9,6 +9,57 @@
 #define STACK_DRIVE_DISPLAY_MS (150U)
 #define STACK_DRIVE_PAGE_COUNT (4U)
 
+typedef enum
+{
+    RACE_PHASE_ESC_ARM = 0,
+    RACE_PHASE_SPEED_RUN,
+    RACE_PHASE_HONOR_RUN,
+    RACE_PHASE_STOPPED,
+    RACE_PHASE_FAULT
+} RacePhase_t;
+
+typedef enum
+{
+    RACE_FAULT_NONE = 0,
+    RACE_FAULT_LINE_LOST,
+    RACE_FAULT_S32K_CAMERA_STALE,
+    RACE_FAULT_TEENSY_CAMERA_STALE,
+    RACE_FAULT_CONTROL_STALE,
+    RACE_FAULT_SERVO_TIMING
+} RaceFaultReason_t;
+
+typedef struct
+{
+    RacePhase_t phase;
+    RaceFaultReason_t faultReason;
+    SteeringControllerState_t ctrl;
+    LinearCameraFrame_t processedFrame;
+    VisionOutput_t result;
+    uint32 nextControlMs;
+    uint32 nextSpeedRampMs;
+    uint32 nextUltraTrigMs;
+    uint32 nextDisplayMs;
+    uint32 armDoneMs;
+    uint32 lostSinceMs;
+    uint32 lastDistanceMs;
+    uint32 lastVisionFrameMs;
+    uint32 lastControlMs;
+    uint32 lastServoPeriodMs;
+    uint32 lastServoPeriodSequence;
+    float lastDistanceCm;
+    sint16 steerRaw;
+    sint16 steerFilt;
+    sint16 steerOut;
+    sint32 targetSpeedPct;
+    sint32 currentSpeedPct;
+    uint8 finishStreak;
+    boolean haveValidVision;
+    boolean haveValidDistance;
+    boolean ultraError;
+    boolean displayInitialized;
+    boolean displayWasOn;
+} RaceModeState_t;
+
 typedef struct
 {
     VisionOutput_t vision;
@@ -48,6 +99,7 @@ typedef struct
 } RaceTeensyCam0LinkState_t;
 
 static RaceTeensyCam0LinkState_t g_raceTeensyCam0Link;
+static RaceModeState_t g_raceMode;
 static boolean g_raceUsesTeensyCam0;
 static boolean g_raceTuneDriveMode;
 static boolean g_raceServiceTeensyLink;
@@ -317,7 +369,7 @@ static void race_mode_enter(uint32 nowMs, boolean useTeensyCam0, boolean tuneDri
 
 static void race_mode_update_vision(RaceModeState_t *st, uint32 nowMs)
 {
-    const LinearCameraFrame *latestFrame = NULL_PTR;
+    const LinearCameraFrame_t *latestFrame = NULL_PTR;
 
     if (st == NULL_PTR)
     {
@@ -402,7 +454,7 @@ static void race_mode_fill_s32k_link_camera(const RaceModeState_t *st,
 static void race_mode_fill_teensy_link_input(const RaceModeState_t *st,
                                              TeensyLinkS32kInputs_t *input)
 {
-    ServoDebugSnapshot servoSnapshot;
+    ServoDebugSnapshot_t servoSnapshot;
 
     if ((st == NULL_PTR) || (input == NULL_PTR))
     {
@@ -717,7 +769,7 @@ static void race_mode_collect_teensy_camera(RaceModeState_t *st, uint32 nowMs)
 static void race_mode_update_teensy_cam0(RaceModeState_t *st, uint32 nowMs)
 {
     TeensyLinkS32kInputs_t input;
-    ServoDebugSnapshot servoSnapshot;
+    ServoDebugSnapshot_t servoSnapshot;
     uint32 phaseMs;
 
     if (st == NULL_PTR)
@@ -798,7 +850,7 @@ static void race_mode_update_teensy_cam0(RaceModeState_t *st, uint32 nowMs)
 
 static void race_mode_check_health(RaceModeState_t *st, uint32 nowMs)
 {
-    ServoDebugSnapshot servoSnapshot;
+    ServoDebugSnapshot_t servoSnapshot;
 
     if ((st == NULL_PTR) || (race_mode_is_active(st) != TRUE))
     {
@@ -921,7 +973,7 @@ static void race_mode_update_control(RaceModeState_t *st, uint32 nowMs, boolean 
 
     if (g_raceUsesTeensyCam0 == TRUE)
     {
-        ServoDebugSnapshot servoSnapshot;
+        ServoDebugSnapshot_t servoSnapshot;
         uint32 phaseMs;
 
         if (g_raceTeensyCam0Link.controlDue != TRUE)

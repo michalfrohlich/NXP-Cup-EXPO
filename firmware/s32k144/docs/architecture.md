@@ -5,7 +5,7 @@
 - `src/app/app_modes.c` selects exactly one compile-time mode from `src/app/app_config.h` and dispatches to a dedicated mode module.
 - `src/app/board_init.c` initializes RTD/MCAL modules before app logic starts.
 - `src/app/app_common.c` owns the common boot banner, shared app-level runtime init helpers after `Board_InitDrivers()`, status LED helpers, and display text helpers.
-- `src/app/app_internal.h` is a private app-layer header for shared mode state, helper declarations, and the static mode contract.
+- `src/app/app_internal.h` is a private app-layer header for genuinely shared bench state, runtime tuning, helper declarations, and the static mode contract. Dedicated modules keep their menu, cable-tune, race, and servo-rate state private in their owning `.c` files.
 - `src/app/app_config.h` owns app build selection and behavior/profile constants.
 - `include/config/board_config.h` owns board routing aliases that may reference generated RTD/MCAL symbols.
 - `include/config/actuator_config.h` owns servo and ESC physical calibration values.
@@ -31,6 +31,11 @@
   Keeping this as a documented boundary avoids coupling raw IMU processing to
   the steering PID before the required yaw-rate and speed estimates exist.
 - `src/debug/uart_host_link.c` provides a temporary handwritten UART debug transport that is brought up from `board_init.c` after generated driver init.
+- ESC, servo, and linear-camera instance layouts are private to their driver
+  translation units. Public headers expose only configuration-independent API
+  types such as `LinearCameraFrame_t`, `LinearCameraStatus_t`,
+  `LinearCameraDebugCounters_t`, `ServoUpdatePolicy_t`, and
+  `ServoDebugSnapshot_t`.
 
 ## Execution model
 - Bare-metal, no scheduler, no RTOS.

@@ -27,6 +27,13 @@ extern "C" {
 /*==================================================================================================
 *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
+typedef struct
+{
+    Pwm_ChannelType ServoPwmChannel;
+    uint16 MinDutyCycle;
+    uint16 MaxDutyCycle;
+    uint16 MedDutyCycle;
+} ServoInstance_t;
 
 /*==================================================================================================
 *                                       LOCAL MACROS
@@ -39,9 +46,9 @@ extern "C" {
 /*==================================================================================================
 *                                      LOCAL VARIABLES
 ==================================================================================================*/
-static Servo ServoInstance;
+static ServoInstance_t ServoInstance;
 static volatile boolean Servo_Initialized = FALSE;
-static volatile ServoUpdatePolicy Servo_UpdatePolicy = SERVO_UPDATE_ON_PWM_CALLBACK;
+static volatile ServoUpdatePolicy_t Servo_UpdatePolicy = SERVO_UPDATE_ON_PWM_CALLBACK;
 static volatile uint16 ServoAppliedDutyCycle = 0U;
 static volatile uint16 ServoPendingDutyCycle = 0U;
 static volatile boolean ServoPendingUpdate = FALSE;
@@ -172,7 +179,7 @@ void Servo_SetStraight(void){
     Servo_PublishPendingDuty(ServoInstance.MedDutyCycle);
 }
 
-void Servo_SetUpdatePolicy(ServoUpdatePolicy Policy)
+void Servo_SetUpdatePolicy(ServoUpdatePolicy_t Policy)
 {
     if (Servo_Initialized != TRUE)
     {
@@ -290,7 +297,7 @@ void Servo_Period_Finished(void)
     ServoPeriodStartMs = Timebase_GetMs();
 }
 
-void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot)
+void Servo_GetDebugSnapshot(ServoDebugSnapshot_t *Snapshot)
 {
     if (Snapshot == NULL_PTR)
     {

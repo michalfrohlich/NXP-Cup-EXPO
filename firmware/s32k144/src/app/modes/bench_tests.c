@@ -841,7 +841,7 @@ void linear_camera_test_enter(uint32 nowMs)
 
 static void linear_camera_test_draw_waiting(const LinearCameraTestState_t *st)
 {
-    LinearCameraDebugCounters counters;
+    LinearCameraDebugCounters_t counters;
 
     if (st == NULL_PTR)
     {
@@ -1005,7 +1005,7 @@ static void linear_camera_test_stream_frame(const LinearCameraTestState_t *st)
 
 static void linear_camera_test_process_latest_frame(uint32 nowMs)
 {
-    const LinearCameraFrame *latestFrame = NULL_PTR;
+    const LinearCameraFrame_t *latestFrame = NULL_PTR;
     boolean wantStream;
 
     if (g_linearCameraTest.paused == TRUE)
@@ -1090,7 +1090,7 @@ void linear_camera_test_update(uint32 nowMs, boolean modeNextPressed, uint8 potL
 
     g_linearCameraTest.nextUiMs += CAM_DEBUG_UI_PERIOD_MS;
 
-    sw2Action = Sw2Tracker_Update(&g_linearCameraTest.sw2Tracker, nowMs);
+    sw2Action = ButtonTracker_Update(&g_linearCameraTest.sw2Tracker, BUTTON_ID_SW2, nowMs);
 
     if ((sw2Action == SW2_ACTION_HOLD) && (g_linearCameraTest.paused != TRUE))
     {
@@ -1278,7 +1278,7 @@ void camservo_enter(CamServoState_t *st, uint32 nowMs)
 
 static void camservo_process_latest_frame(CamServoState_t *st, uint32 nowMs)
 {
-    const LinearCameraFrame *latestFrame = NULL_PTR;
+    const LinearCameraFrame_t *latestFrame = NULL_PTR;
 
     if (st == NULL_PTR)
     {

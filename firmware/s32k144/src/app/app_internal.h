@@ -73,7 +73,7 @@ typedef struct
     boolean wasPressed;
     boolean holdHandled;
     uint32 pressedSinceMs;
-} Sw2Tracker_t;
+} ButtonHoldTracker_t;
 
 typedef enum
 {
@@ -149,45 +149,12 @@ typedef struct
     sint16 steerOut;
 } ServoTestState_t;
 
-typedef enum
-{
-    SERVO_RATE_TEST_FREQ_10HZ = 0,
-    SERVO_RATE_TEST_FREQ_50HZ,
-    SERVO_RATE_TEST_FREQ_100HZ,
-    SERVO_RATE_TEST_FREQ_250HZ,
-    SERVO_RATE_TEST_FREQ_COUNT
-} ServoRateTestFreqId_t;
-
-typedef enum
-{
-    SERVO_RATE_TEST_MOTION_POT = 0,
-    SERVO_RATE_TEST_MOTION_FINE_SWEEP,
-    SERVO_RATE_TEST_MOTION_COARSE_SWEEP,
-    SERVO_RATE_TEST_MOTION_COUNT
-} ServoRateTestMotionId_t;
-
-typedef struct
-{
-    ServoRateTestFreqId_t freqId;
-    ServoRateTestMotionId_t motionId;
-    uint32 nextButtonsMs;
-    uint32 nextCommandMs;
-    uint32 nextDisplayMs;
-    sint16 command;
-    sint16 sweepDirection;
-    uint8 lastPotLevel;
-    uint32 startMs;
-    ServoDebugSnapshot servoDbg;
-    boolean noPwmCallbackFault;
-    boolean bufferedLagFault;
-} ServoRateTestState_t;
-
 typedef struct
 {
     VisionDebug_State_t vdbg;
     SteeringControllerState_t ctrl;
-    Sw2Tracker_t sw2Tracker;
-    LinearCameraFrame processedFrame;
+    ButtonHoldTracker_t sw2Tracker;
+    LinearCameraFrame_t processedFrame;
     VisionOutput_t result;
     LineDetector_DebugOut_t dbg;
     uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
@@ -230,8 +197,8 @@ typedef struct
 {
     EscTestStateId_t state;
     EscTestModeId_t mode;
-    Sw2Tracker_t sw2Tracker;
-    Sw2Tracker_t sw3Tracker;
+    ButtonHoldTracker_t sw2Tracker;
+    ButtonHoldTracker_t sw3Tracker;
     uint32 armDoneMs;
     uint32 nextDisplayMs;
     sint16 commandPct;
@@ -267,7 +234,7 @@ typedef struct
 {
     VisionDebug_State_t vdbg;
     SteeringControllerState_t ctrl;
-    LinearCameraFrame processedFrame;
+    LinearCameraFrame_t processedFrame;
     VisionOutput_t result;
     LineDetector_DebugOut_t dbg;
     uint16 filteredBuf[VISION_LINEAR_BUFFER_SIZE];
@@ -295,100 +262,6 @@ typedef struct
 
 typedef struct
 {
-    uint8 selectedIndex;
-    uint8 topIndex;
-    uint32 lastPotMs;
-    uint32 switchGuardUntilMs;
-    boolean modeActive;
-    boolean requireSwitchOff;
-    BenchModeId_t activeMode;
-} BenchMenuState_t;
-
-typedef enum
-{
-    RACE_PHASE_ESC_ARM = 0,
-    RACE_PHASE_SPEED_RUN,
-    RACE_PHASE_HONOR_RUN,
-    RACE_PHASE_STOPPED,
-    RACE_PHASE_FAULT
-} RacePhase_t;
-
-typedef enum
-{
-    RACE_FAULT_NONE = 0,
-    RACE_FAULT_LINE_LOST,
-    RACE_FAULT_S32K_CAMERA_STALE,
-    RACE_FAULT_TEENSY_CAMERA_STALE,
-    RACE_FAULT_CONTROL_STALE,
-    RACE_FAULT_SERVO_TIMING
-} RaceFaultReason_t;
-
-typedef struct
-{
-    RacePhase_t phase;
-    RaceFaultReason_t faultReason;
-    SteeringControllerState_t ctrl;
-    LinearCameraFrame processedFrame;
-    VisionOutput_t result;
-    uint32 nextControlMs;
-    uint32 nextSpeedRampMs;
-    uint32 nextUltraTrigMs;
-    uint32 nextDisplayMs;
-    uint32 armDoneMs;
-    uint32 lostSinceMs;
-    uint32 lastDistanceMs;
-    uint32 lastVisionFrameMs;
-    uint32 lastControlMs;
-    uint32 lastServoPeriodMs;
-    uint32 lastServoPeriodSequence;
-    float lastDistanceCm;
-    sint16 steerRaw;
-    sint16 steerFilt;
-    sint16 steerOut;
-    sint32 targetSpeedPct;
-    sint32 currentSpeedPct;
-    uint8 finishStreak;
-    boolean haveValidVision;
-    boolean haveValidDistance;
-    boolean ultraError;
-    boolean displayInitialized;
-    boolean displayWasOn;
-} RaceModeState_t;
-
-typedef enum
-{
-    SERIAL_TUNE_SCREEN_WAIT = 0,
-    SERIAL_TUNE_SCREEN_MENU,
-    SERIAL_TUNE_SCREEN_SERVO_MENU,
-    SERIAL_TUNE_SCREEN_VISION_MENU,
-    SERIAL_TUNE_SCREEN_EDIT_KP,
-    SERIAL_TUNE_SCREEN_EDIT_KI,
-    SERIAL_TUNE_SCREEN_EDIT_KD,
-    SERIAL_TUNE_SCREEN_EDIT_SERVO_CLAMP,
-    SERIAL_TUNE_SCREEN_EDIT_SERVO_LPF,
-    SERIAL_TUNE_SCREEN_EDIT_VISION_MIN_CONTRAST,
-    SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_HIGH,
-    SERIAL_TUNE_SCREEN_EDIT_VISION_EDGE_LOW
-} SerialTuneScreen_t;
-
-typedef struct
-{
-    SerialTuneScreen_t screen;
-    float kp;
-    float ki;
-    float kd;
-    sint16 servoClamp;
-    float servoLpfAlpha;
-    uint16 visionMinContrast;
-    uint8 visionEdgeHighPct;
-    uint8 visionEdgeLowPct;
-    char inputBuf[SERIAL_TUNE_INPUT_MAX_LEN + 1U];
-    uint8 inputLen;
-    boolean connected;
-} SerialTuneState_t;
-
-typedef struct
-{
     DriveTuneProfile_t profile;
     LineDetectorParams_t lineDetector;
     boolean initialized;
@@ -398,25 +271,16 @@ extern UltrasonicTestState_t g_ultrasonicTest;
 extern UltrasonicEscTestState_t g_ultrasonicEscTest;
 extern VictoryLapTestState_t g_victoryLapTest;
 extern ServoTestState_t g_servoTest;
-extern ServoRateTestState_t g_servoRateTest;
 extern EscManualTestState_t g_escTest;
 extern LinearCameraTestState_t g_linearCameraTest;
 extern SimpleDriveState_t g_simpleDriveTest;
-extern BenchMenuState_t g_benchMenu;
-extern RaceModeState_t g_raceMode;
-extern SerialTuneState_t g_serialTune;
 extern RuntimeTuneState_t g_runtimeTune;
 
 extern const DriveTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT];
-extern const char g_benchMenuItems[BENCH_MODE_COUNT][17];
-extern const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT];
-extern const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT];
-extern const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12];
 
 boolean time_reached(uint32 nowMs, uint32 dueMs);
 uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel);
-Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs);
-Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs);
+Sw2Action_t ButtonTracker_Update(ButtonHoldTracker_t *st, ButtonId_t id, uint32 nowMs);
 
 void StatusLed_Blue(void);
 void StatusLed_Green(void);

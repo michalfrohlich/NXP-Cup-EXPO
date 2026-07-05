@@ -4,13 +4,9 @@ UltrasonicTestState_t g_ultrasonicTest;
 UltrasonicEscTestState_t g_ultrasonicEscTest;
 VictoryLapTestState_t g_victoryLapTest;
 ServoTestState_t g_servoTest;
-ServoRateTestState_t g_servoRateTest;
 EscManualTestState_t g_escTest;
 LinearCameraTestState_t g_linearCameraTest;
 SimpleDriveState_t g_simpleDriveTest;
-BenchMenuState_t g_benchMenu;
-RaceModeState_t g_raceMode;
-SerialTuneState_t g_serialTune;
 RuntimeTuneState_t g_runtimeTune;
 
 static boolean g_appRuntimeCoreInitialized = FALSE;
@@ -67,17 +63,6 @@ const DriveTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting)
     return &g_speedModeProfiles[(uint8)setting];
 }
 
-const char g_benchMenuItems[BENCH_MODE_COUNT][17] = {
-    "Servo          ", "ESC            ", "Ultrasonic     ", "Ultra+ESC      ", "Camera-s32k    ",
-    "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode", "Stack drive    ", "Cable tune-s32k ",
-    "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
-
-const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
-
-const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT] = {100U, 20U, 10U, 4U};
-
-const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12] = {"POT", "SWEEP FINE",
-                                                                          "SWEEP STEP"};
 boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
     return ((uint32)(nowMs - dueMs) < 0x80000000u) ? TRUE : FALSE;
@@ -118,7 +103,7 @@ uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel)
     return (uint16)whiteMax;
 }
 
-Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs)
+Sw2Action_t ButtonTracker_Update(ButtonHoldTracker_t *st, ButtonId_t id, uint32 nowMs)
 {
     boolean pressedNow;
 
@@ -160,11 +145,6 @@ Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs)
     }
 
     return SW2_ACTION_NONE;
-}
-
-Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
-{
-    return ButtonTracker_Update(st, BUTTON_ID_SW2, nowMs);
 }
 
 void StatusLed_Blue(void)
