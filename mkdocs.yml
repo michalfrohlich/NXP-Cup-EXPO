@@ -28,7 +28,7 @@ nav:
       - Overview: system/README.md
   - Protocols:
       - Overview: protocols/README.md
-      - Teensy SPI Test: protocols/teensy-s32k-128b-spi-test.md
+      - Teensy SPI Test: protocols/teensy-s32k-spi-test.md
   - Tooling:
       - MkDocs: tooling/mkdocs.md
       - Pre-Commit And Formatting: tooling/pre-commit-and-formatting.md
