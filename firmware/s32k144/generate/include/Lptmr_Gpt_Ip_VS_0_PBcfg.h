@@ -97,11 +97,6 @@ extern "C"
 ==================================================================================================*/
 #define GPT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
-
-
-extern const Lptmr_Gpt_Ip_ConfigType LPTMR_0_InitConfig_PB_VS_0;
-
-
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 

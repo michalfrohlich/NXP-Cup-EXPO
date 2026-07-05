@@ -115,40 +115,6 @@ extern void Icu_ReportEvents(uint16 Channel, boolean bOverflow);
 /*==================================================================================================
  *                                       GLOBAL CONSTANTS
  *================================================================================================*/
-#define ICU_START_SEC_CONFIG_DATA_UNSPECIFIED
-#include "Icu_MemMap.h"
-/*
- *  @brief    PB_VS_0 PORT_CI Channels Configuration
- */
-const Port_Ci_Icu_Ip_ChannelConfigType Port_Ci_Icu_Ip_4_ChannelConfig_PB_VS_0[1U] =
-{
-    /** @brief IcuPortChannel_0 */
-    {
-        /** @brief Assigned Port_Ci channel id */
-        14U,
-        /** @brief Port_Ci Edge type */
-        PORT_CI_ICU_FALLING_EDGE,
-        /** @brief Callback Pointer */
-        &Icu_ReportEvents,
-        /** @brief The notification functions */
-        NULL_PTR,
-        /** @brief Callback Param1*/
-        0U
-    }
-    
-};
-/*
- *  @brief    PB_VS_0 Default PORT_CI IP Configuration
- */
-const Port_Ci_Icu_Ip_ConfigType Port_Ci_Icu_Ip_4_Config_PB_VS_0 = 
-{
-    /** @brief Number of Port_Ci channels in the Icu configuration */
-    (uint8)1U,
-    /** @brief Pointer to the array of Port_Ci channel configurations */
-    &Port_Ci_Icu_Ip_4_ChannelConfig_PB_VS_0
-};
-#define ICU_STOP_SEC_CONFIG_DATA_UNSPECIFIED
-#include "Icu_MemMap.h"
 
 #ifdef __cplusplus
 }

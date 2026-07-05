@@ -52,7 +52,7 @@
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
 - `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal bench mode: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
-- `Tune drive mode` is a bench wrapper around the Teensy-camera race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. It also stores incoming line-detector values in the shared RAM tune block, but those values do not affect Teensy-side camera detection until a later S32K-to-Teensy tuning protocol is added.
+- `Tune drive mode` is a bench wrapper around the Teensy-camera race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. Teensy Link v3 forwards the shared RAM line-detector values to Teensy camera 0 and reports the asynchronously applied configuration generation.
 - `Stack drive` is a bench wrapper around the local S32K-camera race path. It keeps ESP UART tuning and Teensy SPI status service active, ignores missing Teensy camera/SPI as a hard stop source, and reacts to ESP start/stop commands. Stop forces ESC neutral and `STOPPED`; start re-enters ESC arm before driving resumes.
 - `Cable tune` is the UART proof-of-concept moved into the bench modes menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
@@ -74,10 +74,10 @@
 - App modes: `src/app/modes/bench_menu.c`, `src/app/modes/bench_tests.c`, `src/app/modes/bench_serial_tune.c`, `src/app/modes/bench_teensy_link.c`, `src/app/modes/mode_race.c`, `src/app/modes/mode_servo_rate.c`, `src/app/modes/mode_esp_link.c`, `src/app/modes/mode_teensy_link.c`
 - App vision debug UI: `src/app/vision_debug.c`
 - Vision / control: `src/services/line_detector.c`, `src/services/steering_controller.c`, `src/services/steering_smoothing.c`
-- Hardware-facing modules: `src/drivers/linear_camera.c`, `src/drivers/esc.c`, `src/drivers/servo.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/display.c`, `src/drivers/buttons.c`, `src/drivers/rgb_led.c`, `src/drivers/timebase.c`
+- Hardware-facing modules: `src/drivers/linear_camera.c`, `src/drivers/esc.c`, `src/drivers/servo.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/display.c`, `src/drivers/buttons.c`, `src/drivers/rgb_led.c`, `src/drivers/timebase.c`
 - Debug transport: `src/debug/uart_host_link.c`
 - Teensy SPI link: `src/drivers/teensy_link.c`, `src/app/modes/bench_teensy_link.c`, and `src/app/modes/mode_teensy_link.c`
-- Unused retained modules: `src/unused/user_interface.c` and `src/unused/display_async.c` are not called by the active runtime; active menu/HUD code lives in `src/app/modes/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
+- Unused retained module: `src/unused/display_async.c` is not called by the active runtime; active menu/HUD code lives in `src/app/modes/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
 
 ## Vision V2 snapshot
 - Shared output packet: `VisionOutput_t` in `include/domain/vehicle_types.h`
@@ -95,8 +95,8 @@
 ## Confirmed peripheral usage
 - ADC: onboard potentiometer and linear camera sampling
 - PWM: dual ESC outputs, servo, camera pixel clock
-- GPT: millisecond timebase, microsecond delay, camera shutter timing, receiver timing support
-- ICU: ultrasonic echo timestamping, receiver signal capture
+- GPT: millisecond timebase, microsecond delay, and camera shutter timing
+- ICU: ultrasonic echo timestamping
 - I2C: SSD1306-style OLED display (`0x3C`)
 - DIO/GPIO: buttons, RGB LED, ultrasonic trigger, camera shutter
 
@@ -125,5 +125,4 @@
 
 ## Unknowns to verify manually
 - Exact physical wiring for each logical channel beyond what is named in code/config
-- Whether all present modules are wired on the current hardware build (`receiver.c` notes the receiver path is not physically connected yet)
 - Whether `swPcb` active/on corresponds to a high or low logic level on the assembled board; current handwritten code assumes active-high

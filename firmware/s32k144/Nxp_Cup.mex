@@ -77,11 +77,6 @@
                         <pin_feature name="PS" value="state_1"/>
                      </pin_features>
                   </pin>
-                  <pin peripheral="PORTE" signal="port, 14" pin_num="17" pin_signal="PTE14">
-                     <pin_features>
-                        <pin_feature name="direction" value="INPUT"/>
-                     </pin_features>
-                  </pin>
                   <pin peripheral="FTM3" signal="ftm3_ch6" pin_num="85" pin_signal="PTE2">
                      <pin_features>
                         <pin_feature name="direction" value="OUTPUT"/>
@@ -532,11 +527,6 @@
                   <data type="Version">1.0.0</data>
                </feature>
             </dependency>
-            <dependency resourceType="Tool" resourceId="Clocks" description="The Clocks tool is required by the Peripherals tool, but it is disabled." problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data>true</data>
-               </feature>
-            </dependency>
          </dependencies>
          <generated_project_files>
             <file path="board/Port_Ci_Port_Ip_Cfg.c" update_enabled="true"/>
@@ -977,24 +967,6 @@
                                  </array>
                               </struct>
                               <struct name="3">
-                                 <setting name="Name" value="ReceiverPins"/>
-                                 <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
-                                 <array name="PortPin">
-                                    <struct name="0">
-                                       <setting name="Name" value="ReceiverInput_PPM"/>
-                                       <setting name="PortPinPFE" value="false"/>
-                                       <setting name="PortPinODE" value="false"/>
-                                       <setting name="PortPinLK" value="false"/>
-                                       <setting name="PortPinDirectionChangeable" value="true"/>
-                                       <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="6"/>
-                                       <setting name="PortPinPcr" value="142"/>
-                                       <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
-                                       <array name="PortPinEcucPartitionRef"/>
-                                    </struct>
-                                 </array>
-                              </struct>
-                              <struct name="4">
                                  <setting name="Name" value="LinearCameraPins"/>
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
@@ -1005,7 +977,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="7"/>
+                                       <setting name="PortPinId" value="6"/>
                                        <setting name="PortPinPcr" value="106"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1017,7 +989,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="8"/>
+                                       <setting name="PortPinId" value="7"/>
                                        <setting name="PortPinPcr" value="97"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1029,14 +1001,14 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="9"/>
+                                       <setting name="PortPinId" value="8"/>
                                        <setting name="PortPinPcr" value="80"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
                                  </array>
                               </struct>
-                              <struct name="5">
+                              <struct name="4">
                                  <setting name="Name" value="onboardPins"/>
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
@@ -1047,7 +1019,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="10"/>
+                                       <setting name="PortPinId" value="9"/>
                                        <setting name="PortPinPcr" value="76"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1059,14 +1031,14 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="11"/>
+                                       <setting name="PortPinId" value="10"/>
                                        <setting name="PortPinPcr" value="77"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
                                  </array>
                               </struct>
-                              <struct name="6">
+                              <struct name="5">
                                  <setting name="Name" value="Ultrasonic"/>
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
@@ -1077,7 +1049,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="12"/>
+                                       <setting name="PortPinId" value="11"/>
                                        <setting name="PortPinPcr" value="143"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1089,14 +1061,14 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="13"/>
+                                       <setting name="PortPinId" value="12"/>
                                        <setting name="PortPinPcr" value="15"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
                                  </array>
                               </struct>
-                              <struct name="7">
+                              <struct name="6">
                                  <setting name="Name" value="rbg_led_pins"/>
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
@@ -1107,7 +1079,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="14"/>
+                                       <setting name="PortPinId" value="13"/>
                                        <setting name="PortPinPcr" value="111"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1119,7 +1091,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="15"/>
+                                       <setting name="PortPinId" value="14"/>
                                        <setting name="PortPinPcr" value="112"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1131,14 +1103,14 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="16"/>
+                                       <setting name="PortPinId" value="15"/>
                                        <setting name="PortPinPcr" value="96"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
                                  </array>
                               </struct>
-                              <struct name="8">
+                              <struct name="7">
                                  <setting name="Name" value="UartPins"/>
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
@@ -1149,7 +1121,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="17"/>
+                                       <setting name="PortPinId" value="16"/>
                                        <setting name="PortPinPcr" value="70"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1161,7 +1133,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="18"/>
+                                       <setting name="PortPinId" value="17"/>
                                        <setting name="PortPinPcr" value="71"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1173,7 +1145,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="24"/>
+                                       <setting name="PortPinId" value="18"/>
                                        <setting name="PortPinPcr" value="102"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1185,14 +1157,14 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="25"/>
+                                       <setting name="PortPinId" value="19"/>
                                        <setting name="PortPinPcr" value="103"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
                                     </struct>
                                  </array>
                               </struct>
-                              <struct name="9">
+                              <struct name="8">
                                  <setting name="Name" value="SpiPins"/>
                                  <setting name="PinsToolFunctionalGroup" value="BOARD_InitPins"/>
                                  <array name="PortPin">
@@ -1203,7 +1175,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="19"/>
+                                       <setting name="PortPinId" value="20"/>
                                        <setting name="PortPinPcr" value="46"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1215,7 +1187,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="20"/>
+                                       <setting name="PortPinId" value="21"/>
                                        <setting name="PortPinPcr" value="47"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1227,7 +1199,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="21"/>
+                                       <setting name="PortPinId" value="22"/>
                                        <setting name="PortPinPcr" value="48"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1239,7 +1211,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="22"/>
+                                       <setting name="PortPinId" value="23"/>
                                        <setting name="PortPinPcr" value="49"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -1251,7 +1223,7 @@
                                        <setting name="PortPinLK" value="false"/>
                                        <setting name="PortPinDirectionChangeable" value="true"/>
                                        <setting name="PortPinModeChangeable" value="true"/>
-                                       <setting name="PortPinId" value="23"/>
+                                       <setting name="PortPinId" value="24"/>
                                        <setting name="PortPinPcr" value="110"/>
                                        <setting name="PortPinInitialMode" value="PORT_GPIO_MODE"/>
                                        <array name="PortPinEcucPartitionRef"/>
@@ -2177,34 +2149,11 @@
                         </struct>
                         <struct name="IcuConfigSet">
                            <setting name="Name" value="IcuConfigSet"/>
-                           <setting name="IcuMaxChannel" value="2"/>
+                           <setting name="IcuMaxChannel" value="1"/>
                            <array name="IcuChannel">
                               <struct name="0">
-                                 <setting name="Name" value="Receiver_Input"/>
-                                 <setting name="IcuChannelId" value="0"/>
-                                 <array name="IcuChannelEcucPartitionRef"/>
-                                 <setting name="IcuChannelRef" value="/Icu/Icu/IcuConfigSet/IcuPort_0/IcuPortChannel_0"/>
-                                 <setting name="IcuDMAChannelEnable" value="false"/>
-                                 <array name="IcuDMAChannelRef"/>
-                                 <setting name="IcuDefaultStartEdge" value="ICU_FALLING_EDGE"/>
-                                 <setting name="IcuMeasurementMode" value="ICU_MODE_SIGNAL_EDGE_DETECT"/>
-                                 <setting name="IcuOverflowNotification" value="NULL_PTR"/>
-                                 <setting name="IcuWakeupCapability" value="false"/>
-                                 <array name="IcuSignalEdgeDetection">
-                                    <struct name="0">
-                                       <setting name="Name" value="IcuSignalEdgeDetection"/>
-                                       <array name="IcuSignalNotification">
-                                          <setting name="0" value="Icu_SignalNotification"/>
-                                       </array>
-                                    </struct>
-                                 </array>
-                                 <array name="IcuSignalMeasurement"/>
-                                 <array name="IcuTimestampMeasurement"/>
-                                 <array name="IcuWakeup"/>
-                              </struct>
-                              <struct name="1">
                                  <setting name="Name" value="Ultrasonic_Echo"/>
-                                 <setting name="IcuChannelId" value="1"/>
+                                 <setting name="IcuChannelId" value="0"/>
                                  <array name="IcuChannelEcucPartitionRef"/>
                                  <setting name="IcuChannelRef" value="/Icu/Icu/IcuConfigSet/IcuFtm_echo/IcuFtmChannel_UltraEcho"/>
                                  <setting name="IcuDMAChannelEnable" value="false"/>
@@ -2247,18 +2196,7 @@
                            </array>
                            <array name="IcuLpCmp"/>
                            <array name="IcuLptmr"/>
-                           <array name="IcuPort">
-                              <struct name="0">
-                                 <setting name="Name" value="IcuPort_0"/>
-                                 <setting name="IcuPortModule" value="4"/>
-                                 <array name="IcuPortChannels">
-                                    <struct name="0">
-                                       <setting name="Name" value="IcuPortChannel_0"/>
-                                       <setting name="IcuPortChannel" value="14"/>
-                                    </struct>
-                                 </array>
-                              </struct>
-                           </array>
+                           <array name="IcuPort"/>
                            <array name="IcuLpit"/>
                            <array name="IcuHwInterruptConfigList">
                               <struct name="0">
@@ -2535,23 +2473,8 @@
                            <setting name="Name" value="GptChannelConfigSet"/>
                            <array name="GptChannelConfiguration">
                               <struct name="0">
-                                 <setting name="Name" value="Receiver_Timeout"/>
-                                 <setting name="GptChannelId" value="0"/>
-                                 <setting name="GptHwIp" value="LPTMR"/>
-                                 <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lptmr0"/>
-                                 <setting name="GptChannelMode" value="GPT_CH_MODE_ONESHOT"/>
-                                 <setting name="GptChannelClkSrcRef" value="/Gpt/Gpt/GptDriverConfiguration/GptClockReferencePoint_0"/>
-                                 <setting name="GptChannelTickValueMax" value="65535"/>
-                                 <setting name="GptEnableWakeup" value="false"/>
-                                 <array name="GptNotification">
-                                    <setting name="0" value="Gpt_Notification"/>
-                                 </array>
-                                 <array name="GptChannelEcucPartitionRef"/>
-                                 <array name="GptWakeupConfiguration"/>
-                              </struct>
-                              <struct name="1">
                                  <setting name="Name" value="LinearCameraShutter"/>
-                                 <setting name="GptChannelId" value="1"/>
+                                 <setting name="GptChannelId" value="0"/>
                                  <setting name="GptHwIp" value="LPIT"/>
                                  <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/CameraTimer"/>
                                  <setting name="GptChannelMode" value="GPT_CH_MODE_ONESHOT"/>
@@ -2564,9 +2487,9 @@
                                  <array name="GptChannelEcucPartitionRef"/>
                                  <array name="GptWakeupConfiguration"/>
                               </struct>
-                              <struct name="2">
+                              <struct name="1">
                                  <setting name="Name" value="EmuTimer_Notification"/>
-                                 <setting name="GptChannelId" value="2"/>
+                                 <setting name="GptChannelId" value="1"/>
                                  <setting name="GptHwIp" value="LPIT"/>
                                  <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/EmuTimer"/>
                                  <setting name="GptChannelMode" value="GPT_CH_MODE_CONTINUOUS"/>
@@ -2579,9 +2502,9 @@
                                  <array name="GptChannelEcucPartitionRef"/>
                                  <array name="GptWakeupConfiguration"/>
                               </struct>
-                              <struct name="3">
+                              <struct name="2">
                                  <setting name="Name" value="UsTimer"/>
-                                 <setting name="GptChannelId" value="3"/>
+                                 <setting name="GptChannelId" value="2"/>
                                  <setting name="GptHwIp" value="LPIT"/>
                                  <setting name="GptModuleRef" value="/Gpt/Gpt/GptChannelConfigSet/Lpit_0/UsTimerChannel"/>
                                  <setting name="GptChannelMode" value="GPT_CH_MODE_ONESHOT"/>
@@ -2635,16 +2558,7 @@
                                  </array>
                               </struct>
                            </array>
-                           <array name="GptLptmr">
-                              <struct name="0">
-                                 <setting name="Name" value="Lptmr0"/>
-                                 <setting name="GptLptmrModule" value="LPTMR_0_CH_0"/>
-                                 <setting name="GptLptmrChannelClkSrc" value="LPTMR_GPT_IP_CLOCK_PCC_LPTMR0"/>
-                                 <setting name="GptLptmrPrescaler" value="4"/>
-                                 <setting name="GptLptmrAlternatePrescaler" value="2"/>
-                                 <setting name="GptLptmrPrescalerEnable" value="true"/>
-                              </struct>
-                           </array>
+                           <array name="GptLptmr"/>
                            <array name="GptFtm"/>
                            <array name="GptSRtc"/>
                         </struct>
@@ -3500,69 +3414,55 @@
                                     <setting name="IsrHandler" value="Adc_0_Isr"/>
                                  </struct>
                                  <struct name="4">
-                                    <setting name="Name" value="PlatformIsrConfig_4"/>
-                                    <setting name="IsrName" value="PORTE_IRQn"/>
-                                    <setting name="IsrEnabled" value="true"/>
-                                    <setting name="IsrPriority" value="0"/>
-                                    <setting name="IsrHandler" value="PORT_CI_ICU_IP_E_EXT_IRQ_ISR"/>
-                                 </struct>
-                                 <struct name="5">
-                                    <setting name="Name" value="PlatformIsrConfig_5"/>
-                                    <setting name="IsrName" value="LPTMR0_IRQn"/>
-                                    <setting name="IsrEnabled" value="true"/>
-                                    <setting name="IsrPriority" value="0"/>
-                                    <setting name="IsrHandler" value="LPTMR_0_CH_0_ISR"/>
-                                 </struct>
-                                 <struct name="6">
                                     <setting name="Name" value="PlatformIsrConfig_6"/>
                                     <setting name="IsrName" value="FTM3_Ovf_Reload_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="FTM_3_OVF_RELOAD_ISR"/>
                                  </struct>
-                                 <struct name="7">
+                                 <struct name="5">
                                     <setting name="Name" value="PlatformIsrConfig_9"/>
                                     <setting name="IsrName" value="FTM2_Ovf_Reload_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="FTM_2_OVF_RELOAD_ISR"/>
                                  </struct>
-                                 <struct name="8">
+                                 <struct name="6">
                                     <setting name="Name" value="PlatformIsrConfig_10"/>
                                     <setting name="IsrName" value="LPI2C0_Master_IRQn"/>
                                     <setting name="IsrEnabled" value="false"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPI2C0_Master_IRQHandler"/>
                                  </struct>
-                                 <struct name="9">
+                                 <struct name="7">
                                     <setting name="Name" value="PlatformIsrConfig_12"/>
                                     <setting name="IsrName" value="FTM1_Ch2_Ch3_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="FTM_1_CH_2_CH_3_ISR"/>
                                  </struct>
-                                 <struct name="10">
+                                 <struct name="8">
                                     <setting name="Name" value="PlatformIsrConfig_11"/>
                                     <setting name="IsrName" value="LPIT0_Ch0_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPIT_0_CH_0_ISR"/>
                                  </struct>
-                                 <struct name="11">
+                                 <struct name="9">
                                     <setting name="Name" value="PlatformIsrConfig_12"/>
                                     <setting name="IsrName" value="LPIT0_Ch1_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPIT_0_CH_1_ISR"/>
                                  </struct>
-                                 <struct name="12">
+                                 <struct name="10">
                                     <setting name="Name" value="PlatformIsrConfig_13"/>
                                     <setting name="IsrName" value="LPIT0_Ch2_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>
                                     <setting name="IsrPriority" value="0"/>
                                     <setting name="IsrHandler" value="LPIT_0_CH_2_ISR"/>
                                  </struct>
-                                 <struct name="13">
+                                 <struct name="11">
                                     <setting name="Name" value="PlatformIsrConfig_13"/>
                                     <setting name="IsrName" value="LPUART2_RxTx_IRQn"/>
                                     <setting name="IsrEnabled" value="true"/>

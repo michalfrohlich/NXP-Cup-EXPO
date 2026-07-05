@@ -8,7 +8,6 @@
 #include "config/board_config.h"
 #include "../../../../shared/protocol/esp_s32k_uart_protocol.h"
 
-#define ESP_UART_LINK_WRITE_TIMEOUT_US (2000U)
 #define ESP_UART_LINK_RX_RING_BYTES (256U)
 #define ESP_UART_LINK_TX_BUDGET_BYTES (4U)
 #define ESP_UART_LINK_RX_FRAME_MAX (ESP_S32K_TUNE_FRAME_LEN)
@@ -16,7 +15,7 @@
 #define ESP_UART_LINK_RX_ERROR_MASK                                                                \
     (LPUART_STAT_OR_MASK | LPUART_STAT_NF_MASK | LPUART_STAT_FE_MASK | LPUART_STAT_PF_MASK)
 
-static EspUartLink_AckFrame_t g_espUartLastAck;
+static EspUartLink_ButtonFrame_t g_espUartLastAck;
 static EspUartLink_TuneFrame_t g_espUartPendingTune;
 static EspUartLink_DriveCommandFrame_t g_espUartPendingDriveCommand;
 static EspUartLink_ButtonFrame_t g_espUartPendingTx;
@@ -264,40 +263,6 @@ void EspUartLink_Init(void)
     g_espUartDiag.initialized = TRUE;
 }
 
-static Std_ReturnType send_buttons_now(const EspUartLink_ButtonFrame_t *buttons)
-{
-    uint8 frame[ESP_S32K_BUTTON_FRAME_LEN];
-    EspS32kButtonFrame_t encoded;
-
-    if ((buttons == NULL_PTR) || (g_espUartDiag.initialized != TRUE))
-    {
-        g_espUartDiag.txErrors++;
-        return E_NOT_OK;
-    }
-
-    encoded.sw2Pressed = (buttons->sw2Pressed == TRUE) ? true : false;
-    encoded.sw3Pressed = (buttons->sw3Pressed == TRUE) ? true : false;
-    encoded.swPcbOn = (buttons->swPcbOn == TRUE) ? true : false;
-    encoded.sequence = buttons->sequence;
-    encoded.timestampMs = buttons->timestampMs;
-
-    if (EspS32kButtonFrame_Encode(&encoded, frame, sizeof(frame)) != true)
-    {
-        g_espUartDiag.txErrors++;
-        return E_NOT_OK;
-    }
-
-    if (Uart_SyncSend((uint8)ESP_UART_LINK_UART_CHANNEL, frame, (uint16)sizeof(frame),
-                      ESP_UART_LINK_WRITE_TIMEOUT_US) != E_OK)
-    {
-        g_espUartDiag.txErrors++;
-        return E_NOT_OK;
-    }
-
-    g_espUartDiag.txFrames++;
-    return E_OK;
-}
-
 static void service_rx(uint32 nowMs)
 {
     uint16 hardwareErrors;
@@ -493,27 +458,6 @@ void EspUartLink_Service(uint32 nowMs)
         start_pending_tx(nowMs);
         pump_tx_budget(ESP_UART_LINK_TX_BUDGET_BYTES);
     }
-}
-
-Std_ReturnType EspUartLink_SendButtons(const EspUartLink_ButtonFrame_t *buttons)
-{
-    return send_buttons_now(buttons);
-}
-
-void EspUartLink_Poll(uint32 nowMs)
-{
-    service_rx(nowMs);
-}
-
-boolean EspUartLink_GetLastAck(EspUartLink_AckFrame_t *outAck)
-{
-    if ((outAck == NULL_PTR) || (g_espUartDiag.ackValid != TRUE))
-    {
-        return FALSE;
-    }
-
-    *outAck = g_espUartLastAck;
-    return TRUE;
 }
 
 boolean EspUartLink_TakeTune(EspUartLink_TuneFrame_t *outTune)

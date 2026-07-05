@@ -102,25 +102,6 @@ extern "C"{
  *================================================================================================*/
 #define GPT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
-const Lptmr_Gpt_Ip_ConfigType LPTMR_0_InitConfig_PB_VS_0 =
-{
-    /** @brief PrescalerEnable */
-    (boolean)TRUE,
-    #if (LPTMR_GPT_IP_SET_CLOCK_MODE == STD_ON)
-    /** @brief clockAlternatePrescaler */
-    0U,
-    #endif    /** @brief Prescaler value */
-    1U,
-    /** @brief LPtimer clock source */
-    LPTMR_GPT_IP_CLOCK_PCC_LPTMR0,
-    /** @brief LPtimer callback name */
-    &Gpt_ProcessCommonInterrupt,
-    /** @brief LPtimer callbackparam  */
-    (uint8)0U,
-       /** @brief LPtimer channelMode  */
-    LPTMR_GPT_IP_CH_MODE_ONESHOT
-
-};
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 /*==================================================================================================

@@ -43,7 +43,6 @@ Notes:
 | 1 ms system tick | `Gpt` | `src/drivers/timebase.c` |
 | Microsecond one-shot delay | `Gpt` | `src/drivers/timebase.c` |
 | Linear camera shutter timing | `Gpt` | `src/drivers/linear_camera.c`, `include/config/board_config.h` |
-| Receiver sync / period timing | `Gpt` + `Icu` | `src/drivers/receiver.c`, `include/drivers/receiver.h` |
 | Ultrasonic echo measurement | `Icu` timestamp capture | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
 
 Notes:

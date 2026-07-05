@@ -113,7 +113,6 @@ extern "C"{
 *
 * @brief The callback functions defined by the user to be called as channel notifications
 */
-extern void Gpt_Notification(void);
 extern void NewCameraFrame(void);
 extern void EmuTimer_Notification(void);
 extern void UsTimer_Notification(void);
@@ -124,7 +123,7 @@ extern void UsTimer_Notification(void);
 #define GPT_START_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 /* Number of channels per variant without partitions */
-#define GPT_CONF_CHANNELS_PB_VS_0 4U
+#define GPT_CONF_CHANNELS_PB_VS_0 3U
 #define GPT_STOP_SEC_CONFIG_DATA_UNSPECIFIED
 #include "Gpt_MemMap.h"
 
@@ -136,10 +135,9 @@ extern void UsTimer_Notification(void);
 */
 static const uint8 u8GptChannelIdToIndexMap_VS_0[GPT_NUM_CONFIG] = 
 {
-    0        /*Logical Channel Receiver_Timeout*/,
-    1        /*Logical Channel LinearCameraShutter*/,
-    2        /*Logical Channel EmuTimer_Notification*/,
-    3        /*Logical Channel UsTimer*/
+    0        /*Logical Channel LinearCameraShutter*/,
+    1        /*Logical Channel EmuTimer_Notification*/,
+    2        /*Logical Channel UsTimer*/
 };
 #define GPT_STOP_SEC_CONST_UNSPECIFIED
 #include "Gpt_MemMap.h"
@@ -152,17 +150,6 @@ static const uint8 u8GptChannelIdToIndexMap_VS_0[GPT_NUM_CONFIG] =
 */
 static const Gpt_ChannelConfigType Gpt_InitChannelPB_VS_0[GPT_CONF_CHANNELS_PB_VS_0]=
 {
-    {    /*Receiver_Timeout configuration data*/
-        (boolean)FALSE,/* Wakeup capability */
-        &Gpt_Notification, /* Channel notification */
-#if ((GPT_WAKEUP_FUNCTIONALITY_API == STD_ON) && (GPT_REPORT_WAKEUP_SOURCE == STD_ON))
-        (EcuM_WakeupSourceType)0U,/* Wakeup information */
-#endif
-        (Gpt_ValueType)(65535U),/* Maximum ticks value*/
-        (GPT_CH_MODE_ONESHOT),/* Timer mode:continous/one-shot */
-        &Gpt_Ipw_ChannelConfig_PB_VS_0[0U]
-    }
-,
     {    /*LinearCameraShutter configuration data*/
         (boolean)FALSE,/* Wakeup capability */
         &NewCameraFrame, /* Channel notification */
@@ -171,7 +158,7 @@ static const Gpt_ChannelConfigType Gpt_InitChannelPB_VS_0[GPT_CONF_CHANNELS_PB_V
 #endif
         (Gpt_ValueType)(4294967295U),/* Maximum ticks value*/
         (GPT_CH_MODE_ONESHOT),/* Timer mode:continous/one-shot */
-        &Gpt_Ipw_ChannelConfig_PB_VS_0[1U]
+        &Gpt_Ipw_ChannelConfig_PB_VS_0[0U]
     }
 ,
     {    /*EmuTimer_Notification configuration data*/
@@ -182,7 +169,7 @@ static const Gpt_ChannelConfigType Gpt_InitChannelPB_VS_0[GPT_CONF_CHANNELS_PB_V
 #endif
         (Gpt_ValueType)(4294967295U),/* Maximum ticks value*/
         (GPT_CH_MODE_CONTINUOUS),/* Timer mode:continous/one-shot */
-        &Gpt_Ipw_ChannelConfig_PB_VS_0[2U]
+        &Gpt_Ipw_ChannelConfig_PB_VS_0[1U]
     }
 ,
     {    /*UsTimer configuration data*/
@@ -193,18 +180,18 @@ static const Gpt_ChannelConfigType Gpt_InitChannelPB_VS_0[GPT_CONF_CHANNELS_PB_V
 #endif
         (Gpt_ValueType)(4294967295U),/* Maximum ticks value*/
         (GPT_CH_MODE_ONESHOT),/* Timer mode:continous/one-shot */
-        &Gpt_Ipw_ChannelConfig_PB_VS_0[3U]
+        &Gpt_Ipw_ChannelConfig_PB_VS_0[2U]
     }
 };
 
 const Gpt_ConfigType Gpt_Config = 
 {
     /** @brief Number of GPT channels (configured in tresos plugin builder)*/
-    (Gpt_ChannelType)4U,
+    (Gpt_ChannelType)3U,
     /**@brief Pointer to the GPT channel configuration */
     &Gpt_InitChannelPB_VS_0,
     /** @brief Number of GPT instances (configured in tresos plugin builder)*/
-    2U,
+    1U,
     /** @brief Pointer to the GPT instance configuration */
     &Gpt_Ipw_HwInstanceConfig_PB_VS_0,
 #if(GPT_PREDEFTIMER_FUNCTIONALITY_API == STD_ON)

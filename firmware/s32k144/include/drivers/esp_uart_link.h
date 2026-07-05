@@ -22,8 +22,6 @@ extern "C"
         uint16 timestampMs;
     } EspUartLink_ButtonFrame_t;
 
-    typedef EspUartLink_ButtonFrame_t EspUartLink_AckFrame_t;
-
     typedef struct
     {
         uint8 sequence;
@@ -78,9 +76,6 @@ extern "C"
     void EspUartLink_Init(void);
     Std_ReturnType EspUartLink_QueueButtons(const EspUartLink_ButtonFrame_t *buttons);
     void EspUartLink_Service(uint32 nowMs);
-    Std_ReturnType EspUartLink_SendButtons(const EspUartLink_ButtonFrame_t *buttons);
-    void EspUartLink_Poll(uint32 nowMs);
-    boolean EspUartLink_GetLastAck(EspUartLink_AckFrame_t *outAck);
     boolean EspUartLink_TakeTune(EspUartLink_TuneFrame_t *outTune);
     boolean EspUartLink_TakeDriveCommand(EspUartLink_DriveCommandFrame_t *outCommand);
     Std_ReturnType EspUartLink_QueueTuneResult(uint8 sequence, boolean accepted);

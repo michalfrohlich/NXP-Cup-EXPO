@@ -54,7 +54,7 @@
 - `app_modes.c` is intentionally only the compile-time flavor dispatcher.
 - Dedicated app modules own mode behavior:
   - `modes/bench_menu.c`: bench mode menu host and linear-camera standalone wrapper.
-  - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, receiver, camera+servo, and simple drive.
+  - `modes/bench_tests.c`: reusable bench test implementations for camera, ESC, servo, ultrasonic, camera+servo, and simple drive.
   - `modes/bench_teensy_link.c`: S32K-master Teensy SPI bench mode service and OLED viewer.
   - `modes/mode_teensy_link.c`: direct compile-time Teensy SPI link mode.
   - `modes/mode_race.c`: local-camera race flow, Teensy-camera synchronized race flow, and the tune-drive bench wrapper.
@@ -225,9 +225,13 @@
   - switches from race-speed policy to honor-lap obstacle-stop policy after confirmed finish detection
   - holds steering straight during the honor phase when ultrasonic sees an obstacle inside the slow threshold
   - only renders OLED telemetry when `swPcb` enables debug display
-  - exposes `Tune drive mode` as a runtime bench wrapper around the Teensy-camera race path; live ESP frames update S32K-side PID and steering shaping while line-detector values are stored for future forwarding to the Teensy camera stack
+  - exposes `Tune drive mode` as a runtime bench wrapper around the Teensy-camera race path; live ESP frames update S32K-side PID and steering shaping while Teensy Link v3 forwards line-detector values to Teensy camera 0 with an applied-generation acknowledgment
 
 ### Teensy SPI link path
+- Protocol v3 retains the fixed 84-byte/5 ms transfer and adds S32K-owned
+  camera-0 detector parameters plus a generation acknowledgment. Tune Drive,
+  Stack Drive, the link bench, and full Race publish the active configuration;
+  Camera Bench remains Teensy-local because it does not service SPI.
 - `mode_teensy_link.c`
   - direct compile-time wrapper for `APP_TEST_TEENSY_LINK_TEST`
   - boots straight into the Teensy link test
@@ -271,7 +275,6 @@
 - `linear_camera.c`: `NewCameraFrame()`, `CameraClock()`, `CameraAdcFinished()`
   - `CameraAdcFinished()` stores one manual ADC sample per clock edge into the current frame buffer
 - `ultrasonic.c`: `Icu_TimestampUltrasonicNotification()`
-- `receiver.c`: `Icu_SignalNotification()`, `Gpt_Notification()`
 - `esc.c`: `Esc_Period_Finished()`
 
 ## Key implementation files
@@ -282,10 +285,9 @@
 - Steering: `src/services/steering_controller.c`, `src/drivers/servo.c`
 - Motor control: `src/drivers/esc.c`
 - Serial debug: `src/debug/uart_host_link.c`
-- Sensors / IO: `src/drivers/linear_camera.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/receiver.c`, `src/drivers/buttons.c`, `src/drivers/display.c`, `src/drivers/rgb_led.c`
+- Sensors / IO: `src/drivers/linear_camera.c`, `src/drivers/onboard_pot.c`, `src/drivers/ultrasonic.c`, `src/drivers/buttons.c`, `src/drivers/display.c`, `src/drivers/rgb_led.c`
 
 ## Current vision notes
 - The public vision handoff is `VisionOutput_t` in `include/domain/vehicle_types.h`.
 - The current finish detector is gap-based, not region-based.
 - The main debug screens in `vision_debug.c` are `MAIN`, `FILT`, `GRAD`, and `FINISH`.
-- `src/unused/user_interface.c` is a retained legacy UI module not called by the active runtime; the active menu/HUD code is implemented in `src/app/modes/bench_menu.c` and the mode-specific app modules.
