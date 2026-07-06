@@ -10,7 +10,7 @@ extern "C"
 
 #define TEENSY_LINK_SYNC0 (0xA5u)
 #define TEENSY_LINK_SYNC1 (0x5Au)
-#define TEENSY_LINK_VERSION (2u)
+#define TEENSY_LINK_VERSION (3u)
 
 #define TEENSY_LINK_FRAME_TYPE_S32K (0x53u)
 #define TEENSY_LINK_FRAME_TYPE_TEENSY (0x54u)
@@ -79,6 +79,10 @@ extern "C"
 #define TEENSY_LINK_S32K_ULTRA_AGE_MS_OFF (50u)
 #define TEENSY_LINK_S32K_ULTRA_FLAGS_OFF (52u)
 #define TEENSY_LINK_S32K_DIAG_FLAGS_OFF (54u)
+#define TEENSY_LINK_S32K_LINE_CONFIG_GENERATION_OFF (56u)
+#define TEENSY_LINK_S32K_LINE_MIN_CONTRAST_OFF (58u)
+#define TEENSY_LINK_S32K_LINE_EDGE_HIGH_PCT_OFF (60u)
+#define TEENSY_LINK_S32K_LINE_EDGE_LOW_PCT_OFF (61u)
 
 #define TEENSY_LINK_TEENSY_ACK_S32K_SEQ_OFF (0u)
 #define TEENSY_LINK_TEENSY_SENSOR_SEQ_OFF (2u)
@@ -104,19 +108,21 @@ extern "C"
 #define TEENSY_LINK_TEENSY_LOGGER_DROPS_OFF (58u)
 #define TEENSY_LINK_TEENSY_RX_FRAMES_OFF (60u)
 #define TEENSY_LINK_TEENSY_RX_ERRORS_OFF (62u)
+#define TEENSY_LINK_TEENSY_LINE_CONFIG_ACK_OFF (64u)
 
 #if ((TEENSY_LINK_HEADER_BYTES + TEENSY_LINK_PAYLOAD_BYTES + 2u) != TEENSY_LINK_FRAME_BYTES)
 #error "Teensy link frame size does not match header, payload, and CRC sizes"
 #endif
 
-#if ((TEENSY_LINK_S32K_DIAG_FLAGS_OFF + 2u) > TEENSY_LINK_PAYLOAD_BYTES)
+#if ((TEENSY_LINK_S32K_LINE_EDGE_LOW_PCT_OFF + 1u) > TEENSY_LINK_PAYLOAD_BYTES)
 #error "S32K payload fields exceed the Teensy link payload"
 #endif
 
-#if ((TEENSY_LINK_TEENSY_RX_ERRORS_OFF + 2u) > TEENSY_LINK_PAYLOAD_BYTES)
+#if ((TEENSY_LINK_TEENSY_LINE_CONFIG_ACK_OFF + 2u) > TEENSY_LINK_PAYLOAD_BYTES)
 #error "Teensy payload fields exceed the Teensy link payload"
 #endif
 
+    /* Logical camera-result representation. Wire encoding remains byte-explicit. */
     typedef struct
     {
         int8_t errorPct;
@@ -128,7 +134,7 @@ extern "C"
         uint8_t ageMs;
         uint8_t flags;
         uint16_t sequence;
-    } TeensyLinkCameraWire_t;
+    } TeensyLinkCameraResult_t;
 
 #ifdef __cplusplus
 }

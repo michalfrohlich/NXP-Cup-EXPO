@@ -3,15 +3,17 @@
 ## Goal
 
 This document explains how to run the two-board SPI bench test after the
-packet update to protocol v2 and 84 bytes.
+packet update to protocol v3 while retaining the 84-byte transfer.
 
 The S32K is the main controller and SPI master. The Teensy 4.1 is the sensor
 board and SPI slave. Every 5 ms S32K service tick sends one fixed 84-byte command
 frame and receives one fixed 84-byte Teensy telemetry frame at the same time.
 
-The S32K services this SPI link only while the Teensy link test is active. Use
-either the compile-time direct mode or the runtime OLED bench test. There is no
-Python display path for this test.
+The S32K services this SPI link in the dedicated Teensy Link test, the runtime
+OLED bench test, `APP_RACE`, Tune Drive, and Stack Drive. The dedicated test is
+the simplest transport bring-up path; race modes additionally use the link for
+camera/control telemetry and live detector configuration. There is no Python
+display path for the SPI transport test.
 
 ## What To Open
 
@@ -39,8 +41,8 @@ The shared packet definition is here:
 shared/protocol/teensy_link_protocol.h
 ```
 
-Protocol v2 is not compatible with the former 80-byte frame. Rebuild and flash
-both boards whenever switching to this version.
+Protocol v3 is not compatible with earlier firmware. Rebuild and flash both
+boards together. It retains the fixed 84-byte physical frame introduced by v2.
 
 The shield pinout from the schematic is here:
 
@@ -94,8 +96,8 @@ the S32K SPI baud rate temporarily and keep the packet at 84 bytes.
 | Word size | 8 bits |
 | Frame size | 84 bytes |
 | S32K service period | 5 ms |
-| Target SCK | 2 MHz |
-| Wire time at 2 MHz | about 0.336 ms |
+| Target SCK | 500 kHz |
+| Wire time at 500 kHz | about 1.344 ms |
 
 The S32K generated SPI configuration is in `Nxp_Cup.mex` and generated RTD
 files. The important generated names are:
@@ -152,10 +154,12 @@ The S32K test sends control and vehicle-state data to the Teensy:
 | actuator flags | Reserved status for actuator state |
 | ultrasonic distance, age, flags | Lets Teensy log obstacle detection |
 | diag flags | Link and diagnostic flags from the S32K side |
+| detector generation and parameters | Configures camera-0 minimum contrast and edge thresholds |
 
-In the current test-owned implementation, the S32K sends the active app/test id,
-sequence, ACK, stale S32K camera slots, and zero actuator values. The reserved
-fields stay available for future race-mode integration.
+The dedicated link test sends its active app/test id, sequence, ACK, stale S32K
+camera slots, detector configuration, and safe zero actuator values. Race and
+Stack Drive populate the same frame with their current control, actuator,
+ultrasonic, and diagnostic state.
 
 Camera slots use this compact wire format:
 
@@ -191,6 +195,7 @@ The Teensy sends sensor, camera, logger, and link diagnostics back to the S32K:
 | temperature in 0.1 C | IMU temperature |
 | logger flags and drop count | SD logging status |
 | Teensy RX frame/error counters | Shows if MOSI from S32K is valid |
+| applied detector generation | Asynchronously acknowledges camera-0 configuration |
 
 The current Teensy link bench sends:
 
@@ -235,9 +240,9 @@ pio device monitor -b 921600
 Expected serial output:
 
 ```text
-Teensy S32K SPI slave v2 link
-Packet: 84-byte full-duplex teensy_link v2 frame, CRC-16/CCITT-FALSE
-t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 speed=0/0 servo=0 ultra=0
+Teensy S32K SPI slave v3 link
+Packet: 84-byte full-duplex teensy_link v3 frame, CRC-16/CCITT-FALSE
+t=1234 txSeq=120 sensorSeq=120 s32k=118 rx=118 err=0 timeout=0 app=5 cfg=1/1 speed=0/0 servo=0 ultra=0
 ```
 
 What the serial values mean:
@@ -251,6 +256,7 @@ What the serial values mean:
 | `err` | S32K frames rejected by Teensy protocol/CRC validation |
 | `timeout` | CS went active but the full 84-byte clock did not complete |
 | `app` | S32K app mode from the received frame |
+| `cfg` | requested/applied detector configuration generation |
 | `speed` | S32K target/current speed values |
 | `servo` | S32K servo command |
 | `ultra` | S32K ultrasonic distance in 0.1 cm units |
@@ -299,12 +305,12 @@ The S32K OLED pages are:
 
 | Page | OLED title | What to check |
 |---:|---|---|
-| 0 | `TLINK` | status becomes OK, sequence values change |
+| 0 | `TLINK` | status becomes OK, sequences change, detector CFG and ACK match |
 | 1 | `TLINK CAM0` | real camera 0 line-detector result appears |
 | 2 | `TLINK CAM1` | stale/missing camera 1 appears without link failure |
 | 3 | `TLINK IMU/LOG` | yaw, gyro Z, lateral acceleration, logger state |
 | 4 | `TLINK RX 84B` | CRC, protocol, SPI, and Teensy RX errors stay low |
-| 5 | `TLINK RAW HEADER` | received header is `165, 90, 2, 84, 84, 0` |
+| 5 | `TLINK RAW HEADER` | received header starts `165, 90, 3, 84, 84, 0` |
 
 RGB LED meaning:
 
@@ -317,7 +323,7 @@ RGB LED meaning:
 
 ## Deterministic Camera Race Mode
 
-`APP_TEST_TEENSY_CAM0_RACE` uses protocol v2 camera sequences and the servo
+`APP_RACE` uses protocol v3 camera sequences and the servo
 PWM rising edge to produce exactly one steering decision per 20 ms period.
 
 | PWM phase | Action |

@@ -75,8 +75,6 @@ extern void FTM_3_CH_6_CH_7_ISR(void);
 extern void FTM_2_CH_0_CH_1_ISR(void);
 extern void MCL_FLEXIO_ISR(void);
 extern void Adc_0_Isr(void);
-extern void PORT_CI_ICU_IP_E_EXT_IRQ_ISR(void);
-extern void LPTMR_0_CH_0_ISR(void);
 extern void FTM_3_OVF_RELOAD_ISR(void);
 extern void FTM_2_OVF_RELOAD_ISR(void);
 extern void LPI2C0_Master_IRQHandler(void);

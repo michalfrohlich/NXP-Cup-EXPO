@@ -22,25 +22,22 @@ struct CameraVisionCounters
 
 class CameraVision
 {
-public:
+  public:
     bool begin(const CameraVisionConfig &config);
     bool start();
     void stop();
     void service(uint32_t nowUs);
+    bool setLineDetectorParams(const LineDetectorParams &params);
 
-    bool getLatestVision(VisionOutput &out,
-                         uint32_t &sequence,
-                         uint32_t &timestampUs) const;
-    bool getLatestFrameAndVision(LinearCameraFrame &frame,
-                                 VisionOutput &out,
-                                 uint32_t &sequence,
+    bool getLatestVision(VisionOutput &out, uint32_t &sequence, uint32_t &timestampUs) const;
+    bool getLatestFrameAndVision(LinearCameraFrame &frame, VisionOutput &out, uint32_t &sequence,
                                  uint32_t &timestampUs) const;
-    void getTelemetryResult(TeensyLinkCameraResult &outCamera, uint32_t nowUs);
+    void getTelemetryResult(TeensyLinkCameraResult_t &outCamera, uint32_t nowUs);
     void getCounters(CameraVisionCounters &outCounters) const;
     void getCameraDebugCounters(LinearCameraDebugCounters &outCounters) const;
     bool isCameraReadoutActive() const;
 
-private:
+  private:
     void resetLatest();
     void processFrame(const LinearCameraFrame &frame);
 

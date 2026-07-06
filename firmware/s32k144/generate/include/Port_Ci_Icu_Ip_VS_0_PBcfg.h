@@ -81,9 +81,6 @@ extern "C"{
 /*==================================================================================================
  *                                       DEFINES AND MACROS
  *================================================================================================*/
-#define PORT_CI_ICU_CONFIG_VS_0_PB \
-    extern const Port_Ci_Icu_Ip_ChannelConfigType Port_Ci_Icu_Ip_4_ChannelConfig_PB_VS_0[1U]; \
-    extern const Port_Ci_Icu_Ip_ConfigType Port_Ci_Icu_Ip_4_Config_PB_VS_0; \
 
 #ifdef __cplusplus
 }

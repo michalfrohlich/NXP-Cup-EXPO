@@ -1,10 +1,17 @@
 #include "services/teensy_race_runtime.h"
 
 #include <Arduino.h>
+#include <U8g2lib.h>
+#include <stdio.h>
 
 #include "config/camera_config.h"
+#include "config/display_config.h"
 #include "debug/camera_stream.h"
+#include "drivers/status_led.h"
 #include "teensy_config.h"
+
+static U8G2_SH1122_256X64_F_SW_I2C stackDisplay(U8G2_R0, TEENSY_DISPLAY_SCL_PIN,
+                                                TEENSY_DISPLAY_SDA_PIN, U8X8_PIN_NONE);
 
 static const CameraVisionConfig cameraVision0Config = {
     {
@@ -50,6 +57,13 @@ void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
         }
     }
 
+    trackingLed_.begin(config_.trackingLedEnabled);
+
+    if (config_.stackDisplayEnabled == true)
+    {
+        initStackDisplay();
+    }
+
     TeensyLinkTelemetry_DefaultCamera(telemetry_.camera[0], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
     TeensyLinkTelemetry_DefaultCamera(telemetry_.camera[1], TEENSY_LINK_CAMERA_FLAG_SOURCE_TEENSY);
 
@@ -87,11 +101,12 @@ void TeensyRaceRuntime::begin(const TeensyRaceRuntimeConfig &config)
     nextSensorUs_ = micros();
     nextSerialMs_ = millis();
     nextCameraStreamMs_ = millis();
+    nextStackDisplayMs_ = millis();
 
     if (config_.serialStatusEnabled == true)
     {
-        Serial.println("Teensy S32K SPI slave v2 link");
-        Serial.println("Packet: 84-byte full-duplex teensy_link v2 frame, CRC-16/CCITT-FALSE");
+        Serial.println("Teensy S32K SPI slave v3 link");
+        Serial.println("Packet: 84-byte full-duplex teensy_link v3 frame, CRC-16/CCITT-FALSE");
         Serial.print("Camera vision: ");
         Serial.println(cameraVision0Ready_ ? "ready" : "not available");
     }
@@ -107,6 +122,9 @@ void TeensyRaceRuntime::service()
         cameraVision0_.service(nowUs);
     }
 
+    updateTrackingLed();
+    serviceStackDisplay(nowMs);
+
     if ((config_.cameraStreamEnabled == true) && (cameraVision0Ready_ == true) &&
         (cameraVision0_.isCameraReadoutActive() != true) &&
         ((int32_t)(nowMs - nextCameraStreamMs_) >= 0))
@@ -121,6 +139,7 @@ void TeensyRaceRuntime::service()
     if (s32kSpi_.service() == true)
     {
         (void)s32kSpi_.getLatestS32kFrame(s32kSnapshot_);
+        applyS32kLineDetectorConfig();
         publishFrame(nowMs);
     }
 
@@ -142,6 +161,46 @@ void TeensyRaceRuntime::service()
         nextSerialMs_ = nowMs;
         printLinkStatus(nowMs);
     }
+}
+
+void TeensyRaceRuntime::applyS32kLineDetectorConfig()
+{
+    LineDetectorParams requested;
+    const uint16_t generation = s32kSnapshot_.lineDetectorConfigGeneration;
+
+    if ((s32kSnapshot_.valid != true) || (cameraVision0Ready_ != true) || (generation == 0U))
+    {
+        return;
+    }
+
+    requested.minContrast = s32kSnapshot_.lineDetectorMinContrast;
+    requested.edgeHighPct = s32kSnapshot_.lineDetectorEdgeHighPct;
+    requested.edgeLowPct = s32kSnapshot_.lineDetectorEdgeLowPct;
+
+    if ((generation == telemetry_.lineDetectorConfigAckGeneration) &&
+        (requested.minContrast == appliedLineDetectorParams_.minContrast) &&
+        (requested.edgeHighPct == appliedLineDetectorParams_.edgeHighPct) &&
+        (requested.edgeLowPct == appliedLineDetectorParams_.edgeLowPct))
+    {
+        return;
+    }
+
+    if (cameraVision0_.setLineDetectorParams(requested) == true)
+    {
+        appliedLineDetectorParams_ = requested;
+        telemetry_.lineDetectorConfigAckGeneration = generation;
+    }
+}
+
+void TeensyRaceRuntime::setTrackingLedEnabled(bool enabled)
+{
+    if (config_.trackingLedEnabled == enabled)
+    {
+        return;
+    }
+
+    config_.trackingLedEnabled = enabled;
+    trackingLed_.setEnabled(enabled);
 }
 
 void TeensyRaceRuntime::publishFrame(uint32_t nowMs)
@@ -226,6 +285,125 @@ void TeensyRaceRuntime::updateSensors(uint32_t nowUs, uint32_t nowMs)
     lastSensorMs_ = nowMs;
 }
 
+void TeensyRaceRuntime::updateTrackingLed()
+{
+    if (config_.trackingLedEnabled != true)
+    {
+        return;
+    }
+
+    VisionOutput vision = {};
+    uint32_t sequence = 0U;
+    uint32_t timestampUs = 0U;
+    const bool valid = (cameraVision0Ready_ == true) &&
+                       (cameraVision0_.getLatestVision(vision, sequence, timestampUs) == true);
+
+    (void)sequence;
+    trackingLed_.update(millis(), micros(), cameraVision0Ready_, valid, timestampUs, vision);
+}
+
+static const char *trackStatusName(uint8_t status)
+{
+    switch ((VisionTrackStatus)status)
+    {
+        case VISION_TRACK_BOTH:
+            return "BOTH";
+        case VISION_TRACK_LEFT:
+            return "LEFT";
+        case VISION_TRACK_RIGHT:
+            return "RIGHT";
+        case VISION_TRACK_LOST:
+        default:
+            return "LOST";
+    }
+}
+
+void TeensyRaceRuntime::initStackDisplay()
+{
+    stackDisplay.setI2CAddress((uint8_t)(TEENSY_DISPLAY_I2C_ADDRESS << 1U));
+    stackDisplay.begin();
+    stackDisplay.setContrast(180U);
+    stackDisplay.clearBuffer();
+    stackDisplay.setFont(u8g2_font_6x10_tf);
+    stackDisplay.drawStr(0, 10, "TEENSY STACK DRIVE");
+    stackDisplay.drawStr(0, 24, "CAM+IMU+SPI+LED");
+    stackDisplay.drawStr(0, 38, "SH1122 256x64");
+    stackDisplay.sendBuffer();
+    stackDisplayReady_ = true;
+}
+
+void TeensyRaceRuntime::serviceStackDisplay(uint32_t nowMs)
+{
+    if ((config_.stackDisplayEnabled != true) || (stackDisplayReady_ != true))
+    {
+        return;
+    }
+
+    if ((int32_t)(nowMs - nextStackDisplayMs_) < 0)
+    {
+        return;
+    }
+
+    if ((cameraVision0Ready_ == true) && (cameraVision0_.isCameraReadoutActive() == true))
+    {
+        return;
+    }
+
+    drawStackDisplay();
+    do
+    {
+        nextStackDisplayMs_ +=
+            (config_.stackDisplayPeriodMs != 0U) ? config_.stackDisplayPeriodMs : 250U;
+    } while ((int32_t)(nowMs - nextStackDisplayMs_) >= 0);
+}
+
+void TeensyRaceRuntime::drawStackDisplay()
+{
+    char line[48];
+    const TeensyLinkCameraResult_t &cam0 = telemetry_.camera[0];
+    const bool s32kLive = s32kSnapshot_.valid;
+    const uint32_t spiErrors =
+        (uint32_t)s32kSpi_.protocolErrorCount() + (uint32_t)s32kSpi_.timeoutCount();
+
+    stackDisplay.clearBuffer();
+    stackDisplay.setFont(u8g2_font_6x10_tf);
+
+    (void)snprintf(line, sizeof(line), "CAM0 %-5s C%03u E%+04d", trackStatusName(cam0.status),
+                   (unsigned)cam0.confidence, (int)cam0.errorPct);
+    stackDisplay.drawStr(0, 10, line);
+
+    (void)snprintf(line, sizeof(line), "SPI rx%05u err%05lu S32K:%s",
+                   (unsigned)s32kSpi_.completedTransfers(), (unsigned long)spiErrors,
+                   s32kLive ? "OK" : "WAIT");
+    stackDisplay.drawStr(0, 22, line);
+
+    (void)snprintf(line, sizeof(line), "IMU %c%c%c%c yaw%+05d gz%+04d",
+                   ((telemetry_.statusFlags & TEENSY_LINK_STATUS_IMU_PRESENT) != 0U) ? 'P' : '-',
+                   ((telemetry_.statusFlags & TEENSY_LINK_STATUS_IMU_CALIBRATED) != 0U) ? 'C' : '-',
+                   ((telemetry_.statusFlags & TEENSY_LINK_STATUS_IMU_VALID) != 0U) ? 'V' : '-',
+                   ((telemetry_.statusFlags & TEENSY_LINK_STATUS_ACCEL_TRUSTED) != 0U) ? 'A' : '-',
+                   (int)telemetry_.imu.yawDeg, (int)telemetry_.imu.gzDps);
+    stackDisplay.drawStr(0, 34, line);
+
+    if (s32kSnapshot_.valid)
+    {
+        (void)snprintf(line, sizeof(line), "S32K app%u st%u spd%+04d srv%+04d",
+                       (unsigned)s32kSnapshot_.appMode, (unsigned)s32kSnapshot_.appState,
+                       (int)s32kSnapshot_.currentSpeedPct, (int)s32kSnapshot_.servoCmd);
+    }
+    else
+    {
+        (void)snprintf(line, sizeof(line), "S32K frame not decoded yet");
+    }
+    stackDisplay.drawStr(0, 46, line);
+
+    (void)snprintf(line, sizeof(line), "seq T%05u cfg%05u LED:%s", (unsigned)teensyFrameSeq_,
+                   (unsigned)telemetry_.lineDetectorConfigAckGeneration,
+                   (config_.trackingLedEnabled == true) ? "ON" : "OFF");
+    stackDisplay.drawStr(0, 60, line);
+    stackDisplay.sendBuffer();
+}
+
 void TeensyRaceRuntime::printLinkStatus(uint32_t nowMs)
 {
     Serial.print("t=");
@@ -261,6 +439,10 @@ void TeensyRaceRuntime::printLinkStatus(uint32_t nowMs)
     Serial.print(s32kSpi_.timeoutCount());
     Serial.print(" app=");
     Serial.print(s32kSnapshot_.valid ? s32kSnapshot_.appMode : 0U);
+    Serial.print(" cfg=");
+    Serial.print(s32kSnapshot_.valid ? s32kSnapshot_.lineDetectorConfigGeneration : 0U);
+    Serial.print("/");
+    Serial.print(telemetry_.lineDetectorConfigAckGeneration);
     Serial.print(" speed=");
     Serial.print(s32kSnapshot_.valid ? s32kSnapshot_.targetSpeedPct : 0);
     Serial.print("/");

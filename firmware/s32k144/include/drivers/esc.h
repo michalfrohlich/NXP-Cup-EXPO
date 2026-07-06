@@ -31,24 +31,6 @@ extern "C" {
  * Using the wrong configuration can make the car go full speed backward on braking!*/
 #define ESC_HAS_BRAKE     STD_ON
 
-enum EscStates{
-    Forward,
-    Braking,
-    Neutral,
-    Reverse
-};
-
-typedef struct{
-    boolean Initialized;
-    enum EscStates State;
-    Pwm_ChannelType Channel;
-    uint16 MinDutyCycle;
-    uint16 MaxDutyCycle;
-    uint16 MedDutyCycle;
-    int Speed;    /*values between -100 and 100: val >= 0 means Forward, val < 0 means Reverse*/
-    uint8 Brake; /*value is zero or non zero: val == 0 means no brake, val != 0 means brake*/
-}Esc;
-
 /*==================================================================================================
 *                                       LOCAL MACROS
 ==================================================================================================*/

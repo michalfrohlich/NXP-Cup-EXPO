@@ -188,6 +188,18 @@ void LineDetector::init()
     singleEdgeStreak_ = 0U;
 }
 
+bool LineDetector::setParams(const LineDetectorParams &params)
+{
+    if ((params.minContrast > 4095U) || (params.edgeHighPct < 1U) || (params.edgeHighPct > 100U) ||
+        (params.edgeLowPct < 1U) || (params.edgeLowPct > 100U))
+    {
+        return false;
+    }
+
+    params_ = params;
+    return true;
+}
+
 void LineDetector::process(const uint16_t *pixels, VisionOutput &out)
 {
     processImpl(pixels, out, nullptr);
@@ -281,14 +293,13 @@ void LineDetector::processImpl(const uint16_t *pixels, VisionOutput &out,
     computeGradient(filtered, gradient, maxAbsGradient);
     contrastConfidence = computeContrastConfidence(contrast);
 
-    edgeHighThreshold = (uint16_t)(((uint32_t)maxAbsGradient * VISION_LINEAR_EDGE_HIGH_PCT) / 100U);
+    edgeHighThreshold = (uint16_t)(((uint32_t)maxAbsGradient * params_.edgeHighPct) / 100U);
     if (edgeHighThreshold < VISION_LINEAR_MIN_STRONG_EDGE)
     {
         edgeHighThreshold = VISION_LINEAR_MIN_STRONG_EDGE;
     }
 
-    edgeLowThreshold =
-        (uint16_t)(((uint32_t)edgeHighThreshold * VISION_LINEAR_EDGE_LOW_PCT) / 100U);
+    edgeLowThreshold = (uint16_t)(((uint32_t)edgeHighThreshold * params_.edgeLowPct) / 100U);
     if (edgeLowThreshold < VISION_LINEAR_MIN_WEAK_EDGE)
     {
         edgeLowThreshold = VISION_LINEAR_MIN_WEAK_EDGE;
@@ -324,7 +335,7 @@ void LineDetector::processImpl(const uint16_t *pixels, VisionOutput &out,
         }
     }
 
-    if (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE)
+    if ((contrast < params_.minContrast) || (maxAbsGradient < VISION_LINEAR_MIN_WEAK_EDGE))
     {
         out.error = 0.0f;
         out.status = VISION_TRACK_LOST;

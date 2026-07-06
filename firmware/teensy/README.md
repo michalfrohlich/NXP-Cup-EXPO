@@ -28,6 +28,7 @@ The current integration default is race:
 #define TEENSY_APP_MODE_RACE              2
 #define TEENSY_APP_MODE_HARDWARE_TEST     3
 #define TEENSY_APP_MODE_SD_LOG_TEST       4
+#define TEENSY_APP_MODE_STACK_DRIVE       5
 #define TEENSY_APP_SELECTED_MODE TEENSY_APP_MODE_RACE
 ```
 
@@ -38,6 +39,21 @@ The current integration default is race:
 | `TEENSY_APP_MODE_RACE` | Integrated runtime intended for running the car. | Serial text, Python stream, and display debug are disabled. |
 | `TEENSY_APP_MODE_HARDWARE_TEST` | Local PCB input and RGB LED self-test. | Prints pot, button, and passive SPI pin levels at `TEENSY_SERIAL_BAUD`; holds READY low so the S32K does not clock the Teensy SPI slave. |
 | `TEENSY_APP_MODE_SD_LOG_TEST` | Local built-in SD card logger self-test. | Creates `LOGnnn.CSV`, logs test rows from pot/button snapshots, prints SD status, and holds READY low. |
+| `TEENSY_APP_MODE_STACK_DRIVE` | Full-board integration runtime paired with S32K Stack Drive. | Services camera 0, line detection, IMU, SPI telemetry/configuration, SH1122 status display, and the tracking LED. |
+
+Each PlatformIO environment compiles only its selected mode translation unit;
+shared drivers, services, and telemetry remain common. `teensy41` remains the
+backward-compatible default Race build. Explicit environments are available
+for every mode:
+
+| Environment | Selected mode |
+|---|---|
+| `teensy41`, `teensy41-race` | `TEENSY_APP_MODE_RACE` |
+| `teensy41-link-bench` | `TEENSY_APP_MODE_LINK_BENCH` |
+| `teensy41-camera-bench` | `TEENSY_APP_MODE_CAMERA_BENCH` |
+| `teensy41-hardware-test` | `TEENSY_APP_MODE_HARDWARE_TEST` |
+| `teensy41-sdtest` | `TEENSY_APP_MODE_SD_LOG_TEST` |
+| `teensy41-stack-drive` | `TEENSY_APP_MODE_STACK_DRIVE` |
 
 ## PCB Inputs And Status LED
 
@@ -53,13 +69,16 @@ The PCB input and RGB LED pins are configured in `include/teensy_config.h`:
 | RGB LED blue | 3 |
 
 `TEENSY_APP_MODE_HARDWARE_TEST` is the bring-up mode for these pins. It cycles
-LED colors while idle. Holding button 1 forces the LED white through the
-level-based `BoardInputs_IsPressed()` path. Pressing button 2 once toggles LED
-power through the one-shot `BoardInputs_WasPressed()` path.
+the selected LED channel red, green, and blue on successive button 1 presses.
+Pressing button 2 once toggles LED power. The potentiometer controls brightness.
 
 The Teensy board-input driver debounces both momentary buttons. App code can use
 `BoardInputs_IsPressed()` for the current debounced level and
 `BoardInputs_WasPressed()` for the one-shot press edge.
+
+Camera Bench, Race, and Stack Drive share one rate-limited tracking LED policy.
+See `../../docs/system/status-led-semantics.md` for the color meanings. Stack
+Drive button 2 toggles this indication without stopping camera or SPI service.
 
 ## SD Logger
 
@@ -180,9 +199,15 @@ tool.
 controls the actual transfer cadence. The Teensy updates the telemetry buffer
 at `TEENSY_LINK_TELEMETRY_HZ`, currently 200 Hz.
 
-Protocol v2 adds a 16-bit source sequence to each camera slot. The S32K uses
+Protocol v3 retains the 16-bit source sequence in each camera slot. The S32K uses
 that sequence to distinguish a newly processed camera result from repeated
 telemetry frames. Sequence wrap from `65535` to `0` is valid.
+
+The S32K also sends camera-0 detector thresholds and a configuration
+generation. Race and Stack Drive runtimes validate and apply changed values
+without resetting tracking history, then return the applied generation in the
+next telemetry frame. Camera Bench remains locally configured because it does
+not service the SPI link.
 
 The current runtime sends real camera 0 vision data and placeholder data for
 components that are not implemented yet:
@@ -197,9 +222,23 @@ components that are not implemented yet:
 
 The active SPI slave backend is the fixed-pin, software bit-banged
 implementation. There is no DMA/LPSPI4 backend selector in the current code.
-At 2 MHz, interrupts are deferred for the bounded 336 us transfer so the
+At 500 kHz, interrupts are deferred for the bounded 1.344 ms transfer so the
 software slave cannot miss SCK edges; camera PWM, ADC triggering, and DMA
 continue in hardware.
+
+## Stack Drive Mode
+
+Build and upload the coordinated Stack Drive firmware with:
+
+```powershell
+pio run --environment teensy41-stack-drive --target upload
+```
+
+This mode services camera 0 vision, the MPU6050 IMU, S32K SPI telemetry, the
+RGB line-tracking indicator, and the SH1122 256x64 status display. It does not
+control the vehicle directly; the S32K remains responsible for control timing
+and actuator commands. Press Teensy PCB button 2 to toggle the RGB tracking
+indicator off or on.
 
 Keep `TEENSY_LINK_SERIAL_DEBUG_ENABLED` disabled when using the Python camera
 stream, because both use USB serial.

@@ -5,6 +5,7 @@
 #include "comms/teensy_link_spi_slave.h"
 #include "drivers/mpu6050_imu.h"
 #include "services/camera_vision.h"
+#include "services/tracking_status_led.h"
 #include "telemetry/teensy_link_telemetry.h"
 
 struct TeensyRaceRuntimeConfig
@@ -12,6 +13,9 @@ struct TeensyRaceRuntimeConfig
     bool serialStatusEnabled;
     bool cameraStreamEnabled;
     uint32_t serialStatusPeriodMs;
+    bool trackingLedEnabled;
+    bool stackDisplayEnabled;
+    uint32_t stackDisplayPeriodMs;
 };
 
 class TeensyRaceRuntime
@@ -19,10 +23,16 @@ class TeensyRaceRuntime
   public:
     void begin(const TeensyRaceRuntimeConfig &config);
     void service();
+    void setTrackingLedEnabled(bool enabled);
 
   private:
     void publishFrame(uint32_t nowMs);
+    void applyS32kLineDetectorConfig();
     void updateSensors(uint32_t nowUs, uint32_t nowMs);
+    void updateTrackingLed();
+    void initStackDisplay();
+    void serviceStackDisplay(uint32_t nowMs);
+    void drawStackDisplay();
     void printLinkStatus(uint32_t nowMs);
     void streamCameraVision0();
 
@@ -30,9 +40,15 @@ class TeensyRaceRuntime
     TeensyLinkSpiSlave s32kSpi_;
     CameraVision cameraVision0_;
     Mpu6050Imu imu_;
+    TrackingStatusLed trackingLed_;
     TeensyLinkTelemetryInputs telemetry_ = {};
     TeensyLinkS32kSnapshot s32kSnapshot_ = {};
     uint8_t txFrame_[TEENSY_LINK_FRAME_BYTES] = {};
+    LineDetectorParams appliedLineDetectorParams_ = {
+        VISION_LINEAR_MIN_CONTRAST,
+        VISION_LINEAR_EDGE_HIGH_PCT,
+        VISION_LINEAR_EDGE_LOW_PCT,
+    };
 
     uint16_t teensyFrameSeq_ = 0U;
     uint16_t sensorSeq_ = 0U;
@@ -41,5 +57,7 @@ class TeensyRaceRuntime
     uint32_t nextSensorUs_ = 0U;
     uint32_t nextSerialMs_ = 0U;
     uint32_t nextCameraStreamMs_ = 0U;
+    uint32_t nextStackDisplayMs_ = 0U;
     bool cameraVision0Ready_ = false;
+    bool stackDisplayReady_ = false;
 };

@@ -26,6 +26,12 @@ static esp_err_t submit_tune_to_s32k(EspS32kTuneFrame_t *tune, void *context)
     return S32kUartLink_SendTuneAndWait(tune);
 }
 
+static esp_err_t submit_drive_command_to_s32k(EspS32kDriveCommandFrame_t *command, void *context)
+{
+    (void)context;
+    return S32kUartLink_SendDriveCommandAndWait(command);
+}
+
 void app_main(void)
 {
     ESP_ERROR_CHECK(EspDisplay_InitBus());
@@ -48,7 +54,7 @@ void app_main(void)
     ESP_ERROR_CHECK(S32kUartLink_Init());
     ESP_ERROR_CHECK(S32kUartLink_StartTask());
 
-    esp_err_t webRet = PcWebLink_Init(submit_tune_to_s32k, NULL);
+    esp_err_t webRet = PcWebLink_Init(submit_tune_to_s32k, submit_drive_command_to_s32k, NULL);
     if (webRet != ESP_OK)
     {
         ESP_LOGE(TAG, "PC web link unavailable; UART bridge remains active: %s",

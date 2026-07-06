@@ -208,7 +208,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
                                (unsigned)st->cfg.whiteSat);
         DisplayText(0U, line0, 16U, 0U);
         DisplayText(1U, line1, 16U, 0U);
-        DisplayRefresh();
+        Display_Refresh();
         return;
     }
 
@@ -281,7 +281,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
             DisplayOverlayVerticalLine(2U, 2U, dbg->finishGapRightEdgeIdx);
         }
 
-        DisplayRefresh();
+        Display_Refresh();
         return;
     }
 
@@ -289,7 +289,7 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
     {
         ScaleFixed_U16_ToPct(plotPct, rawU16, VISION_LINEAR_BUFFER_SIZE, st->cfg.whiteSat);
         DisplayGraph(0U, plotPct, VISION_LINEAR_BUFFER_SIZE, 4U);
-        DisplayRefresh();
+        Display_Refresh();
         return;
     }
 
@@ -402,6 +402,6 @@ void VisionDebug_Draw(const VisionDebug_State_t *st,
             DisplayOverlayVerticalLine(graphStartLine, graphLinesSpan, dbg->finishGapRightEdgeIdx);
         }
 
-        DisplayRefresh();
+        Display_Refresh();
     }
 }

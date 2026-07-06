@@ -24,6 +24,7 @@ static const char *TAG = "pc_web_link";
 static httpd_handle_t s_httpServer;
 static portMUX_TYPE s_statusLock = portMUX_INITIALIZER_UNLOCKED;
 static PcWebLink_TuneSubmitFn s_submitTune;
+static PcWebLink_DriveCommandSubmitFn s_submitDriveCommand;
 static void *s_submitContext;
 static bool s_wifiEnabled;
 static bool s_wifiError;
@@ -65,6 +66,11 @@ static const char s_webPage[] =
     "<div id=\"steeringFields\" class=\"fields\"></div></section>"
     "<section class=\"group\"><h2>Line Detector</h2>"
     "<div id=\"visionFields\" class=\"fields\"></div></section>"
+    "<section class=\"group\"><h2>Drive Command</h2><div class=\"actions\">"
+    "<button type=\"button\" id=\"driveStart\" class=\"primary\">Start drive</button>"
+    "<button type=\"button\" id=\"driveStop\">Stop drive</button></div>"
+    "<div class=\"note\">Start re-arms the S32K stack-drive mode. Stop forces neutral.</div>"
+    "</section>"
     "<section class=\"submit\"><div><div id=\"summary\" class=\"summary\"></div>"
     "<div class=\"note\">Values are RAM-only. Success means the S32K validated and stored the "
     "complete snapshot.</div></div><div class=\"actions\"><button type=\"button\" id=\"defaults\">"
@@ -107,6 +113,13 @@ static const char s_webPage[] =
     "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});"
     "let text=await r.text();if(!r.ok)throw new Error(text||'Apply failed');"
     "statusBox.textContent=text}catch(err){statusBox.textContent=err.message||'Apply failed'}};"
+    "async function sendDrive(state){statusBox.textContent='Sending '+state+'...';"
+    "try{let body=new URLSearchParams();body.append('state',state);let r=await fetch('/drive',"
+    "{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body."
+    "toString()});let text=await r.text();if(!r.ok)throw new Error(text||'Command failed');"
+    "statusBox.textContent=text}catch(err){statusBox.textContent=err.message||'Command failed'}}"
+    "document.getElementById('driveStart').onclick=()=>sendDrive('start');"
+    "document.getElementById('driveStop').onclick=()=>sendDrive('stop');"
     "render();</script></body></html>";
 
 static void set_error_status(bool error)
@@ -313,6 +326,31 @@ static bool parse_tune_form(const char *body, EspS32kTuneFrame_t *outTune)
     return true;
 }
 
+static bool parse_drive_command_form(const char *body, EspS32kDriveCommandFrame_t *outCommand)
+{
+    const char *text;
+    size_t length;
+
+    if ((body == NULL) || (outCommand == NULL) || !find_form_value(body, "state", &text, &length))
+    {
+        return false;
+    }
+
+    outCommand->sequence = 0U;
+    if ((length == 5U) && (strncmp(text, "start", length) == 0))
+    {
+        outCommand->command = ESP_S32K_DRIVE_COMMAND_START;
+        return true;
+    }
+    if ((length == 4U) && (strncmp(text, "stop", length) == 0))
+    {
+        outCommand->command = ESP_S32K_DRIVE_COMMAND_STOP;
+        return true;
+    }
+
+    return false;
+}
+
 static esp_err_t root_get_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/html; charset=utf-8");
@@ -388,6 +426,74 @@ static esp_err_t tune_post_handler(httpd_req_t *req)
     return httpd_resp_sendstr(req, response);
 }
 
+static esp_err_t drive_post_handler(httpd_req_t *req)
+{
+    char body[PC_WEB_HTTP_BODY_MAX + 1U];
+    char response[48];
+    size_t received = 0U;
+    EspS32kDriveCommandFrame_t command;
+
+    if (req == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if ((req->content_len == 0U) || (req->content_len > PC_WEB_HTTP_BODY_MAX))
+    {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid request body");
+        return ESP_FAIL;
+    }
+
+    while (received < req->content_len)
+    {
+        int chunk = httpd_req_recv(req, &body[received], req->content_len - received);
+        if (chunk <= 0)
+        {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "receive failed");
+            return ESP_FAIL;
+        }
+        received += (size_t)chunk;
+    }
+    body[received] = '\0';
+
+    if (!parse_drive_command_form(body, &command))
+    {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid drive command");
+        return ESP_FAIL;
+    }
+
+    if (s_submitDriveCommand == NULL)
+    {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "drive command link unavailable");
+        return ESP_FAIL;
+    }
+
+    esp_err_t result = s_submitDriveCommand(&command, s_submitContext);
+    if (result == ESP_ERR_TIMEOUT)
+    {
+        httpd_resp_set_status(req, "504 Gateway Timeout");
+        return httpd_resp_sendstr(req, "S32K response timeout");
+    }
+    if (result == ESP_ERR_INVALID_RESPONSE)
+    {
+        httpd_resp_set_status(req, "422 Unprocessable Entity");
+        return httpd_resp_sendstr(req, "S32K rejected command");
+    }
+    if (result != ESP_OK)
+    {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "UART transmission failed");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Drive command accepted by S32K: seq=%u command=%u", (unsigned)command.sequence,
+             (unsigned)command.command);
+    (void)snprintf(response, sizeof(response), "%s accepted by S32K (seq %02u)",
+                   (command.command == ESP_S32K_DRIVE_COMMAND_START) ? "Start" : "Stop",
+                   (unsigned)command.sequence);
+    httpd_resp_set_type(req, "text/plain");
+    return httpd_resp_sendstr(req, response);
+}
+
 static esp_err_t configure_ap_address(esp_netif_t *netif)
 {
     esp_netif_ip_info_t address = {0};
@@ -442,11 +548,21 @@ static esp_err_t start_http_server(void)
         .handler = tune_post_handler,
         .user_ctx = NULL,
     };
+    const httpd_uri_t driveUri = {
+        .uri = "/drive",
+        .method = HTTP_POST,
+        .handler = drive_post_handler,
+        .user_ctx = NULL,
+    };
 
     ret = httpd_register_uri_handler(s_httpServer, &rootUri);
     if (ret == ESP_OK)
     {
         ret = httpd_register_uri_handler(s_httpServer, &tuneUri);
+    }
+    if (ret == ESP_OK)
+    {
+        ret = httpd_register_uri_handler(s_httpServer, &driveUri);
     }
     if (ret != ESP_OK)
     {
@@ -459,14 +575,16 @@ static esp_err_t start_http_server(void)
     return ESP_OK;
 }
 
-esp_err_t PcWebLink_Init(PcWebLink_TuneSubmitFn submitTune, void *context)
+esp_err_t PcWebLink_Init(PcWebLink_TuneSubmitFn submitTune,
+                         PcWebLink_DriveCommandSubmitFn submitDriveCommand, void *context)
 {
-    if (submitTune == NULL)
+    if ((submitTune == NULL) || (submitDriveCommand == NULL))
     {
         return ESP_ERR_INVALID_ARG;
     }
 
     s_submitTune = submitTune;
+    s_submitDriveCommand = submitDriveCommand;
     s_submitContext = context;
     portENTER_CRITICAL(&s_statusLock);
     s_wifiEnabled = false;

@@ -4,43 +4,63 @@ UltrasonicTestState_t g_ultrasonicTest;
 UltrasonicEscTestState_t g_ultrasonicEscTest;
 VictoryLapTestState_t g_victoryLapTest;
 ServoTestState_t g_servoTest;
-ServoRateTestState_t g_servoRateTest;
 EscManualTestState_t g_escTest;
 LinearCameraTestState_t g_linearCameraTest;
 SimpleDriveState_t g_simpleDriveTest;
-TestsMenuState_t g_testsMenu;
-HonorLapState_t g_honorLap;
-NxpCupState_t g_nxpCup;
-RaceModeState_t g_raceMode;
-SerialTuneState_t g_serialTune;
 RuntimeTuneState_t g_runtimeTune;
 
 static boolean g_appRuntimeCoreInitialized = FALSE;
-static boolean g_appRuntimeDisplayInitialized = FALSE;
+static boolean g_appRuntimeDisplay_Initialized = FALSE;
 
-const CamTuneProfile_t g_nxpCupProfiles[NXP_CUP_PROFILE_COUNT] = {
-    {NXP_CUP_SUPERFAST_KP, NXP_CUP_SUPERFAST_KD, NXP_CUP_SUPERFAST_KI,
-     NXP_CUP_SUPERFAST_ITERM_CLAMP, NXP_CUP_SUPERFAST_STEER_LPF_ALPHA,
-     (sint16)NXP_CUP_SUPERFAST_STEER_CLAMP, (sint16)NXP_CUP_SUPERFAST_STEER_RATE_MAX,
-     (uint8)NXP_CUP_SUPERFAST_SPEED_PCT},
-    {NXP_CUP_5050_KP, NXP_CUP_5050_KD, NXP_CUP_5050_KI, NXP_CUP_5050_ITERM_CLAMP,
-     NXP_CUP_5050_STEER_LPF_ALPHA, (sint16)NXP_CUP_5050_STEER_CLAMP,
-     (sint16)NXP_CUP_5050_STEER_RATE_MAX, (uint8)NXP_CUP_5050_SPEED_PCT},
-    {NXP_CUP_SLOW_KP, NXP_CUP_SLOW_KD, NXP_CUP_SLOW_KI, NXP_CUP_SLOW_ITERM_CLAMP,
-     NXP_CUP_SLOW_STEER_LPF_ALPHA, (sint16)NXP_CUP_SLOW_STEER_CLAMP,
-     (sint16)NXP_CUP_SLOW_STEER_RATE_MAX, (uint8)NXP_CUP_SLOW_SPEED_PCT}};
+const DriveTuneProfile_t g_speedModeProfiles[SPEED_MODE_COUNT] = {
+    {SPEED_MODE_SUPERFAST_KP, SPEED_MODE_SUPERFAST_KD, SPEED_MODE_SUPERFAST_KI,
+     SPEED_MODE_SUPERFAST_ITERM_CLAMP, SPEED_MODE_SUPERFAST_STEER_LPF_ALPHA,
+     (sint16)SPEED_MODE_SUPERFAST_STEER_CLAMP, (sint16)SPEED_MODE_SUPERFAST_STEER_RATE_MAX,
+     (uint8)SPEED_MODE_SUPERFAST_SPEED_PCT},
+    {SPEED_MODE_5050_KP, SPEED_MODE_5050_KD, SPEED_MODE_5050_KI, SPEED_MODE_5050_ITERM_CLAMP,
+     SPEED_MODE_5050_STEER_LPF_ALPHA, (sint16)SPEED_MODE_5050_STEER_CLAMP,
+     (sint16)SPEED_MODE_5050_STEER_RATE_MAX, (uint8)SPEED_MODE_5050_SPEED_PCT},
+    {SPEED_MODE_SLOW_KP, SPEED_MODE_SLOW_KD, SPEED_MODE_SLOW_KI, SPEED_MODE_SLOW_ITERM_CLAMP,
+     SPEED_MODE_SLOW_STEER_LPF_ALPHA, (sint16)SPEED_MODE_SLOW_STEER_CLAMP,
+     (sint16)SPEED_MODE_SLOW_STEER_RATE_MAX, (uint8)SPEED_MODE_SLOW_SPEED_PCT}};
 
-const char g_testsMenuItems[RUNTIME_TEST_COUNT][17] = {
-    "Servo          ",  "ESC            ", "Ultrasonic     ", "Ultra+ESC      ",
-    "Camera-s32k    ",  "Cam+Servo-s32k ", "Drive mode-s32k", "Tune drive mode",
-    "Cable tune-s32k ", "ESP Link       ", "Teensy Link    ", "Victory Lap    "};
+SpeedModeSetting_t SpeedMode_FromPot(uint8 potLevel)
+{
+    if (potLevel < 85U)
+    {
+        return SPEED_MODE_SUPERFAST;
+    }
+    if (potLevel < 171U)
+    {
+        return SPEED_MODE_5050;
+    }
+    return SPEED_MODE_SLOW;
+}
 
-const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
+const char *SpeedMode_GetName(SpeedModeSetting_t setting)
+{
+    switch (setting)
+    {
+        case SPEED_MODE_SUPERFAST:
+            return "SUPERFAST";
+        case SPEED_MODE_5050:
+            return "5050";
+        case SPEED_MODE_SLOW:
+            return "SLOW";
+        default:
+            return "INVALID";
+    }
+}
 
-const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT] = {100U, 20U, 10U, 4U};
+const DriveTuneProfile_t *SpeedMode_GetProfile(SpeedModeSetting_t setting)
+{
+    if ((uint8)setting >= (uint8)SPEED_MODE_COUNT)
+    {
+        return NULL_PTR;
+    }
+    return &g_speedModeProfiles[(uint8)setting];
+}
 
-const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12] = {"POT", "SWEEP FINE",
-                                                                          "SWEEP STEP"};
 boolean time_reached(uint32 nowMs, uint32 dueMs)
 {
     return ((uint32)(nowMs - dueMs) < 0x80000000u) ? TRUE : FALSE;
@@ -81,7 +101,7 @@ uint16 VisionDebug_WhiteMaxFromPot(uint8 potLevel)
     return (uint16)whiteMax;
 }
 
-Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs)
+Sw2Action_t ButtonTracker_Update(ButtonHoldTracker_t *st, ButtonId_t id, uint32 nowMs)
 {
     boolean pressedNow;
 
@@ -125,11 +145,6 @@ Sw2Action_t ButtonTracker_Update(Sw2Tracker_t *st, ButtonId_t id, uint32 nowMs)
     return SW2_ACTION_NONE;
 }
 
-Sw2Action_t Sw2Tracker_Update(Sw2Tracker_t *st, uint32 nowMs)
-{
-    return ButtonTracker_Update(st, BUTTON_ID_SW2, nowMs);
-}
-
 void StatusLed_Blue(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){.r = false, .g = false, .b = true});
@@ -148,6 +163,11 @@ void StatusLed_Cyan(void)
 void StatusLed_Yellow(void)
 {
     RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = true, .b = false});
+}
+
+void StatusLed_White(void)
+{
+    RgbLed_ChangeColor((RgbLed_Color){.r = true, .g = true, .b = true});
 }
 
 void StatusLed_Red(void)
@@ -197,10 +217,10 @@ void RuntimeTune_InitDefaults(void)
         return;
     }
 
-    g_runtimeTune.profile.kp = KP;
-    g_runtimeTune.profile.kd = KD;
-    g_runtimeTune.profile.ki = KI;
-    g_runtimeTune.profile.iTermClamp = ITERM_CLAMP;
+    g_runtimeTune.profile.kp = STEERING_DEFAULT_KP;
+    g_runtimeTune.profile.kd = STEERING_DEFAULT_KD;
+    g_runtimeTune.profile.ki = STEERING_DEFAULT_KI;
+    g_runtimeTune.profile.iTermClamp = STEERING_DEFAULT_I_TERM_CLAMP;
     g_runtimeTune.profile.steerLpfAlpha = SERVO_TEST_LPF_ALPHA;
     g_runtimeTune.profile.steerClamp = (sint16)SERVO_TEST_CMD_CLAMP;
     g_runtimeTune.profile.steerRateMax = (sint16)SERVO_TEST_RATE_MAX;
@@ -208,7 +228,65 @@ void RuntimeTune_InitDefaults(void)
     g_runtimeTune.lineDetector.minContrast = VISION_LINEAR_MIN_CONTRAST;
     g_runtimeTune.lineDetector.edgeHighPct = VISION_LINEAR_EDGE_HIGH_PCT;
     g_runtimeTune.lineDetector.edgeLowPct = VISION_LINEAR_EDGE_LOW_PCT;
+    g_runtimeTune.lineDetectorGeneration = 1U;
     g_runtimeTune.initialized = TRUE;
+}
+
+boolean RuntimeTune_SetLineDetectorParams(const LineDetectorParams_t *params)
+{
+    uint16 nextGeneration;
+
+    if ((params == NULL_PTR) || (params->minContrast > 4095U) || (params->edgeHighPct < 1U) ||
+        (params->edgeHighPct > 100U) || (params->edgeLowPct < 1U) || (params->edgeLowPct > 100U))
+    {
+        return FALSE;
+    }
+
+    RuntimeTune_InitDefaults();
+    if ((params->minContrast == g_runtimeTune.lineDetector.minContrast) &&
+        (params->edgeHighPct == g_runtimeTune.lineDetector.edgeHighPct) &&
+        (params->edgeLowPct == g_runtimeTune.lineDetector.edgeLowPct))
+    {
+        return TRUE;
+    }
+
+    nextGeneration = (uint16)(g_runtimeTune.lineDetectorGeneration + 1U);
+    if (nextGeneration == 0U)
+    {
+        nextGeneration = 1U;
+    }
+
+    g_runtimeTune.lineDetector = *params;
+    g_runtimeTune.lineDetectorGeneration = nextGeneration;
+    return TRUE;
+}
+
+void RuntimeTune_ApplySpeedMode(SpeedModeSetting_t setting)
+{
+    const DriveTuneProfile_t *profile = SpeedMode_GetProfile(setting);
+
+    RuntimeTune_InitDefaults();
+    if (profile != NULL_PTR)
+    {
+        g_runtimeTune.profile = *profile;
+    }
+}
+
+void App_ApplySteeringProfile(SteeringControllerState_t *state, const DriveTuneProfile_t *profile)
+{
+    SteeringControllerConfig_t config;
+
+    if ((state == NULL_PTR) || (profile == NULL_PTR))
+    {
+        return;
+    }
+
+    config.kp = profile->kp;
+    config.ki = profile->ki;
+    config.kd = profile->kd;
+    config.iTermClamp = profile->iTermClamp;
+    config.steerScale = 1.0f;
+    SteeringController_ApplyConfig(state, &config);
 }
 
 static const char *App_GetSelectedBuildModeMacroName(void)
@@ -221,17 +299,11 @@ static const char *App_GetSelectedBuildModeMacroName(void)
         case APP_BUILD_MODE_ESC_TEST:
             return "APP_TEST_ESC_TEST";
 
-        case APP_BUILD_MODE_NXP_CUP:
-            return "APP_TEST_NXP_CUP";
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            return "APP_RACE_S32K_ONLY";
 
-        case APP_BUILD_MODE_RACE_MODE:
-            return "APP_TEST_RACE_MODE";
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            return "APP_TEST_TEENSY_CAM0_RACE";
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            return "APP_TEST_HONOR_LAP";
+        case APP_BUILD_MODE_RACE:
+            return "APP_RACE";
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             return "APP_TEST_SERVO_RATE_TEST";
@@ -260,17 +332,11 @@ static const char *App_GetSelectedBuildModeDisplayName(void)
         case APP_BUILD_MODE_ESC_TEST:
             return "ESC test";
 
-        case APP_BUILD_MODE_NXP_CUP:
-            return "NXP Cup";
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            return "Race S32K";
 
-        case APP_BUILD_MODE_RACE_MODE:
-            return "Race-old";
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            return "Teensy Cam0";
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            return "Honor Lap";
+        case APP_BUILD_MODE_RACE:
+            return "Race Full";
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             return "Servo Rate";
@@ -299,17 +365,11 @@ static const char *App_GetSelectedBuildModeShortName(void)
         case APP_BUILD_MODE_ESC_TEST:
             return "ESC_TEST";
 
-        case APP_BUILD_MODE_NXP_CUP:
-            return "NXP_CUP";
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            return "RACE_S32K";
 
-        case APP_BUILD_MODE_RACE_MODE:
-            return "RACE_MODE";
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            return "TEENSY_CAM0";
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            return "HONOR_LAP";
+        case APP_BUILD_MODE_RACE:
+            return "RACE_FULL";
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
             return "SERVO_RATE";
@@ -373,15 +433,15 @@ void App_InitRuntimeCommon(void)
 {
     App_InitRuntimeCore();
 
-    if (g_appRuntimeDisplayInitialized != TRUE)
+    if (g_appRuntimeDisplay_Initialized != TRUE)
     {
         display_power_stabilize_delay();
-        DisplayInit(0U, STD_ON);
-        g_appRuntimeDisplayInitialized = TRUE;
+        Display_Init(0U, STD_ON);
+        g_appRuntimeDisplay_Initialized = TRUE;
     }
 
     DisplayClear();
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void App_RunBootBanner(void)
@@ -409,7 +469,7 @@ void App_RunBootBanner(void)
     DisplayTextPadded(0U, "S32K BOOT");
     DisplayTextPadded(1U, displayName);
     DisplayTextPadded(2U, shortName);
-    DisplayRefresh();
+    Display_Refresh();
 
     startMs = Timebase_GetMs();
     while ((uint32)(Timebase_GetMs() - startMs) < APP_BOOT_BANNER_MS)

@@ -28,23 +28,16 @@ extern "C" {
 *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
 ==================================================================================================*/
 
-typedef struct{
-    Pwm_ChannelType ServoPwmChannel;
-    uint16 MinDutyCycle;    /*maximum right steer (the lower the duty cycle, the more it steers right)*/
-    uint16 MaxDutyCycle;    /*maximum left steer  (the higher the duty cycle, the more it steers left)*/
-    uint16 MedDutyCycle;    /*centered    (needed if left and right steering angles are not equal physically for any reason)*/
-}Servo;
-
 typedef enum
 {
     SERVO_UPDATE_ON_PWM_CALLBACK = 0,
     SERVO_UPDATE_PHASED_FOREGROUND
-} ServoUpdatePolicy;
+} ServoUpdatePolicy_t;
 
 typedef struct
 {
     boolean Initialized;
-    ServoUpdatePolicy UpdatePolicy;
+    ServoUpdatePolicy_t UpdatePolicy;
     uint16 AppliedDutyCycle;
     uint16 PendingDutyCycle;
     boolean PendingUpdate;
@@ -54,7 +47,7 @@ typedef struct
     uint32 CommitCount;
     uint32 MissedCommitCount;
     uint32 DuplicateServiceCount;
-} ServoDebugSnapshot;
+} ServoDebugSnapshot_t;
 /*==================================================================================================
 *                                       LOCAL MACROS
 ==================================================================================================*/
@@ -83,13 +76,13 @@ typedef struct
 
 void Servo_Init(Pwm_ChannelType ServoPwmChannel, uint16 MaxDutyCycle, uint16 MinDutyCycle, uint16 MedDutyCycle);
 void Servo_SetSteer(int Direction);    /*takes a value between -100 (left) and 100 (right) and translates it into a duty cycle*/
-void SteerLeft(void);    /*sets the duty cycle to the configured maximum*/
-void SteerRight(void);/*sets the duty cycle to the configured minimum*/
-void SteerStraight(void);    /*sets the duty cycle to the configured middle*/
-void Servo_SetUpdatePolicy(ServoUpdatePolicy Policy);
+void Servo_SetFullLeft(void);    /*sets the duty cycle to the configured maximum*/
+void Servo_SetFullRight(void);/*sets the duty cycle to the configured minimum*/
+void Servo_SetStraight(void);    /*sets the duty cycle to the configured middle*/
+void Servo_SetUpdatePolicy(ServoUpdatePolicy_t Policy);
 void Servo_Service(uint32 nowMs);
 void Servo_Period_Finished(void);
-void Servo_GetDebugSnapshot(ServoDebugSnapshot *Snapshot);
+void Servo_GetDebugSnapshot(ServoDebugSnapshot_t *Snapshot);
 
 /*==================================================================================================
 *                                       LOCAL FUNCTIONS

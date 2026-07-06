@@ -29,3 +29,6 @@ flowchart LR
 
 Start with the system and protocol pages, then use the board-specific README
 files under `firmware/` for build and bring-up details.
+
+Status LED meanings across all three boards are documented in
+[`system/status-led-semantics.md`](system/status-led-semantics.md).

@@ -705,26 +705,25 @@ PORT_CONFIG_VS_0_PB \
 #define PortConf_PortPin_Esc_Pwm 2
 #define PortConf_PortPin_Esc2_Pwm 3
 #define PortConf_PortPin_Servo_Pwm 4
-#define PortConf_PortPin_ReceiverInput_PPM 5
-#define PortConf_PortPin_LinearCamera_Clk 6
-#define PortConf_PortPin_LinearCamera_Shutter 7
-#define PortConf_PortPin_LinearCamera_Analog 8
-#define PortConf_PortPin_PortPin_PTC12_sw2 9
-#define PortConf_PortPin_PortPin_PTC13_sw3 10
-#define PortConf_PortPin_TRIG 11
-#define PortConf_PortPin_ECHO 12
-#define PortConf_PortPin_RED_pin 13
-#define PortConf_PortPin_GREEN_pin 14
-#define PortConf_PortPin_BLUE_pin 15
-#define PortConf_PortPin_Uart_Rx_Pc 16
-#define PortConf_PortPin_Uart_Tx_Pc 17
-#define PortConf_PortPin_Uart_Rx_Esp 23
-#define PortConf_PortPin_Uart_Tx_Esp 24
-#define PortConf_PortPin_TeensySpiSck 18
-#define PortConf_PortPin_TeensySpiMiso 19
-#define PortConf_PortPin_TeensySpiMosi 20
-#define PortConf_PortPin_TeensySpiCs 21
-#define PortConf_PortPin_TeensyReady 22
+#define PortConf_PortPin_LinearCamera_Clk 5
+#define PortConf_PortPin_LinearCamera_Shutter 6
+#define PortConf_PortPin_LinearCamera_Analog 7
+#define PortConf_PortPin_PortPin_PTC12_sw2 8
+#define PortConf_PortPin_PortPin_PTC13_sw3 9
+#define PortConf_PortPin_TRIG 10
+#define PortConf_PortPin_ECHO 11
+#define PortConf_PortPin_RED_pin 12
+#define PortConf_PortPin_GREEN_pin 13
+#define PortConf_PortPin_BLUE_pin 14
+#define PortConf_PortPin_Uart_Rx_Pc 15
+#define PortConf_PortPin_Uart_Tx_Pc 16
+#define PortConf_PortPin_Uart_Rx_Esp 17
+#define PortConf_PortPin_Uart_Tx_Esp 18
+#define PortConf_PortPin_TeensySpiSck 19
+#define PortConf_PortPin_TeensySpiMiso 20
+#define PortConf_PortPin_TeensySpiMosi 21
+#define PortConf_PortPin_TeensySpiCs 22
+#define PortConf_PortPin_TeensyReady 23
 
 /**
 * @brief Number of available pad modes options
@@ -744,12 +743,12 @@ PORT_CONFIG_VS_0_PB \
 /**
 * @brief The maximum number of configured pins
 */
-#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)25)
+#define PORT_MAX_CONFIGURED_PADS_U16   ((uint16)24)
 
 /**
  * @brief Number of UnUsed pin array
 */
-#define PORT_MAX_UNUSED_PADS_U16    (59U)
+#define PORT_MAX_UNUSED_PADS_U16    (60U)
 
 /**
 * @brief Port driver Pre-Compile configuration switch

@@ -6,7 +6,17 @@ extern "C" {
 #include "config/sensor_config.h"
 #include "Adc_Types.h"
 
-static volatile LinearCamera LinearCameraInstance;
+typedef struct
+{
+    Pwm_ChannelType ClkPwmChannel;
+    Gpt_ChannelType ShutterGptChannel;
+    Adc_GroupType InputAdcGroup;
+    Dio_ChannelType ShutterDioChannel;
+    volatile uint16 CurrentIndex;
+    volatile LinearCameraStatus_t Status;
+} LinearCameraInstance_t;
+
+static volatile LinearCameraInstance_t LinearCameraInstance;
 static Adc_ValueGroupType AdcResultBuffer;
 
 #define LINEAR_CAMERA_BUFFER_COUNT  (2U)
@@ -20,7 +30,7 @@ typedef enum
     LINEAR_CAMERA_SYNC_CAPTURING
 } LinearCameraSyncPhase;
 
-static LinearCameraFrame LinearCameraBuffers[LINEAR_CAMERA_BUFFER_COUNT];
+static LinearCameraFrame_t LinearCameraBuffers[LINEAR_CAMERA_BUFFER_COUNT];
 
 static volatile uint32 LinearCameraFrameIntervalTicks =
     CAM_FRAME_INTERVAL_TICKS;
@@ -177,7 +187,7 @@ void CameraAdcFinished(void)
     }
 }
 
-void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
+void LinearCamera_Init(Pwm_ChannelType ClkPwmChannel,
                       Gpt_ChannelType ShutterGptChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel)
@@ -212,7 +222,7 @@ void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
     Gpt_DisableNotification(LinearCameraInstance.ShutterGptChannel);
 }
 
-boolean LinearCameraStartStream(void)
+boolean LinearCamera_StartStream(void)
 {
     if (LinearCameraInstance.Status != LINEAR_CAMERA_IDLE)
     {
@@ -267,9 +277,9 @@ void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks)
     }
 }
 
-boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame)
+boolean LinearCamera_GetLatestFrame(const LinearCameraFrame_t **Frame)
 {
-    if (Frame == (const LinearCameraFrame **)0)
+    if (Frame == (const LinearCameraFrame_t **)0)
     {
         return FALSE;
     }
@@ -285,7 +295,7 @@ boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame)
     return FALSE;
 }
 
-LinearCameraStatus LinearCameraGetStatus(void)
+LinearCameraStatus_t LinearCameraGetStatus(void)
 {
     return LinearCameraInstance.Status;
 }
@@ -319,9 +329,9 @@ uint32 LinearCameraGetFrameReadoutUs(void)
     return (clockCount * 1000000UL) / pixelClockHz;
 }
 
-void LinearCameraGetDebugCounters(LinearCameraDebugCounters *counters)
+void LinearCameraGetDebugCounters(LinearCameraDebugCounters_t *counters)
 {
-    if (counters == (LinearCameraDebugCounters *)0)
+    if (counters == (LinearCameraDebugCounters_t *)0)
     {
         return;
     }

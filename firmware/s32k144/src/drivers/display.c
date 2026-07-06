@@ -213,7 +213,7 @@ I2c_RequestType OptimizedDataWriteRequest = {DISPLAY_I2C_ADDRESS, FALSE, FALSE, 
 /*==================================================================================================
  *                                       GLOBAL FUNCTIONS
 ==================================================================================================*/
-void DisplayRefresh(void){
+void Display_Refresh(void){
     I2c_SyncTransmit(DisplayInstance.I2cChannel, &OptimizedDataWriteRequest);
     /*Setting page and column ranges again resets the internal cursor to the beginning*/
     /*set page range*/
@@ -580,7 +580,7 @@ void DisplayClear(){
     }
 }
 
-void RotateFontmap(void){
+void Display_RotateFontmap(void){
     unsigned char CharactersLine;
     unsigned char TempCharactersLine[8];
     for(uint8 BitmapCharacterIndex = 0U; BitmapCharacterIndex < 128U; BitmapCharacterIndex++){
@@ -603,7 +603,7 @@ void RotateFontmap(void){
     }
 }
 
-void DisplayInit(uint8 I2cChannel, uint8 FontmapRotation){
+void Display_Init(uint8 I2cChannel, uint8 FontmapRotation){
     DisplayInstance.I2cChannel = I2cChannel;
     OneByteCommandBuffer[1] = 0xAF;//on
     I2c_SyncTransmit(DisplayInstance.I2cChannel, &OneByteCommandRequest);
@@ -671,10 +671,10 @@ void DisplayInit(uint8 I2cChannel, uint8 FontmapRotation){
     I2c_SyncTransmit(DisplayInstance.I2cChannel, &TwoByteCommandRequest);
     /*rotate the fontmap if requested*/
     if(FontmapRotation != STD_OFF){
-        RotateFontmap();
+        Display_RotateFontmap();
     }
     /*send the first refresh here*/
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 #ifdef __cplusplus

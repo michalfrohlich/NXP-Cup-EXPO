@@ -1,5 +1,5 @@
 function linear_camera_dashboard_viewer(portName)
-% Live viewer for RUNTIME_TEST_LINEAR_CAMERA UART telemetry.
+% Live viewer for BENCH_MODE_LINEAR_CAMERA UART telemetry.
 % Dashboard layout: raw+filtered, gradient, and decoded stats.
 % Example:
 %   linear_camera_dashboard_viewer("COM6")

@@ -36,12 +36,10 @@
 | FTM3_CLK | 8 MHz | Dual ESC outputs and servo PWM use FTM3 |
 | LPI2C0_CLK | 8 MHz | Display driver uses I2C channel 0 |
 | LPIT0_CLK | 8 MHz | GPT channels 1/2/3 map to LPIT0 channels |
-| LPTMR0_CLK | 48 MHz | GPT receiver timeout uses LPTMR0; with configured prescaler divider `/4` (ConfigTools), effective timer tick is 12 MHz (`48 MHz / 4`) |
 
 ## Generated GPT channel mapping
 | GPT logical channel | ID | Generated IP |
 | --- | --- | --- |
-| `Receiver_Timeout` | 0 | LPTMR0 channel 0 |
 | `LinearCameraShutter` | 1 | LPIT0 channel 0 |
 | `EmuTimer_Notification` | 2 | LPIT0 channel 1 |
 | `UsTimer` | 3 | LPIT0 channel 2 |
@@ -81,12 +79,10 @@
 | NXP Cup ultrasonic trigger period | `src/app/app_config.h` | `60 ms` |
 | NXP Cup ultrasonic enable delay after run starts | `src/app/app_config.h` | `2000 ms` |
 | NXP Cup ultrasonic stop-hold time | `src/app/app_config.h` | `350 ms` |
-| Receiver PPM thresholds | `src/app/app_modes.c` (`ReceiverInit(0U, 0U, 11700U, 17700U, 23700U, 26000U)`) | At effective 12 MHz LPTMR tick: `0.975 / 1.475 / 1.975 / 2.167 ms` |
 
 ## Additional derived peripheral timing
 | Item | Generated basis | Derived timing / note |
 | --- | --- | --- |
-| `Receiver_Timeout` effective tick | LPTMR0 clock 48 MHz + receiver channel prescaler enabled with configured divider `/4` | `12 MHz` effective timer tick (`48 MHz / 4`) |
 | `Ultrasonic_Echo` ICU timestamp tick | FTM1 clock 8 MHz + ICU FTM prescaler 4 | `2 MHz` timestamp tick (`0.5 us` per tick) |
 | `Display_Channel` I2C SCL | LPI2C0 source 8 MHz, prescaler `DIV_8`, `CLKHI=1`, `CLKLO=3` | `~166.7 kHz` (`8e6 / (8 * (1 + 3 + 2))`) |
 | Camera ADC sampling cadence | handwritten `linear_camera.c` + generated ADC Group0 SW trigger | Manual one-sample ADC conversion starts on each falling camera-clock edge after the two-edge SI pulse; PWM notifications are disabled again between frames |

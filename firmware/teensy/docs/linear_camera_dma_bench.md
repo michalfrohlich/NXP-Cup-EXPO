@@ -96,7 +96,7 @@ driver, then process frames through `CameraVision`:
   -> trim pixels [2..125]
   -> 124-pixel S32K-compatible detector input
   -> LineDetector output
-  -> TeensyLinkCameraResult camera[0]
+  -> TeensyLinkCameraResult_t camera[0]
 ```
 
 Line detector values match the S32K-compatible telemetry contract:

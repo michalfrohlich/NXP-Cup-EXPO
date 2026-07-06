@@ -1,7 +1,7 @@
 #include "../app_internal.h"
 
-#define TEENSY_LINK_TEST_DISPLAY_MS       (100U)
-#define TEENSY_LINK_TEST_PAGE_COUNT       (6U)
+#define TEENSY_LINK_TEST_DISPLAY_MS (100U)
+#define TEENSY_LINK_TEST_PAGE_COUNT (6U)
 
 typedef struct
 {
@@ -20,12 +20,17 @@ static void teensy_link_test_fill_default_input(void)
 {
     TeensyLinkS32kInputs_t *in = &g_teensyLinkTest.input;
 
+    RuntimeTune_InitDefaults();
     (void)memset(in, 0, sizeof(*in));
 
     in->controlLoopSeq = g_teensyLinkTest.controlSeq;
     in->controlDtUs = (uint16)((uint16)TEENSY_LINK_SERVICE_PERIOD_MS * 1000U);
     in->appMode = (uint8)APP_BUILD_MODE_NXP_CUP_TESTS;
-    in->appState = (uint8)RUNTIME_TEST_TEENSY_LINK;
+    in->appState = (uint8)BENCH_MODE_TEENSY_LINK;
+    in->lineDetectorConfigGeneration = g_runtimeTune.lineDetectorGeneration;
+    in->lineDetectorMinContrast = g_runtimeTune.lineDetector.minContrast;
+    in->lineDetectorEdgeHighPct = g_runtimeTune.lineDetector.edgeHighPct;
+    in->lineDetectorEdgeLowPct = g_runtimeTune.lineDetector.edgeLowPct;
 
     for (uint8 i = 0U; i < (uint8)TEENSY_LINK_CAMERA_COUNT; i++)
     {
@@ -36,8 +41,8 @@ static void teensy_link_test_fill_default_input(void)
         in->camera[i].leftLineIdx = 255U;
         in->camera[i].rightLineIdx = 255U;
         in->camera[i].ageMs = 255U;
-        in->camera[i].flags = (uint8)(TEENSY_LINK_CAMERA_FLAG_SOURCE_S32K |
-                                      TEENSY_LINK_CAMERA_FLAG_STALE);
+        in->camera[i].flags =
+            (uint8)(TEENSY_LINK_CAMERA_FLAG_SOURCE_S32K | TEENSY_LINK_CAMERA_FLAG_STALE);
     }
 
     in->ultrasonicAgeMs = 65535U;
@@ -118,14 +123,11 @@ static void teensy_link_test_draw_link(void)
     DisplayText(2U, (g_teensyLinkTest.diag.readyHigh == TRUE) ? "Y" : "N", 1U, 4U);
     DisplayValue(2U, (int)g_teensyLinkTest.snapshot.ackS32kSeq, 4U, 10U);
 
-    DisplayTextPadded(3U, "ERR:");
-    DisplayValue(3U,
-                 (int)(g_teensyLinkTest.diag.crcErrorCount +
-                       g_teensyLinkTest.diag.protocolErrorCount +
-                       g_teensyLinkTest.diag.spiErrorCount),
-                 5U,
-                 4U);
-    DisplayRefresh();
+    DisplayTextPadded(3U, "CFG:    ACK:");
+    DisplayValue(3U, (int)(g_runtimeTune.lineDetectorGeneration % 10000U), 4U, 4U);
+    DisplayValue(3U, (int)(g_teensyLinkTest.snapshot.lineDetectorConfigAckGeneration % 10000U), 4U,
+                 12U);
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_camera(uint8 cameraIndex)
@@ -146,7 +148,7 @@ static void teensy_link_test_draw_camera(uint8 cameraIndex)
     DisplayTextPadded(3U, "R:    AGE:");
     DisplayValue(3U, (int)camera->rightLineIdx, 3U, 2U);
     DisplayValue(3U, (int)camera->ageMs, 3U, 11U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_imu(void)
@@ -162,13 +164,14 @@ static void teensy_link_test_draw_imu(void)
     DisplayValue(2U, (int)g_teensyLinkTest.snapshot.sensorAgeMs, 3U, 13U);
 
     DisplayTextPadded(3U, "SD:  DROP:");
-    DisplayText(3U,
-                ((g_teensyLinkTest.snapshot.loggerFlags &
-                  (uint16)TEENSY_LINK_LOGGER_FLAG_READY) != 0U) ? "Y" : "N",
-                1U,
-                3U);
+    DisplayText(
+        3U,
+        ((g_teensyLinkTest.snapshot.loggerFlags & (uint16)TEENSY_LINK_LOGGER_FLAG_READY) != 0U)
+            ? "Y"
+            : "N",
+        1U, 3U);
     DisplayValue(3U, (int)g_teensyLinkTest.snapshot.loggerDropCount, 5U, 10U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_rx_data(void)
@@ -186,7 +189,7 @@ static void teensy_link_test_draw_rx_data(void)
     DisplayTextPadded(3U, "SPI:    TEN:");
     DisplayValue(3U, (int)(g_teensyLinkTest.diag.spiErrorCount % 1000U), 3U, 4U);
     DisplayValue(3U, (int)(g_teensyLinkTest.snapshot.teensyRxErrorCount % 1000U), 3U, 12U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw_raw_header(void)
@@ -204,7 +207,7 @@ static void teensy_link_test_draw_raw_header(void)
     DisplayTextPadded(3U, "B4:    B5:");
     DisplayValue(3U, (int)g_teensyLinkTest.diag.rawRxHeader[4], 3U, 3U);
     DisplayValue(3U, (int)g_teensyLinkTest.diag.rawRxHeader[5], 3U, 10U);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 static void teensy_link_test_draw(void)
@@ -269,8 +272,7 @@ void teensy_link_test_update(uint32 nowMs, boolean sw2Pressed)
            instead of sending immediate back-to-back SPI transactions. */
         if (time_reached(nowMs, g_teensyLinkTest.nextServiceMs) == TRUE)
         {
-            g_teensyLinkTest.nextServiceMs =
-                nowMs + (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
+            g_teensyLinkTest.nextServiceMs = nowMs + (uint32)TEENSY_LINK_SERVICE_PERIOD_MS;
         }
     }
 
@@ -289,6 +291,6 @@ void teensy_link_test_exit(void)
 {
     DisplayClear();
     DisplayTextPadded(0U, "TLINK EXIT");
-    DisplayRefresh();
+    Display_Refresh();
     StatusLed_Blue();
 }

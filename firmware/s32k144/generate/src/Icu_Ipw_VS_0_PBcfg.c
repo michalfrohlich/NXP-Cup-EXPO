@@ -208,30 +208,9 @@ extern "C"{
 /** 
  * @brief   Icu channels IP related configuration array
  */
-const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[2U] =
+const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[1U] =
 {
 
-    /** @brief Receiver_Input */
-    {
-        /** @brief IP type of this channel */
-        ICU_PORT_CI_MODULE,
-        /** @brief Instance number */
-        (uint8)4,
-        /** @brief Ftm IP channel pointer */
-        NULL_PTR,
-        /** @brief Lpit IP channel pointer */
-        NULL_PTR,
-        /** @brief Lptmr IP channel pointer */
-        NULL_PTR,
-        /** @brief Port Ci IP channel pointer */
-        &Port_Ci_Icu_Ip_4_ChannelConfig_PB_VS_0[0U],
-    #if (STD_ON == CMP_IP_USED)
-        /** @brief Cmp IP channel pointer */
-        NULL_PTR,
-    #endif  /* CMP_IP_USED */
-        /** @brief Index in the configuration table of the Port Ci channels */
-        (uint8)0
-    },
     /** @brief Ultrasonic_Echo */
     {
         /** @brief IP type of this channel */
@@ -259,7 +238,7 @@ const Icu_Ipw_ChannelConfigType Icu_Ipw_IpChannelConfig_PB_VS_0[2U] =
  * @brief   Icu instances related configuration array
  */
 
-const Icu_Ipw_IpConfigType Icu_Ipw_IpConfig_PB_VS_0[2U] =
+const Icu_Ipw_IpConfigType Icu_Ipw_IpConfig_PB_VS_0[1U] =
 {
     {
         /** @brief IP type */
@@ -278,24 +257,6 @@ const Icu_Ipw_IpConfigType Icu_Ipw_IpConfig_PB_VS_0[2U] =
     #endif  /* CMP_IP_USED */
         /** @brief IP instance number */
         1U
-    },
-    {
-        /** @brief IP type */
-        ICU_PORT_CI_MODULE,
-        /** @brief pointer to Ftm HW configuration of instance */
-        NULL_PTR,
-        /** @brief pointer to Lpit HW configuration of instance */
-        NULL_PTR,
-        /** @brief pointer to Lptmr HW configuration of instance */
-        NULL_PTR,
-        /** @brief pointer to Port Ci HW configuration of instance */
-        &Port_Ci_Icu_Ip_4_Config_PB_VS_0,
-    #if (STD_ON == CMP_IP_USED)
-        /** @brief pointer to Cmp HW configuration of instance */
-        NULL_PTR,
-    #endif  /* CMP_IP_USED */
-        /** @brief IP instance number */
-        4U
     }
 
 };

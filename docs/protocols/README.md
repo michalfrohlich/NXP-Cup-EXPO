@@ -13,7 +13,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 - **Type**: Full-duplex SPI, synchronous blocking transfers
 - **Cadence**: 5 ms (200 Hz) fixed service interval
 - **Frame Size**: Fixed 84 bytes (16 B header + 66 B payload + 2 B CRC)
-- **Clock**: 2 MHz, SPI Mode 0 (CPOL=0, CPHA=0)
+- **Clock**: 500 kHz, SPI Mode 0 (CPOL=0, CPHA=0)
 - **Data**: Bidirectional sensor + command exchange
 - **Reliability**: CRC-16/CCITT-FALSE error detection, sequence number tracking
 
@@ -45,13 +45,30 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 
 | Aspect | Value | Rationale |
 |--------|-------|-----------|
-| **Latency** | ~0.336 ms per frame | 84 bytes at 2 MHz |
+| **Latency** | ~1.344 ms per frame | 84 bytes at 500 kHz |
 | **Frequency** | 200 Hz (5 ms) | Matches the current camera/sensor cadence |
 | **Payload** | 66 B | Control commands + sensor telemetry |
 | **Camera identity** | 16-bit sequence per camera | Rejects repeated telemetry as duplicate camera data |
 | **Error Detection** | CRC-16/CCITT | Catches bit flips, validates on RX |
 | **Sequence Tracking** | 16-bit per direction | Detects dropped frames |
+| **Detector tuning** | S32K generation + Teensy applied-generation ACK | Applies camera-0 thresholds asynchronously |
 | **Stale Timeout** | 100 ms | Marks old sensors as unreliable |
+
+## ESP32-S32K UART Web Link
+
+The ESP32 web UI communicates with the S32K over UART using the shared frame
+definitions in `shared/protocol/esp_s32k_uart_protocol.h`.
+
+Current ESP-to-S32K request frames are:
+
+| Purpose | Format | Notes |
+|---|---|---|
+| Tuning snapshot | `#TnnPxxxxxIxxxxxDxxxxxCxxxLxxxxMxxxxHxxxExxxXcc_` | PID, steering shaping, and line-detector RAM tune values |
+| Drive command | `#CnnSxXcc_` | `S0` stop, `S1` start |
+
+The S32K replies to both request types with `#RnnOXcc_` for accepted or
+`#RnnEXcc_` for rejected. `nn` is the request sequence and `cc` is CRC-8/ATM
+over the frame payload before `X`.
 
 ### For Your Engineering Report
 
@@ -61,7 +78,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 3. Fixed frame structure: 16-byte header, 66-byte payload, 2-byte CRC.
 4. Rationale for fixed-size full-duplex polling at 5 ms.
 5. Pros/cons against UART, I2C, variable-length SPI, and Teensy-master SPI.
-6. Timing budget: about 0.336 ms wire time at 2 MHz inside a 5 ms service slot.
+6. Timing budget: about 1.344 ms wire time at 500 kHz inside a 5 ms service slot.
 7. Acceptance behavior: valid CRC/sequence updates, OLED leaves WAIT, stale within 100 ms.
 
 **Recommended Order for Report:**
@@ -70,7 +87,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 3. Explain the 5 ms schedule and 100 ms stale timeout.
 4. Show the OLED bring-up mode as the verification path.
 5. Summarize trade-offs and alternatives considered.
-6. Explain the v2 camera sequence and the 50 Hz PWM-synchronized control schedule.
+6. Explain the v3 camera sequence/configuration handshake and the 50 Hz PWM-synchronized control schedule.
 
 ### Implementation References
 
@@ -82,4 +99,4 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 
 ---
 
-**Status**: Protocol v2 with deterministic Teensy-camera race scheduling | Last Updated: June 2026
+**Status**: Protocol v3 with live camera-0 tuning and deterministic race scheduling | Last Updated: July 2026

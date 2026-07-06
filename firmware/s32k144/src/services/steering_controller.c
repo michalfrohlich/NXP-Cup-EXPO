@@ -6,19 +6,12 @@
 ========================================================= */
 static float clamp_f(float x, float lo, float hi)
 {
-    if (x < lo) return lo;
-    if (x > hi) return hi;
+    if (x < lo)
+        return lo;
+    if (x > hi)
+        return hi;
     return x;
 }
-
-static sint32 clamp_s32(sint32 x, sint32 lo, sint32 hi)
-{
-    if (x < lo) return lo;
-    if (x > hi) return hi;
-    return x;
-}
-
-static sint32 abs_s32(sint32 x) { return (x < 0) ? -x : x; }
 
 static float lpf_f(float y_prev, float x, float alpha)
 {
@@ -47,26 +40,38 @@ static float deadzone_f(float x, float dz)
 ========================================================= */
 void SteeringController_Init(SteeringControllerState_t *s)
 {
-    if (s == (SteeringControllerState_t*)0) { return; }
+    SteeringControllerConfig_t config;
 
+    if (s == (SteeringControllerState_t *)0)
+    {
+        return;
+    }
+
+    SteeringController_GetDefaultConfig(&config);
+    SteeringController_ApplyConfig(s, &config);
     SteeringController_Reset(s);
+}
 
-    /* Baseline tunings come from control_config.h, but app modes may override the state. */
-    s->kp = (float)KP;
-    s->kd = (float)KD;
-    s->ki = (float)KI;
-    s->iTermClamp = (float)ITERM_CLAMP;
+void SteeringController_GetDefaultConfig(SteeringControllerConfig_t *config)
+{
+    if (config == (SteeringControllerConfig_t *)0)
+    {
+        return;
+    }
 
-#ifdef STEER_SCALE
-    s->steerScale = (float)STEER_SCALE;
-#else
-    s->steerScale = 1.0f;
-#endif
+    config->kp = (float)STEERING_DEFAULT_KP;
+    config->ki = (float)STEERING_DEFAULT_KI;
+    config->kd = (float)STEERING_DEFAULT_KD;
+    config->iTermClamp = (float)STEERING_DEFAULT_I_TERM_CLAMP;
+    config->steerScale = 1.0f;
 }
 
 void SteeringController_Reset(SteeringControllerState_t *s)
 {
-    if (s == (SteeringControllerState_t*)0) { return; }
+    if (s == (SteeringControllerState_t *)0)
+    {
+        return;
+    }
 
     s->i_term = 0.0f;
     s->prev_error = 0.0f;
@@ -78,15 +83,19 @@ void SteeringController_Reset(SteeringControllerState_t *s)
 /* =========================================================
    Runtime tuning
 ========================================================= */
-void SteeringController_SetTunings(SteeringControllerState_t *s, float kp, float kd, float steerScale)
+void SteeringController_ApplyConfig(SteeringControllerState_t *s,
+                                    const SteeringControllerConfig_t *config)
 {
-    if (s == (SteeringControllerState_t*)0) { return; }
+    if ((s == (SteeringControllerState_t *)0) || (config == (const SteeringControllerConfig_t *)0))
+    {
+        return;
+    }
 
-    s->kp = clamp_f(kp, 0.0f, 20.0f);
-    s->kd = clamp_f(kd, 0.0f, 20.0f);
-    s->steerScale = clamp_f(steerScale, 0.5f, 4.0f);
-
-    /* KI and iTermClamp are stored in the state for per-profile overrides. */
+    s->kp = clamp_f(config->kp, 0.0f, 20.0f);
+    s->ki = clamp_f(config->ki, 0.0f, 100.0f);
+    s->kd = clamp_f(config->kd, 0.0f, 20.0f);
+    s->iTermClamp = clamp_f(config->iTermClamp, 0.0f, 100.0f);
+    s->steerScale = clamp_f(config->steerScale, 0.5f, 4.0f);
 }
 
 /* =========================================================
@@ -94,32 +103,23 @@ void SteeringController_SetTunings(SteeringControllerState_t *s, float kp, float
    ---------------------------------------------------------
    r->error is expected in [-1..+1].
    Output:
-     - out.steer_cmd in [-STEER_CMD_CLAMP..+STEER_CMD_CLAMP]
-     - out.throttle_pct slowed down when steering hard
-     - out.brake TRUE if line is lost
+     - out.steerCmd in
+   [-STEER_CMD_CLAMP..+STEER_CMD_CLAMP]
 ========================================================= */
-VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
-                                        const VisionOutput_t *r,
-                                        float dt_seconds,
-                                        uint8 base_speed)
+SteeringControllerOutput_t SteeringController_Update(SteeringControllerState_t *s,
+                                                     const VisionOutput_t *r, float dt_seconds)
 {
-    VehicleControlOutput_t out;
-    out.brake = FALSE;
-    out.throttle_pct = 0u;
-    out.steer_cmd = 0;
+    SteeringControllerOutput_t out;
+    out.steerCmd = 0;
 
-    if ((s == (SteeringControllerState_t*)0) ||
-        (r == (const VisionOutput_t*)0) ||
+    if ((s == (SteeringControllerState_t *)0) || (r == (const VisionOutput_t *)0) ||
         (r->status == VISION_TRACK_LOST))
     {
-        if (s != (SteeringControllerState_t*)0)
+        if (s != (SteeringControllerState_t *)0)
         {
             SteeringController_Reset(s);
         }
 
-        out.brake = TRUE;
-        out.throttle_pct = 0u;
-        out.steer_cmd = 0;
         return out;
     }
 
@@ -164,8 +164,10 @@ VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
     {
         s->i_term += err * dt_seconds;
 
-        if (s->i_term >  s->iTermClamp) s->i_term =  s->iTermClamp;
-        if (s->i_term < -s->iTermClamp) s->i_term = -s->iTermClamp;
+        if (s->i_term > s->iTermClamp)
+            s->i_term = s->iTermClamp;
+        if (s->i_term < -s->iTermClamp)
+            s->i_term = -s->iTermClamp;
     }
 
     {
@@ -177,16 +179,7 @@ VehicleControlOutput_t SteeringController_Update(SteeringControllerState_t *s,
         cmd = clamp_f(cmd, (float)(-STEER_CMD_CLAMP), (float)(+STEER_CMD_CLAMP));
         cmd *= (float)STEER_SIGN;
 
-        out.steer_cmd = (sint16)cmd;
-    }
-
-    {
-        sint32 absSteer = abs_s32((sint32)out.steer_cmd);
-        sint32 speed = (sint32)base_speed
-                     - ((sint32)SPEED_SLOW_PER_STEER * absSteer) / 100;
-
-        speed = clamp_s32(speed, (sint32)SPEED_MIN, (sint32)SPEED_MAX);
-        out.throttle_pct = (uint8)speed;
+        out.steerCmd = (sint16)cmd;
     }
 
     return out;

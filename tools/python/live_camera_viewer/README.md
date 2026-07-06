@@ -37,7 +37,7 @@ For full camera + detector testing, use the integrated link mode:
 TEENSY_APP_SELECTED_MODE = TEENSY_APP_MODE_LINK_BENCH
 ```
 
-For raw camera testing without detector output, use camera bench mode instead:
+For camera testing with the local detector output, use camera bench mode:
 
 ```cpp
 TEENSY_APP_SELECTED_MODE = TEENSY_APP_MODE_CAMERA_BENCH
@@ -54,9 +54,9 @@ TEENSY_LINEAR_CAMERA_STREAM_PERIOD_MS = 10
 TEENSY_LINEAR_CAMERA_DEBUG_SERIAL_BAUD = 921600
 ```
 
-In camera bench mode, `TCM1` v2 packets contain raw samples and `visionFlags=0`,
-so the GUI will report no valid detector output. In link mode, the same viewer
-also shows detector output when `TEENSY_LINEAR_CAMERA_STREAM_ENABLED` is true.
+In camera bench mode, `TCM1` v2 packets contain raw samples and the same local
+detector result used by the tracking LED. Link mode also includes detector
+output when `TEENSY_LINEAR_CAMERA_STREAM_ENABLED` is true.
 
 The current tested camera timing is:
 

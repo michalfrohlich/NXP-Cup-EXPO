@@ -1,17 +1,21 @@
 # Teensy Link SPI Bring-Up
 
-This is the S32K master-side bring-up path for the new full-duplex Teensy SPI
-link.
+This document covers the S32K master-side full-duplex Teensy SPI link, including
+the dedicated bring-up test and the race/Stack Drive runtime integration.
 
 ## Run Modes
 
-The Teensy link is test-owned for this bring-up step. Normal app modes do not
-clock SPI globally. SPI starts in one of two cases:
+SPI is initialized only by modes that use the Teensy link; it is not clocked by
+every application mode. The active paths are:
 
 - `APP_TEST_TEENSY_LINK_TEST` is selected at compile time. The S32K boots
   directly into `mode_teensy_link_test()` from `mode_teensy_link.c`.
 - `APP_TEST_NXP_CUP_TESTS` is selected and the `Teensy Link` runtime bench test
   is entered from the OLED menu.
+- `APP_RACE` runs the deterministic Teensy-camera race schedule.
+- Tune Drive reuses the Teensy-camera race path with ESP tuning enabled.
+- Stack Drive uses the S32K camera for control while continuing Teensy SPI
+  telemetry and detector-configuration service.
 
 The viewer can run from the normal runtime bench menu. With:
 
@@ -38,7 +42,7 @@ every 5 ms and uses SW2 to cycle OLED pages:
 - IMU/logger status,
 - received 84-byte SPI frame counters.
 
-The menu item is named `Teensy Link`. It lives in the runtime test menu, not in
+The menu item is named `Teensy Link`. It lives in the bench mode menu, not in
 a separate Project Explorer folder.
 
 ## Hardware Setup
@@ -74,11 +78,11 @@ Both boards use 3.3 V logic. Do not route a 5 V signal into either SPI pin.
 - Teensy is slave.
 - SPI mode 0.
 - 8-bit words, MSB first.
-- 2 MHz SCK.
+- 500 kHz SCK.
 - Fixed 84-byte full-duplex transfer every 5 ms.
-- Synchronous blocking transfer for protocol v2.
+- Synchronous blocking transfer for protocol v3.
 
-At 2 MHz, the 84-byte transfer is about 0.336 ms of wire time, or 6.72 percent
+At 500 kHz, the 84-byte transfer is about 1.344 ms of wire time, or 26.88 percent
 of each 5 ms service period.
 
 The Teensy uses one fixed-pin software bit-banged backend. The failed
@@ -97,8 +101,9 @@ The portable constants live in:
 shared/protocol/teensy_link_protocol.h
 ```
 
-Protocol v2 is not wire-compatible with the previous 80-byte v1 frame. Flash
-the matching S32K and Teensy builds together.
+Protocol v3 is not wire-compatible with earlier firmware. Flash matching S32K
+and Teensy builds together. The physical transfer remains the same fixed
+84-byte frame used by v2.
 
 Frame layout:
 
@@ -123,9 +128,16 @@ The camera sequence increments when that camera produces a new processed
 result. Repeated SPI telemetry can therefore carry the same camera sequence
 without being treated as a new control sample.
 
+Protocol v3 also sends the active camera-0 detector parameters from the S32K:
+minimum contrast, high-edge percentage, low-edge percentage, and a nonzero
+configuration generation. The Teensy validates and applies changed values in
+RAM without resetting detector tracking history, then returns the applied
+generation asynchronously. The `TLINK` page shows `CFG` (sent) and `ACK`
+(applied). A mismatch is expected briefly after a change or board reset.
+
 ## Deterministic Teensy-Camera Race Schedule
 
-`APP_TEST_TEENSY_CAM0_RACE` uses the 50 Hz servo PWM rising edge as the master
+`APP_RACE` uses the 50 Hz servo PWM rising edge as the master
 20 ms epoch:
 
 | PWM phase | Work |
@@ -186,7 +198,7 @@ Expected OLED behavior:
 
 | Page | What it proves |
 |---|---|
-| `TLINK` | Link status, S32K sequence, Teensy sequence, READY, total errors |
+| `TLINK` | Link status, sequences, READY, and detector configuration generation/ACK |
 | `TLINK CAM0` | Teensy camera 0 slot decodes correctly |
 | `TLINK CAM1` | Missing/stale camera data is handled without breaking the link |
 | `TLINK IMU/LOG` | IMU and logger fields decode correctly |

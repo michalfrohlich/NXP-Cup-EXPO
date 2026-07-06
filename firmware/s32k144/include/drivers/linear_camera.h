@@ -24,7 +24,7 @@ extern "C" {
 typedef struct
 {
     uint16 Values[LINEAR_CAMERA_PIXEL_COUNT];
-} LinearCameraFrame;
+} LinearCameraFrame_t;
 
 typedef struct
 {
@@ -33,43 +33,32 @@ typedef struct
     uint32 frameCompleteCount;
     uint32 droppedFrameCount;
     uint32 captureEventCount;
-} LinearCameraDebugCounters;
+} LinearCameraDebugCounters_t;
 
 typedef enum
 {
     LINEAR_CAMERA_IDLE = 0,
     LINEAR_CAMERA_CAPTURING
-} LinearCameraStatus;
+} LinearCameraStatus_t;
 
-typedef struct
-{
-    Pwm_ChannelType ClkPwmChannel;
-    Gpt_ChannelType ShutterGptChannel;
-    Adc_GroupType InputAdcGroup;
-    Dio_ChannelType ShutterDioChannel;
-
-    volatile uint16 CurrentIndex;
-    volatile LinearCameraStatus Status;
-} LinearCamera;
-
-void LinearCameraInit(Pwm_ChannelType ClkPwmChannel,
+void LinearCamera_Init(Pwm_ChannelType ClkPwmChannel,
                       Gpt_ChannelType ShutterGptChannel,
                       Adc_GroupType InputAdcGroup,
                       Dio_ChannelType ShutterDioChannel);
 
 /* Starts free-running camera clock with SI-aligned manual ADC sampling. */
-boolean LinearCameraStartStream(void);
+boolean LinearCamera_StartStream(void);
 void LinearCameraStopStream(void);
 void LinearCameraSetFrameIntervalTicks(uint32 frameIntervalTicks);
-boolean LinearCameraGetLatestFrame(const LinearCameraFrame **Frame);
+boolean LinearCamera_GetLatestFrame(const LinearCameraFrame_t **Frame);
 
-LinearCameraStatus LinearCameraGetStatus(void);
+LinearCameraStatus_t LinearCameraGetStatus(void);
 boolean LinearCameraIsBusy(void);
 
 /* Timing/debug helpers */
 uint32 LinearCameraGetPixelClockHz(void);
 uint32 LinearCameraGetFrameReadoutUs(void);
-void LinearCameraGetDebugCounters(LinearCameraDebugCounters *counters);
+void LinearCameraGetDebugCounters(LinearCameraDebugCounters_t *counters);
 
 #ifdef __cplusplus
 }

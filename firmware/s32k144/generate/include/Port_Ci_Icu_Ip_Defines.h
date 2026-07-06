@@ -75,9 +75,6 @@ extern "C"{
                                        DEFINES AND MACROS
 ==================================================================================================*/
 /* Macros that indicate PORT instances used by ICU. */
-/** @brief PORT 4 ISR enable/disable */
-#define PORT_CI_ICU_IP_PORT_4_ISR_USED                    (STD_ON)
-
 /** @brief Switches the Development Error Detection and Notification on or off.  */
 #define PORT_CI_ICU_IP_DEV_ERROR_DETECT           (STD_ON)
 

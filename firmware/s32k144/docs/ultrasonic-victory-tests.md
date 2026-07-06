@@ -2,7 +2,7 @@
 
 ## Where To Run Them
 
-Build with the runtime test menu:
+Build with the bench mode menu:
 
 ```c
 #define APP_TEST_NXP_CUP_TESTS            1
@@ -16,7 +16,7 @@ Then use the pot to select:
 
 Use `swPcb` to enter or leave the selected test.
 
-These are separate runtime tests. `Ultrasonic` and `Ultra+ESC` are obstacle
+These are separate bench modes. `Ultrasonic` and `Ultra+ESC` are obstacle
 safety tests. `Victory Lap` is its own pole-triggered celebration test. They
 share the OLED and ultrasonic driver, but they do not depend on each other.
 

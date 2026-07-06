@@ -152,7 +152,7 @@ static Lpspi_Ip_DeviceParamsType Lpspi_Ip_DeviceParamsCfg_VS_0[1U] =
 const Lpspi_Ip_ExternalDeviceType Lpspi_Ip_DeviceAttributes_TeensySpiDevice_Instance_1_VS_0 =
 {
     1U,  /* Instance */
-        (uint32)(LPSPI_CCR_SCKPCS(7U) | LPSPI_CCR_PCSSCK(7U) | LPSPI_CCR_SCKDIV(2U) | LPSPI_CCR_DBT(6U)), /* ccr */
+        (uint32)(LPSPI_CCR_SCKPCS(7U) | LPSPI_CCR_PCSSCK(7U) | LPSPI_CCR_SCKDIV(14U) | LPSPI_CCR_DBT(6U)), /* ccr */
         (uint32)(LPSPI_TCR_WIDTH(0U) | LPSPI_TCR_CPOL(0U) | LPSPI_TCR_CPHA(0U) | LPSPI_TCR_PRESCALE(0U) | LPSPI_TCR_PCS(3U) | LPSPI_TCR_CONT(1U)) /* TCR */
 
 

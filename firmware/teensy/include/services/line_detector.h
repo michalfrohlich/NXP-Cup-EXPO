@@ -45,10 +45,18 @@ struct LineDetectorDebugOut
     LineDetectorDebugEdge edges[VLIN_MAX_EDGE_CANDIDATES];
 };
 
+struct LineDetectorParams
+{
+    uint16_t minContrast;
+    uint8_t edgeHighPct;
+    uint8_t edgeLowPct;
+};
+
 class LineDetector
 {
   public:
     void init();
+    bool setParams(const LineDetectorParams &params);
     void process(const uint16_t *pixels, VisionOutput &out);
     void processDebug(const uint16_t *pixels, VisionOutput &out, LineDetectorDebugOut &debug);
 
@@ -58,4 +66,9 @@ class LineDetector
     float lastTrackCenter_ = (float)(VISION_LINEAR_BUFFER_SIZE / 2U);
     uint8_t isLocked_ = 0U;
     uint8_t singleEdgeStreak_ = 0U;
+    LineDetectorParams params_ = {
+        VISION_LINEAR_MIN_CONTRAST,
+        VISION_LINEAR_EDGE_HIGH_PCT,
+        VISION_LINEAR_EDGE_LOW_PCT,
+    };
 };

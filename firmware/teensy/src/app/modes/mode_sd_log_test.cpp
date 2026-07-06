@@ -23,8 +23,8 @@ static uint32_t button2PressStartMs = 0U;
 static void configureSpiReadyLow()
 {
     pinMode(TEENSY_LINK_SPI_CS_PIN, INPUT_PULLUP);
-    pinMode(TEENSY_LINK_SPI_SCK_PIN, INPUT);
-    pinMode(TEENSY_LINK_SPI_MOSI_PIN, INPUT);
+    pinMode(TEENSY_LINK_SPI_SCK_PIN, INPUT_PULLDOWN);
+    pinMode(TEENSY_LINK_SPI_MOSI_PIN, INPUT_PULLDOWN);
     pinMode(TEENSY_LINK_READY_PIN, OUTPUT);
     digitalWriteFast(TEENSY_LINK_READY_PIN, LOW);
 }

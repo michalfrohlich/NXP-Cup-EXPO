@@ -125,7 +125,7 @@ const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[3U] =
         /** @brief Lpit callback name */
         &Gpt_ProcessCommonInterrupt,
         /** @brief Lpit callbackparam  */
-        (uint8)1U,
+        (uint8)0U,
  #if (LPIT_GPT_IP_ENABLE_EXT_TRIGGERS == STD_ON)
     /** @brief LPIT External/Internal Trigger Configuration */
       (uint32)0U | \
@@ -145,7 +145,7 @@ const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[3U] =
         /** @brief Lpit callback name */
         &Gpt_ProcessCommonInterrupt,
         /** @brief Lpit callbackparam  */
-        (uint8)2U,
+        (uint8)1U,
  #if (LPIT_GPT_IP_ENABLE_EXT_TRIGGERS == STD_ON)
     /** @brief LPIT External/Internal Trigger Configuration */
       (uint32)0U | \
@@ -165,7 +165,7 @@ const Lpit_Gpt_Ip_ChannelConfigType LPIT_0_ChannelConfig_PB_VS_0[3U] =
         /** @brief Lpit callback name */
         &Gpt_ProcessCommonInterrupt,
         /** @brief Lpit callbackparam  */
-        (uint8)3U,
+        (uint8)2U,
  #if (LPIT_GPT_IP_ENABLE_EXT_TRIGGERS == STD_ON)
     /** @brief LPIT External/Internal Trigger Configuration */
       (uint32)0U | \

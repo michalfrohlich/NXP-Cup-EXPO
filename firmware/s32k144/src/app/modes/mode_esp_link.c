@@ -70,7 +70,7 @@ static void esp_link_draw_tune(const EspUartLink_Diagnostics_t *diag,
                        (unsigned int)tune->edgeLowPct);
         DisplayTextPadded(3U, lineBuf);
     }
-    DisplayRefresh();
+    Display_Refresh();
 }
 #endif
 
@@ -99,11 +99,21 @@ typedef struct
 
 static EspLinkTestState_t g_espLinkTest;
 
-void esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune)
+boolean esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune)
 {
+    LineDetectorParams_t lineDetector;
+
     if (tune == NULL_PTR)
     {
-        return;
+        return FALSE;
+    }
+
+    lineDetector.minContrast = tune->minContrast;
+    lineDetector.edgeHighPct = tune->edgeHighPct;
+    lineDetector.edgeLowPct = tune->edgeLowPct;
+    if (RuntimeTune_SetLineDetectorParams(&lineDetector) != TRUE)
+    {
+        return FALSE;
     }
 
     g_runtimeTune.profile.kp = (float)tune->proportionalMilli / 1000.0f;
@@ -111,9 +121,7 @@ void esp_link_apply_tune_frame(const EspUartLink_TuneFrame_t *tune)
     g_runtimeTune.profile.kd = (float)tune->derivativeMilli / 1000.0f;
     g_runtimeTune.profile.steerClamp = (sint16)tune->steerClamp;
     g_runtimeTune.profile.steerLpfAlpha = (float)tune->steerLpfMilli / 1000.0f;
-    g_runtimeTune.lineDetector.minContrast = tune->minContrast;
-    g_runtimeTune.lineDetector.edgeHighPct = tune->edgeHighPct;
-    g_runtimeTune.lineDetector.edgeLowPct = tune->edgeLowPct;
+    return TRUE;
 }
 
 boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outLastTune)
@@ -124,13 +132,44 @@ boolean esp_link_service_tune_frames(uint32 nowMs, EspUartLink_TuneFrame_t *outL
     EspUartLink_Service(nowMs);
     while (EspUartLink_TakeTune(&tune) == TRUE)
     {
-        esp_link_apply_tune_frame(&tune);
-        (void)EspUartLink_QueueTuneResult(tune.sequence, TRUE);
-        if (outLastTune != NULL_PTR)
+        boolean accepted = esp_link_apply_tune_frame(&tune);
+
+        (void)EspUartLink_QueueTuneResult(tune.sequence, accepted);
+        if ((accepted == TRUE) && (outLastTune != NULL_PTR))
         {
             *outLastTune = tune;
         }
+        received = (boolean)((received == TRUE) || (accepted == TRUE));
+    }
+
+    if (received == TRUE)
+    {
+        EspUartLink_Service(nowMs);
+    }
+
+    return received;
+}
+
+boolean esp_link_service_drive_commands(uint32 nowMs,
+                                        EspUartLink_DriveCommandFrame_t *outLastCommand)
+{
+    EspUartLink_DriveCommandFrame_t command;
+    boolean received = FALSE;
+
+    EspUartLink_Service(nowMs);
+    while (EspUartLink_TakeDriveCommand(&command) == TRUE)
+    {
+        (void)EspUartLink_QueueTuneResult(command.sequence, TRUE);
+        if (outLastCommand != NULL_PTR)
+        {
+            *outLastCommand = command;
+        }
         received = TRUE;
+    }
+
+    if (received == TRUE)
+    {
+        EspUartLink_Service(nowMs);
     }
 
     return received;
@@ -170,6 +209,7 @@ void esp_link_test_update(uint32 nowMs)
 {
     EspUartLink_Diagnostics_t diag;
     EspUartLink_TuneFrame_t tune;
+    EspUartLink_DriveCommandFrame_t command;
     char diagLine[112];
     boolean stateChanged;
     boolean rxLive;
@@ -229,6 +269,16 @@ void esp_link_test_update(uint32 nowMs)
 #if (ESP_LINK_DISPLAY_ENABLED == 1U)
         g_espLinkTest.lastTune = tune;
 #endif
+        g_espLinkTest.lastTuneMs = nowMs;
+        g_espLinkTest.tuneReceived = TRUE;
+#if (ESP_LINK_DISPLAY_ENABLED == 1U)
+        g_espLinkTest.nextDisplayMs = nowMs;
+#endif
+    }
+
+    if (esp_link_service_drive_commands(nowMs, &command) == TRUE)
+    {
+        (void)command;
         g_espLinkTest.lastTuneMs = nowMs;
         g_espLinkTest.tuneReceived = TRUE;
 #if (ESP_LINK_DISPLAY_ENABLED == 1U)

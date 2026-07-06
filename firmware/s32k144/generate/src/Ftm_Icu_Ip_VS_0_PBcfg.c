@@ -141,7 +141,7 @@ const Ftm_Icu_Ip_ChannelConfigType Ftm_Icu_Ip_1_ChannelConfig_PB_VS_0[1U] =
         /** @brief Callback function for channels. */
         NULL_PTR,
         /** @brief Parameters used by callback function. */
-        (uint8)1,
+        (uint8)0,
 #if (STD_ON == FTM_ICU_TIMESTAMP_API)
         /** @brief Timestamp buffer used. */
         FTM_ICU_LINEAR_BUFFER,

@@ -1,5 +1,44 @@
 #include "../app_internal.h"
 
+typedef enum
+{
+    SERVO_RATE_TEST_FREQ_10HZ = 0,
+    SERVO_RATE_TEST_FREQ_50HZ,
+    SERVO_RATE_TEST_FREQ_100HZ,
+    SERVO_RATE_TEST_FREQ_250HZ,
+    SERVO_RATE_TEST_FREQ_COUNT
+} ServoRateTestFreqId_t;
+
+typedef enum
+{
+    SERVO_RATE_TEST_MOTION_POT = 0,
+    SERVO_RATE_TEST_MOTION_FINE_SWEEP,
+    SERVO_RATE_TEST_MOTION_COARSE_SWEEP,
+    SERVO_RATE_TEST_MOTION_COUNT
+} ServoRateTestMotionId_t;
+
+typedef struct
+{
+    ServoRateTestFreqId_t freqId;
+    ServoRateTestMotionId_t motionId;
+    uint32 nextButtonsMs;
+    uint32 nextCommandMs;
+    uint32 nextDisplayMs;
+    sint16 command;
+    sint16 sweepDirection;
+    uint8 lastPotLevel;
+    uint32 startMs;
+    ServoDebugSnapshot_t servoDbg;
+    boolean noPwmCallbackFault;
+    boolean bufferedLagFault;
+} ServoRateTestState_t;
+
+static ServoRateTestState_t g_servoRateTest;
+static const uint16 g_servoRateTestFreqHz[SERVO_RATE_TEST_FREQ_COUNT] = {10U, 50U, 100U, 250U};
+static const uint16 g_servoRateTestPeriodMs[SERVO_RATE_TEST_FREQ_COUNT] = {100U, 20U, 10U, 4U};
+static const char g_servoRateTestMotionText[SERVO_RATE_TEST_MOTION_COUNT][12] = {
+    "POT", "SWEEP FINE", "SWEEP STEP"};
+
 static sint16 servo_rate_test_pot_to_command(uint8 potLevel);
 static void servo_rate_test_enter(uint32 nowMs);
 static void servo_rate_test_update(uint32 nowMs, boolean sw2Pressed, boolean sw3Pressed, uint8 potLevel);
@@ -15,7 +54,7 @@ static void servo_rate_test_enter(uint32 nowMs)
     (void)memset(&g_servoRateTest, 0, sizeof(g_servoRateTest));
 
     Servo_Init(SERVO_PWM_CH, SERVO_DUTY_MAX, SERVO_DUTY_MIN, SERVO_DUTY_MED);
-    SteerStraight();
+    Servo_SetStraight();
 
     g_servoRateTest.freqId = SERVO_RATE_TEST_FREQ_50HZ;
     g_servoRateTest.motionId = SERVO_RATE_TEST_MOTION_POT;
@@ -168,7 +207,7 @@ static void servo_rate_test_draw(const ServoRateTestState_t *st)
                    (int)st->command,
                    (unsigned long)st->servoDbg.PeriodSequence);
     DisplayTextPadded(3U, lineBuf);
-    DisplayRefresh();
+    Display_Refresh();
 }
 
 void mode_servo_rate_test(void)

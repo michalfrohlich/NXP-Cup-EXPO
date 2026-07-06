@@ -2,22 +2,18 @@
 
 AppBuildMode_t App_GetSelectedBuildMode(void)
 {
-#if APP_TEST_NXP_CUP
-    return APP_BUILD_MODE_NXP_CUP;
-#elif APP_TEST_NXP_CUP_TESTS
+#if APP_TEST_NXP_CUP_TESTS
     return APP_BUILD_MODE_NXP_CUP_TESTS;
-#elif APP_TEST_HONOR_LAP
-    return APP_BUILD_MODE_HONOR_LAP;
 #elif APP_TEST_SERVO_RATE_TEST
     return APP_BUILD_MODE_SERVO_RATE_TEST;
 #elif APP_TEST_TEENSY_LINK_TEST
     return APP_BUILD_MODE_TEENSY_LINK_TEST;
 #elif APP_TEST_ESP_LINK_TEST
     return APP_BUILD_MODE_ESP_LINK_TEST;
-#elif APP_TEST_TEENSY_CAM0_RACE
-    return APP_BUILD_MODE_TEENSY_CAM0_RACE;
-#elif APP_TEST_RACE_MODE
-    return APP_BUILD_MODE_RACE_MODE;
+#elif APP_RACE
+    return APP_BUILD_MODE_RACE;
+#elif APP_RACE_S32K_ONLY
+    return APP_BUILD_MODE_RACE_S32K_ONLY;
 #elif APP_TEST_LINEAR_CAMERA_TEST
     return APP_BUILD_MODE_LINEAR_CAMERA_TEST;
 #elif APP_TEST_ESC_TEST
@@ -39,20 +35,12 @@ void App_RunSelectedMode(void)
             mode_esc_test();
             break;
 
-        case APP_BUILD_MODE_NXP_CUP:
-            mode_nxp_cup();
+        case APP_BUILD_MODE_RACE_S32K_ONLY:
+            mode_race_s32k_only();
             break;
 
-        case APP_BUILD_MODE_RACE_MODE:
-            mode_race_mode();
-            break;
-
-        case APP_BUILD_MODE_TEENSY_CAM0_RACE:
-            mode_teensy_cam0_race();
-            break;
-
-        case APP_BUILD_MODE_HONOR_LAP:
-            mode_honor_lap();
+        case APP_BUILD_MODE_RACE:
+            mode_race();
             break;
 
         case APP_BUILD_MODE_SERVO_RATE_TEST:
