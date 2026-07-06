@@ -2,13 +2,13 @@
 #include "config/board_config.h"
 #include "Gpt.h"
 
-/* ===================== Millisecond timebase (EmuTimer, GPT channel 2) ===================== */
+/* ===================== Millisecond timebase (EmuTimer) ===================== */
 
 /* Free-running millisecond tick */
 volatile uint32 g_SystemMs = 0u;
 
 /* Initialize the GPT timer that drives the millisecond timebase.
- * GPT channel 2 is configured in ConfigTools at 8 MHz tick frequency,
+ * EmuTimer is configured in ConfigTools at 8 MHz tick frequency,
  * and we start it with a period of 8000 ticks → 1 ms.
  */
 void Timebase_Init(void)
@@ -18,14 +18,13 @@ void Timebase_Init(void)
     Gpt_EnableNotification(MS_TIMER_CHANNEL);
 }
 
-
 /*
  * GPT notification for the emulator timer.
  * This function name MUST match the one configured in Gpt (EmuTimer_Notification).
  */
 void EmuTimer_Notification(void)
 {
-    g_SystemMs++;   /* increments on every GPT tick (configured for 1 ms period) */
+    g_SystemMs++; /* increments on every GPT tick (configured for 1 ms period) */
 }
 
 /* Return current ms tick */
@@ -46,20 +45,17 @@ void Timebase_DelayMs(uint32 delayMs)
     }
 }
 
-
-/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */
+/* ===================== Microsecond one-shot timer (UsTimer) ===================== */
 
 /* GPT channel ID used for the microsecond one-shot LPIT timer.
  * In ConfigTools:
  *  - Name:          UsTimer
- *  - GptChannelId:  3
  *  - HW IP:         LPIT_0 / CH_2 (UsTimerChannel)
  *  - Mode:          GPT_CH_MODE_ONESHOT
  *  - Tick freq:     8 MHz (LPIT0 clock from generated config)
  */
 /* Flag set to TRUE when UsTimer elapsed (notification fired) */
 volatile boolean g_UsTimerElapsed = FALSE;
-
 
 /* Initialise UsTimer flag. Does NOT touch GPT hardware state.
  * Board_InitDrivers() has already called Gpt_Init() using the generated config.
@@ -68,7 +64,6 @@ void UsTimer_Init(void)
 {
     g_UsTimerElapsed = FALSE;
 }
-
 
 /* Start a one-shot UsTimer delay in microseconds.
  *
@@ -84,7 +79,7 @@ void UsTimer_Init(void)
  */
 void UsTimer_Start(uint32 delayUs)
 {
-    const uint32 ticksPerUs  = 8u;          /* 8 MHz -> 8 ticks per us */
+    const uint32 ticksPerUs = 8u; /* 8 MHz -> 8 ticks per us */
     const uint32 periodTicks = delayUs * ticksPerUs;
 
     /* Prepare state */
@@ -97,7 +92,6 @@ void UsTimer_Start(uint32 delayUs)
     Gpt_EnableNotification(US_TIMER_CHANNEL);
     Gpt_StartTimer(US_TIMER_CHANNEL, periodTicks);
 }
-
 
 /* GPT notification callback for UsTimer.
  * Configure this exact name in the Gpt channel (UsTimer_Notification).
@@ -119,7 +113,6 @@ void UsTimer_Notification(void)
      * but it is not required for correct one-shot operation.
      */
 }
-
 
 /* Poll whether the UsTimer one-shot has elapsed */
 boolean UsTimer_HasElapsed(void)

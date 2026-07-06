@@ -3,7 +3,7 @@
 
 #include "Std_Types.h"
 
-/* ===================== Millisecond timebase (EmuTimer, GPT channel 2) ===================== */
+/* ===================== Millisecond timebase (EmuTimer) ===================== */
 
 /* Global millisecond counter, incremented by GPT callback */
 extern volatile uint32 g_SystemMs;
@@ -22,8 +22,7 @@ uint32 Timebase_GetMs(void);
 /* Coarse blocking delay using the ms tick */
 void Timebase_DelayMs(uint32 delayMs);
 
-
-/* ===================== Microsecond one-shot timer (UsTimer, GPT channel 3) ===================== */
+/* ===================== Microsecond one-shot timer (UsTimer) ===================== */
 
 /* One-shot UsTimer API:
  *  - Call UsTimer_Init() once after Board_InitDrivers() to reset internal flag.

@@ -1240,7 +1240,7 @@ static void race_mode_ensure_display_ready(RaceModeState_t *st)
     /* The OLED path is blocking, so race mode keeps it completely out of the
        hot path until the dedicated debug switch explicitly requests it. */
     display_power_stabilize_delay();
-    Display_Init(0U, STD_ON);
+    Display_Init(DISPLAY_I2C_CHANNEL, STD_ON);
     DisplayClear();
     Display_Refresh();
     st->displayInitialized = TRUE;

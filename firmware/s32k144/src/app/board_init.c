@@ -46,7 +46,7 @@ void Board_InitDrivers(void)
     {
         Adc_CalibrationStatusType CalibStatus;
 
-        Adc_Calibrate(0U, &CalibStatus);
+        Adc_Calibrate(AdcHwUnit_0, &CalibStatus);
         if (CalibStatus.AdcUnitSelfTestStatus == E_OK)
         {
             break;

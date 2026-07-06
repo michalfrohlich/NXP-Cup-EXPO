@@ -436,7 +436,7 @@ void App_InitRuntimeCommon(void)
     if (g_appRuntimeDisplay_Initialized != TRUE)
     {
         display_power_stabilize_delay();
-        Display_Init(0U, STD_ON);
+        Display_Init(DISPLAY_I2C_CHANNEL, STD_ON);
         g_appRuntimeDisplay_Initialized = TRUE;
     }
 
