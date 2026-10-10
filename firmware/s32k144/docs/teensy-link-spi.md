@@ -40,7 +40,8 @@ every 5 ms and uses SW2 to cycle OLED pages:
 - camera 0 result,
 - camera 1 result,
 - IMU/logger status,
-- received 84-byte SPI frame counters.
+- received 84-byte SPI frame counters,
+- raw header bytes.
 
 The menu item is named `Teensy Link`. It lives in the bench mode menu, not in
 a separate Project Explorer folder.
@@ -205,5 +206,7 @@ Expected OLED behavior:
 | `TLINK RX 84B` | 84-byte RX counters, ACK, CRC, and SPI errors |
 | `TLINK RAW HEADER` | Header bytes match the expected Teensy frame |
 
-The RGB LED is green when the S32K sees live valid frames. Blue means no frame
-yet, yellow means stale data, and red means repeated protocol/SPI errors.
+The RGB LED is green when the link is live, even if historical errors exist.
+Otherwise it is red for any recorded CRC/SPI error or more than 20 protocol
+errors, yellow for an old valid frame, and blue if no valid frame exists.
+See the [indicator reference](../../../docs/system/status-led-semantics.md).

@@ -29,9 +29,8 @@ Notes:
 - The dual BLDC path uses `Esc_Pwm` on `FTM3_CH6/PTE2` and `Esc2_Pwm` on `FTM3_CH2/PTB10`; both run at the same generated `50 Hz` period.
 - Handwritten ESC calls pass both ESC commands explicitly; same-speed driving uses equal primary and secondary arguments, while differential steering can pass different values.
 - The servo driver defaults to applying the latest pending request from the
-  PWM falling-edge callback. Existing bench, regular race, NXP Cup, honor-lap,
-  and servo-rate modes retain this behavior.
-- `APP_RACE` explicitly selects the phase-synchronized policy,
+  PWM falling-edge callback. S32K-camera modes and the servo benches use this policy.
+- `APP_RACE` and the Tune Drive bench select the phase-synchronized policy,
   which stages at most one duty update while `17 <= phase < 19 ms` in each
   generated 50 Hz PWM period.
 - The underlying timer/IP mapping is generated configuration and should be checked in `generate/` or `Nxp_Cup.mex` before changing it.
@@ -46,11 +45,15 @@ Notes:
 | Ultrasonic echo measurement | `Icu` timestamp capture | `src/drivers/ultrasonic.c`, `include/drivers/ultrasonic.h` |
 
 Notes:
-- `timebase.c` documents GPT channel `2` for the ms tick and channel `3` for the microsecond helper.
+- `timebase.c` uses generated channel symbols through `MS_TIMER_CHANNEL` and
+  `US_TIMER_CHANNEL`; their current logical IDs are `1` and `2` respectively.
 - `include/config/board_config.h` defines the ultrasonic trigger DIO channel and ICU echo channel; `include/config/sensor_config.h` defines the current distance/timeout calibration.
-- Race mode uses `ultrasonic.c` during its honor phase to consume fresh distance samples and slow/stop the ESC command.
-- `APP_RACE_S32K_ONLY` uses the same ultrasonic driver path, but only after finish detection switches the speed policy into the honor-lap stopping thresholds.
-- The standalone ultrasonic test mode and the `APP_TEST_NXP_CUP_TESTS` ultrasonic menu item both use `ultrasonic.c` directly from `app_modes.c` for a state-based diagnostic flow with enable delay, frequent retriggering, and `WAIT` / `SCAN` / `CLEAR` / `SLOW` / `STOP` display states.
+- Race-family modes service ultrasonic measurements throughout the run; distance
+  affects speed and steering only in the Honor phase.
+- The `Ultrasonic` bench in `src/app/modes/bench_tests.c` provides the enable delay,
+  periodic triggering, and `WAIT` / `SCAN` / `CLEAR` / `SLOW` / `STOP` diagnostic
+  states. The bottom row shows `DRV ST:` and the driver state. There is no
+  standalone ultrasonic compile-time flavor.
 
 ## I2C
 | Purpose | Driver/module | Key files |
@@ -62,7 +65,9 @@ Notes:
 - `display.c` uses I2C address `0x3C`.
 - The display code is written for a 128x32 SSD1306-style display.
 - `src/unused/display_async.c` is retained for reference and not called by the active runtime. It adds double-buffered non-blocking refresh (`I2c_AsyncTransmit` + `I2c_GetStatus`) with latest-frame-wins queuing.
-- In `APP_RACE_S32K_ONLY`, OLED initialization is allowed only during the ESC-arm phase. After that, `swPcb` can only enable refreshes on an already-initialized display, so the blocking display bring-up cannot stall the active race loop.
+- The common boot routine initializes the display for the three-second build
+  banner. Race telemetry is separately gated by `swPcb`; Teensy-camera race
+  suppresses refreshes during running and Honor to protect its control window.
 
 ## DIO / GPIO
 | Purpose | Driver/module | Key files |
@@ -81,6 +86,7 @@ Notes:
 | Purpose | Driver/module | Key files |
 | --- | --- | --- |
 | Temporary serial debug / PID tuning transport | Generated Port + UART config with byte-oriented debug service | `src/debug/uart_host_link.c`, `include/debug/uart_host_link.h`, `src/app/board_init.c`, `generate/include/CDD_Uart_Cfg.h` |
+| ESP tuning and Start/Stop link | LPUART2 interrupt RX ring and foreground parser | `src/drivers/esp_uart_link.c`, `include/drivers/esp_uart_link.h` |
 
 Notes:
 - `PTC6` / `PTC7` are routed in `.mex` as `LPUART1_RX` / `LPUART1_TX` and applied by generated `Port_Init()`.
@@ -89,9 +95,16 @@ Notes:
 - The service keeps a small direct RX-ready/read path because the generated UART driver is configured for interrupt mode and the tuning shell currently uses polling-style single-byte reads.
 - TODO: replace the proof-of-concept direct RX polling with generated UART async receive once `LPUART1` interrupt routing/callback buffering is configured in `.mex`.
 - The API still exposes the original blocking single-char / line-oriented helpers for the serial tuning shell, but it now also has a software TX queue plus `UartHost_ServiceTx()` / `UartHost_EnqueueBytes()` for non-blocking background streaming.
-- The `Cable tune` runtime bench item uses this handwritten UART path; it shows shadow PID values on the OLED and echoes received UART lines.
+- The `Cable tune-s32k` bench uses this UART path for PID, steering clamp/LPF,
+  and detector threshold menus. Edits update the shared RAM tuning state.
 - `BENCH_MODE_LINEAR_CAMERA` and `BENCH_MODE_CAMSERVO` use the queued TX path to emit a fixed-size binary packet per processed frame for MATLAB. The packet starts with `0xA5 0x5A`, includes sequence / screen / vision summary fields, then streams the `124` trimmed raw pixels, `124` filtered pixels, normalized signed gradient data, debug thresholds/stats, edge candidates, and an XOR checksum.
 - That debug UART stream is rate-limited in `src/app/app_config.h` by `CAM_UART_STREAM_PERIOD_MS`; this reduces PC-side backlog without changing the actual camera acquisition cadence.
 
-## Not documented here
-- CAN / SPI are not documented because their use was not confirmed in handwritten project code.
+## SPI
+
+`src/drivers/teensy_link.c` owns the S32K-master SPI link to Teensy. It exchanges
+fixed 84-byte v3 frames at 500 kHz, with READY gating, CRC validation, telemetry,
+and detector-configuration acknowledgment. See [Teensy link](teensy-link-spi.md)
+for pin assignments, timing, and mode-specific scheduling.
+
+CAN has no active application path.

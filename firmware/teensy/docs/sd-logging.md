@@ -31,10 +31,18 @@ Expected behavior:
 - The RGB LED is green when logging is ready, yellow when no card/open failed,
   and red after a logger error.
 - The mode holds READY low because it does not run the S32K SPI slave.
+- Potentiometer controls LED brightness; a low setting can hide the status.
+- Hold button 2 for two seconds to finalize the log. Check that serial reports
+  closure with no logger error, then power down before removing the card.
+  The mode does not implement arbitrary hot removal or automatic restart after
+  closure; reset to open another test log.
 
 The test rows use the normal telemetry CSV schema. Pot/button values are encoded
 into synthetic IMU fields only for this standalone test; race logging should
 publish real runtime telemetry when it is wired in later.
+
+Race, Link Bench, and Stack Drive currently report logger flags as zero and do
+not call this logger. A valid IMU or SPI link does not imply SD recording.
 
 ## Timing Model
 

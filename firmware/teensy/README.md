@@ -35,7 +35,7 @@ The current integration default is race:
 | Mode | Purpose | Debug behavior |
 |---|---|---|
 | `TEENSY_APP_MODE_CAMERA_BENCH` | Camera 0 bring-up and Python plotting without the S32K link runtime. | Binary Python camera stream enabled by camera config; text frame/status output disabled by default. |
-| `TEENSY_APP_MODE_LINK_BENCH` | Debug wrapper around the integrated race runtime. | Runs SPI link, camera acquisition, line detection, and optional debug outputs. |
+| `TEENSY_APP_MODE_LINK_BENCH` | Debug wrapper around the integrated race runtime. | Runs camera/IMU/SPI. Current flags enable binary camera stream and disable periodic text; tracking LED disabled. |
 | `TEENSY_APP_MODE_RACE` | Integrated runtime intended for running the car. | Serial text, Python stream, and display debug are disabled. |
 | `TEENSY_APP_MODE_HARDWARE_TEST` | Local PCB input and RGB LED self-test. | Prints pot, button, and passive SPI pin levels at `TEENSY_SERIAL_BAUD`; holds READY low so the S32K does not clock the Teensy SPI slave. |
 | `TEENSY_APP_MODE_SD_LOG_TEST` | Local built-in SD card logger self-test. | Creates `LOGnnn.CSV`, logs test rows from pot/button snapshots, prints SD status, and holds READY low. |
@@ -54,6 +54,12 @@ for every mode:
 | `teensy41-hardware-test` | `TEENSY_APP_MODE_HARDWARE_TEST` |
 | `teensy41-sdtest` | `TEENSY_APP_MODE_SD_LOG_TEST` |
 | `teensy41-stack-drive` | `TEENSY_APP_MODE_STACK_DRIVE` |
+
+For combinations and display expectations, see the
+[system mode matrix](../../docs/system/modes.md) and
+[Teensy application guide](../../docs/firmware/teensy.md).
+The optional Camera Bench display uses SSD1306 128x64 and is disabled;
+Stack Drive has a separate SH1122 256x64 dashboard. Race disables displays.
 
 ## PCB Inputs And Status LED
 

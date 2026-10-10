@@ -9,6 +9,8 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=1024"]
+        # Reviewed demonstration videos, approximately 1.2 MiB each.
+        exclude: ^docs/assets/(car-driving|camera-recorder)\.mp4$
       - id: check-yaml
         args: ["--unsafe"]
 

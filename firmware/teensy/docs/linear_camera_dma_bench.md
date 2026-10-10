@@ -1,8 +1,8 @@
 # Teensy Linear Camera DMA Bench
 
 This bench validates camera 0 on the Teensy 4.1 with the TSL1401CL linear CCD.
-It is selected in `src/app/teensy_app_config.h` as
-`TEENSY_APP_MODE_CAMERA_BENCH`.
+Build/upload environment `teensy41-camera-bench`; it selects
+`TEENSY_APP_MODE_CAMERA_BENCH` and the matching mode source filter.
 
 ## Wiring
 
@@ -57,26 +57,27 @@ runtime. Current defaults:
 
 | Output | Default | Notes |
 |---|---:|---|
-| Binary `TCM1` Python stream | enabled | Sends a raw 128-sample frame every 10 ms. |
+| Binary `TCM1` Python stream | enabled | Sends raw 128-sample frame plus local detector result every 10 ms. |
 | Text status line | disabled | Avoids extra USB serial load. |
 | `frame8` text dump | disabled | Avoids long formatted serial bursts. |
 | OLED camera debug | disabled | Avoids I2C timing disturbance while validating signal stability. |
 
-The Python stream uses raw 12-bit ADC values in the `0..4095` range. In camera
-bench mode the stream health fields are valid and the detector fields are
-present, but vision validity is only meaningful in the integrated runtime where
-`CameraVision` is serviced.
+The Python stream uses raw 12-bit ADC values in the `0..4095` range. Camera
+Bench runs its own local line detector; its result is sent to the viewer and
+used by the tracking LED. Its thresholds come from local vision config, not
+SPI. The optional display here uses SSD1306 128x64; the SH1122 dashboard belongs
+to Stack Drive and is a separate path.
 
 Run the viewer from the repository root:
 
 ```bat
-python -m live_camera_viewer --port COM12 --baud 921600
+python tools/python/live_camera_viewer/main.py --port COM12 --baud 921600
 ```
 
 Or specify a different GUI backend:
 
 ```bat
-python -m live_camera_viewer --port COM12 --baud 921600 --gui camera_2d
+python tools/python/live_camera_viewer/main.py --port COM12 --baud 921600 --gui camera_2d
 ```
 
 Available GUI frontends:
@@ -88,8 +89,8 @@ cadence, and plots stream health so missed packets or slow redraws are visible.
 
 ## Vision Runtime
 
-`TEENSY_APP_MODE_LINK_BENCH` and `TEENSY_APP_MODE_RACE` use the same camera
-driver, then process frames through `CameraVision`:
+Link Bench, Race, and Stack Drive use the same camera driver, then process
+frames through `CameraVision`:
 
 ```text
 128-pixel DMA frame

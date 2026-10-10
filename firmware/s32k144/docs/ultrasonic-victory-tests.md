@@ -44,6 +44,8 @@ Behavior:
 
 | Distance | LED | Servo | ESC command |
 |---:|---|---|---:|
+| arming | blue | straight | 0% |
+| driver error | red | straight | 0% |
 | no valid distance | yellow | straight | 0% |
 | above 45 cm | green | straight | 50% |
 | 45 cm to above 8 cm | yellow | straight | `HONOR_SLOW1_SPEED_PCT` |

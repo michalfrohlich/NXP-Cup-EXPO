@@ -2,6 +2,8 @@
 
 Python live graph for the current Teensy TSL1401CL binary camera stream.
 
+[Watch the camera recorder demonstration](../../../docs/assets/camera-recorder.mp4).
+
 The viewer reads fixed-size `TCM1` packets from the serial byte stream. Each
 packet contains the `LinearCameraFrame` sequence, timestamp, and all 128 raw
 12-bit ADC samples. Version 2 packets also include the line detector output.

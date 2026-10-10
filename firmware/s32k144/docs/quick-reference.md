@@ -1,5 +1,9 @@
 # Quick Reference
 
+For board combinations and expected behavior, see the
+[system mode matrix](../../../docs/system/modes.md) and
+[LED/display reference](../../../docs/system/status-led-semantics.md).
+
 ## Purpose
 - `description.txt` describes this as an NXP Cup S32K144 sample project for line following with a linear camera.
 
@@ -25,7 +29,7 @@
 - `include/config/control_config.h`: baseline steering PID and steering signal-shaping constants.
 
 ## Mode selection
-- Exactly one `APP_TEST_*` flag must be enabled.
+- Exactly one build flag from `APP_TEST_*` and `APP_RACE*` must be enabled.
 - Invalid or missing selection is a configuration error.
 - On every S32K boot, the firmware initializes common runtime hardware, prints the active `APP_TEST_*` flag to the host UART, shows the selected build on the OLED for 3 seconds, and runs an RGB LED boot sequence before entering the selected mode.
 - `APP_TEST_LINEAR_CAMERA_TEST` remains available as a standalone compile-time mode for deterministic camera-only testing.
@@ -51,21 +55,22 @@
 - The standalone `APP_TEST_ESC_TEST` path reuses the same ESC bench implementation as the runtime menu: `SW2` hold arms/disarms, `SW3` hold cycles the pot speed cap `30/50/100%`, and the OLED shows the current cap as `L:`.
 - `Servo` uses a setup step where the pot selects `RAW` or `SMOOTH`, `SW2` enters the selected mode, and the live screen then shows raw, filtered, and applied steering values.
 - `APP_TEST_SERVO_RATE_TEST` uses `SW2` to cycle command rates `10/50/100/250 Hz`, `SW3` to cycle angle source `POT/FINE SWEEP/STEP SWEEP`, and the OLED shows frequency, mode, command angle, PWM callback count, plus `BUF` when commands outrun the servo latch or `NOISR` if PWM-period callbacks do not arrive.
-- `Simple test drv` is the old `FINAL_DUMMY` auto-camera drive path turned into a normal bench mode: entering it initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` is pressed and ramps to `FULL_AUTO_SPEED_PCT` while the camera steering loop stays active.
+- `Drive mode-s32k` initializes ESC plus camera/servo, waits through ESC arm time, then starts only after `SW3` and ramps to `FULL_AUTO_SPEED_PCT`. SW3 is not a stop toggle; exit the bench to stop. It has no race-style three-second line-loss latch.
 - `Tune drive mode` is a bench wrapper around the Teensy-camera race flow. It services ESP32 UART tune frames while driving and applies live PID, steering clamp, and steering LPF updates to the race controller. Teensy Link v3 forwards the shared RAM line-detector values to Teensy camera 0 and reports the asynchronously applied configuration generation.
 - `Stack drive` is a bench wrapper around the local S32K-camera race path. It keeps ESP UART tuning and Teensy SPI status service active, ignores missing Teensy camera/SPI as a hard stop source, and reacts to ESP start/stop commands. Stop forces ESC neutral and `STOPPED`; start re-enters ESC arm before driving resumes.
 - `Cable tune` is the UART proof-of-concept moved into the bench modes menu; it keeps the same OLED/UART menu flow, polls UART non-blockingly so it can still be exited through `swPcb`, and now stores tuned values in RAM for the current board-on session.
 - `Camera` and `Cam+Servo` can now also stream a compact live frame packet over the same handwritten UART path for MATLAB visualization; the MATLAB viewers live in the repository-level `tools/matlab/` directory.
   - The camera still runs at full rate; UART debug streaming is intentionally downsampled by `CAM_UART_STREAM_PERIOD_MS` so the PC viewer does not fall behind.
 - Camera consumers process a newly completed frame when `LinearCamera_GetLatestFrame()` reports one ready; the 5 ms app constants now describe UI/control housekeeping rather than camera frame polling.
-- `Cam+Servo`, `Simple test drv`, `Tune drive mode`, and `Stack drive` consume the current session runtime tuning block instead of always rebuilding from `STEERING_DEFAULT_KP`, `STEERING_DEFAULT_KI`, and `STEERING_DEFAULT_KD`.
+- `Drive mode-s32k`, `Tune drive mode`, and `Stack drive` consume session runtime tuning. The menu's `Camera-s32k` and `Cam+Servo-s32k` use compile-time detector defaults; Cam+Servo also uses default controller/local shaping. This differs from the runtime-tuned `camservo_*` helper used by Drive mode-s32k.
+- Standalone races do not service ESP requests. Tune Drive consumes tuning but not Start/Stop. Stack Drive consumes both. See the mode matrix before relying on web controls.
 - Steering PID starts from the namespaced `STEERING_DEFAULT_*` values and uses the shaping knobs `STEER_CENTER_ERR_DEADBAND`, `STEER_ERROR_LPF_ALPHA`, `STEER_D_INPUT_ALPHA`, `STEER_DTERM_LPF_ALPHA`, and `STEER_DTERM_CLAMP`; these filter the vision error and derivative inside `SteeringController_Update()` before app-level servo smoothing is applied. The controller returns only a steering request. Race mode independently owns speed selection, slowdown, ramping, braking/neutral, and safety policy.
 - `Ultrasonic` uses a state-based diagnostic view with `WAIT`, `SCAN`, `CLEAR`, `SLOW`, and `STOP` states driven by enable delay and distance thresholds.
 - `Ultra+ESC` centers the servo, drives both motors at 50% when clear, slows at 45 cm, and stops at 8 cm.
 - `Victory Lap` is a separate pole-detection test: it approaches slowly, stops at 8 cm, then steps through a Mario-style victory note table for future BLDC music support.
 - Honor/race ultrasonic handling now also holds the steering straight once the object is inside the 45 cm slow zone.
-- The Teensy SPI link runs in the `Teensy Link` bench/direct test and in
-  `APP_RACE`. The race path aligns four SPI slots and one
+- The Teensy SPI link runs in the `Teensy Link` bench/direct test, `APP_RACE`,
+  Tune Drive, and Stack Drive. The Teensy-camera race path aligns four SPI slots and one
   averaged controller execution to each 20 ms servo PWM period.
 - In `APP_RACE_S32K_ONLY`, the OLED debug screen is optional, but it must be enabled during ESC arm; after the race starts, `swPcb` only controls refresh of an already-initialized display.
 
@@ -79,7 +84,7 @@
 - Teensy SPI link: `src/drivers/teensy_link.c`, `src/app/modes/bench_teensy_link.c`, and `src/app/modes/mode_teensy_link.c`
 - Unused retained module: `src/unused/display_async.c` is not called by the active runtime; active menu/HUD code lives in `src/app/modes/bench_menu.c` and the mode-specific app modules, and active OLED writes use `src/drivers/display.c`.
 
-## Vision V2 snapshot
+## Line detector snapshot
 - Shared output packet: `VisionOutput_t` in `include/domain/vehicle_types.h`
 - Processing pipeline in `src/services/line_detector.c`:
   - filtered signal

@@ -35,14 +35,17 @@
 | FTM2_CLK | 8 MHz | Linear camera pixel clock PWM uses FTM2 |
 | FTM3_CLK | 8 MHz | Dual ESC outputs and servo PWM use FTM3 |
 | LPI2C0_CLK | 8 MHz | Display driver uses I2C channel 0 |
-| LPIT0_CLK | 8 MHz | GPT channels 1/2/3 map to LPIT0 channels |
+| LPIT0_CLK | 8 MHz | GPT channels 0/1/2 map to LPIT0 channels |
 
 ## Generated GPT channel mapping
 | GPT logical channel | ID | Generated IP |
 | --- | --- | --- |
-| `LinearCameraShutter` | 1 | LPIT0 channel 0 |
-| `EmuTimer_Notification` | 2 | LPIT0 channel 1 |
-| `UsTimer` | 3 | LPIT0 channel 2 |
+| `LinearCameraShutter` | 0 | LPIT0 channel 0 |
+| `EmuTimer_Notification` | 1 | LPIT0 channel 1 |
+| `UsTimer` | 2 | LPIT0 channel 2 |
+
+Handwritten code uses the generated `GptConf_GptChannelConfiguration_*` symbols
+through `board_config.h`, not numeric channel literals.
 
 ## Generated PWM timing that can be derived reliably
 | Logical PWM | Generated mapping | Derived output rate |
@@ -64,21 +67,19 @@
 | Legacy/local-camera steering update period | `src/app/app_config.h` | `10 ms` |
 | Teensy-camera race steering update | `src/app/modes/mode_race.c` | once per `20 ms` PWM period at phase `17 ms` |
 | Servo handwritten commit window | `src/drivers/servo.c` | once per `50 Hz` PWM period while `17 <= phase < 19 ms` |
-| Servo rate test software command cadence | `src/app/app_modes.c` | selectable `10 / 50 / 100 / 250 Hz`; physical PWM output remains `50 Hz` |
+| Servo rate test software command cadence | `src/app/modes/mode_servo_rate.c` | selectable `10 / 50 / 100 / 250 Hz`; physical PWM output remains `50 Hz` |
 | Race display period | `src/app/app_config.h` | `200 ms` |
-| Camera shutter GPT logical channel | `include/config/board_config.h` | 1 |
+| Camera shutter GPT logical channel | `include/config/board_config.h` | `LinearCameraShutter` (0) |
 | Camera frame interval ticks | `include/config/sensor_config.h` | 160000 |
-| Linear camera helper clock | `include/drivers/linear_camera.h` | 8 MHz source / period 800 |
-| EmuTimer period | `src/drivers/timebase.c` | starts GPT ch2 with 8000 ticks for 1 ms |
-| UsTimer period base | generated GPT + LPIT config, `src/drivers/timebase.c` | GPT ch3 -> LPIT0 CH2 at 8 MHz, so `ticksPerUs = 8` is correct |
+| Linear camera helper clock | `include/drivers/linear_camera.h` | 8 MHz source / period 1000 = 8 kHz |
+| EmuTimer period | `src/drivers/timebase.c` | starts `MS_TIMER_CHANNEL` (1) with 8000 ticks for 1 ms |
+| UsTimer period base | generated GPT + LPIT config, `src/drivers/timebase.c` | `US_TIMER_CHANNEL` (2) -> LPIT0 CH2 at 8 MHz; `ticksPerUs = 8` |
 | Servo test update period | `src/app/app_config.h` | `5 ms` |
 | Camera steering hold after line loss | `src/app/app_config.h` | `350 ms` |
 | ESC arm time | `src/app/app_config.h` | `3000 ms` |
 | Full-auto speed ramp period | `src/app/app_config.h` | `20 ms` |
-| NXP Cup ESC extra settle | `src/app/app_config.h` | `1500 ms` |
-| NXP Cup ultrasonic trigger period | `src/app/app_config.h` | `60 ms` |
-| NXP Cup ultrasonic enable delay after run starts | `src/app/app_config.h` | `2000 ms` |
-| NXP Cup ultrasonic stop-hold time | `src/app/app_config.h` | `350 ms` |
+| Ultrasonic trigger period | `include/config/sensor_config.h` | `60 ms` |
+| Race-family line-loss stop threshold | `src/app/app_config.h` | `3000 ms` |
 
 ## Additional derived peripheral timing
 | Item | Generated basis | Derived timing / note |
@@ -89,7 +90,7 @@
 
 ## Verified note
 - `UsTimer` has been verified against generated config:
-  - GPT logical channel `3` maps to `LPIT0 CH2`
+  - GPT logical channel `2` maps to `LPIT0 CH2`
   - `LPIT0_CLK` is `8 MHz`
   - `src/drivers/timebase.c` using `ticksPerUs = 8` is consistent with generated config
 - The previous `48 MHz` wording was a handwritten comment error, not a generated-config mismatch.

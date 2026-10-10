@@ -6,8 +6,10 @@ This document explains how to run the two-board SPI bench test after the
 packet update to protocol v3 while retaining the 84-byte transfer.
 
 The S32K is the main controller and SPI master. The Teensy 4.1 is the sensor
-board and SPI slave. Every 5 ms S32K service tick sends one fixed 84-byte command
-frame and receives one fixed 84-byte Teensy telemetry frame at the same time.
+board and SPI slave. At a nominal 5 ms cadence, when READY permits a transfer,
+S32K sends one fixed 84-byte command frame and receives one fixed 84-byte
+Teensy telemetry frame at the same time. Missed slots are skipped;
+display/debug load can reduce the observed rate in bench modes.
 
 The S32K services this SPI link in the dedicated Teensy Link test, the runtime
 OLED bench test, `APP_RACE`, Tune Drive, and Stack Drive. The dedicated test is
@@ -202,7 +204,7 @@ The current Teensy link bench sends:
 - Physical MPU6050 IMU values when the sensor is present and startup gyro calibration succeeds.
 - Real camera 0 line-detector output when a fresh result is available.
 - Camera 1 stale/missing on purpose.
-- SD logger not ready yet.
+- Logger flags zero: the integrated runtime does not run the standalone SD logger.
 - RX counters from the S32K-to-Teensy direction.
 
 ## Missing Components
@@ -229,12 +231,19 @@ camera may move to the Teensy later.
 
 In VS Code, open `firmware/teensy`.
 
-From `firmware/teensy`, use the PlatformIO terminal:
+For the text-debug procedure below, select Link Bench and set
+`TEENSY_LINK_SERIAL_DEBUG_ENABLED = true` in `include/teensy_config.h` and
+`TEENSY_LINEAR_CAMERA_STREAM_ENABLED = false` in `include/config/camera_config.h`.
+Periodic text is disabled in the checked-in config; the default `teensy41`
+environment is Race and will not print this status. Link Bench otherwise
+enables a binary stream unsuitable for a text monitor.
+
+From `firmware/teensy`, use:
 
 ```bat
-pio run
-pio run -t upload
-pio device monitor -b 921600
+pio run -e teensy41-link-bench
+pio run -e teensy41-link-bench -t upload
+pio device monitor -b 115200
 ```
 
 Expected serial output:
@@ -281,7 +290,7 @@ For direct boot into only the SPI test, use:
 #define APP_TEST_TEENSY_LINK_TEST         1
 ```
 
-Only one `APP_TEST_*` flag may be `1`.
+Exactly one build flag from the `APP_TEST_*` and `APP_RACE*` families may be `1`.
 
 Build and flash the S32K as usual from S32 Design Studio.
 
@@ -319,7 +328,11 @@ RGB LED meaning:
 | Blue | no valid frame yet |
 | Green | live valid link |
 | Yellow | stale frame exists but not live |
-| Red | repeated CRC/protocol/SPI errors |
+| Red | link not live and any recorded CRC/SPI error, or more than 20 protocol errors |
+
+Live status takes priority over historical error counters. `CRC` can replace
+`STALE` in the link text when an old CRC error exists. See
+[LEDs and displays](../system/status-led-semantics.md) for the exact priority.
 
 ## Deterministic Camera Race Mode
 
@@ -407,7 +420,8 @@ Expected:
 
 - `TLINK` status is `OK`.
 - Teensy sequence changes.
-- IMU page shows changing yaw.
+- IMU page shows changing yaw when a valid calibrated IMU is rotated; an
+  absent IMU must not prevent valid link traffic.
 
 If Teensy `rx` increases but S32K stays `WAIT`, MOSI into Teensy may be correct
 but MISO back to S32K is wrong.
@@ -472,14 +486,14 @@ The current ESC API is RC-style throttle PWM, so it cannot directly play real
 BLDC phase music notes yet. The note table is prepared for a future motor-tone
 driver, while the current test remains safe.
 
-## Notes For The Report
+## SPI Design Rationale
 
-Use this wording if you need a short design explanation:
+S32K owns actuator control and initiates transfers to align sensor collection
+with its control schedule. Teensy handles camera acquisition, perception, and
+IMU filtering, then prepares telemetry for the next exchange.
 
-The S32K is kept as the real-time vehicle controller because it already owns
-the motor, servo, display, buttons, and safety modes. The Teensy is used as the
-sensor and logging coprocessor because it has more spare CPU for IMU filtering,
-camera-side processing, SD logging, and later MATLAB/ESP telemetry support. A
-fixed 84-byte SPI packet is used because it gives deterministic timing,
-constant buffer sizes, simple CRC validation, and enough reserved space for the
-second camera, SD status, and future slip-control values.
+Fixed 84-byte full-duplex frames provide constant buffer sizes, a defined CRC
+region, and 1.344 ms wire time at 500 kHz. Nominal 5 ms polling provides four
+transfer slots per 20 ms servo period. Protocol v3 carries camera sequence
+numbers and detector configuration acknowledgments within that fixed layout.
+The second camera and logger fields remain reserved for further integration.

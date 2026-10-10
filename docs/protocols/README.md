@@ -11,7 +11,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 
 **Key Characteristics:**
 - **Type**: Full-duplex SPI, synchronous blocking transfers
-- **Cadence**: 5 ms (200 Hz) fixed service interval
+- **Cadence**: nominal 5 ms (200 Hz) slots, gated by Teensy READY; missed slots are skipped
 - **Frame Size**: Fixed 84 bytes (16 B header + 66 B payload + 2 B CRC)
 - **Clock**: 500 kHz, SPI Mode 0 (CPOL=0, CPHA=0)
 - **Data**: Bidirectional sensor + command exchange
@@ -19,7 +19,7 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
 
 **Documentation Files:**
 
-1. **[S32K bring-up notes](../../firmware/s32k144/docs/teensy-link-spi.md)** - **START HERE**
+1. **[S32K bring-up notes](https://github.com/michalfrohlich/NXP-Cup-EXPO/blob/main/firmware/s32k144/docs/teensy-link-spi.md)**
    - S32K runtime and standalone test-mode usage
    - OLED page behavior for link, camera, IMU, and logger status
    - Timing and link-health expectations
@@ -33,28 +33,31 @@ The **Teensy Link SPI protocol** enables real-time bidirectional communication b
    - Specific bench tests for MOSI, MISO, missing camera, stale, and CRC paths
    - Pointer to the shield V2 pinout in `hardware/shield-v2-pinout.md`
 
-3. **[Shared protocol header](../../shared/protocol/teensy_link_protocol.h)**
+3. **[Shared protocol header](https://github.com/michalfrohlich/NXP-Cup-EXPO/blob/main/shared/protocol/teensy_link_protocol.h)**
    - Versioned 84-byte frame contract
    - Header, payload, flag, and offset definitions
    - Two-camera result slots and IMU/logger fields
 
-4. **[Shared CRC helper](../../shared/protocol/teensy_link_crc.h)**
+4. **[Shared CRC helper](https://github.com/michalfrohlich/NXP-Cup-EXPO/blob/main/shared/protocol/teensy_link_crc.h)**
    - Portable CRC-16/CCITT-FALSE implementation used by both sides
 
 ### Quick Facts
 
 | Aspect | Value | Rationale |
 |--------|-------|-----------|
-| **Latency** | ~1.344 ms per frame | 84 bytes at 500 kHz |
-| **Frequency** | 200 Hz (5 ms) | Matches the current camera/sensor cadence |
+| **Wire time** | ~1.344 ms per transfer | 84 bytes at 500 kHz; excludes software overhead and sensor age |
+| **Frequency** | 200 Hz target (5 ms slots) | READY and foreground scheduling determine actual transfers |
 | **Payload** | 66 B | Control commands + sensor telemetry |
 | **Camera identity** | 16-bit sequence per camera | Rejects repeated telemetry as duplicate camera data |
 | **Error Detection** | CRC-16/CCITT | Catches bit flips, validates on RX |
 | **Sequence Tracking** | 16-bit per direction | Detects dropped frames |
 | **Detector tuning** | S32K generation + Teensy applied-generation ACK | Applies camera-0 thresholds asynchronously |
-| **Stale Timeout** | 100 ms | Marks old sensors as unreliable |
+| **Link stale timeout** | 100 ms | Expires link telemetry; camera and IMU validity have separate checks |
 
 ## ESP32-S32K UART Web Link
+
+Read [Tuning and drive commands](tuning.md) for mode support, editable values,
+request timing, and the separate Teensy configuration acknowledgment.
 
 The ESP32 web UI communicates with the S32K over UART using the shared frame
 definitions in `shared/protocol/esp_s32k_uart_protocol.h`.
@@ -70,25 +73,6 @@ The S32K replies to both request types with `#RnnOXcc_` for accepted or
 `#RnnEXcc_` for rejected. `nn` is the request sequence and `cc` is CRC-8/ATM
 over the frame payload before `X`.
 
-### For Your Engineering Report
-
-**Include:**
-1. Executive summary of the S32K-master, Teensy-slave decision.
-2. Physical layer specs and pin assignments.
-3. Fixed frame structure: 16-byte header, 66-byte payload, 2-byte CRC.
-4. Rationale for fixed-size full-duplex polling at 5 ms.
-5. Pros/cons against UART, I2C, variable-length SPI, and Teensy-master SPI.
-6. Timing budget: about 1.344 ms wire time at 500 kHz inside a 5 ms service slot.
-7. Acceptance behavior: valid CRC/sequence updates, OLED leaves WAIT, stale within 100 ms.
-
-**Recommended Order for Report:**
-1. Start with a block diagram of the S32K master polling the Teensy slave.
-2. Explain the current frame layout from `teensy_link_protocol.h`.
-3. Explain the 5 ms schedule and 100 ms stale timeout.
-4. Show the OLED bring-up mode as the verification path.
-5. Summarize trade-offs and alternatives considered.
-6. Explain the v3 camera sequence/configuration handshake and the 50 Hz PWM-synchronized control schedule.
-
 ### Implementation References
 
 - **Protocol Header**: `shared/protocol/teensy_link_protocol.h`
@@ -99,4 +83,6 @@ over the frame payload before `X`.
 
 ---
 
-**Status**: Protocol v3 with live camera-0 tuning and deterministic race scheduling | Last Updated: July 2026
+Protocol v3 carries camera-0 tuning without changing the 84-byte transfer.
+The [mode matrix](../system/modes.md) identifies which applications service
+each link; the existence of a packet field does not imply an active feature.

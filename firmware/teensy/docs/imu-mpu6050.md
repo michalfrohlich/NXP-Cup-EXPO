@@ -27,8 +27,8 @@ The normal acquisition/service call is in
 | INT | 30 | Data-ready configured; sampling currently uses the 100 Hz scheduler |
 | AD0 | GND or open | Address `0x68`; AD0 high selects `0x69` |
 
-The driver probes both `0x68` and `0x69`. The optional Teensy display path uses
-`Wire1` on pins 17/16, so it does not share the IMU bus.
+The driver probes both `0x68` and `0x69`. Display pins are 17/16 (`Wire1` for
+SSD1306, software I2C for the Stack SH1122 dashboard), separate from the IMU bus.
 
 ## Sensor Configuration
 
@@ -82,7 +82,7 @@ Mounting assumption:
 If the board is mounted differently, change the axis mapping before using
 `lateralG` for slip control.
 
-## Honest Status Reporting
+## Status Flags
 
 The Teensy no longer sends fixed IMU values or always marks the IMU valid.
 
@@ -100,10 +100,17 @@ stale.
 
 ## Run The Physical IMU Test
 
+For the serial output below, use Link Bench with
+`TEENSY_LINK_SERIAL_DEBUG_ENABLED = true` and
+`TEENSY_LINEAR_CAMERA_STREAM_ENABLED = false`. The default Race environment
+does not print these messages; checked-in Link Bench flags enable a binary
+camera stream instead of periodic text. Alternatively use Teensy Stack Drive
+and its SH1122 dashboard together with the S32K Teensy Link test.
+
 ```bat
 cd /d C:\Users\misof\workspaceS32DS.3.6.3\EXPO_03_Nxp_Cup_project\firmware\teensy
-pio run
-pio run -t upload
+pio run -e teensy41-link-bench
+pio run -e teensy41-link-bench -t upload
 pio device list
 pio device monitor -p COM3 -b 115200
 ```
@@ -127,7 +134,8 @@ imu=PCVA imuErr=0 ax=... ay=... az=... gz=... yaw=...
 Checks:
 
 1. Stationary and level: `az` should be close to `+1 g`; `ax` and `ay` near 0.
-2. Tilt the car: roll/pitch values in the SD CSV and S32K packet should change.
+2. Tilt the car: roll/pitch in SPI telemetry should change. Current integrated
+   modes do not log real IMU samples to SD.
 3. Rotate the car flat: `gz` and relative yaw should change.
 4. Leave it still: gyro values should settle near zero after calibration.
 5. Disconnect SDA/SCL: `V` clears, age becomes stale, and `imuErr` increases.
@@ -135,10 +143,11 @@ Checks:
 
 With the S32K Teensy-link test running, open `TLINK IMU/LOG`. Yaw, gyro Z,
 lateral acceleration, and age should follow the real Teensy sample. The Teensy
-dashboard also shows `IMU:PCV`, yaw, and gyro Z.
+Stack Drive dashboard also shows `IMU PCVA` flags, yaw, and gyro Z.
 
-SD logging is not part of this first IMU-only integration. The SPI telemetry
-and serial status output are the validation paths for now.
+SD Test is separate and writes synthetic pot/button data. SPI telemetry,
+Stack Drive display, and explicitly enabled serial text are the IMU validation
+paths.
 
 ## Current Limits
 

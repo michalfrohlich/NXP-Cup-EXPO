@@ -1,5 +1,6 @@
 site_name: NXP Cup Car Firmware
 site_description: Engineering documentation for the multi-board NXP Cup car firmware.
+site_url: https://michalfrohlich.github.io/NXP-Cup-EXPO/
 repo_url: https://github.com/michalfrohlich/NXP-Cup-EXPO
 
 theme:
@@ -25,10 +26,19 @@ markdown_extensions:
 nav:
   - Home: index.md
   - System:
-      - Overview: system/README.md
+      - Architecture And Responsibilities: system/README.md
+      - Modes And Board Combinations: system/modes.md
+      - LEDs And Displays: system/status-led-semantics.md
+      - Testing Guide: system/testing.md
+      - Engineering Findings: system/findings.md
+  - Firmware:
+      - S32K Application: firmware/s32k.md
+      - Teensy Application: firmware/teensy.md
+      - ESP32 Application: firmware/esp32.md
   - Protocols:
       - Overview: protocols/README.md
       - Teensy SPI Test: protocols/teensy-s32k-spi-test.md
+      - Tuning And Drive Commands: protocols/tuning.md
   - Tooling:
       - MkDocs: tooling/mkdocs.md
       - Pre-Commit And Formatting: tooling/pre-commit-and-formatting.md

@@ -69,5 +69,5 @@ firmware/esp32/include/esp32_pin_config.h
 ## Notes
 
 - The screen power pin is 3V3, not VIN.
-- Keep S32K/Teensy SPI wiring short during the first 128-byte packet test.
+- Keep S32K/Teensy SPI wiring short during the 84-byte SPI v3 link test.
 - Share ground between every board before checking any data signal.

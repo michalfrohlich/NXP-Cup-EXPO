@@ -59,7 +59,7 @@ connected; that is expected for this direct local link.
 ## Web Tuning
 
 The page edits the same eight RAM-backed values exposed by the S32K
-`Serial tune` bench item:
+`Cable tune-s32k` bench item:
 
 | Group | Values | Web range |
 |---|---|---:|
@@ -89,6 +89,9 @@ validating and storing the complete snapshot, the S32K replies:
 
 `O` means accepted. `E` is reserved for a rejected, well-formed request.
 The browser reports success only after the matching S32K response arrives.
+This means S32K acceptance, not a Teensy configuration acknowledgment. SPI v3
+forwards detector settings in the relevant modes; see the
+[tuning scope](../../docs/protocols/tuning.md).
 Values remain RAM-only and return to defaults after reset.
 
 The onboard blue LED is a command-pending indicator. It stays on while waiting
@@ -106,6 +109,11 @@ The same page also exposes explicit drive commands:
 result frame used by tuning requests. In the current S32K implementation,
 `Stack drive` reacts to these commands: stop immediately forces neutral and
 enters `STOPPED`; start re-enters ESC arm before normal driving resumes.
+
+Tune Drive consumes ESP tuning only, not drive commands. Standalone
+`APP_RACE` and `APP_RACE_S32K_ONLY` do not service ESP requests. The two ESP
+link tests acknowledge Start/Stop without moving the car. Use the
+[mode matrix](../../docs/system/modes.md) to choose the correct pairing.
 
 ## Source Ownership
 
@@ -169,6 +177,7 @@ The SH1122 256x64 OLED uses:
 | SDA | GPIO21 |
 | SCL | GPIO22 |
 | Address | `0x3C` |
+| Configured I2C clock | 800 kHz |
 | VCC | 3V3 |
 | GND | GND |
 
@@ -195,14 +204,15 @@ The display shows UART diagnostics and one of these network states:
   four-byte-per-iteration TX budget.
 - The ESP32 UART task blocks in the UART driver for up to 20 ms when idle and
   processes received bytes immediately without an additional polling delay.
-- The ESP32 waits 150 ms for a matching result and retries the same sequence
-  once. After 300 ms without a result, the browser receives a timeout error.
+- The ESP32 waits 150 ms per attempt and retries the same sequence once.
+  These waits total 300 ms, excluding mutex wait, UART writes, task scheduling,
+  Wi-Fi, and HTTP overhead. A missing result produces an HTTP 504 response.
 - S32K button state is sampled on its normal button period and queued at least
   every 50 ms. The ESP32 replies to each valid button frame with its existing
   17-byte CRC-protected ACK.
 - The S32K OLED is disabled in the dedicated ESP link test while UART
   reliability is validated. The ESP32 OLED refreshes every 50 ms when
-  connected.
+  initialized, independently of Wi-Fi client association.
 
 ## Deferred
 
